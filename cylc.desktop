@@ -1,0 +1,17 @@
+#!/usr/bin/env xdg-open
+
+#/home/hilary/.local/share/applications/cylc.desktop
+
+[Desktop Entry]
+Version=1.0
+GenericName=Suite Engine
+Comment=suite engine and metascheduler
+Type=Application
+Categories=GTK;
+Exec=/home/hilary/cylc/bin/cylc gui
+Terminal=false
+StartupNotify=true
+NoDisplay=false
+Icon=/home/hilary/cylc/images/icons/128x128/cylc.png
+Name[en_US]=cylc suite engine
+Name=cylc suite engine

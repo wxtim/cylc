@@ -69,8 +69,8 @@ def get_image_dir():
 
 def get_icon():
     """Return the gcylc icon as a gtk.gdk.Pixbuf."""
-    icon_path = os.path.join(get_image_dir(), "icon.png")
-    return gtk.gdk.pixbuf_new_from_file(icon_path)
+    icon_path = os.path.join(get_image_dir(), "icons/128x128/cylc.png")
+    return gtk.gdk.pixbuf_new_from_file_at_size(icon_path, 128, 128)
 
 
 def get_logo():
