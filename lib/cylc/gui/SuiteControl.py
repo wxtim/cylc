@@ -683,7 +683,7 @@ Main Control GUI that displays one or more views or interfaces to the suite.
     def click_exit( self, foo ):
         self.quit()
 
-    def click_open( self, foo=None ):
+    def click_open( self, foo, new_window ):
         app = dbchooser( self.window, self.cfg.db, self.cfg.owner, self.cfg.cylc_tmpdir, self.cfg.pyro_timeout )
         chosen = None
         while True:
@@ -696,10 +696,23 @@ Main Control GUI that displays one or more views or interfaces to the suite.
                     warning_dialog( "Choose a suite or cancel!", self.window ).warn()
             if response == gtk.RESPONSE_CANCEL:
                 break
-        app.updater.quit = True
+        if new_window:
+            # launch a new gcylc instance
+            #command = "gcylc " + chosen + " &"
+            #popen = subprocess.Popen( command, shell=True )
+            try:
+                self.app = ControlApp( chosen, self.cfg.db, self.cfg.owner,
+                        self.cfg.host, self.cfg.port, self.cfg.pyro_timeout, [], None )
+            except Exception, x:
+                print x
+                print 'ASS'
+                raise
+        else: 
+            # switch to the suite in the current window
+            app.updater.quit = True
+            if chosen:
+                self.reset( chosen )
         app.window.destroy()
-        if chosen:
-            self.reset( chosen )
 
     def pause_suite( self, bt ):
         try:
@@ -2099,11 +2112,17 @@ or remove task definitions without restarting the suite."""
         file_menu_root = gtk.MenuItem( '_File' )
         file_menu_root.set_submenu( file_menu )
 
-        open_item = gtk.ImageMenuItem( '_Switch To Another Suite' )
+        open_item = gtk.ImageMenuItem( '_Open (Switch Suites)' )
         img = gtk.image_new_from_stock(  gtk.STOCK_OPEN, gtk.ICON_SIZE_MENU )
         open_item.set_image(img)
-        open_item.connect( 'activate', self.click_open )
+        open_item.connect( 'activate', self.click_open, False )
         file_menu.append( open_item )
+
+        open_item_new = gtk.ImageMenuItem( '_Open (New Window)' )
+        img = gtk.image_new_from_stock(  gtk.STOCK_OPEN, gtk.ICON_SIZE_MENU )
+        open_item_new.set_image(img)
+        open_item_new.connect( 'activate', self.click_open, True )
+        file_menu.append( open_item_new )
 
         reg_new_item = gtk.ImageMenuItem( 'Register A _New Suite' )
         img = gtk.image_new_from_stock(  gtk.STOCK_OPEN, gtk.ICON_SIZE_MENU )
