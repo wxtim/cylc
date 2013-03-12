@@ -227,3 +227,38 @@ class edge( object):
         return TaskID( left, tag )
 
 
+class SuiteGraph( object ):
+    "Abstract graph info parsed from the suite definition."
+    def __init__( self, async_tasks ):
+        self.async_tasks = async_tasks
+        self.edges = {}
+        self.edges['cycling'  ] = [] # edges
+        self.edges['oneoff'   ] = [] # async_oneoff
+        self.edges['repeating'] = [] # async_repeating
+
+    def extract_edges( self, l_names, r, conditional, ttype, cyclr, suicide ):
+        """Add nodes from this graph section to the abstract graph edges structure."""
+        for left in l_names:
+            if left in self.async_oneoff_tasks + self.async_repeating_tasks:
+                sasl = True
+            else:
+                sasl = False
+            e = edge( left, right, cyclr, sasl, suicide, conditional )
+            if ttype == 'async_oneoff':
+                if e not in self.async_oneoff_edges:
+                    self.async_oneoff_edges.append( e )
+            elif ttype == 'async_repeating':
+                if e not in self.async_repeating_edges:
+                    self.async_repeating_edges.append( e )
+            else:
+                # cycling
+                self.edges.append(e)
+
+
+
+
+
+
+
+
+

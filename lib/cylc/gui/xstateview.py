@@ -88,6 +88,7 @@ class xupdater(threading.Thread):
         self.graph_warned = {}
 
         self.group = []
+        self.ungroup = []
         self.ungroup_recursive = False
         self.group_all = False
         self.ungroup_all = False
@@ -316,8 +317,11 @@ class xupdater(threading.Thread):
 
         # TO DO: mv ct().get() out of this call (for error checking):
         # TO DO: remote connection exception handling?
+
         if self.ungroup_all:
+            self.group_all = False
             self.group = []
+
 
         try:
             gr_edges = self.sinfo.get( 'graph raw', ct(oldest).get(), ct(newest).get(),

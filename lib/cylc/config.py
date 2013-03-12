@@ -86,14 +86,13 @@ class config( CylcConfigObj ):
         self.verbose = verbose
         self.strict = strict
         self.naked_dummy_tasks = []
-        self.edges = []
         self.cyclers = []
         self.taskdefs = OrderedDict()
         self.validation = validation
 
-        self.async_oneoff_edges = []
+        self.graph = graphing.SuiteGraph()
+
         self.async_oneoff_tasks = []
-        self.async_repeating_edges = []
         self.async_repeating_tasks = []
         self.cycling_tasks = []
         self.tasks_by_cycler = {}
@@ -1124,11 +1123,16 @@ class config( CylcConfigObj ):
         # get list of pairs
         for i in [0] + range( 1, len(tasks)-1 ):
             lexpression = tasks[i]
-
+            if re.search( '\|', l_expr ):
+                # "OR" conditional trigger
+                conditional = True
+            else:
+                conditional = False
+ 
             if len(tasks) == 1:
                 # single node: no rhs group
                 rgroup = None
-                if re.search( '\|', lexpression ):
+                if conditional:  # TEST ME
                     print >> sys.stderr, orig_line
                     raise SuiteConfigError, "ERROR: Lone node groups cannot contain OR conditionals: " + lexpression
             else:
@@ -1212,31 +1216,9 @@ class config( CylcConfigObj ):
                
                 if not self.validation:
                     # edges not needed for validation
-                    self.generate_edges( lexpression, lnames, r, ttype, cyclr, suicide )
+                    self.graph.extract_edges( lnames, r, conditional, ttype, cyclr, suicide )
                 self.generate_taskdefs( orig_line, lnames, r, ttype, section, cyclr, asyncid_pattern )
                 self.generate_triggers( lexpression, lnames, r, cyclr, asyncid_pattern, suicide )
-
-    def generate_edges( self, lexpression, lnames, right, ttype, cyclr, suicide=False ):
-        """Add nodes from this graph section to the abstract graph edges structure."""
-        conditional = False
-        if re.search( '\|', lexpression ):
-            # plot conditional triggers differently
-            conditional = True
- 
-        sasl = False
-        for left in lnames:
-            if left in self.async_oneoff_tasks + self.async_repeating_tasks:
-                sasl = True
-            e = graphing.edge( left, right, cyclr, sasl, suicide, conditional )
-            if ttype == 'async_oneoff':
-                if e not in self.async_oneoff_edges:
-                    self.async_oneoff_edges.append( e )
-            elif ttype == 'async_repeating':
-                if e not in self.async_repeating_edges:
-                    self.async_repeating_edges.append( e )
-            else:
-                # cycling
-                self.edges.append(e)
 
     def generate_taskdefs( self, line, lnames, right, ttype, section, cyclr, asyncid_pattern ):
         for node in lnames + [right]:
@@ -1372,20 +1354,20 @@ class config( CylcConfigObj ):
             group_nodes=[], group_all=False ):
         """Convert the abstract graph edges held in self.edges (etc.) to
         actual edges for a concrete range of cycle times."""
-        members = self.runtime['first-parent descendants']
-        hierarchy = self.runtime['first-parent ancestors']
+        descendants = self.runtime['first-parent descendants']
+        ancestors = self.runtime['first-parent ancestors']
 
         closed_families = []
 
         if group_all:
             # Group all family nodes
-            closed_familes = copy( members.keys() )
+            closed_familes = copy( descendants.keys() )
             closed_families.remove( 'root' )
         elif len(group_nodes) > 0:
             # Group chosen family nodes
             for node in group_nodes:
                 if node != 'root': # TODO: needed?
-                    parent = hierarchy[node][1]
+                    parent = ancestors[node][1]
                     if parent not in closed_families:
                         closed_families.append( parent )
        # Now define the concrete graph edges (pairs of nodes) for plotting.
@@ -1516,8 +1498,7 @@ class config( CylcConfigObj ):
         # the right of the formatted-name base graph).
         formatted=False
 
-        members = self.runtime['first-parent descendants']
-        #members = self.runtime['descendants']
+        descendants = self.runtime['first-parent descendants']
 
         lname, ltag = None, None
         rname, rtag = None, None
@@ -1537,21 +1518,21 @@ class config( CylcConfigObj ):
         clf = copy( closed_families )
         for i in closed_families:
             for j in closed_families:
-                if i in members[j]:
+                if i in descendants[j]:
                     # i is a member of j
                     if i in clf:
                         clf.remove( i )
 
         for fam in clf:
-            if lname in members[fam] and rname in members[fam]:
-                # l and r are both members of fam
+            if lname in descendants[fam] and rname in descendants[fam]:
+                # l and r are both descendants of fam
                 #nl, nr = None, None  # this makes 'the graph disappear if grouping 'root'
                 nl,nr = fam + TaskID.DELIM +ltag, fam + TaskID.DELIM +rtag
                 break
-            elif lname in members[fam]:
+            elif lname in descendants[fam]:
                 # l is a member of fam
                 nl = fam + TaskID.DELIM + ltag
-            elif rname in members[fam]:
+            elif rname in descendants[fam]:
                 # r is a member of fam
                 nr = fam + TaskID.DELIM + rtag
 
