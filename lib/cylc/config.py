@@ -80,7 +80,7 @@ class config( CylcConfigObj ):
 
     def __init__( self, suite, suiterc, template_vars=[],
             template_vars_file=None, owner=None, run_mode='live',
-            verbose=False, validation=False, strict=False, collapsed=[] ):
+            verbose=False, validation=False, strict=False ):
 
         self.run_mode = run_mode
         self.verbose = verbose
@@ -248,18 +248,6 @@ class config( CylcConfigObj ):
 
         self.compute_inheritance()
 
-        collapsed_rc = self['visualization']['collapsed families']
-        if len( collapsed ) > 0:
-            # this overrides the rc file item
-            self.closed_families = collapsed
-        else:
-            self.closed_families = collapsed_rc
-        for cfam in self.closed_families:
-            if cfam not in self.runtime['descendants']:
-                print >> sys.stderr, 'WARNING, [visualization][collapsed families]: ignoring ' + cfam + ' (not a family)'
-                self.closed_families.remove( cfam )
-        self.vis_families = list(self.closed_families)
-
         # suite event hooks
         if self.run_mode == 'live' or \
                 ( self.run_mode == 'simulation' and not self['cylc']['simulation mode']['disable suite event hooks'] ) or \
@@ -336,6 +324,11 @@ class config( CylcConfigObj ):
         else:
             self['visualization']['initial cycle time'] = 2999010100
             self['visualization']['final cycle time'] = 2999010123
+
+        for fam in self['visualization']['collapsed families']:
+            if fam not in self.runtime['first-parent descendants']:
+                print >> sys.stderr, 'WARNING, [visualization][collapsed families]: ignoring ' + cfam + ' (not a first parent)'
+                self['visualization']['collapsed families'].remove( fam )
 
         # Define family node groups automatically so that family and
         # member nodes can be styled together using the family name.
@@ -1376,48 +1369,32 @@ class config( CylcConfigObj ):
         self.taskdefs[right].add_conditional_trigger( ctrig, expr, cycler )
 
     def get_graph_raw( self, start_ctime, stop, raw=False,
-            group_nodes=[], ungroup_nodes=[], ungroup_recursive=False,
-            group_all=False, ungroup_all=False ):
+            group_nodes=[], group_all=False ):
         """Convert the abstract graph edges held in self.edges (etc.) to
         actual edges for a concrete range of cycle times."""
         members = self.runtime['first-parent descendants']
         hierarchy = self.runtime['first-parent ancestors']
-        #members = self.runtime['descendants']
-        #hierarchy = self.runtime['linearized ancestors']
+
+        closed_families = []
 
         if group_all:
             # Group all family nodes
-            for fam in members:
-                #if fam != 'root':
-                if fam not in self.closed_families:
-                    self.closed_families.append( fam )
-        elif ungroup_all:
-            # Ungroup all family nodes
-            self.closed_families = []
+            closed_familes = copy( members.keys() )
+            closed_families.remove( 'root' )
         elif len(group_nodes) > 0:
             # Group chosen family nodes
             for node in group_nodes:
-                if node != 'root':
+                if node != 'root': # TODO: needed?
                     parent = hierarchy[node][1]
-                    if parent not in self.closed_families:
-                        self.closed_families.append( parent )
-        elif len(ungroup_nodes) > 0:
-            # Ungroup chosen family nodes
-            for node in ungroup_nodes:
-                if node in self.closed_families:
-                    self.closed_families.remove(node)
-                if ungroup_recursive:
-                    for fam in copy(self.closed_families):
-                        if fam in members[node]:
-                            self.closed_families.remove(fam)
-
-        # Now define the concrete graph edges (pairs of nodes) for plotting.
+                    if parent not in closed_families:
+                        closed_families.append( parent )
+       # Now define the concrete graph edges (pairs of nodes) for plotting.
         gr_edges = []
 
         for e in self.async_oneoff_edges + self.async_repeating_edges:
             right = e.get_right(1, False, False, [], [])
             left  = e.get_left( 1, False, False, [], [])
-            nl, nr = self.close_families( left, right )
+            nl, nr = self.close_families( left, right, closed_families )
             gr_edges.append( (nl, nr, False, e.suicide, e.conditional) )
 
         # Get actual first real cycle time for the whole suite (get all
@@ -1470,7 +1447,7 @@ class config( CylcConfigObj ):
                         action = False
 
                 if action:
-                    nl, nr = self.close_families( l_id, r_id )
+                    nl, nr = self.close_families( l_id, r_id, closed_families )
                     gr_edges.append( ( nl, nr, False, e.suicide, e.conditional ) )
 
                 # increment the cycle time
@@ -1479,19 +1456,16 @@ class config( CylcConfigObj ):
         return gr_edges
  
     def get_graph( self, start_ctime, stop, colored=True, raw=False,
-            group_nodes=[], ungroup_nodes=[], ungroup_recursive=False,
-            group_all=False, ungroup_all=False ):
+            group_nodes=[], group_all=False ):
 
-        # TO DO: this method could be put in the graphing module? It is
+        # TODO: this method could be put in the graphing module? It is
         # currently duplicated in xstateview.py.
 
-        # get_graph_raw is factored out here because the graph control
-        # GUI has to retrieve the raw graph, because the PyGraphviz 
-        # graph object does not seem to be serializable (pickle error)
-        # for Pyro.
+        # get_graph_raw is factored out here because gcylc has to
+        # retrieve the raw graph, and because the PyGraphviz graph
+        # object does not seem to be serializable for Pyro.
         gr_edges = self.get_graph_raw( start_ctime, stop, raw,
-                group_nodes, ungroup_nodes, ungroup_recursive,
-                group_all, ungroup_all )
+                group_nodes, group_all )
 
         # Get a graph object
         if colored:
@@ -1532,7 +1506,7 @@ class config( CylcConfigObj ):
 
         return graph
 
-    def close_families( self, nlid, nrid ):
+    def close_families( self, nlid, nrid, closed_families ):
         # Generate final node names, replacing family members with
         # family nodes if requested.
 
@@ -1560,9 +1534,9 @@ class config( CylcConfigObj ):
             nr = nrid.getstr(formatted)
 
         # for nested families, only consider the outermost one
-        clf = copy( self.closed_families )
-        for i in self.closed_families:
-            for j in self.closed_families:
+        clf = copy( closed_families )
+        for i in closed_families:
+            for j in closed_families:
                 if i in members[j]:
                     # i is a member of j
                     if i in clf:

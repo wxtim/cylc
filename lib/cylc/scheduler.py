@@ -151,10 +151,6 @@ class scheduler(object):
                 help="Do a test run against a previously generated reference log.",
                 action="store_true", default=False, dest="reftest" )
 
-        self.parser.add_option( "--from-gui", help=\
-                "(do not use).",
-                action="store_true", default=False, dest="from_gui" )
-
         self.parse_commandline()
 
         # global config
@@ -173,7 +169,6 @@ class scheduler(object):
                 'task info'         : self.info_get_task_info,
                 'family nodes'      : self.info_get_family_nodes,
                 'graphed family nodes' : self.info_get_graphed_family_nodes,
-                'vis families'      : self.info_get_vis_families,
                 'first-parent ancestors'    : self.info_get_first_parent_ancestors,
                 'first-parent descendants'  : self.info_get_first_parent_descendants,
                 'do live graph movie'       : self.info_do_live_graph_movie,
@@ -276,7 +271,7 @@ class scheduler(object):
         self.initial_oldest_ctime = self.get_oldest_c_time()
 
         # REMOTELY ACCESSIBLE SUITE STATE SUMMARY
-        self.suite_state = state_summary( self.config, self.run_mode, self.initial_oldest_ctime, self.from_gui )
+        self.suite_state = state_summary( self.config, self.run_mode, self.initial_oldest_ctime )
         self.pyro.connect( self.suite_state, 'state_summary')
 
         # initial cycle time
@@ -390,9 +385,6 @@ class scheduler(object):
     def info_get_graphed_family_nodes( self ):
         return self.config.families_used_in_graph
 
-    def info_get_vis_families( self ):
-        return self.config.vis_families
-
     def info_get_first_parent_descendants( self ):
         # families for single-inheritance hierarchy based on first parents
         return deepcopy(self.config.get_first_parent_descendants())
@@ -405,11 +397,9 @@ class scheduler(object):
         # single-inheritance hierarchy based on first parents
         return deepcopy(self.config.get_first_parent_ancestors() )
 
-    def info_get_graph_raw( self, cto, ctn, raw, group_nodes, ungroup_nodes,
-            ungroup_recursive, group_all, ungroup_all ):
+    def info_get_graph_raw( self, cto, ctn, raw, group_nodes, group_all ):
         # TO DO: CAN WE OMIT THE MIDDLE MAN HERE?
-        return self.config.get_graph_raw( cto, ctn, raw, group_nodes,
-                ungroup_nodes, ungroup_recursive, group_all, ungroup_all)
+        return self.config.get_graph_raw( cto, ctn, raw, group_nodes, group_all )
 
     def info_get_task_requisites( self, in_ids ):
         in_ids_real = {}
@@ -793,11 +783,6 @@ class scheduler(object):
             self.logging_level = logging.DEBUG
         else:
             self.logging_level = logging.INFO
-
-        if self.options.from_gui:
-            self.from_gui = True
-        else:
-            self.from_gui = False
 
     def configure_pyro( self ):
         # CONFIGURE SUITE PYRO SERVER

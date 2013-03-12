@@ -153,8 +153,7 @@ class MyDotWindow2( xdot.DotWindow ):
             try:
                 self.suiterc = config.config( self.suite, self.file,
                         template_vars=self.template_vars,
-                        template_vars_file=self.template_vars_file,
-                        collapsed=self.suiterc.closed_families )
+                        template_vars_file=self.template_vars_file )
             except Exception, x:
                 print >> sys.stderr, "Failed to reload suite.rc file (parsing error?)."
                 print >> sys.stderr, x
@@ -367,8 +366,7 @@ class MyDotWindow( xdot.DotWindow ):
             try:
                 self.suiterc = config.config( self.suite, self.file, 
                         template_vars=self.template_vars,
-                        template_vars_file=self.template_vars_file,
-                        collapsed=self.suiterc.closed_families )
+                        template_vars_file=self.template_vars_file )
             except Exception, x:
                 print >> sys.stderr, "Failed to reload suite.rc file (parsing error?):"
                 print >> sys.stderr, x

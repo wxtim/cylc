@@ -149,7 +149,7 @@ Dependency graph suite control interface.
         ungroup_item = gtk.ImageMenuItem( 'UnGroup' )
         img = gtk.image_new_from_stock( 'ungroup', gtk.ICON_SIZE_MENU )
         ungroup_item.set_image(img)
-        ungroup_item.set_sensitive( name not in self.t.ungroup )
+        ungroup_item.set_sensitive( name in self.t.group )
         ungroup_item.connect( 'activate', self.grouping, name, False )
 
         ungroup_rec_item = gtk.ImageMenuItem( 'Recursive UnGroup' )
@@ -171,10 +171,10 @@ Dependency graph suite control interface.
         menu.append( gtk.SeparatorMenuItem() )
         menu.append( group_item )
         menu.append( ungroup_item )
-        menu.append( ungroup_rec_item )
+        #menu.append( ungroup_rec_item )
 
         if type == 'live task':
-            is_fam = (name in self.t.families)
+            is_fam = (name in self.t.descendants)
             default_menu = self.get_right_click_menu( task_id, hide_task=True,
                                                       task_is_family=is_fam )
             for item in default_menu.get_children():
@@ -196,7 +196,7 @@ Dependency graph suite control interface.
         if group:
             self.t.group.append(name)
         else:
-            self.t.ungroup.append(name)
+            self.t.group.remove(name)
         self.t.action_required = True
         self.t.best_fit = True
 

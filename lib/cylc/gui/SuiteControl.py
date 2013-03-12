@@ -857,7 +857,7 @@ been defined for this suite""").inform()
             optgroups, mode_live_rb, mode_sim_rb, mode_dum_rb, hold_cb,
             holdtime_entry ):
 
-        command = 'cylc control run --from-gui ' + self.cfg.template_vars_opts
+        command = 'cylc control run ' + self.cfg.template_vars_opts
         options = ''
         method = ''
         if coldstart_rb.get_active():
@@ -870,7 +870,7 @@ been defined for this suite""").inform()
             options += ' -r'
         elif restart_rb.get_active():
             method = 'restart'
-            command = 'cylc control restart --from-gui ' + self.cfg.template_vars_opts
+            command = 'cylc control restart ' + self.cfg.template_vars_opts
 
         if mode_live_rb.get_active():
             pass
@@ -1733,14 +1733,12 @@ shown here in the state they were in at the time of triggering.''' )
         box.pack_start(gtk.Label( 'Mode' ),True)
         mode_live_rb = gtk.RadioButton( None, "live" )
         box.pack_start (mode_live_rb, True)
-        mode_sim_rb = gtk.RadioButton( mode_live_rb, "simulation" )
-        box.pack_start (mode_sim_rb, True)
         mode_dum_rb = gtk.RadioButton( mode_live_rb, "dummy" )
         box.pack_start (mode_dum_rb, True)
-
+        mode_sim_rb = gtk.RadioButton( mode_live_rb, "simulation" )
+        box.pack_start (mode_sim_rb, True)
         mode_live_rb.set_active(True)
         vbox.pack_start( box )
-
 
         nvbox = gtk.VBox()
         nhbox = gtk.HBox()

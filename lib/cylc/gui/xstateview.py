@@ -30,7 +30,6 @@ import sys
 import threading
 from time import sleep
 
-
 try:
     any
 except NameError:
@@ -40,7 +39,6 @@ except NameError:
             if entry:
                 return True
         return False
-
 
 class xupdater(threading.Thread):
     def __init__(self, cfg, theme, info_bar, xdot ):
@@ -63,7 +61,7 @@ class xupdater(threading.Thread):
         self.filter_exclude = None
         self.state_filter = None
 
-        self.families = []
+        self.descendants = []
         self.family_nodes = []
         self.graphed_family_nodes = []
         self.live_graph_movie = False
@@ -90,7 +88,6 @@ class xupdater(threading.Thread):
         self.graph_warned = {}
 
         self.group = []
-        self.ungroup = []
         self.ungroup_recursive = False
         self.group_all = False
         self.ungroup_all = False
@@ -114,7 +111,7 @@ class xupdater(threading.Thread):
             # on reconnection retrieve static info
             self.family_nodes = self.sinfo.get( 'family nodes' )
             self.graphed_family_nodes = self.sinfo.get( 'graphed family nodes' )
-            self.families = self.sinfo.get( 'first-parent descendants' )
+            self.descendants = self.sinfo.get( 'first-parent descendants' )
             self.live_graph_movie, self.live_graph_dir = self.sinfo.get( 'do live graph movie' )
         except:
             # connection lost
@@ -167,7 +164,7 @@ class xupdater(threading.Thread):
 
     def get_summary( self, task_id ):
         return get_id_summary( task_id, self.state_summary,
-                               self.fam_state_summary, self.families )
+                               self.fam_state_summary, self.descendants )
 
     def update(self):
         #print "Updating"
@@ -319,10 +316,13 @@ class xupdater(threading.Thread):
 
         # TO DO: mv ct().get() out of this call (for error checking):
         # TO DO: remote connection exception handling?
+        if self.ungroup_all:
+            self.group = []
+
         try:
             gr_edges = self.sinfo.get( 'graph raw', ct(oldest).get(), ct(newest).get(),
-                    rawx, self.group, self.ungroup, self.ungroup_recursive, 
-                    self.group_all, self.ungroup_all) 
+                    rawx, self.group, self.group_all ) 
+            # TODO: restore ungroup_recursive
         except Exception:  # PyroError
             return False
 
@@ -336,10 +336,19 @@ class xupdater(threading.Thread):
                 break
             except KeyError:
                 name, tag = id.split(TaskID.DELIM)
-                if any( [name in self.families[fam] for
-                         fam in self.graphed_family_nodes] ):
-                    # if task name is a member of a family omit it
-                    #print 'Not graphing family-collapsed node', id
+                #if any( [name in self.descendants[fam] for
+                #         fam in self.collapsed_family_nodes] ):
+                skip = False
+                print name
+                for fam in self.group:
+                    print '  ', fam
+                    print '      ', self.descendants[fam]
+                    if name in self.descendants[fam]:
+                        # if task name is a member of a family omit it
+                        print 'Not graphing collapsed node (1)', id
+                        skip = True
+                        break
+                if skip:
                     continue
 
                 state = self.state_summary[id]['state']
@@ -377,11 +386,10 @@ class xupdater(threading.Thread):
             n.attr['fillcolor'] = 'white'
             n.attr['fontcolor'] = '#888888'
 
-        self.group = []
-        self.ungroup = []
-        self.group_all = False
-        self.ungroup_all = False
-        self.ungroup_recursive = False
+        #self.group = []
+        #self.group_all = False
+        #self.ungroup_all = False
+        #self.ungroup_recursive = False
 
         self.rem_nodes = []
 
@@ -430,11 +438,13 @@ class xupdater(threading.Thread):
             self.graphw.remove_nodes_from( self.rem_nodes )
 
         #print '____'
-        #print self.families
+        #print self.descendants
         #print
         #print self.family_nodes
         #print 
         #print self.graphed_family_nodes
+        #print
+        #print self.collapsed_family_nodes
         #print '____'
 
         for id in self.state_summary:
@@ -455,10 +465,19 @@ class xupdater(threading.Thread):
                 # member states listed in tool-tips, don't draw
                 # off-graph family members:
                 name, tag = id.split(TaskID.DELIM)
-                if any( [name in self.families[fam] for
-                         fam in self.graphed_family_nodes] ):
-                    # if task name is a member of a family omit it
-                    #print 'Not graphing family-collapsed node', id
+                #if any( [name in self.descendants[fam] for
+                #         fam in self.collapsed_family_nodes] ):
+                skip = False
+                print name
+                for fam in self.group:
+                    # ARGH: group is for members; ungroup for families!
+                    print '   x', fam, self.descendants[fam]
+                    if name in self.descendants[fam]:
+                        # if task name is a member of a family omit it
+                        print 'Not graphing collapsed node (2)', id
+                        skip = True
+                        break
+                if skip:
                     continue
 
                 if id not in self.graph_warned or not self.graph_warned[id]:
