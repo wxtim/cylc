@@ -180,6 +180,17 @@ class task( object ):
         self.suite_name = os.environ['CYLC_SUITE_NAME']
         self.validate = validate
 
+        # In case task owner and host are needed by record_db_event()
+        # for pre-submission events, set their initial values as if
+        # local (we can't know the correct host prior to this because 
+        # dynamic host selection could be used).
+        self.task_host = 'localhost'
+        self.task_owner = user 
+        self.user_at_host = self.task_owner + "@" + self.task_host
+
+        self.submit_method_id = None
+        self.job_sub_method = None
+
         # sets submit num for restarts or when triggering state prior to submission
         if self.validate: # if in validate mode bypass db operations
             self.submit_num = 0
@@ -363,10 +374,6 @@ class task( object ):
         """Check retry delay config (execution and submission) and return
         a deque of individual delay values (multipliers expanded out)."""
 
-        # coerce single values to list (see warning in conf/suiterc/runtime.spec)
-        if not isinstance( cfg, list ):
-            cfg = [ cfg ]
-
         values = []
         for item in cfg:
             try:
@@ -500,6 +507,8 @@ class task( object ):
 
         # dynamic instantiation - don't know job sub method till run time.
         module_name = rtconfig['job submission']['method']
+        self.job_sub_method = module_name
+
         class_name  = module_name
         # NOTE: not using__import__() keyword arguments:
         #mod = __import__( module_name, fromlist=[class_name] )
@@ -630,9 +639,9 @@ class task( object ):
 
         # if timed out, queue the event handler turn off the timer
         current_time = task.clock.get_datetime()
-        cutoff = self.submission_timer_start + datetime.timedelta( minutes=float(timeout) )
+        cutoff = self.submission_timer_start + datetime.timedelta( minutes=timeout )
         if current_time > cutoff:
-            msg = 'task submitted ' + timeout + ' minutes ago, but has not started'
+            msg = 'task submitted ' + str(timeout) + ' minutes ago, but has not started'
             self.log( 'WARNING', msg )
             self.log( 'NORMAL', "Queueing submission_timeout event handler" )
             self.__class__.event_queue.put( ('submission_timeout', handler, self.id, msg) )
@@ -654,13 +663,13 @@ class task( object ):
                 return
         # if timed out, queue the event handler turn off the timer
         current_time = task.clock.get_datetime()
-        cutoff = self.execution_timer_start + datetime.timedelta( minutes=float(timeout) )
+        cutoff = self.execution_timer_start + datetime.timedelta( minutes=timeout )
         if current_time > cutoff:
             if self.reset_timer:
                 # the timer is being re-started by incoming messages
-                msg = 'last message ' + timeout + ' minutes ago, but has not succeeded'
+                msg = 'last message ' + str(timeout) + ' minutes ago, but has not succeeded'
             else:
-                msg = 'task started ' + timeout + ' minutes ago, but has not succeeded'
+                msg = 'task started ' + str(timeout) + ' minutes ago, but has not succeeded'
             self.log( 'WARNING', msg )
             self.log( 'NORMAL', "Queueing execution_timeout event handler" )
             self.__class__.event_queue.put( ('execution_timeout', handler, self.id, msg) )
