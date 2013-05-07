@@ -21,20 +21,8 @@ import logging
 from global_config import gcfg
 import datetime
 
-"""SUITE HOST IDENTIFICATION IN CYLC: to avoid potential delays
-due to host lookup, the suite host self-identifies to local tasks as
-'localhost', requiring no host lookup. If there are any remote tasks,
-suite host lookup is done once in the job submission thread when the
-first remote task is about to be submitted (and then remembered here for
-other remote tasks).
-TASK HOST IDENTIFICATION IN CYLC: if a task specifies 'localhost' or no
-host at all under [remote] it will be treated as a local task; otherwise
-it will be submitted by ssh as a remote task even if it is actually a
-local task.  This allows us to avoid doing any host lookup for suites
-containing only local tasks, and also to test remote hosting
-functionality without an actual remote host, by specifying the
-suite host's external host name or IP address as a task host, rather
-than 'localhost'.""" 
+"""SUITE HOSTS must determine their own external IP address or hostname
+for use by tasks. Host lookup can cause delays so we only do it once.""" 
 
 log = logging.getLogger( "main" )
  
