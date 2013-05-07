@@ -24,6 +24,8 @@ import datetime
 """SUITE HOSTS must determine their own external IP address or hostname
 for use by tasks. Host lookup can cause delays so we only do it once.""" 
 
+REMEMBER EACH IP ADDRESS DETERMINED IN IS_REMOTE_HOST()?
+
 log = logging.getLogger( "main" )
  
 host = None
@@ -117,6 +119,20 @@ def get_host():
 
     return host
  
+def is_remote_host(other):
+    """Return True if name has different IP address than the current host.
+    Return False if name is None.  Abort if host is unknown.
+    """
+    if not name or other == "localhost":
+        return False
+    try:
+        ipa = socket.gethostbyname(other) 
+    except Exception, e:
+        print >> sys.stderr, str(e)
+        raise Exception( 'ERROR, host not found: ' + other )
+    return other and ipa != host_ip_address and ipa != local_ip_address
+
+
 if __name__ == "__main__":
 
     target = sys.argv[1]
