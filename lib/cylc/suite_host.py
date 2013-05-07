@@ -21,8 +21,20 @@ import logging
 from global_config import gcfg
 import datetime
 
-"""SUITE HOSTS must determine their own external IP address or hostname
-for use by tasks. Host lookup can cause delays so we only do it once.""" 
+"""Task proxies must determine the external hostname (or IP address) of
+the suite host for use by their tasks. This module remembers the value
+so that the host lookup only has to be done once (it can cause delays).
+
+Task proxies must also know if they represent remote tasks, and thus
+whether to use ssh in the job submission command or not. A host look-up
+is therefore required for each task host too, for comparison with the
+suite host, so we also remember each host look-up result for re-use.
+
+We cannot simply have local tasks use 'localhost' as the suite host
+because this will result in 'localhost' being written to the suite
+contact file (written to task hosts by the first task proxy on the host,
+just prior to job submission) - and this will screw up systems with
+common file systems between suite and task host.""" 
 
 REMEMBER EACH IP ADDRESS DETERMINED IN IS_REMOTE_HOST()?
 
