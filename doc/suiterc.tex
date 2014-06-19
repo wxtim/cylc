@@ -530,6 +530,20 @@ possible to arrive at a sensible default for all suites.
 
 This section allows cylc to determine when tasks are ready to run.
 
+\subsubsection[cycling]{ [scheduling] $\rightarrow$ cycling mode }
+\label{cycling-mode}
+
+Cylc runs using the proleptic Gregorian calendar by default. This item allows
+you to either run the suite using the 360 day calendar (12 months of 30 days 
+in a year) or using integer cycling.
+
+\begin{myitemize}
+    \item {\em type:} string
+    \item {\em legal values:} gregorian, 360day, integer
+    \item {\em default:} gregorian
+    
+\end{myitemize}
+
 \subsubsection[initial cycle point]{[scheduling] $\rightarrow$ initial cycle point}
 
 At startup each cycling task (unless specifically excluded under
@@ -567,32 +581,20 @@ the \ref{cycle-point-time-zone} if that is set.
     \item {\em default:} (none)
 \end{myitemize}
 
-\subsubsection[cycling]{ [scheduling] $\rightarrow$ cycling mode }
-\label{cycling-mode}
+\subsubsection[runahead limit]{[scheduling] $\rightarrow$ runahead limit}
+\label{RunaheadLimitRef}
 
-Cylc runs using the proleptic Gregorian calendar by default. This item allows
-you to either run the suite using the 360 day calendar (12 months of 30 days 
-in a year) or using integer cycling.
+The runahead limit determines how far the fastest tasks in a suite
+can get ahead of the slowest ones. Tasks exceeding the runahead 
+limit go into a special held state until others have caught up
+sufficiently. The default runahead limit is twice the smallest cycling
+interval specified in the dependency graph. See also 
+Section~\ref{RunaheadLimit}.
 
 \begin{myitemize}
-    \item {\em type:} string
-    \item {\em legal values:} gregorian, 360day, integer
-    \item {\em default:} gregorian
-    
-\end{myitemize}
-
-
-\subsubsection[runahead limit]{[scheduling] $\rightarrow$ runahead factor}
-
-The suite runahead limit prevents the fastest tasks in a suite from
-getting too far ahead of the slowest ones, as documented in
-Section~\ref{RunaheadLimit}. Tasks exceeding the limit are put into
-a special runahead held state until slower tasks have caught up
-sufficiently. The limit computed as this factor of the suite's minimum
-cycling interval.
-\begin{myitemize}
-    \item {\em type:} integer multiple of the suite's minimum cycling interval
-    \item {\em default:} $2$
+    \item {\em type:} an ISO8601 duration (e.g. `P1D') or an integer
+        duration for integer cycling.
+    \item {\em default:} (twice the smallest cycling interval)
 \end{myitemize}
 
 \subsubsection[{[[}queues{]]}]{[scheduling] $\rightarrow$ [[queues]]}
