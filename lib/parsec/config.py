@@ -19,7 +19,7 @@
 import os, sys, re
 from fileparse import parse, FileNotFoundError
 from util import printcfg
-from validate import validate, check_compulsory, expand, validator
+from validate import validate_and_coerce, expand, validator
 from OrderedDict import OrderedDict
 from util import replicate, itemstr
 from upgrade import UpgradeError
@@ -53,6 +53,7 @@ class config( object ):
         self.write_proc = write_proc
         self.checkspec( spec )
         self.spec = spec
+        self.illegal_keys = {}
 
     def checkspec( self, spec, parents=[] ):
         "check that the file spec is a nested dict of validators"
@@ -99,6 +100,7 @@ class config( object ):
                     print >> sys.stderr, "WARNING: " + title + " validation failed"
 
             else:
+                self.report_result(rcfile)
                 if not self.sparse:
                     self.sparse = sparse
                 else:
@@ -107,8 +109,17 @@ class config( object ):
 
     def validate( self, sparse ):
         "Validate sparse config against the file spec."
-        validate( sparse, self.spec )
-        check_compulsory( sparse, self.spec )
+        self.illegal_keys.update( validate_and_coerce( sparse, self.spec ))
+
+    def report_result( self, rcfile ):
+        n_bad = len(self.illegal_keys.keys())
+        if n_bad > 0:
+            print >> sys.stderr, 'WARNING', n_bad, 'illegal keys ignored in %s:' % rcfile
+            for key, val in self.illegal_keys.items():
+                print >> sys.stderr, ' *', key, '=', val
+            return False
+        else:
+            return True
 
     def expand( self ):
         "Flesh out undefined items with defaults, if any, from the spec."

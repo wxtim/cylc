@@ -88,6 +88,8 @@ _TRIPLE_QUOTE = {
     '"""': (_SINGLE_LINE_DOUBLE, _MULTI_LINE_DOUBLE),
 }
 
+ignored_lines = {}
+
 class ParseError( Exception ):
     def __init__( self, reason, index=None, line=None ):
         self.msg = "ParseError: " + reason
@@ -207,11 +209,12 @@ def multiline( flines, value, index, maxline ):
     return quot + newvalue + line, index
 
 def read_and_proc( fpath, template_vars=[], template_vars_file=None, viewcfg=None, asedit=False ):
-    """
-    Read a cylc parsec config file (at fpath), inline any include files,
-    process with Jinja2, and concatenate continuation lines.
-    Jinja2 processing must be done before concatenation - it could be
+    """Read and process a parsec config file.
+    
+    Inline include files, process with Jinja2, and concatenate continuation
+    lines.  Jinja2 processing must be done before concatenation as it could be
     used to generate continuation lines.
+
     """
     if not os.path.isfile( fpath ):
         raise FileNotFoundError, 'File not found: ' + fpath
@@ -344,6 +347,13 @@ def parse( fpath, write_proc=False,
                 addict( config, key, val, parents, index )
             else:
                 # no match
-                raise ParseError( 'Invalid line ' + str(index+1) + ': ' + line )
+                ignored_lines[index+1] = line
+                #raise ParseError( 'Invalid line ' + str(index+1) + ': ' + line )
+
+    n_bad = len(ignored_lines.keys())
+    if n_bad > 0:
+        print >> sys.stderr, "WARNING %4d illegal lines ignored in %s:" % (n_bad, fpath)
+        for n, line in ignored_lines.items():
+            print >> sys.stderr, " * line %4d: %s" % (n, line)
 
     return config

@@ -30,7 +30,7 @@ from cylc import cylc_pyro_client
 from cylc.command_prep import prep_pyro
 from cylc.print_tree import print_tree
 import cylc.TaskID as TaskID
-from parsec.validate import validate
+from parsec.validate import validate_and_coerce
 from cylc.cfgspec.suite import SPEC
 import cylc.flags
 
@@ -255,8 +255,7 @@ for u in options.cancel:
 
 for setting in settings:
     try:
-        # validate items and coerce values
-        validate( setting, SPEC['runtime']['__MANY__'] )
+        validate_and_coerce( setting, SPEC['runtime']['__MANY__'] )
     except Exception,x:
         if debug:
             raise

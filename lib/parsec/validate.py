@@ -60,52 +60,49 @@ class IllegalItemError( ValidationError ):
         msg = 'Illegal item: ' + itemstr( keys, key )
         ValidationError.__init__( self, msg )
 
-def validate( cfig, spec, keys=[] ):
+def validate_and_coerce( cfig, spec, keys=[] ):
     """Validate and coerce a nested dict against a parsec spec."""
+    illegal_keys={}
     for key,val in cfig.items():
         if key not in spec:
             if '__MANY__' not in spec:
-                raise IllegalItemError( keys, key )
+                illegal_keys[itemstr(keys,key)] = val
+                del cfig[key]
+                continue
             else:
-                # only accept the item if it's value is of the same type
-                # as that of the __MANY__  item, i.e. dict or not-dict.
+                # only accept the item if its value is of the same type
+                # as that of the __MANY__ item, i.e. dict or not-dict.
                 val_is_dict = isinstance( val, dict )
                 spc_is_dict = isinstance( spec['__MANY__'], dict )
                 if ( val_is_dict and spc_is_dict ) or \
                         ( not val_is_dict and not spc_is_dict ):
                     speckey = '__MANY__'
                 else:
-                    raise IllegalItemError( keys, key )
+                    illegal_keys[itemstr(keys,key)] = val
+                    del cfig[key]
+                    continue
         else:
             speckey = key
         specval = spec[speckey]
         if isinstance( val, dict ) and isinstance( specval, dict):
-            validate( val, spec[speckey], keys+[key] )
+            res = validate_and_coerce( val, spec[speckey], keys+[key] )
+            illegal_keys.update( res )
         elif val and not isinstance( specval, dict):
             # (if val is null we're only checking item validity)
-            cfig[key] = spec[speckey].check( val, keys+[key] )
+            try:
+                cfig[key] = spec[speckey].coerce( val, keys+[key] )
+            except IllegalValueError:
+                illegal_keys[itemstr(keys,key)] = val
+                del cfig[key]
+                continue
         else:
             #raise IllegalItemError( keys, key )
             # THIS IS OK: blank value
             # TODO - ANY OTHER POSSIBILITIES?
             #print 'VAL:', val, '::', keys + [key]
             pass
-
-def check_compulsory( cfig, spec, keys=[] ):
-    """Check compulsory items are defined in cfig."""
-    for key,val in spec.items():
-        if isinstance( val, dict ):
-            check_compulsory( cfig, spec[key], keys+[key] )
-        else:
-            if val.args['compulsory']:
-                cfg = cfig
-                try:
-                    for k in keys + [key]:
-                        cfg = cfg[k]
-                except KeyError:
-                    # TODO - raise an exception
-                    print >> sys.stderr, "COMPULSORY ITEM MISSING", keys + [key]
-
+    return illegal_keys
+    
 def _populate_spec_defaults( defs, spec ):
     """Populate a nested dict with default values from a spec."""
     for key,val in spec.items():
@@ -305,7 +302,7 @@ class validator(object):
 
     def __init__( self, vtype='string', default=None,
             options=[], vmin=None, vmax=None,
-            allow_zeroes=True, compulsory=False ):
+            allow_zeroes=True ):
         self.coercer = coercers[vtype]
         self.args = {
                 'options'      : options,
@@ -313,10 +310,9 @@ class validator(object):
                 'vmax'         : vmax,
                 'default'      : default,
                 'allow zeroes' : allow_zeroes,
-                'compulsory'   : compulsory,
                 }
 
-    def check( self, value, keys ):
+    def coerce( self, value, keys ):
         value = self.coercer( value, keys, self.args )
         # handle option lists centrally here
         if self.args['options']:
