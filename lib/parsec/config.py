@@ -66,23 +66,21 @@ class config( object ):
                     raise ParsecError( "Illegal file spec item: " + itemstr( pars, repr(value)) )
 
 
-    def loadcfg( self, rcfile, title="", strict=False, silent=False ):
+    def loadcfg( self, rcfile, title="", strict=False ):
         """Parse a config file, upgrade or deprecate items if necessary,
-        validate it against the spec, and if this is not the first load,
-        combine/override with the existing loaded config."""
+        validate it against the spec. If this is not the first load,
+        combine with or override the existing loaded config."""
         try:
             sparse = parse( rcfile, write_proc=self.write_proc,
                 template_vars=self.tvars, template_vars_file=self.tvars_file )
         except Exception, x:
             if strict:
                 raise
-            if not silent or cylc.flags.verbose:
-                # no global.rc file, for instance, is not really an error.
+            if cylc.flags.verbose:
                 print >> sys.stderr, x
                 print >> sys.stderr, "WARNING: " + title + " parsing failed (continuing)"
         else:
-            # upgrade deprecated items if necessary
-            # (before validation, else validation will fail)
+            # Upgrade any deprecated now or validation will fail.
             if self.upgrader is not None:
                 try:
                     self.upgrader( sparse, title )

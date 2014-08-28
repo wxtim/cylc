@@ -188,7 +188,7 @@ class GlobalConfig( config ):
                         file_name = os.path.join(conf_dir, base)
                         if os.access(file_name, os.F_OK | os.R_OK):
                             cls._DEFAULT.loadcfg(
-                                file_name, "global config", silent=True)
+                                file_name, "global config")
                             break
             elif conf_path_str:
                 # CYLC_CONF_PATH defined with a value
@@ -196,7 +196,7 @@ class GlobalConfig( config ):
                     file_name = os.path.join(path, cls.CONF_BASE)
                     if os.access(file_name, os.F_OK | os.R_OK):
                         cls._DEFAULT.loadcfg(
-                            file_name, "global config", silent=True)
+                            file_name, "global config")
             cls._DEFAULT.transform()
         return cls._DEFAULT
         
