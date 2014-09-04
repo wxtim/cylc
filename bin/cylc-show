@@ -40,7 +40,7 @@ clock-triggered tasks, whether or not the trigger time is up yet.""",
 
 (options, args) = parser.parse_args()
 
-suite, pphrase = prep_pyro( args[0], options ).execute()
+suite, pphrase = prep_pyro(args[0], options).execute()
 
 prnt_suite = False
 prnt_name = False
@@ -49,7 +49,7 @@ prnt_id = False
 if len(args) == 2:
     target = args[1]
     try:
-        name, point_string = cylc.TaskID.split( target )
+        name, point_string = cylc.TaskID.split(target)
     except ValueError:
         # just a task name
         prnt_name = True
@@ -62,10 +62,10 @@ else:
     prnt_suite = True
 
 try:
-    proxy = cylc_pyro_client.client( suite, pphrase, options.owner,
+    proxy = cylc_pyro_client.client(suite, pphrase, options.owner,
             options.host, options.pyro_timeout,
-            options.port ).get_proxy( 'suite-info' )
-    title, username = proxy.get( 'suite info' )
+            options.port).get_proxy('suite-info')
+    title, username = proxy.get('suite info')
 except Exception, x:
     if cylc.flags.debug:
         raise
@@ -76,7 +76,7 @@ if prnt_suite:
     print title
 
     try:
-        for task in proxy.get( 'task list' ):
+        for task in proxy.get('task list'):
             print ' + ', task
     except Exception,x:
         if cylc.flags.debug:
@@ -85,7 +85,7 @@ if prnt_suite:
 
 if prnt_name or prnt_id:
     try:
-        info = proxy.get( 'task info', [ name ] )
+        info = proxy.get('task info', [name])
     except Exception,x:
         if cylc.flags.debug:
             raise
@@ -93,52 +93,50 @@ if prnt_name or prnt_id:
     idx = name
     if prnt_id:
         idx = task_id
-    print 'TASK ' + idx + ' in suite ' + suite + ':'
     for name in info.keys():
-        print ' ', info[name]
+        print info[name]
 
 if prnt_id:
     # PREREQUISITES AND OUTPUTS
     try:
-        result = proxy.get( 'task requisites', [ task_id ] )
+        result = proxy.get('task requisites', task_id)
     except Exception,x:
         if cylc.flags.debug:
             raise
         sys.exit(x)
 
-    if not result or task_id not in result:
-        print "Task " + task_id + " not found in " + suite
+    if not result:
+        print "Task " + task_id + " not found"
         sys.exit(1)
 
-    for task_id in result.keys():
-        [ pre, out, extra_info ] = result[ task_id ]
+    [pre, out, extra_info] = result
 
-        print 'PREREQUISITES (- => not satisfied):'
-        if len( pre ) == 0:
-            print '  (None)'
-        for item in pre:
-            [ msg, state ] = item
-            if state:
-                descr = '  + '
-            else:
-                descr = '  - '
-            print descr + msg
+    print 'PREREQUISITES (- => not satisfied):'
+    if len(pre) == 0:
+        print '  (None)'
+    for item in pre:
+        [msg, state] = item
+        if state:
+            descr = '  + '
+        else:
+            descr = '  - '
+        print descr + msg
 
-        print 'OUTPUTS (- => not completed):'
-        if len( out ) == 0:
-            print '  (None)'
-        for item in out:
-            [ msg, state ] = item
-            if state:
-                descr = '  + '
-            else:
-                descr = '  - '
-            print descr + msg
+    print 'OUTPUTS (- => not completed):'
+    if len(out) == 0:
+        print '  (None)'
+    for item in out:
+        [msg, state] = item
+        if state:
+            descr = '  + '
+        else:
+            descr = '  - '
+        print descr + msg
 
-        if len( extra_info.keys() ) > 0:
-            print 'Other:'
-            for item in extra_info:
-                print '  o ', item, '...', extra_info[ item ]
-        print """
+    if len(extra_info.keys()) > 0:
+        print 'Other:'
+        for item in extra_info:
+            print '  o ', item, '...', extra_info[item]
+    print """
 NOTE: for tasks that have triggered already, prerequisites are
 shown here in the state they were in at the time of triggering."""
