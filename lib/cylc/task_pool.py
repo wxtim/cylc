@@ -944,25 +944,24 @@ class pool(object):
         else:
             return True, " running"
 
-    def get_task_requisites(self, ids):
-        info = {}
-        found = False
+    def get_task_requisites(self, task_id):
+        info = []
         for itask in self.get_tasks():
-            id = itask.id
-            if id in ids:
-                found = True
+            if task_id == itask.id:
                 extra_info = {}
-                # extra info for clocktriggered tasks
                 try:
                     extra_info['Clock trigger time reached'] = itask.start_time_reached()
                     extra_info['Triggers at'] = itask.delayed_start_str
                 except AttributeError:
-                    # not a clocktriggered task
+                    # Not clock-triggered.
                     pass
-
-                info[ id ] = [ itask.prerequisites.dump(), itask.outputs.dump(), extra_info ]
-        if not found:
-            self.log.warning('task state info request: task(s) not found')
+                info = [itask.prerequisites.dump(),
+                        itask.outputs.dump(),
+                        extra_info
+                ]
+                break
+        if not info:
+            self.log.warning('task state info request: task not found')
         return info
 
     def purge_tree(self, id, stop):

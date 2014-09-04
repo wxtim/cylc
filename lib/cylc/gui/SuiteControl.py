@@ -459,6 +459,9 @@ Main Control GUI that displays one or more views or interfaces to the suite.
         if suite:
             self.reset(suite)
 
+    def warn_task_gone(self, id):
+        warning_dialog(id + ' is no longer live', self.window).warn()
+ 
     def reset( self, suite ):
         title = suite
         self.cfg.suite = suite
@@ -1052,7 +1055,7 @@ The Cylc Suite Engine.
         try:
             logfiles = states[ task_id ][ 'logfiles' ]
         except KeyError:
-            warning_dialog( task_id + ' is no longer live', self.window ).warn()
+            self.warn_task_gone(task_id)
             return False
 
         if len(logfiles) == 0:
@@ -1406,21 +1409,16 @@ The Cylc Suite Engine.
         else:
             tb.insert( tb.get_end_iter(), line )
 
-    def popup_requisites( self, w, e, task_id ):
+    def popup_requisites(self, w, e, task_id):
         try:
-            result = self.get_pyro( 'suite-info' ).get( 'task requisites', [ task_id ] )
+            result = self.get_pyro('suite-info').get(
+                    'task requisites', task_id)
         except Exception,x:
             warning_dialog(str(x), self.window).warn()
             return
-
-        if result:
-            # (else no tasks were found at all -suite shutting down)
-            if task_id not in result:
-                warning_dialog(
-                    "Task proxy " + task_id + " not found in " + self.cfg.suite + \
-                 ".\nTasks are removed once they are no longer needed.",
-                 self.window ).warn()
-                return
+        if not result:
+            self.warn_task_gone(task_id)
+            return
 
         window = gtk.Window()
         window.set_title( task_id + " State" )
@@ -1455,7 +1453,7 @@ The Cylc Suite Engine.
         self.update_tb( tb, ' in SUITE ', [bold] )
         self.update_tb( tb, self.cfg.suite + '\n\n', [bold, blue])
 
-        [ pre, out, extra_info ] = result[ task_id ]
+        [ pre, out, extra_info ] = result
 
         self.update_tb( tb, 'Prerequisites', [bold])
         #self.update_tb( tb, ' blue => satisfied,', [blue] )

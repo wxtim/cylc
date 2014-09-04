@@ -398,13 +398,9 @@ class scheduler(object):
                         self.config.suite_polling_tasks, \
                         self.config.leaves, self.config.feet
 
-    def info_get_task_requisites( self, in_ids ):
-        ids = []
-        for id in in_ids:
-            if not self._task_type_exists( id ):
-                continue
-            ids.append( id )
-        return self.pool.get_task_requisites( ids )
+    def info_get_task_requisites(self, task_id):
+        """Return task prequisites and outputs, or empty list."""
+        return self.pool.get_task_requisites(task_id)
 
     def command_set_stop_cleanly(self, kill_active_tasks=False):
         """Stop job submission and set the flag for clean shutdown."""
