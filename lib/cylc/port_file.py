@@ -35,111 +35,107 @@ hosts use passwordless ssh to read the port file on the suite host. If
 passwordless ssh to the suite host is not configured this will fail and
 the user will have to give the port number on the command line."""
 
-class PortFileError( Exception ):
-    """
-    Attributes:
-        message - what the problem is.
-    """
-    def __init__( self, msg ):
+class PortFileError(Exception):
+    def __init__(self, msg):
         self.msg = msg
-    def __str__( self ):
+    def __str__(self):
         return repr(self.msg)
 
-class PortFileExistsError( PortFileError ):
+class PortFileExistsError(PortFileError):
     pass
 
-class port_file( object ):
-    def __init__(self, suite, port ):
+class port_file(object):
+    def __init__(self, suite, port):
         self.suite = suite
-
-        # the ports directory is assumed to exist
-
-        pdir = GLOBAL_CFG.get( ['pyro','ports directory'] )
- 
-        self.local_path = os.path.join( pdir, suite )
-
+        # The ports directory is assumed to exist.
+        pdir = GLOBAL_CFG.get(['pyro', 'ports directory'])
+        self.local_path = os.path.join(pdir, suite)
         try:
             self.port = str(int(port))
-        except ValueError, x:
-            print >> sys.stderr, x
-            raise PortFileError( "ERROR, illegal port number: " + str(port) )
-
+        except ValueError as exc:
+            print >> sys.stderr, exc
+            raise PortFileError(
+                    "ERROR, illegal port number: %s" % str(port))
         self.write()
 
-    def write( self ):
-        if os.path.exists( self.local_path ):
-            raise PortFileExistsError( "ERROR, port file exists: " + self.local_path )
+    def write(self):
+        if os.path.exists(self.local_path):
+            raise PortFileExistsError(
+                    "ERROR, port file exists: %s" % self.local_path)
         if flags.verbose:
-            print "Writing port file:", self.local_path
+            print "Writing port file: %s" % self.local_path
         try:
-            f = open( self.local_path, 'w' )
-        except OSError,x:
-            raise PortFileError( "ERROR, failed to open port file: " + self.port )
-        f.write( self.port )
+            f = open(self.local_path, 'w')
+        except OSError:
+            raise PortFileError(
+                    "ERROR, failed to open port file: %s" % self.port)
+        f.write(self.port)
         f.close()
 
-    def unlink( self ):
+    def unlink(self):
         if flags.verbose:
-            print "Removing port file:", self.local_path
+            print "Removing port file: %s" % self.local_path
         try:
-            os.unlink( self.local_path )
-        except OSError,x:
-            print >> sys.stderr, x
-            raise PortFileError( "ERROR, cannot remove port file: " + self.local_path )
+            os.unlink(self.local_path)
+        except OSError as exc:
+            print >> sys.stderr, str(exc)
+            raise PortFileError(
+                    "ERROR, cannot remove port file: %s" % self.local_path)
 
-class port_retriever( object ):
-    def __init__(self, suite, host, owner ):
+class port_retriever(object):
+    def __init__(self, suite, host, owner):
         self.suite = suite
         self.host = host
         self.owner = owner
         self.locn = None
+        self.local_path = os.path.join(
+                GLOBAL_CFG.get(['pyro', 'ports directory']), suite)
 
-        self.local_path = os.path.join( GLOBAL_CFG.get( ['pyro','ports directory'] ), suite )
-
-    def get_local( self ):
+    def get_local(self):
         self.locn = self.local_path
-        if not os.path.exists( self.local_path ):
-            raise PortFileError( "ERROR, port file not found: " + self.local_path )
-        f = open( self.local_path, 'r' )
+        if not os.path.exists(self.local_path):
+            raise PortFileError(
+                    "ERROR, port file not found: %s" % self.local_path)
+        f = open(self.local_path, 'r')
         str_port = f.readline().rstrip('\n')
         f.close()
         return str_port
 
-    def get_remote( self ):
+    def get_remote(self):
         import subprocess
         target = self.owner + '@' + self.host
-        remote_path = self.local_path.replace( os.environ['HOME'], '$HOME' )
+        remote_path = self.local_path.replace(os.environ['HOME'], '$HOME')
         self.locn = target + ':' + remote_path
-        ssh = subprocess.Popen( ['ssh', '-oBatchMode=yes', target, 'cat', remote_path],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE )
+        ssh = subprocess.Popen(
+                ['ssh', '-oBatchMode=yes', target, 'cat', remote_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+                )
         str_port = ssh.stdout.readline().rstrip('\n')
         err = ssh.stderr.readline()
         res = ssh.wait()
         if err:
             print >> sys.stderr, err.rstrip('\n')
         if res != 0:
-            raise PortFileError( "ERROR, remote port file not found" )
+            raise PortFileError("ERROR, remote port file not found")
         return str_port
 
-    def get( self ):
+    def get(self):
         if flags.verbose:
             print "Retrieving suite port number..."
-
-        if is_remote_host( self.host ) or is_remote_user( self.owner ):
+        if is_remote_host(self.host) or is_remote_user(self.owner):
             str_port = self.get_remote()
         else:
             str_port = self.get_local()
-
         try:
-            # convert to integer
-            port = int( str_port )
-        except ValueError, x:
-            # this also catches an empty port file (touch)
-            print >> sys.stderr, x
-            print >> sys.stderr, "ERROR: bad port file", self.locn
-            raise PortFileError( "ERROR, illegal port file content: " + str_port )
-
+            port = int(str_port)
+        except ValueError as exc:
+            # This also catches an empty port file.
+            print >> sys.stderr, exc 
+            print >> sys.stderr, "ERROR: bad port file %s" % self.locn
+            raise PortFileError(
+                    "ERROR, illegal port file content: %s" % str_port)
         if flags.verbose:
-            print '...', port
+            print "%d" % port
 
         return port
