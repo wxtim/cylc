@@ -34,7 +34,7 @@ from passphrase import passphrase
 from suite_id import identifier
 from config import config
 from cylc.cfgspec.globalcfg import GLOBAL_CFG
-from cylc.port_file import port_file, PortFileExistsError, PortFileError
+from cylc.port_file import port_file, PortFileError
 from cylc.regpath import RegPath
 from cylc.CylcError import TaskNotFoundError, SchedulerError
 from cylc.RunEventHandler import RunHandler
@@ -586,20 +586,19 @@ class scheduler(object):
         if self.options.genref:
             self.gen_reference_log = self.options.genref
 
-    def configure_pyro( self ):
-        # CONFIGURE SUITE PYRO SERVER
-        self.pyro = pyro_server( self.suite, self.suite_dir,
-                GLOBAL_CFG.get( ['pyro','base port'] ),
-                GLOBAL_CFG.get( ['pyro','maximum number of ports'] ) )
+    def configure_pyro(self):
+        self.pyro = pyro_server(
+                self.suite,
+                self.suite_dir,
+                GLOBAL_CFG.get(['pyro','base port']),
+                GLOBAL_CFG.get(['pyro','maximum number of ports'])
+                )
         self.port = self.pyro.get_port()
-
         try:
-            self.port_file = port_file( self.suite, self.port )
-        except PortFileExistsError,x:
-            print >> sys.stderr, x
-            raise SchedulerError( 'Suite already running? (if not, delete the port file)' )
-        except PortFileError,x:
-            raise SchedulerError( str(x) )
+            self.port_file = port_file(self.suite, self.port)
+            self.port_file.write()
+        except PortFileError as exc:
+            raise SchedulerError(str(exc))
 
     def load_suiterc(self, reconfigure):
         """Load and log the suite definition."""

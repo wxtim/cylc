@@ -48,7 +48,7 @@ class client( object ):
             if flags.verbose:
                 print "Port number given:", self.port
         else:
-            self.port = port_retriever( self.suite, self.host, self.owner ).get()
+            self.port, host = port_retriever( self.suite, self.host, self.owner ).get()
 
         # get a pyro proxy for the target object
         objname = self.owner + '.' + self.suite + '.' + target
