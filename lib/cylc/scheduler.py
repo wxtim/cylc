@@ -501,7 +501,7 @@ class scheduler(object):
         self.pool.remove_tasks( task_ids, spawn )
 
     def command_insert_task( self, name, point_string, is_family,
-                             stop_point_string ):
+                             stop_point_string, state='waiting'):
         matches = self.get_matching_task_names( name, is_family )
         if not matches:
             raise TaskNotFoundError, "No matching tasks found: " + name
@@ -532,7 +532,7 @@ class scheduler(object):
             name, task_point_string = TaskID.split(task_id)
             # TODO - insertion of start-up tasks? (startup=False is assumed here)
             new_task = self.config.get_task_proxy(
-                name, point, 'waiting', stop_point,
+                name, point, state, stop_point,
                 submit_num=self.db.get_task_current_submit_num(
                     name, task_point_string),
             )

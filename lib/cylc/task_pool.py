@@ -81,8 +81,8 @@ class TaskPool(object):
 
         self.pool_list = []
         self.rhpool_list = []
-        self.pool_changed = []
-        self.rhpool_changed = []
+        self.pool_changed = False
+        self.rhpool_changed = False
 
         self.is_held = False
         self.hold_point = None

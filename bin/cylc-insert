@@ -50,6 +50,10 @@ See also 'cylc submit', for running tasks without the scheduler.
         ('CYCLE_POINT', 'Cycle point (e.g. date-time or integer)'),
         ('[STOP_POINT]', 'Optional stop cycle point for inserted task.' )])
 
+parser.add_option("-s", "--state", metavar="STATE",
+    help="Initial state of the inserted task(s). The default is 'waiting'",
+    action="store", dest="initial_state")
+
 (options, args) = parser.parse_args()
 
 suite, pphrase = prep_pyro( args[0], options ).execute()
@@ -69,7 +73,7 @@ try:
             options.force )
     result = proxy.put(
         'insert task', name, point_string, options.is_family,
-        stop_point_string )
+        stop_point_string, options.initial_state)
 except Exception, x:
     if cylc.flags.debug:
         raise
