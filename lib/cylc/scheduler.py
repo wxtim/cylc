@@ -41,7 +41,6 @@ from cylc.job_file import JOB_FILE
 from cylc.suite_host import get_suite_host
 from cylc.owner import user
 from cylc.version import CYLC_VERSION
-from cylc.passphrase import passphrase
 from cylc.suite_id import identifier
 from cylc.config import config
 from cylc.cfgspec.globalcfg import GLOBAL_CFG
@@ -197,7 +196,7 @@ class scheduler(object):
 
         # REMOTELY ACCESSIBLE SUITE IDENTIFIER
         self.suite_id = identifier( self.suite, self.owner )
-        self.pyro.connect( self.suite_id, 'cylcid', qualified = False )
+        self.pyro.connect(self.suite_id, 'cylcid')
 
         reqmode = self.config.cfg['cylc']['required run mode']
         if reqmode:
@@ -566,11 +565,8 @@ class scheduler(object):
             self.gen_reference_log = self.options.genref
 
     def configure_pyro(self):
-        self.pyro = PyroDaemon(self.suite, self.suite_dir,
-                GLOBAL_CFG.get(['pyro','base port']),
-                GLOBAL_CFG.get(['pyro','maximum number of ports']))
+        self.pyro = PyroDaemon()
         self.port = self.pyro.get_port()
-
         try:
             self.port_file = port_file(self.suite, self.port)
         except PortFileExistsError,x:
@@ -1062,7 +1058,7 @@ class scheduler(object):
 
         for i in [ self.command_queue, self.suite_id, self.suite_state ]:
             if i:
-                self.pyro.disconnect( i )
+                self.pyro.disconnect(i)
 
         if self.pyro:
             self.pyro.shutdown()

@@ -27,6 +27,7 @@ from cylc.owner import user
 from cylc.passphrase import passphrase
 from cylc.registration import localdb
 from cylc.cfgspec.globalcfg import GLOBAL_CFG
+from cylc.network.pyro_base import ConnValidator
 
 class SuiteIdentificationError( Exception ):
     """
@@ -75,37 +76,11 @@ class port_interrogator(object):
 
         # first try access with no passphrase
         name = owner = None
-        try:
-            # (caller handles TimeoutError)
-            name, owner = self.proxy.id()
-        except Pyro.errors.ConnectionDeniedError, x:
-            # must be a secure suite, try my passphrases
-            if not self.my_passphrases:
-                raise
-            for reg in self.my_passphrases:
-                self.proxy._setIdentification( self.my_passphrases[reg] )
-                try:
-                    name, owner = self.proxy.id()
-                except:
-                    # denied, try next passphrase
-                    continue
-                else:
-                    # got access
-                    if name == reg and owner == user:
-                        return name, owner, 'secure'
-                    else:
-                        # this indicates that one of my suites has an
-                        # identical passphrase to this other suite.
-                        continue
-
-            # loop end without returning ID => all of my passphrases denied
-            raise Pyro.errors.ConnectionDeniedError, x
-        except:
-            raise
-        else:
-            # got access with no passphrase => not a secure suite
-            # TODO - THIS IS NO LONGER LEGAL from cylc-4.5.0
-            return name, owner, 'insecure'
+        #self.proxy._setIdentification( self.my_passphrases[reg] )
+        self.proxy._setNewConnectionValidator(ConnValidator())
+        self.proxy._setIdentification(("joe", 'suite-identity'))
+        name, owner = self.proxy.id()
+        return name, owner, 'secure'
 
 def warn_timeout( host, port, timeout ):
     print >> sys.stderr, "WARNING: connection timed out (" + str(timeout) + "s) at", portid( host, port )
@@ -145,7 +120,9 @@ def get_port( suite, owner=user, host=get_hostname(), pphrase=None, pyro_timeout
             pyro_timeout = float( pyro_timeout )
 
         proxy._setTimeout(pyro_timeout)
-        proxy._setIdentification( pphrase )
+        #proxy._setIdentification( pphrase )
+        proxy._setNewConnectionValidator(ConnValidator())
+        proxy._setIdentification(("joe", 'suite-identity'))
 
         before = datetime.datetime.now()
         try:
@@ -186,7 +163,9 @@ def check_port( suite, pphrase, port, owner=user, host=get_hostname(), pyro_time
         pyro_timeout = float(pyro_timeout)
     proxy._setTimeout(pyro_timeout)
 
-    proxy._setIdentification( pphrase )
+    #proxy._setIdentification( pphrase )
+    proxy._setNewConnectionValidator(ConnValidator())
+    proxy._setIdentification(('alice', 'suite-identity'))
 
     before = datetime.datetime.now()
     try:
@@ -224,27 +203,11 @@ def scan(host=get_hostname(), db=None, pyro_timeout=None):
 
     # In non-verbose mode print nothing (scan is used by cylc db viewer).
 
-    # load my suite passphrases
-    reg = localdb(db)
-    reg_suites = reg.get_list()
-    my_passphrases = {}
-    for item in reg_suites:
-        rg = item[0]
-        di = item[1]
-        try:
-            pp = passphrase( rg, user, host ).get( suitedir=di )
-        except Exception, x:
-            #print >> sys.stderr, x
-            # no passphrase defined for this suite
-            pass
-        else:
-            my_passphrases[ rg ] = pp
-
     results = []
     for port in range( pyro_base_port, pyro_base_port + pyro_port_range ):
         before = datetime.datetime.now()
         try:
-            name, owner, security = port_interrogator( host, port, my_passphrases, pyro_timeout ).interrogate()
+            name, owner, security = port_interrogator( host, port, ['suite-identity'], pyro_timeout ).interrogate()
         except Pyro.errors.TimeoutError:
             warn_timeout( host, port, pyro_timeout )
             pass

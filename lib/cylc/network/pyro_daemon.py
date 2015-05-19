@@ -22,15 +22,11 @@ try:
     import Pyro
 except ImportError:
     sys.exit("ERROR: Pyro is not installed")
-from cylc.passphrase import passphrase
-from cylc.suite_host import get_hostname
-from cylc.owner import user
+from cylc.network.pyro_base import ConnValidator
+from cylc.cfgspec.globalcfg import GLOBAL_CFG
 
 class PyroDaemon(object):
-    def __init__(self, suite, suitedir, base_port, max_n_ports, user=user):
-
-        self.suite = suite
-        self.owner = user
+    def __init__(self):
 
         Pyro.config.PYRO_MULTITHREADED = 1
         # Use dns names instead of fixed ip addresses from /etc/hosts
@@ -38,14 +34,14 @@ class PyroDaemon(object):
         Pyro.config.PYRO_DNS_URI = True
 
         # Base Pyro socket number.
-        Pyro.config.PYRO_PORT = base_port
+        Pyro.config.PYRO_PORT =  GLOBAL_CFG.get(['pyro','base port'])
         # Max number of sockets starting at base.
-        Pyro.config.PYRO_PORT_RANGE = max_n_ports
+        Pyro.config.PYRO_PORT_RANGE = GLOBAL_CFG.get(
+            ['pyro','maximum number of ports'])
 
         Pyro.core.initServer()
         self.daemon = Pyro.core.Daemon()
-        self.daemon.setAllowedIdentifications(
-            [passphrase(suite,user,get_hostname()).get(suitedir=suitedir)])
+        self.daemon.setNewConnectionValidator(ConnValidator())
 
     def shutdown(self):
         self.daemon.shutdown(True)
@@ -59,12 +55,8 @@ class PyroDaemon(object):
         except socket.error, x:
             print >> sys.stderr, x
 
-    def connect(self, obj, name, qualified=True):
-        if qualified:
-            qname = self.owner + '.' + self.suite + '.' + name
-        else:
-            qname = name
-        uri = self.daemon.connect(obj, qname)
+    def connect(self, obj, name):
+        uri = self.daemon.connect(obj, name)
 
     def disconnect(self, obj):
         self.daemon.disconnect(obj)

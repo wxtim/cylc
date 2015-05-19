@@ -32,6 +32,64 @@ from cylc.owner import user, user_at_host
 from cylc.port_file import port_retriever
 from cylc.network.client_reporter import PyroClientReporter
 
+from Pyro.protocol import DefaultConnValidator
+import Pyro.constants
+import hmac
+try:
+	import hashlib
+	md5=hashlib.md5
+except ImportError:
+	import md5
+	md5=md5.md5
+
+
+PASSPHRASES = {
+    'free': "364bad4d2149634bc642d75914cd3d2b", # 'suite-identity'
+    'info': "30f3c93e46436deb58ba70816a8ec124", # 'the quick brown fox'
+    'control': "30f3c93e46436deb58ba70816a8ec124" # 'the quick brown fox'
+}
+
+# Example username/password database: (passwords stored in ascii md5 hash)
+#EXAMPLE_ALLOWED_USERS = {
+#	"irmen": "5ebe2294ecd0e0f08eab7690d2a6ee69",		# 'secret'
+#	"guest": "084e0343a0486ff05530df6c705c8bb4",		# 'guest'
+#	"root": "bbbb2edef660739a6071ab5a4f8a869f",			# 'change_me'
+#}
+
+#	Example login/password validator.
+#	Passwords are protected using md5 so they are not stored in plaintext.
+#	The actual identification check is done using a hmac-md5 secure hash.
+
+# passphrase(suite,user,get_hostname()).get(suitedir=suitedir)
+
+class ConnValidator(DefaultConnValidator):
+    def acceptIdentification(self, daemon, connection, token, challenge):
+        # extract tuple (login, processed password) from token as returned by createAuthToken
+        # processed password is a hmac hash from the server's challenge string and the password itself.
+        login, processedpassword = token.split(':', 1)
+        print "LOGIN:", login, processedpassword
+        # Check if the username/password is valid.
+        # Known passwords are stored as ascii hash, but the auth token contains a binary hash.
+        # So we need to convert our ascii hash to binary to be able to validate.
+        for priv, pphrase in PASSPHRASES.items():
+            if hmac.new(challenge, pphrase.decode("hex")).digest() == processedpassword:
+                print "ALLOWED %s (%s)" % (login, priv)
+                connection.authenticated = login  # store for later reference by Pyro object
+                connection.privelege = priv
+                return (1, 0)
+        print "DENIED %s" % login
+        return (0, Pyro.constants.DENIED_SECURITY)
+  
+    def createAuthToken(self, authid, challenge, peeraddr, URI, daemon):
+        # authid is what mungeIdent returned, a tuple (login, hash-of-password)
+        # we return a secure auth token based on the server challenge string.
+        return "%s:%s" % (authid[0], hmac.new(challenge,authid[1]).digest() )
+
+    def mungeIdent(self, ident):
+        # ident is tuple (login, password), the client sets this.
+        # we don't like to store plaintext passwords so store the md5 hash instead.
+        return (ident[0], md5(ident[1]).digest())
+
 
 class PyroServer(Pyro.core.ObjBase):
     """Base class for server-side suite object interfaces."""
@@ -91,13 +149,16 @@ class PyroClient(object):
             # The following raises a PortFileError if the port file is not found.
             port = (self.hard_port or
                     port_retriever(self.suite, self.host, self.owner).get())
-            objname = "%s.%s.%s" % (self.owner, self.suite, self.__class__.target_server_object)
-            uri = "PYROLOC://%s:%s/%s" % (self.host, str(port), objname)
+            uri = "PYROLOC://%s:%s/%s" % (
+                self.host, str(port), self.__class__.target_server_object)
             # The following only fails for unknown hosts.
             # No connection is made until an RPC call is attempted.
             self.pyro_proxy = Pyro.core.getProxyForURI(uri)
             self.pyro_proxy._setTimeout(self.pyro_timeout)
-            self.pyro_proxy._setIdentification(self.pphrase)
+
+            #self.pyro_proxy._setIdentification(self.pphrase)
+            self.pyro_proxy._setNewConnectionValidator(ConnValidator())
+            self.pyro_proxy._setIdentification(("bob", "the quick brown fox"))
 
     def signout(self):
         """Multi-connect clients should call this on exit."""
@@ -119,4 +180,4 @@ class PyroClient(object):
                 command.replace(' ', '_'), self.my_uuid, self.my_info, self.multi)
         except AttributeError:
             # Back compat.
-            pass
+            pass 

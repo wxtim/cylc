@@ -24,13 +24,19 @@
 # suite. This object, however, should be connected unqualified so that
 # that same ID method can be called on any active cylc port.
 
+
+# TODO - MOVE TO network/
+
 import Pyro.core
+import Pyro.constants
+
 
 class identifier( Pyro.core.ObjBase ):
-    def __init__( self, name, owner ):
+    def __init__(self, name, owner):
         self.owner = owner
         self.name = name
         Pyro.core.ObjBase.__init__( self )
 
-    def id( self ):
+    def id(self):
+        # privelege free
         return ( self.name, self.owner )

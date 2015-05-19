@@ -64,6 +64,10 @@ class SuiteCommandServer(PyroServer):
         self.queue = Queue()
 
     def put(self, command, *command_args):
+        if self.getLocalStorage().caller.privelege != 'control':
+            raise Exception("Privelege Error")
+
+        # TODO - just raise an exception for errors below?
         if command not in self.legal:
             # TODO - an illegal command indicates a programming error, not a
             # user error, so we shouldn't bother with this.
