@@ -4,7 +4,7 @@
 # pad integer values with a fill character out to some string length.
 
 # The custom filter must be implemented as a Python function of the same
-# name in a Python module of the same name, stored in a "Jinja2Filters"
+# name in a Python module of the same name, stored in a "jinja2"
 # sub-directory under the suite definition directory or $HOME/.cylc/.
 
 # The Jinja2 loop below generates the following graph lines:
