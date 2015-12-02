@@ -216,7 +216,7 @@ class TaskProxy(object):
 
     def __init__(
             self, tdef, start_point, initial_state, stop_point=None,
-            is_startup=False, validate_mode=False, submit_num=0,
+            adjust_point=False, validate_mode=False, submit_num=0,
             is_reload=False):
         self.tdef = tdef
         if submit_num is None:
@@ -225,8 +225,9 @@ class TaskProxy(object):
             self.submit_num = submit_num
         self.validate_mode = validate_mode
 
-        if is_startup:
-            # adjust up to the first on-sequence cycle point
+        if adjust_point:
+            # Adjust up to the first on-sequence cycle point; and raise an
+            # exception if the result is out of my sequence bounds.
             adjusted = []
             for seq in self.tdef.sequences:
                 adj = seq.get_first_point(start_point)
@@ -430,6 +431,13 @@ class TaskProxy(object):
                 cpre.add(prereq, label, p_prev < self.tdef.start_point)
                 cpre.set_condition(label)
                 self.prerequisites.append(cpre)
+
+    def update_dependents(self):
+        if self.tdef.sequential:
+            # Record a next-instance dependent.
+            p_next = self.next_point()
+            print 'DEP', self.tdef.name, p_next, self.point
+            self.tdef.dependents.add((self.tdef.name, p_next - self.point))
 
     def _get_events_conf(self, key, default=None):
         """Return an events setting from suite then global configuration."""
@@ -1070,7 +1078,6 @@ class TaskProxy(object):
         outp = self.identity + ' submitted'
         if not self.outputs.is_completed(outp):
             self.outputs.set_completed(outp)
-            # Allow submitted tasks to spawn even if nothing else is happening.
             flags.pflag = True
 
         self.submitted_time = time.time()
@@ -1749,38 +1756,6 @@ class TaskProxy(object):
         """Write state information to the state dump file."""
         handle.write(self.identity + ' : ' + self.state.dump() + '\n')
 
-    def spawn(self, state):
-        """Spawn the successor of this task proxy."""
-        self.state.set_spawned()
-        next_point = self.next_point()
-        if next_point:
-            return TaskProxy(self.tdef, next_point, state, self.stop_point)
-        else:
-            # next_point instance is out of the sequence bounds
-            return None
-
-    def ready_to_spawn(self):
-        """Spawn on submission.
-
-        Prevents uncontrolled spawning but allows successive instances to run
-        in parallel.
-
-        A task can only fail after first being submitted, therefore a failed
-        task should spawn if it hasn't already. Resetting a waiting task to
-        failed will result in it spawning.
-
-        """
-        if self.tdef.is_coldstart:
-            self.state.set_spawned()
-        return not self.state.has_spawned() and self.state.is_currently(
-            'expired', 'submitted', 'running', 'succeeded', 'failed',
-            'retrying')
-
-    def done(self):
-        """Return True if task has succeeded and spawned."""
-        return (
-            self.state.is_currently('succeeded') and self.state.has_spawned())
-
     def is_active(self):
         """Return True if task is in "submitted" or "running" state."""
         return self.state.is_currently('submitted', 'running')
@@ -1788,7 +1763,6 @@ class TaskProxy(object):
     def get_state_summary(self):
         """Return a dict containing the state summary of this task proxy."""
         self.summary['state'] = self.state.get_status()
-        self.summary['spawned'] = self.state.has_spawned()
         self.summary['mean total elapsed time'] = (
             self.tdef.mean_total_elapsed_time)
         return self.summary

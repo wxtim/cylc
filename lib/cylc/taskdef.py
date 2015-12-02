@@ -60,6 +60,7 @@ class TaskDef(object):
         self.namespace_hierarchy = []
         self.triggers = {}
         self.outputs = []
+        self.dependents = set()
 
         self.external_triggers = []
 

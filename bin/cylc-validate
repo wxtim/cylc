@@ -83,7 +83,7 @@ def main():
                 cfg.taskdefs[name],
                 cfg.start_point,
                 'waiting',
-                is_startup=True,
+                adjust_point=True,
                 validate_mode=True)
         except Exception as exc:
             print >> sys.stderr, str(exc)

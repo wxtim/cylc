@@ -248,6 +248,7 @@ class scheduler(object):
         self.old_user_at_host_set = set()
         self.log_memory("scheduler.py: before load_tasks")
         self.load_tasks()
+        self.pool.init_task_proxy_list()
         self.log_memory("scheduler.py: after load_tasks")
 
         self.state_dumper.set_cts(self.initial_point, self.final_point)

@@ -145,7 +145,7 @@ def get_unscannable_suite_info(host, suite, owner=None):
                 pass
     suite_info = {}
     for line in out.rpartition("Begin task states")[2].splitlines():
-        task_result = re.match("([^ ]+) : status=([^,]+), spawned", line)
+        task_result = re.match("([^ ]+) : status=([^,]+)", line)
         if not task_result:
             continue
         task, state = task_result.groups()

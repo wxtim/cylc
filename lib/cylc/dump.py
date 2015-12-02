@@ -105,7 +105,6 @@ def get_stop_state_summary(suite, owner=None, hostname=None, lines=None):
             # backward compabitility for state dumps generated prior to #787
             state = 'ready'
         task_summary[task_id].update({"state": state})
-        task_summary[task_id].update({"spawned": items.get("spawned")})
     global_summary["run_mode"] = "dead"
     for key in ["paused", "stopping", "will_pause_at", "will_stop_at"]:
         global_summary.setdefault(key, "")
@@ -123,17 +122,10 @@ def dump_to_stdout(states, sort_by_cycle=False):
         label = states[task_id]['label']
         state = states[task_id]['state']
 
-        if states[task_id]['spawned']:
-            spawned = 'spawned'
-        else:
-            spawned = 'unspawned'
-
         if sort_by_cycle:
             line = label + ', ' + name + ', '
         else:
             line = name + ', ' + label + ', '
-
-        line += state + ', ' + spawned
 
         lines.append(line)
 

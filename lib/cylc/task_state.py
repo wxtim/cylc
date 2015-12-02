@@ -60,7 +60,6 @@ class task_state(object):
         'ready',
         'succeeded',
         'failed',
-        'spawn'
     ]
 
     legal_for_trigger = {
@@ -130,9 +129,6 @@ class task_state(object):
 
     ctrl_end = "\033[0m"
 
-    # Internal to this class spawned state is a string
-    allowed_bool = ['true', 'false']
-
     def __init__(self, initial_state):
 
         self.state = {}
@@ -140,7 +136,6 @@ class task_state(object):
         if not initial_state:
             # defaults
             self.state['status'] = 'waiting'
-            self.state['spawned'] = 'false'
         else:
             # could be a state dump file entry
             # or a raw string ('waiting' etc.)
@@ -153,15 +148,6 @@ class task_state(object):
 
     def get_status(self):
         return self.state['status']
-
-    def set_spawned(self):
-        self.state['spawned'] = 'true'
-
-    def set_unspawned(self):
-        self.state['spawned'] = 'false'
-
-    def has_spawned(self):
-        return self.state['spawned'] == 'true'
 
     def is_currently(self, *states):
         """Return true if current state matches any state in states."""
@@ -183,13 +169,6 @@ class task_state(object):
             raise TaskStateError(
                 'ERROR, illegal run status: ' + str(self.state['status']))
 
-        if 'spawned' not in self.state:
-            raise TaskStateError('ERROR, task spawned status not defined')
-        if self.state['spawned'] not in ['true', 'false']:
-            raise TaskStateError(
-                'ERROR, illegal task spawned status: ' +
-                str(self.state['spawned']))
-
     def dump(self):
         # format: 'item1=value1, item2=value2, ...'
         result = ''
@@ -203,29 +182,19 @@ class task_state(object):
 
         if self.__class__.is_legal(input):
             state['status'] = input
-            # ASSUME THAT ONLY succeeded TASKS, AT STARTUP, HAVE spawned
-            # (in fact this will only be used to start tasks in 'waiting')
-            if input == 'succeeded':
-                state['spawned'] = 'true'
-            else:
-                state['spawned'] = 'false'
 
         else:
             # reconstruct state from a dumped state string
             pairs = input.split(', ')
             for pair in pairs:
                 [item, value] = pair.split('=')
-                if item not in ['status', 'spawned']:
+                if item not in ['status']:
                     raise TaskStateError(
                         'ERROR, illegal task status key: ' + item)
                 if item == 'status':
                     if not self.__class__.is_legal(value):
                         raise TaskStateError(
                             'ERROR, illegal task state: ' + value)
-                elif item == 'spawned':
-                    if value not in ['true', 'false']:
-                        raise TaskStateError(
-                            'ERROR, illegal task spawned status: ' + value)
                 state[item] = value
 
         return state

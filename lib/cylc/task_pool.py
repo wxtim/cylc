@@ -15,41 +15,34 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 """Manage the task pool of a suite.
 
-All new task proxies (including spawned ones) are added first to the runahead
-pool, which does not participate in dependency matching and is not visible in
-the GUI. Tasks are then released to the task pool if not beyond the current
-runahead limit.
-
-check_auto_shutdown() and remove_spent_tasks() have to consider tasks in the
-runahead pool too.
-
-TODO - spawn-on-submit means a only one waiting instance of each task exists,
-in the pool, so if a new stop cycle is set we just need to check waiting pool
-tasks against the new stop cycle.
-
-restart: runahead tasks are all in the 'waiting' state and will be reloaded
-as such, on restart, into the runahead pool.
+New task proxies are first added to the runahead pool, which does not
+participate in dependency matching. They are released to the main task
+pool if not beyond the current runahead limit.
 
 """
-
-from logging import ERROR, DEBUG, INFO, WARNING
 import os
 from Pyro.errors import NamingError
 import shlex
+import re
 import sys
-from tempfile import NamedTemporaryFile
-from time import time
 import traceback
+from time import time
+from tempfile import NamedTemporaryFile
+from logging import ERROR, DEBUG, INFO, WARNING
+from Pyro.errors import NamingError
 
 from cylc.batch_sys_manager import BATCH_SYS_MANAGER
 from cylc.broker import broker
 from cylc.cfgspec.globalcfg import GLOBAL_CFG
 from cylc.config import SuiteConfig
 from cylc.cycling.loader import (
-    get_interval, get_interval_cls, ISO8601_CYCLING_TYPE)
+    get_interval, get_interval_cls, ISO8601_CYCLING_TYPE, get_point_relative)
 from cylc.CylcError import SchedulerError, TaskNotFoundError
+from isodatetime.parsers import ISO8601SyntaxError
+from cylc.time_parser import CylcTimeParser
 import cylc.flags
 from cylc.get_task_proxy import get_task_proxy
 from cylc.mp_pool import SuiteProcPool, SuiteProcContext
@@ -57,7 +50,7 @@ from cylc.network.ext_trigger import ExtTriggerServer
 from cylc.network.suite_broadcast import BroadcastServer
 from cylc.owner import is_remote_user
 from cylc.suite_host import is_remote_host
-from cylc.task_proxy import TaskProxy
+from cylc.task_proxy import TaskProxy, TaskProxySequenceBoundsError
 from cylc.task_state import task_state
 
 
@@ -99,6 +92,12 @@ class TaskPool(object):
         self.rhpool_list = []
         self.pool_changed = []
         self.rhpool_changed = []
+
+        # Record of task proxies already spawned (required as instances can now
+        # run out of order!)
+        self.task_proxy_list = {}
+        self.spawned_successor = {}
+        self.spawned_downstream = {}
 
         self.is_held = False
         self.hold_point = None
@@ -651,9 +650,9 @@ class TaskPool(object):
                         # if not started running yet, remove it.
                         self.remove(itask, '(task orphaned by suite reload)')
                     else:
-                        # set spawned already so it won't carry on into the
-                        # future
-                        itask.state.set_spawned()
+                        # TODO !!!!!!!!!!
+                        # set spawned so it won't carry on into the future.
+                        # self.set_spawned(itask)
                         self.log.warning(
                             'orphaned task will not continue: ' +
                             itask.identity)
@@ -668,11 +667,6 @@ class TaskPool(object):
                         submit_num=itask.submit_num,
                         is_reload=True
                     )
-                    # set reloaded task's spawn status
-                    if itask.state.has_spawned():
-                        new_task.state.set_spawned()
-                    else:
-                        new_task.state.set_unspawned()
                     # succeeded tasks need their outputs set completed:
                     if itask.state.is_currently('succeeded'):
                         new_task.reset_state_succeeded()
@@ -1199,23 +1193,111 @@ class TaskPool(object):
         self.pri_dao.execute_queued_items()
         self.pub_dao.execute_queued_items()
 
-    def force_spawn(self, itask):
-        """Spawn successor of itask."""
-        if itask.state.has_spawned():
-            return None
-        itask.state.set_spawned()
-        itask.log(DEBUG, 'forced spawning')
-        new_task = itask.spawn('waiting')
-        if new_task and self.add_to_runahead_pool(new_task):
-            return new_task
-        else:
-            return None
+    def init_task_proxy_list(self):
+        """Record members of the initial task pool as already existing."""
+        # TODO - RESTART NEEDS TO LOAD THIS FROM STATE
+        for itask in self.get_all_tasks():
+            if itask.point not in self.task_proxy_list:
+                self.task_proxy_list[itask.point] = set()
+            self.task_proxy_list[itask.point].add(itask.tdef.name)
+
+    def proxy_list_set(self, plist, point, name):
+        if point not in plist:
+            plist[point] = set()
+        plist[point].add(name)
+
+    def proxy_list_exists(self, plist, point, name):
+        return name in plist.get(point, [])
+
+    def spawn_successor(self, itask):
+        """Spawn the next instance of a task proxy."""
+        #print '\nSUCCESSOR of', itask.identity
+        name = itask.tdef.name
+        point = itask.next_point()
+        if (point is None or
+                self.proxy_list_exists(self.task_proxy_list, point, name)):
+            # Out of sequence bounds or task proxy already existed.
+            #print '   (this proxy was already added)'
+            return
+        self.proxy_list_set(self.spawned_successor, itask.point, itask.tdef.name)
+        proxy = get_task_proxy(name, point, 'waiting', adjust_point=True)
+        if proxy is not None and self.add_to_runahead_pool(proxy):
+            self.log.debug("Added %s to pool (successor of %s)" % (
+                proxy.identity, itask.identity))
+            self.proxy_list_set(self.task_proxy_list, point, name)
+
+    def spawn_downstream(self, itask):
+        """Spawn the downstream dependents of a task proxy."""
+        # if itask.tdef.sequential:
+        #    # TODO - NOT NEEDED NOW (all tasks spawn successors, which gets sequential ones too)?
+        #    # Record downstream dependent (do here to avoid "set changed size
+        #    # during iteration" when creating the task proxy in the loop below.)
+        #    itask.update_dependents()
+        #print '\nDOWNSTREAM of', itask.identity
+        for dep in itask.tdef.dependents:
+            name, offset_string = dep
+            point = itask.point
+            if offset_string is not None:
+                try:
+                    point -= get_interval(offset_string)
+                except ISO8601SyntaxError as exc:
+                    try:
+                        # May be a chained expression ("foo[-P1D+PT18H] => bar").
+                        offset_strings = re.findall(
+                            CylcTimeParser.CHAIN_REGEX, offset_string)
+                        for item in offset_strings:
+                            point -= get_interval(item)
+                    except Exception:
+                        raise exc
+
+            if self.proxy_list_exists(self.task_proxy_list, point, name):
+                # Task proxy already existed.
+                #print '    (this proxy was already added)'
+                continue
+            self.proxy_list_set(self.spawned_downstream, itask.point, itask.tdef.name)
+            try:
+                proxy = get_task_proxy(
+                    name, point, 'waiting', adjust_point=True)
+            except TaskProxySequenceBoundsError:
+                continue
+            if proxy is not None and self.add_to_runahead_pool(proxy):
+                self.log.debug("Added %s to pool (downstream of %s)" % (
+                    proxy.identity, itask.identity))
+                self.proxy_list_set(self.task_proxy_list, point, name)
 
     def spawn_tasks(self):
-        """Spawn successors of tasks in pool."""
+        """Spawn new task proxies into the pool."""
         for itask in self.get_tasks():
-            if itask.ready_to_spawn():
-                self.force_spawn(itask)
+            if itask.state.is_currently('waiting', 'ready', 'queued', 'held'):
+                # Don't spawn yet.
+                continue
+            #print '\nSPAWNING', itask.identity
+            if (not itask.tdef.is_coldstart and
+                    not self.proxy_list_exists(self.spawned_successor, itask.point, itask.tdef.name)):
+                # (cold-start tasks never spawn a successor).
+                self.spawn_successor(itask)
+            #else:
+            #    print '   (already spawned successor)'
+            if not self.proxy_list_exists(self.spawned_downstream, itask.point, itask.tdef.name):
+                self.spawn_downstream(itask)
+            #else:
+            #    print '   (already spawned downstream)'
+
+        # Forget who spawned and who was spawned beyond the oldest task proxy.
+        oldest_point = None
+        for itask in self.get_all_tasks():
+            if oldest_point is None or itask.point < oldest_point:
+                oldest_point = itask.point
+        if oldest_point is None:
+            return
+        for record in [self.spawned_successor, self.spawned_downstream,
+                       self.task_proxy_list]:
+            points_to_drop = []
+            for point in record:
+                if point < oldest_point:
+                    points_to_drop.append(point)
+            for point in points_to_drop:
+                del record[point]
 
     def remove_suiciding_tasks(self):
         """Remove any tasks that have suicide-triggered."""
@@ -1227,23 +1309,22 @@ class TaskPool(object):
                         itask.log(WARNING, 'suiciding while active')
                     else:
                         itask.log(INFO, 'suiciding')
-                    self.force_spawn(itask)
+                    self.spawn_successor(itask)
                     self.remove(itask, 'suicide')
 
     def _get_earliest_unsatisfied_point(self):
         """Get earliest unsatisfied cycle point."""
         cutoff = None
         for itask in self.get_all_tasks():
-            # this has to consider tasks in the runahead pool too, e.g.
-            # ones that have just spawned and not been released yet.
+            # (all tasks: Newly created tasks may not have been released yet).
             if itask.state.is_currently('waiting', 'held'):
                 if cutoff is None or itask.point < cutoff:
                     cutoff = itask.point
-            elif not itask.state.has_spawned():
-                # (e.g. 'ready')
-                nxt = itask.next_point()
-                if nxt is not None and (cutoff is None or nxt < cutoff):
-                    cutoff = nxt
+            # elif not self.has_spawned(itask): # TODO?
+            #     # (e.g. 'ready')
+            #     nxt = itask.next_point()
+            #     if nxt is not None and (cutoff is None or nxt < cutoff):
+            #         cutoff = nxt
         return cutoff
 
     def remove_spent_tasks(self):
@@ -1269,7 +1350,7 @@ class TaskPool(object):
         spent = []
         for itask in self.get_tasks():
             if (itask.state.is_currently('succeeded', 'expired') and
-                    itask.state.has_spawned() and
+                    # self.has_spawned(itask) and
                     not itask.event_handler_try_states and
                     itask.cleanup_cutoff is not None and
                     cutoff > itask.cleanup_cutoff):
@@ -1309,20 +1390,20 @@ class TaskPool(object):
             elif state == 'held':
                 itask.reset_state_held()
             elif state == 'spawn':
-                self.force_spawn(itask)
+                self.spawn_successor(itask)
 
     def remove_entire_cycle(self, point, spawn):
         for itask in self.get_tasks():
             if itask.point == point:
                 if spawn:
-                    self.force_spawn(itask)
+                    self.spawn_successor(itask)
                 self.remove(itask, 'by request')
 
     def remove_tasks(self, ids, spawn):
         for itask in self.get_tasks():
             if itask.identity in ids:
                 if spawn:
-                    self.force_spawn(itask)
+                    self.spawn_successor(itask)
                 self.remove(itask, 'by request')
 
     def trigger_tasks(self, ids):

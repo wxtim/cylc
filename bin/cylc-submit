@@ -168,7 +168,7 @@ def main():
     point = get_point(point_string).standardise()
     # Try to get a graphed task of the given name.
     task_proxy = get_task_proxy(
-        task_name, point.standardise(), 'waiting', is_startup=True)
+        task_name, point.standardise(), 'waiting', adjust_point=True)
 
     if not options.dry_run:
         proc_pool = SuiteProcPool.get_inst(pool_size=1)

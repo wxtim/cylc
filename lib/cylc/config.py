@@ -1748,6 +1748,10 @@ class SuiteConfig(object):
                 suicide, self.cfg['runtime'][lnode.name]['outputs'],
                 base_interval)
 
+            # TODO - HANDLE cycle_point HERE TOO??
+            self.taskdefs[lnode.name].dependents.add(
+                (right, lnode.offset_string))
+
             # Use fully qualified name for trigger expression label
             # (task name is not unique, e.g.: "F | F:fail => G").
             label = self.get_conditional_label(left)

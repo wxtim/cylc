@@ -129,7 +129,7 @@ class start(scheduler):
                 continue
             try:
                 itask = get_task_proxy(
-                    name, self.start_point, 'waiting', is_startup=True)
+                    name, self.start_point, 'waiting', adjust_point=True)
             except TaskProxySequenceBoundsError as exc:
                 self.log.debug(str(exc))
                 continue
