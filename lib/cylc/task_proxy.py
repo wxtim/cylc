@@ -30,6 +30,7 @@ import shlex
 from shutil import rmtree
 import time
 import traceback
+import cPickle as pickle
 
 from isodatetime.timezone import get_local_time_zone
 
@@ -1259,7 +1260,12 @@ class TaskProxy(object):
         local_jobfile_path = os.path.join(
             local_job_log_dir, common_job_log_path)
 
-        rtconfig = pdeepcopy(self.tdef.rtconfig)
+        ####rtconfig = pdeepcopy(self.tdef.rtconfig)
+        task_conf_dir = GLOBAL_CFG.get_derived_host_item(
+            self.suite_name, 'suite task config directory')
+        pfile = os.path.join(task_conf_dir, self.tdef.name)
+        rtconfig = pickle.load(open(pfile, 'rb'))
+
         poverride(rtconfig, overrides)
 
         self.set_from_rtconfig(rtconfig)

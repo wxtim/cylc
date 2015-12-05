@@ -406,6 +406,9 @@ class GlobalConfig(config):
         elif item == 'suite share directory':
             value = os.path.join(swdir, 'share')
 
+        elif item == 'suite task config directory':
+            value = os.path.join(swdir, 'task-conf')
+
         else:
             raise GlobalConfigError("Illegal derived item: " + item)
 

@@ -20,6 +20,7 @@ import re
 import os
 import sys
 import traceback
+import cPickle as pickle
 from cylc.taskdef import TaskDef, TaskDefError
 from cylc.cfgspec.suite import get_suitecfg
 from cylc.cycling.loader import (get_point, get_point_relative,
@@ -28,6 +29,7 @@ from cylc.cycling.loader import (get_point, get_point_relative,
                                  init_cyclers, INTEGER_CYCLING_TYPE,
                                  ISO8601_CYCLING_TYPE)
 from cylc.cycling import IntervalParsingError
+from cylc.mkdir_p import mkdir_p
 from cylc.wallclock import get_current_time_string
 from isodatetime.data import Calendar
 from envvar import check_varnames, expandvars
@@ -42,6 +44,7 @@ from parsec.util import replicate
 from cylc.task_id import TaskID
 from C3MRO import C3
 from parsec.OrderedDict import OrderedDictWithDefaults
+from cylc.cfgspec.globalcfg import GLOBAL_CFG
 import flags
 from syntax_flags import (
     SyntaxVersion, set_syntax_version, VERSION_PREV, VERSION_NEW)
@@ -192,6 +195,10 @@ class SuiteConfig(object):
         self.custom_runahead_limit = None
         self.max_num_active_cycle_points = None
 
+        self.task_conf_dir = GLOBAL_CFG.get_derived_host_item(
+            suite, 'suite task config directory')
+        mkdir_p(self.task_conf_dir)
+
         # runtime hierarchy dicts keyed by namespace name:
         self.runtime = {
             # lists of parent namespaces
@@ -207,6 +214,8 @@ class SuiteConfig(object):
             # hierarchy (first parents are collapsible in suite
             # visualization)
             'first-parent descendants': {},
+            # List of task names (i.e. excluding family names).
+            'tasks': []
         }
         # tasks
         self.leaves = []
@@ -312,19 +321,17 @@ class SuiteConfig(object):
         self.check_env_names()
 
         self.mem_log("config.py: before compute_family_tree")
-        # do sparse inheritance
         self.compute_family_tree()
         self.mem_log("config.py: after compute_family_tree")
         self.mem_log("config.py: before inheritance")
+        # Do sparse inheritance.
         self.compute_inheritance()
         self.mem_log("config.py: after inheritance")
-
-        # self.print_inheritance() # (debugging)
 
         # filter task environment variables after inheritance
         self.filter_env()
 
-        # now expand with defaults
+        # Now expand with defaults.
         self.mem_log("config.py: before get(sparse=False)")
         self.cfg = self.pcfg.get(sparse=False)
         self.mem_log("config.py: after get(sparse=False)")
@@ -751,6 +758,14 @@ class SuiteConfig(object):
 
         self.mem_log("config.py: end init config")
 
+    def dump_task_config(self, task_name, runtime_cfg):
+        """Write task runtime config to disk."""
+        if self.validation:
+            return
+        for name in self.runtime['tasks']:
+            pfile = os.path.join(task_conf_dir, name)
+            pickle.dump(runtime_config, open(pfile, 'wb'))
+
     def is_graph_defined(self, dependency_map):
         for item, value in dependency_map.items():
             if item == 'graph':
@@ -885,8 +900,11 @@ class SuiteConfig(object):
                 if name not in self.runtime['first-parent descendants'][p]:
                     self.runtime['first-parent descendants'][p].append(name)
 
-        # for name in self.cfg['runtime']:
-        #     print name, self.runtime['linearized ancestors'][name]
+        # Find task names (i.e. namespaces with no descendents).
+        for name in self.runtime['parents']:
+            if name in self.runtime['descendants']:
+                continue
+            self.runtime['tasks'].append(name)
 
     def compute_inheritance(self, use_simple_method=True):
         if flags.verbose:
@@ -949,13 +967,6 @@ class SuiteConfig(object):
 
         # uncomment this to compare the simple and efficient methods
         # print '  Number of namespace replications:', n_reps
-
-    def print_inheritance(self):
-        # (use for debugging)
-        for foo in self.runtime:
-            print '  ', foo
-            for item, val in self.runtime[foo].items():
-                print '  ', '  ', item, val
 
     def compute_runahead_limits(self):
         """Extract the runahead limits information."""
