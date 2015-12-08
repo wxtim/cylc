@@ -245,9 +245,16 @@ class TaskProxy(object):
         self._add_prerequisites(self.point)
         self.point_as_seconds = None
 
+        # TODO - should take suite name from config!
+        self.suite_name = os.environ['CYLC_SUITE_NAME']
+
+        # TODO - LOG NOT PIMPED YET?
+        #self.logger = getLogger("main")
+
         self.logfiles = logfiles()
-        for lfile in self.tdef.rtconfig['extra log files']:
-            self.logfiles.add_path(lfile)
+        # TODO LOAD
+        #for lfile in self.rtconfig['extra log files']:
+        #    self.logfiles.add_path(lfile)
 
         # outputs
         self.outputs = outputs(self.identity)
@@ -288,8 +295,8 @@ class TaskProxy(object):
             'finished_time': None,
             'finished_time_string': None,
             'name': self.tdef.name,
-            'description': self.tdef.rtconfig['description'],
-            'title': self.tdef.rtconfig['title'],
+            'description': "TODO", # TODO self.rtconfig['description'],
+            'title': "TODO", # TODO self.rtconfig['title'],
             'label': str(self.point),
             'logfiles': self.logfiles.get_paths()
         }
@@ -313,9 +320,6 @@ class TaskProxy(object):
             self.TABLE_TASK_STATES: [],
         }
 
-        # TODO - should take suite name from config!
-        self.suite_name = os.environ['CYLC_SUITE_NAME']
-
         # In case task owner and host are needed by _db_events_insert()
         # for pre-submission events, set their initial values as if
         # local (we can't know the correct host prior to this because
@@ -331,6 +335,7 @@ class TaskProxy(object):
         self.submission_poll_timer = None
         self.execution_poll_timer = None
 
+        # TODO - NEED THIS ABOVE NOW.
         self.logger = getLogger("main")
 
         # An initial db state entry is created at task proxy init. On reloading
@@ -350,7 +355,7 @@ class TaskProxy(object):
         self.reconfigure_me = False
         self.event_hooks = None
         self.sim_mode_run_length = None
-        self.set_from_rtconfig()
+
         self.delayed_start_str = None
         self.delayed_start = None
         self.expire_time_str = None
@@ -427,8 +432,9 @@ class TaskProxy(object):
 
     def _get_events_conf(self, key, default=None):
         """Return an events setting from suite then global configuration."""
+        # TODO - rtconfig
         for getter in (
-                self.tdef.rtconfig["events"],
+                self.rtconfig_events,
                 self.event_hooks,
                 GLOBAL_CFG.get()["task events"]):
             try:
@@ -441,8 +447,9 @@ class TaskProxy(object):
 
     def _get_host_conf(self, key, default=None):
         """Return a host setting from suite then global configuration."""
-        if self.tdef.rtconfig["remote"].get(key):
-            return self.tdef.rtconfig["remote"][key]
+        # TODO - rtconfig
+        if self.rtconfig_remote.get(key):
+            return self.rtconfig_remote[key]
         else:
             try:
                 return GLOBAL_CFG.get_host_item(
@@ -1132,19 +1139,13 @@ class TaskProxy(object):
             self.run_try_state.timeout = None
             self.sub_try_state.timeout = None
 
-    def set_from_rtconfig(self, cfg=None):
+    def set_from_rtconfig(self, rtconfig):
         """Populate task proxy with runtime configuration.
 
         Some [runtime] config requiring consistency checking on reload,
         and self variables requiring updating for the same.
 
         """
-
-        if cfg:
-            rtconfig = cfg
-        else:
-            rtconfig = self.tdef.rtconfig
-
         if not self.retries_configured:
             # configure retry delays before the first try
             self.retries_configured = True
@@ -1216,20 +1217,33 @@ class TaskProxy(object):
         return has_job_out
 
     def prep_submit(self, dry_run=False, overrides=None):
-        """Prepare job submission.
+        """Prepare job submission, write job file.
 
-        Return self on a good preparation.
-
+        Return self (used by "cylc submit" and "cylc jobscript").
         """
         if self.tdef.run_mode == 'simulation' or (
                 self.job_file_written and not dry_run):
             return self
 
+        # Load task runtime settings.
+        self.log(WARNING, "LOADING TASK CONFIG")
+        task_conf_dir = GLOBAL_CFG.get_derived_host_item(
+            self.suite_name, 'suite task config directory')
+        pfile = os.path.join(task_conf_dir, self.tdef.name)
+        rtconfig = pickle.load(open(pfile, 'rb'))
+        self.rtconfig_events = rtconfig["events"]
+        self.rtconfig_remote = rtconfig["remote"]
+
+        if overrides is not None:
+            poverride(rtconfig, overrides)
+
         try:
-            self._prep_submit_impl(overrides=overrides)
+            # TODO - DO WE NEED THIS HELPER METHOD? (_impl)
+            self._prep_submit_impl(rtconfig)
             JOB_FILE.write(self.job_conf)
             self.job_file_written = True
         except Exception, exc:
+            # TODO - THIS EXCEPTION NO LONGER APPLIES?
             # Could be a bad command template.
             if flags.debug:
                 traceback.print_exc()
@@ -1239,15 +1253,16 @@ class TaskProxy(object):
             self.job_submission_failed()
             return
 
+        del rtconfig
+        self.log(WARNING, "DONE")
         if dry_run:
             # This will be shown next to submit num in gcylc:
             self.summary['latest_message'] = 'job file written for edit-run'
             self.log(WARNING, self.summary['latest_message'])
 
-        # Return value used by "cylc submit" and "cylc jobscript":
         return self
 
-    def _prep_submit_impl(self, overrides=None):
+    def _prep_submit_impl(self, rtconfig):
         """Helper for self.prep_submit."""
         self.log(DEBUG, "incrementing submit number")
         self.submit_num += 1
@@ -1259,14 +1274,6 @@ class TaskProxy(object):
             new_mode=True)
         local_jobfile_path = os.path.join(
             local_job_log_dir, common_job_log_path)
-
-        ####rtconfig = pdeepcopy(self.tdef.rtconfig)
-        task_conf_dir = GLOBAL_CFG.get_derived_host_item(
-            self.suite_name, 'suite task config directory')
-        pfile = os.path.join(task_conf_dir, self.tdef.name)
-        rtconfig = pickle.load(open(pfile, 'rb'))
-
-        poverride(rtconfig, overrides)
 
         self.set_from_rtconfig(rtconfig)
 
@@ -1365,19 +1372,6 @@ class TaskProxy(object):
         })
         self.is_manual_submit = False
 
-    def submit(self):
-        """Submit a job for this task."""
-        # The job file is now (about to be) used: reset the file write flag so
-        # that subsequent manual retrigger will generate a new job file.
-        self.job_file_written = False
-        self.set_status('ready')
-        # Send the job to the command pool.
-        return self._run_job_command(
-            self.JOB_SUBMIT,
-            args=[self.job_conf['job file path']],
-            callback=self.job_submission_callback,
-            stdin_file_paths=[self.job_conf['local job file path']])
-
     def prep_manip(self):
         """A cut down version of prepare_submit().
 
@@ -1394,9 +1388,18 @@ class TaskProxy(object):
         local_job_log_dir, common_job_log_path = self._create_job_log_path()
         local_jobfile_path = os.path.join(
             local_job_log_dir, common_job_log_path)
-        rtconfig = pdeepcopy(self.tdef.rtconfig)
+
+        # Load task runtime settings.
+        # TODO - IS THE LOAD NEEDED HERE?
+        self.log(WARNING, "LOADING TASK CONFIG")
+        task_conf_dir = GLOBAL_CFG.get_derived_host_item(
+            self.suite_name, 'suite task config directory')
+        pfile = os.path.join(task_conf_dir, self.tdef.name)
+        rtconfig = pickle.load(open(pfile, 'rb'))
+
         self._populate_job_conf(
             rtconfig, local_jobfile_path, common_job_log_path)
+        self.log(WARNING, "DONE")
 
     def _populate_job_conf(
             self, rtconfig, local_jobfile_path, common_job_log_path):
@@ -1496,7 +1499,7 @@ class TaskProxy(object):
         """Check simulation time."""
         timeout = self.started_time + self.sim_mode_run_length
         if time.time() > timeout:
-            if self.tdef.rtconfig['simulation mode']['simulate failure']:
+            if self.rtconfig['simulation mode']['simulate failure']:
                 self.message_queue.put('NORMAL', self.identity + ' submitted')
                 self.message_queue.put('CRITICAL', self.identity + ' failed')
             else:
@@ -1513,7 +1516,7 @@ class TaskProxy(object):
 
         """
         if self.state.is_currently('failed'):
-            if self.tdef.rtconfig['enable resurrection']:
+            if self.rtconfig['enable resurrection']:
                 self.log(
                     WARNING,
                     'message receive while failed:' +

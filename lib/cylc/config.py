@@ -318,7 +318,8 @@ class SuiteConfig(object):
         self.ns_defn_order = newruntime.keys()
 
         # check var names before inheritance to avoid repetition
-        self.check_env_names()
+        # TODO - DO THIS FOR EACH NAMESPACE AT LOAD TIME (before inherit)
+        #self.check_env_names()
 
         self.mem_log("config.py: before compute_family_tree")
         self.compute_family_tree()
@@ -329,12 +330,19 @@ class SuiteConfig(object):
         self.mem_log("config.py: after inheritance")
 
         # filter task environment variables after inheritance
-        self.filter_env()
+        # TODO - DO THIS FOR EACH NAMESPACE:
+        #self.filter_env()
 
         # Now expand with defaults.
         self.mem_log("config.py: before get(sparse=False)")
         self.cfg = self.pcfg.get(sparse=False)
         self.mem_log("config.py: after get(sparse=False)")
+
+        for ns in self.runtime['tasks']:
+            self.dump_task_config(ns, self.cfg['runtime'][ns])
+
+        # DELETE runtime CONFIG!
+        del self.cfg['runtime']
 
         # after the call to init_cyclers, we can start getting proper points.
         init_cyclers(self.cfg)
@@ -575,9 +583,13 @@ class SuiteConfig(object):
             if self.strict:
                 raise SuiteConfigError(
                     'ERROR: strict validation fails naked dummy tasks')
+            for ns in self.naked_dummy_tasks:
+                # TODO - CONSOLIDATE THIS WITH NAKED TASK PROCESSING.
+                self.runtime['tasks'].append(ns)
 
-        if self.validation:
-            self.check_tasks()
+                self.dump_task_config(ns, self.cfg['runtime'][ns])
+
+        self.check_tasks()
 
         # Check that external trigger messages are only used once (they have to
         # be discarded immediately to avoid triggering the next instance of the
@@ -617,7 +629,7 @@ class SuiteConfig(object):
             print "Checking [visualization] node attributes"
             # TODO - these should probably be done in non-verbose mode too.
             # 1. node groups should contain valid namespace names
-            nspaces = self.cfg['runtime'].keys()
+            nspaces = self.runtime['parents'].keys()
             bad = {}
             for ng, mems in ngs.items():
                 n_bad = []
@@ -718,11 +730,12 @@ class SuiteConfig(object):
         if url is not '':
             self.cfg['URL'] = re.sub(RE_SUITE_NAME_VAR, self.suite, url)
 
+        # TODO - DO THIS BEFORE DUMPING TASK CONF (AND STORE IN DAEMON TOO?)
         # Replace suite and task name in task URLs.
-        for name, cfg in self.cfg['runtime'].items():
-            if cfg['URL']:
-                cfg['URL'] = re.sub(RE_TASK_NAME_VAR, name, cfg['URL'])
-                cfg['URL'] = re.sub(RE_SUITE_NAME_VAR, self.suite, cfg['URL'])
+        #for name, cfg in self.runtime['tasks']:
+        #    if cfg['URL']:
+        #        cfg['URL'] = re.sub(RE_TASK_NAME_VAR, name, cfg['URL'])
+        #        cfg['URL'] = re.sub(RE_SUITE_NAME_VAR, self.suite, cfg['URL'])
 
         if self.validation:
             if graphing_disabled:
@@ -760,11 +773,10 @@ class SuiteConfig(object):
 
     def dump_task_config(self, task_name, runtime_cfg):
         """Write task runtime config to disk."""
-        if self.validation:
-            return
-        for name in self.runtime['tasks']:
-            pfile = os.path.join(task_conf_dir, name)
-            pickle.dump(runtime_config, open(pfile, 'wb'))
+        # TODO - HAVE TO DO this FOR VALIDATION TOO (if loading tasks)
+        #   USES SUITE RUN DIR (IS IT MADE YET? IN VALIDATION?)
+        pfile = os.path.join(self.task_conf_dir, task_name)
+        pickle.dump(runtime_cfg, open(pfile, 'wb'))
 
     def is_graph_defined(self, dependency_map):
         for item, value in dependency_map.items():
@@ -1236,7 +1248,7 @@ class SuiteConfig(object):
                     raise SuiteConfigError(
                         'ERROR: Illegal %s task name: %s' % (task_type, name))
                 if (name not in self.taskdefs and
-                        name not in self.cfg['runtime']):
+                        name not in self.runtime['parents'].keys()):
                     msg = '%s task "%s" is not defined.' % (task_type, name)
                     if self.strict:
                         raise SuiteConfigError("ERROR: " + msg)
@@ -1645,7 +1657,8 @@ class SuiteConfig(object):
             name = my_taskdef_node.name
             offset_string = my_taskdef_node.offset_string
 
-            if name not in self.cfg['runtime']:
+            if name not in self.runtime['tasks']:
+                # TODO - HANDLE NAKED DUMMY TASKS PROPERLY NOW
                 # naked dummy task, implicit inheritance from root
                 self.naked_dummy_tasks.append(name)
                 # These can't just be a reference to root runtime as we have to
@@ -1707,9 +1720,11 @@ class SuiteConfig(object):
 
             if self.run_mode == 'live':
                 # Register explicit output messages.
-                for lbl, msg in self.cfg['runtime'][name]['outputs'].items():
-                    outp = output(msg, base_interval)
-                    self.taskdefs[name].outputs.append(outp)
+                # TODO - DO THIS BEFORE TASK CONFIG DUMP
+                pass
+                #for lbl, msg in self.cfg['runtime'][name]['outputs'].items():
+                #    outp = output(msg, base_interval)
+                #    self.taskdefs[name].outputs.append(outp)
 
     def generate_triggers(self, lexpression, left_nodes, right, seq, suicide):
         if not right or not left_nodes:
@@ -1745,9 +1760,10 @@ class SuiteConfig(object):
                     offset_tuple = (lnode.offset_string, None)
                 ltaskdef.intercycle_offsets.append(offset_tuple)
 
+            # TODO - HANDLE OUTPUTS (MSG TRIGGERS) PROPERLY.
             trig = trigger(
                 lnode.name, lnode.output, lnode.offset_string, cycle_point,
-                suicide, self.cfg['runtime'][lnode.name]['outputs'],
+                suicide, {}, #TODO: self.cfg['runtime'][lnode.name]['outputs'],
                 base_interval)
 
             # Use fully qualified name for trigger expression label
@@ -2228,15 +2244,12 @@ class SuiteConfig(object):
     def get_taskdef(self, name):
         """Get the dense task runtime."""
         # (TaskDefError caught above)
-        try:
-            rtcfg = self.cfg['runtime'][name]
-        except KeyError:
-            raise TaskNotDefinedError(name)
+
         # We may want to put in some handling for cases of changing the
         # initial cycle via restart (accidentally or otherwise).
 
         # Get the taskdef object for generating the task proxy class
-        taskd = TaskDef(name, rtcfg, self.run_mode, self.start_point)
+        taskd = TaskDef(name, self.run_mode, self.start_point)
 
         # TODO - put all taskd.foo items in a single config dict
         # Set cold-start task indicators.

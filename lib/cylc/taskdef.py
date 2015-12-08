@@ -36,12 +36,11 @@ class TaskDefError(Exception):
 class TaskDef(object):
     """Task definition."""
 
-    def __init__(self, name, rtcfg, run_mode, start_point):
+    def __init__(self, name, run_mode, start_point):
         if not TaskID.is_valid_name(name):
             raise TaskDefError("Illegal task name: %s" % name)
 
         self.run_mode = run_mode
-        self.rtconfig = rtcfg
         self.start_point = start_point
 
         self.sequences = []
@@ -82,9 +81,11 @@ class TaskDef(object):
 
     def describe(self):
         """Return title and description of the current task."""
+        # TODO - DUMPED TO RUNTIME CONFIG FILE.
         info = {}
         for item in 'title', 'description':
-            info[item] = self.rtconfig[item]
+            #info[item] = self.rtconfig[item]
+            info[item] = "TODO!!!!"
         return info
 
     def check_for_explicit_cycling(self):

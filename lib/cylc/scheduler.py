@@ -48,13 +48,6 @@ from cylc.passphrase import passphrase
 from cylc.get_task_proxy import get_task_proxy
 from parsec.util import printcfg
 from copy import copy, deepcopy
-import time
-import datetime
-import logging
-import re
-import os
-import sys
-import traceback
 from cylc.cfgspec.globalcfg import GLOBAL_CFG
 from cylc.regpath import RegPath
 from cylc.CylcError import TaskNotFoundError, SchedulerError
