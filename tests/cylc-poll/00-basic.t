@@ -18,7 +18,7 @@
 # Test cat-check against suite database
 . $(dirname $0)/test_header
 #-------------------------------------------------------------------------------
-set_test_number 2
+set_test_number 3
 #-------------------------------------------------------------------------------
 install_suite $TEST_NAME_BASE $TEST_NAME_BASE
 #-------------------------------------------------------------------------------
@@ -27,5 +27,6 @@ run_ok $TEST_NAME cylc validate $SUITE_NAME
 #-------------------------------------------------------------------------------
 TEST_NAME=$TEST_NAME_BASE-run
 suite_run_ok $TEST_NAME cylc run --reference-test --debug $SUITE_NAME
+grep_ok "a\.1.*started (polled)" $SUITE_LOG_DIR/log
 #-------------------------------------------------------------------------------
 purge_suite $SUITE_NAME

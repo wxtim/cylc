@@ -23,7 +23,7 @@ if [[ -z "${CYLC_TEST_HOST}" ]]; then
     skip_all '"[test battery]remote host": not defined'
 fi
 
-set_test_number 3
+set_test_number 9
 
 create_test_globalrc
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
@@ -34,6 +34,12 @@ run_ok "${TEST_NAME_BASE}-validate" \
 suite_run_ok "${TEST_NAME_BASE}-run" \
     cylc run --reference-test --debug "${SUITE_NAME}" \
     -s "CYLC_TEST_HOST=${CYLC_TEST_HOST}"
+grep_ok "local-fail-1\.1.*failed (polled)" $SUITE_LOG_DIR/log
+grep_ok "local-fail-2\.1.*failed (polled)" $SUITE_LOG_DIR/log
+grep_ok "remote-fail-1\.1.*failed (polled)" $SUITE_LOG_DIR/log
+grep_ok "local-success-1\.1.*succeeded (polled)" $SUITE_LOG_DIR/log
+grep_ok "remote-success-1\.1.*succeeded (polled)" $SUITE_LOG_DIR/log
+grep_ok "remote-success-2\.1.*succeeded (polled)" $SUITE_LOG_DIR/log
 
 RUN_DIR="$(cylc get-global-config --print-run-dir)/${SUITE_NAME}"
 LOG="${RUN_DIR}/log/suite/log"

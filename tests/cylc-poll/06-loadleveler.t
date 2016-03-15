@@ -18,7 +18,7 @@
 # Test "cylc poll" for loadleveler, slurm, or pbs jobs.
 . $(dirname $0)/test_header
 #-------------------------------------------------------------------------------
-BATCH_SYS_NAME="${TEST_NAME_BASE##??-}"
+export BATCH_SYS_NAME="${TEST_NAME_BASE##??-}"
 RC_PREF="[test battery][batch systems][$BATCH_SYS_NAME]"
 export CYLC_TEST_BATCH_TASK_HOST=$( \
     cylc get-global-config -i "${RC_PREF}host" 2>'/dev/null')
@@ -28,15 +28,16 @@ if [[ -z "${CYLC_TEST_BATCH_TASK_HOST}" || "${CYLC_TEST_BATCH_TASK_HOST}" == Non
 then
     skip_all "\"[test battery][batch systems][$BATCH_SYS_NAME]host\" not defined"
 fi
-set_test_number 2
+set_test_number 3
 #-------------------------------------------------------------------------------
-install_suite $TEST_NAME_BASE $TEST_NAME_BASE
+install_suite "${TEST_NAME_BASE}" batch_sys_suite
 #-------------------------------------------------------------------------------
 TEST_NAME=$TEST_NAME_BASE-validate
 run_ok $TEST_NAME cylc validate $SUITE_NAME
 #-------------------------------------------------------------------------------
 TEST_NAME=$TEST_NAME_BASE-run
 suite_run_ok $TEST_NAME cylc run --reference-test --debug $SUITE_NAME
+grep_ok "a\.1.*failed (polled)" $SUITE_LOG_DIR/log
 #-------------------------------------------------------------------------------
 if [[ "${CYLC_TEST_BATCH_TASK_HOST}" != 'localhost' ]]; then
     ssh -n -oBatchMode=yes -oConnectTimeout=5 "${CYLC_TEST_BATCH_TASK_HOST}" \

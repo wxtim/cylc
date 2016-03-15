@@ -18,7 +18,7 @@
 # Test that polling a submit-failed task sets the task state correctly
 . $(dirname $0)/test_header
 #-------------------------------------------------------------------------------
-set_test_number 2
+set_test_number 3
 #-------------------------------------------------------------------------------
 install_suite $TEST_NAME_BASE $TEST_NAME_BASE
 #-------------------------------------------------------------------------------
@@ -27,5 +27,6 @@ run_ok $TEST_NAME cylc validate $SUITE_NAME
 #-------------------------------------------------------------------------------
 TEST_NAME=$TEST_NAME_BASE-run
 suite_run_ok $TEST_NAME cylc run --reference-test --debug $SUITE_NAME
+grep_ok "foo\.1.*submission failed (polled)" $SUITE_LOG_DIR/log
 #-------------------------------------------------------------------------------
 purge_suite $SUITE_NAME

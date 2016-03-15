@@ -3,18 +3,22 @@
    [[reference test]]
        required run mode = live
        live mode suite timeout = PT5M
+       expected task failures = a.1
 [scheduling]
     [[dependencies]]
-        graph = a:start => b
+        graph = """a:start => b
+            a:fail => !a"""
 [runtime]
     [[a]]
-        script = sleep 20
+        script = """
+trap '' EXIT # die silently
+exit 0"""
 {% if "CYLC_TEST_BATCH_TASK_HOST" in environ and environ["CYLC_TEST_BATCH_TASK_HOST"] %}
         [[[remote]]]
             host={{environ["CYLC_TEST_BATCH_TASK_HOST"]}}
 {% endif %}
         [[[job submission]]]
-            method = pbs
+            method = {{environ["BATCH_SYS_NAME"]}}
         [[[directives]]]
 {% if "CYLC_TEST_BATCH_SITE_DIRECTIVES" in environ and
         environ["CYLC_TEST_BATCH_SITE_DIRECTIVES"] %}
@@ -22,4 +26,8 @@
 {% endif %}
 
     [[b]]
-        script = cylc poll "$CYLC_SUITE_REG_NAME" 'a'
+        script = """
+# Sleep 4 minutes to allow the exited a.1 to disappear from the batch queue.
+cylc message "sleeping for 4 minutes!"
+sleep 240
+cylc poll "$CYLC_SUITE_REG_NAME" a.1"""
