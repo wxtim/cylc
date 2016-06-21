@@ -73,11 +73,9 @@ class TaskPool(object):
     JOBS_POLL = "jobs-poll"
     JOBS_SUBMIT = SuiteProcPool.JOBS_SUBMIT
 
-    def __init__(self, suite, pri_dao, pub_dao, stop_point, pyro, log,
-                 run_mode):
+    def __init__(self, suite, pri_dao, pub_dao, stop_point, pyro, log):
         self.suite_name = suite
         self.pyro = pyro
-        self.run_mode = run_mode
         self.log = log
         self.stop_point = stop_point
         self.do_reload = False
@@ -531,7 +529,7 @@ class TaskPool(object):
                           'triggered off %s' % (
                               itask.state.get_resolved_dependencies()))
             overrides = bcast.get(itask.identity)
-            if self.run_mode == 'simulation':
+            if cylc.flags.run_mode == 'simulation':
                 itask.job_submission_succeeded()
             elif itask.prep_submit(overrides=overrides) is not None:
                 prepared_tasks.append(itask)
@@ -780,7 +778,7 @@ class TaskPool(object):
         If items is specified, poll active tasks matching given IDs.
 
         """
-        if self.run_mode == 'simulation':
+        if cylc.flags.run_mode == 'simulation':
             return
         itasks, n_warnings = self._filter_task_proxies(items, compat)
         active_itasks = []
@@ -816,7 +814,7 @@ class TaskPool(object):
         active_itasks = []
         for itask in itasks:
             is_active = itask.state.status in TASK_STATUSES_KILLABLE
-            if is_active and self.run_mode == 'simulation':
+            if is_active and cylc.flags.run_mode == 'simulation':
                 itask.state.reset_state(TASK_STATUS_FAILED)
             elif is_active:
                 itask.state.reset_state(TASK_STATUS_HELD)

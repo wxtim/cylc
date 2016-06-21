@@ -693,7 +693,7 @@ class TaskProxy(object):
         if db_update:
             self.db_events_insert(event=db_event, message=db_msg)
 
-        if self.tdef.run_mode != 'live':
+        if cylc.flags.run_mode != 'live':
             return
 
         self.setup_job_logs_retrieval(event, message)
@@ -854,7 +854,7 @@ class TaskProxy(object):
             "submit_status": 0,
             "batch_sys_job_id": self.summary.get('submit_method_id')})
 
-        if self.tdef.run_mode == 'simulation':
+        if cylc.flags.run_mode == 'simulation':
             # Simulate job execution at this point.
             if self.__class__.stop_sim_mode_job_submission:
                 self.state.set_ready_to_submit()
@@ -948,10 +948,10 @@ class TaskProxy(object):
             self.retries_configured = True
             # TODO - saving the retry delay lists here is not necessary
             # (it can be handled like the polling interval lists).
-            if (self.tdef.run_mode == 'live' or
-                    (self.tdef.run_mode == 'simulation' and
+            if (cylc.flags.run_mode == 'live' or
+                    (cylc.flags.run_mode == 'simulation' and
                         not rtconfig['simulation mode']['disable retries']) or
-                    (self.tdef.run_mode == 'dummy' and
+                    (cylc.flags.run_mode == 'dummy' and
                         not rtconfig['dummy mode']['disable retries'])):
                 # note that a *copy* of the retry delays list is needed
                 # so that all instances of the same task don't pop off
@@ -1054,7 +1054,7 @@ class TaskProxy(object):
         Return self on a good preparation.
 
         """
-        if self.tdef.run_mode == 'simulation' or (
+        if cylc.flags.run_mode == 'simulation' or (
                 self.local_job_file_path and not dry_run):
             return self
 
@@ -1192,7 +1192,7 @@ class TaskProxy(object):
         script = rtconfig['script']
         pre_script = rtconfig['pre-script']
         post_script = rtconfig['post-script']
-        if self.tdef.run_mode == 'dummy':
+        if cylc.flags.run_mode == 'dummy':
             # Dummy mode command
             script = rtconfig['dummy mode']['script']
             if rtconfig['dummy mode']['disable pre-script']:

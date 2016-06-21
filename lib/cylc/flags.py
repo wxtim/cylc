@@ -38,3 +38,6 @@ debug = False
 
 # utc mode
 utc = False
+
+# run mode
+run_mode = 'live'

@@ -37,7 +37,7 @@ class TaskDef(object):
     """Task definition."""
 
     # Memory optimization - constrain possible attributes to this list.
-    __slots__ = ["run_mode", "rtconfig", "start_point", "sequences",
+    __slots__ = ["rtconfig", "start_point", "sequences",
                  "implicit_sequences", "used_in_offset_trigger",
                  "max_future_prereq_offset", "intercycle_offsets",
                  "sequential", "is_coldstart", "suite_polling_cfg",
@@ -46,11 +46,10 @@ class TaskDef(object):
                  "external_triggers", "name", "elapsed_times",
                  "mean_total_elapsed_time"]
 
-    def __init__(self, name, rtcfg, run_mode, start_point):
+    def __init__(self, name, rtcfg, start_point):
         if not TaskID.is_valid_name(name):
             raise TaskDefError("Illegal task name: %s" % name)
 
-        self.run_mode = run_mode
         self.rtconfig = rtcfg
         self.start_point = start_point
 

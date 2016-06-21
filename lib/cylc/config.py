@@ -127,7 +127,7 @@ class SuiteConfig(object):
     @classmethod
     def get_inst(cls, suite=None, fpath=None,
                  template_vars=[], template_vars_file=None,
-                 owner=None, run_mode='live', validation=False, strict=False,
+                 owner=None, validation=False, strict=False,
                  collapsed=[], cli_initial_point_string=None,
                  cli_start_point_string=None, cli_final_point_string=None,
                  is_restart=False, is_reload=False, write_proc=True,
@@ -143,14 +143,14 @@ class SuiteConfig(object):
             cls._FORCE = False
             cls._INSTANCE = cls(
                 suite, fpath, template_vars, template_vars_file, owner,
-                run_mode, validation, strict, collapsed,
+                validation, strict, collapsed,
                 cli_initial_point_string, cli_start_point_string,
                 cli_final_point_string, is_restart, is_reload, write_proc,
                 vis_start_string, vis_stop_string, mem_log_func)
         return cls._INSTANCE
 
     def __init__(self, suite, fpath, template_vars=[], template_vars_file=None,
-                 owner=None, run_mode='live', validation=False, strict=False,
+                 owner=None, validation=False, strict=False,
                  collapsed=[], cli_initial_point_string=None,
                  cli_start_point_string=None, cli_final_point_string=None,
                  is_restart=False, is_reload=False, write_proc=True,
@@ -165,7 +165,6 @@ class SuiteConfig(object):
         self.fpath = fpath  # suite definition
         self.fdir = os.path.dirname(fpath)
         self.owner = owner
-        self.run_mode = run_mode
         self.strict = strict
         self.naked_dummy_tasks = []
         self.edges = []
@@ -544,7 +543,7 @@ class SuiteConfig(object):
 
         # check for run mode override at suite level
         if self.cfg['cylc']['force run mode']:
-            self.run_mode = self.cfg['cylc']['force run mode']
+            flags.run_mode = self.cfg['cylc']['force run mode']
 
         self.process_directories()
 
@@ -1681,7 +1680,7 @@ class SuiteConfig(object):
                 else:
                     self.taskdefs[name].add_sequence(seq)
 
-            if self.run_mode == 'live':
+            if flags.run_mode == 'live':
                 # Record message outputs.
                 for lbl, msg in self.cfg['runtime'][name]['outputs'].items():
                     outp = MessageOutput(msg, base_interval)
@@ -2225,7 +2224,7 @@ class SuiteConfig(object):
         # initial cycle via restart (accidentally or otherwise).
 
         # Get the taskdef object for generating the task proxy class
-        taskd = TaskDef(name, rtcfg, self.run_mode, self.start_point)
+        taskd = TaskDef(name, rtcfg, self.start_point)
 
         # TODO - put all taskd.foo items in a single config dict
         # Set cold-start task indicators.

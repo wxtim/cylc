@@ -21,6 +21,7 @@ import errno
 import os
 import time
 import logging
+import cylc.flags
 from cylc.cfgspec.globalcfg import GLOBAL_CFG
 from cylc.wallclock import get_current_time_string
 from cylc.network.suite_broadcast import BroadcastServer
@@ -31,8 +32,7 @@ class SuiteStateDumper(object):
 
     BASE_NAME = 'state'
 
-    def __init__(self, suite, run_mode='live', ict=None, stop_point=None):
-        self.run_mode = run_mode
+    def __init__(self, suite, ict=None, stop_point=None):
         self.cts_str = None
         self.set_cts(ict, stop_point)
         self.dir_name = GLOBAL_CFG.get_derived_host_item(
@@ -71,7 +71,7 @@ class SuiteStateDumper(object):
             try:
                 handle = open(file_name, "wb")
 
-                handle.write('run mode : %s\n' % self.run_mode)
+                handle.write('run mode : %s\n' % cylc.flags.run_mode)
                 handle.write('time : %s (%d)\n' % (
                     get_current_time_string(), time.time()))
 

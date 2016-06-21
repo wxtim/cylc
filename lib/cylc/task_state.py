@@ -258,7 +258,6 @@ class TaskState(object):
         self.kill_failed = False
         self.hold_on_retry = False
         self._state_pre_hold = None
-        self.run_mode = tdef.run_mode
 
         # TODO - these are here because current use in reset_state(); should be
         # disentangled and put in the task_proxy module.
@@ -483,7 +482,7 @@ class TaskState(object):
     def set_executing(self):
         """Manipulate state for job execution."""
         self.set_state(TASK_STATUS_RUNNING)
-        if self.run_mode == 'simulation':
+        if flags.run_mode == 'simulation':
             self.outputs.set_completed(TASK_OUTPUT_STARTED)
 
     def set_execution_succeeded(self, msg_was_polled):

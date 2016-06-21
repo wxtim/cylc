@@ -90,18 +90,17 @@ class StateSummaryServer(PyroServer):
     _INSTANCE = None
 
     @classmethod
-    def get_inst(cls, run_mode=None):
+    def get_inst(cls):
         """Return a singleton instance."""
         if cls._INSTANCE is None:
-            cls._INSTANCE = cls(run_mode)
+            cls._INSTANCE = cls()
         return cls._INSTANCE
 
-    def __init__(self, run_mode):
+    def __init__(self):
         super(StateSummaryServer, self).__init__()
         self.task_summary = {}
         self.global_summary = {}
         self.family_summary = {}
-        self.run_mode = run_mode
         self.first_update_completed = False
         self._summary_update_time = None
 
@@ -187,7 +186,7 @@ class StateSummaryServer(PyroServer):
         else:
             global_summary['daemon time zone info'] = TIME_ZONE_LOCAL_INFO
         global_summary['last_updated'] = time.time()
-        global_summary['run_mode'] = self.run_mode
+        global_summary['run_mode'] = cylc.flags.run_mode
         global_summary['states'] = all_states
         global_summary['namespace definition order'] = ns_defn_order
         global_summary['reloading'] = reloading

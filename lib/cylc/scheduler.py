@@ -149,7 +149,7 @@ class Scheduler(object):
             else:
                 self._cli_initial_point_string = start_point_str
 
-        self.run_mode = self.options.run_mode
+        cylc.flags.run_mode = self.options.run_mode
 
         if cylc.flags.debug:
             self.logging_level = logging.DEBUG
@@ -383,7 +383,7 @@ conditions; see `cylc conditions`.
 
         reqmode = self.config.cfg['cylc']['required run mode']
         if reqmode:
-            if reqmode != self.run_mode:
+            if reqmode != cylc.flags.run_mode:
                 raise SchedulerError(
                     'ERROR: this suite requires the %s run mode' % reqmode)
 
@@ -395,15 +395,14 @@ conditions; see `cylc conditions`.
         self.log.info('Suite starting on %s:%s' % (self.host, self.port))
         # Note that the following lines must be present at the top of
         # the suite log file for use in reference test runs:
-        self.log.info('Run mode: ' + self.run_mode)
+        self.log.info('Run mode: ' + cylc.flags.run_mode)
         self.log.info('Initial point: ' + str(self.initial_point))
         if self.start_point != self.initial_point:
             self.log.info('Start point: ' + str(self.start_point))
         self.log.info('Final point: ' + str(self.final_point))
 
-        self.pool = TaskPool(
-            self.suite, self.pri_dao, self.pub_dao, self.final_point,
-            self.pyro, self.log, self.run_mode)
+        self.pool = TaskPool(self.suite, self.pri_dao, self.pub_dao,
+                             self.final_point, self.pyro, self.log)
         self.state_dumper.pool = self.pool
         self.request_handler = PyroRequestHandler(self.pyro)
         self.request_handler.start()
@@ -555,10 +554,10 @@ conditions; see `cylc conditions`.
             index += 1
             # time : <time> (not used here)
 
-        if self.run_mode == 'live' and old_run_mode != 'live':
+        if cylc.flags.run_mode == 'live' and old_run_mode != 'live':
             raise Exception(
                 "ERROR: cannot RESTART in %s from a %s state dump" % (
-                    self.run_mode, old_run_mode))
+                    cylc.flags.run_mode, old_run_mode))
 
         state_start_string = None
         index += 1
@@ -1135,7 +1134,7 @@ conditions; see `cylc conditions`.
         self.config = SuiteConfig.get_inst(
             self.suite, self.suiterc,
             self.options.templatevars,
-            self.options.templatevars_file, run_mode=self.run_mode,
+            self.options.templatevars_file,
             cli_initial_point_string=self._cli_initial_point_string,
             cli_start_point_string=self._cli_start_point_string,
             cli_final_point_string=self.options.final_point_string,
@@ -1191,15 +1190,11 @@ conditions; see `cylc conditions`.
                 'WARNING: No initial cycle point provided ' +
                 ' - no cycling tasks will be loaded.\n')
 
-        if self.run_mode != self.config.run_mode:
-            self.run_mode = self.config.run_mode
-
         if not reconfigure:
             # Things that can't change on suite reload.
 
             self.state_dumper = SuiteStateDumper(
-                self.suite, self.run_mode, self.initial_point,
-                self.final_point)
+                self.suite, self.initial_point, self.final_point)
 
             run_dir = GLOBAL_CFG.get_derived_host_item(
                 self.suite, 'suite run directory')
@@ -1270,7 +1265,7 @@ conditions; see `cylc conditions`.
             self.log_interface = SuiteLogServer(slog)
             self.pyro.connect(self.log_interface, PYRO_LOG_OBJ_NAME)
 
-            self.suite_state = StateSummaryServer.get_inst(self.run_mode)
+            self.suite_state = StateSummaryServer.get_inst()
             self.pyro.connect(self.suite_state, PYRO_STATE_OBJ_NAME)
 
     def configure_suite_environment(self):
@@ -1354,7 +1349,7 @@ conditions; see `cylc conditions`.
         elif self.reference_test_mode:
             rtc = self.config.cfg['cylc']['reference test']
             req = rtc['required run mode']
-            if req and req != self.run_mode:
+            if req and req != cylc.flags.run_mode:
                 raise SchedulerError(
                     'ERROR: suite allows only ' + req + ' reference tests')
             handlers = self._get_events_conf('shutdown handler')
@@ -1377,23 +1372,17 @@ conditions; see `cylc conditions`.
                     not self.ref_test_allowed_failures):
                 self.config.cfg['cylc']['abort if any task fails'] = True
             self.config.cfg['cylc']['event hooks']['abort on timeout'] = True
-            timeout = rtc[self.run_mode + ' mode suite timeout']
+            timeout = rtc[cylc.flags.run_mode + ' mode suite timeout']
             if not timeout:
                 raise SchedulerError(
                     'ERROR: timeout not defined for %s reference tests' % (
-                        self.run_mode))
+                        cylc.flags.run_mode))
             self.config.cfg['cylc']['event hooks'][self.EVENT_TIMEOUT] = (
                 timeout)
             self.config.cfg['cylc']['event hooks']['reset timer'] = False
 
     def run_event_handlers(self, event, message):
         """Run a suite event handler."""
-        # Run suite event hooks in simulation and dummy mode ONLY if enabled
-        for mode_name in ['simulation', 'dummy']:
-            key = mode_name + ' mode'
-            if (self.run_mode == mode_name and
-                    self.config.cfg['cylc'][key]['disable suite event hooks']):
-                return
 
         # Email notification
         if event in self._get_events_conf('mail events', []):
@@ -1618,7 +1607,7 @@ conditions; see `cylc conditions`.
                                 'Failed task is not in allowed failures list')
 
             # check submission and execution timeout and polling timers
-            if self.run_mode != 'simulation':
+            if cylc.flags.run_mode != 'simulation':
                 self.pool.check_task_timers()
 
             if (self.config.cfg['cylc']['disable automatic shutdown'] or
@@ -1731,7 +1720,7 @@ conditions; see `cylc conditions`.
         if self.pool.waiting_tasks_ready():
             process = True
 
-        if self.run_mode == 'simulation' and self.pool.sim_time_check():
+        if cylc.flags.run_mode == 'simulation' and self.pool.sim_time_check():
             process = True
 
         # if not process:
