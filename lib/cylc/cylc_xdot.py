@@ -22,12 +22,14 @@ import subprocess
 import gtk
 import time
 import gobject
-from cylc.config import SuiteConfig
 import os
 import sys
 import re
 from graphing import CGraphPlain
+
+from cylc.config import SuiteConfig
 from cylc.task_id import TaskID
+from cylc.suite_logging import ERR
 
 """
 Cylc-modified xdot windows for the "cylc graph" command.
@@ -52,8 +54,7 @@ class CylcDotViewerCommon(xdot.DotWindow):
                 vis_start_string=self.start_point_string,
                 vis_stop_string=self.stop_point_string)
         except Exception, x:
-            print >> sys.stderr, "Failed - parsing error?"
-            print >> sys.stderr, x
+            ERR.error("Failed - parsing error?\n" + str(x))
             return False
         self.inherit = self.suiterc.get_parent_lists()
         return True
