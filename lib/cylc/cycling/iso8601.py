@@ -846,9 +846,9 @@ class TestISO8601Sequence(unittest.TestCase):
             output.append(point)
             point = sequence.get_next_point(point)
             count += 1
-        output = [str(out) for out in output]
-        self.assertEqual(output, ['20000101T0100+01', '20000101T0200+01',
-                                  '20000101T0400+01', '20000101T0500+01'])
+        output = [str(out).split('+')[0].split('-')[0] for out in output]
+        self.assertEqual(output, ['20000101T0100', '20000101T0200',
+                                  '20000101T0400', '20000101T0500'])
 
     def test_exclusions_extensive(self):
         """Test ISO8601Sequence methods for sequences with exclusions"""
