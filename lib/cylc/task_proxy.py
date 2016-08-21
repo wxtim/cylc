@@ -240,7 +240,11 @@ class TaskProxy(object):
                 self.point, self.tdef.intercycle_offsets)
             self.identity = TaskID.get(self.tdef.name, self.point)
 
-        self.has_spawned = has_spawned
+        if self.tdef.is_coldstart:
+            self.has_spawned = True
+        else:
+            self.has_spawned = has_spawned
+
         self.point_as_seconds = None
 
         # Manually inserted tasks may have a final cycle point set.
@@ -1478,8 +1482,8 @@ class TaskProxy(object):
 
     def spawn(self, state):
         """Spawn the successor of this task proxy."""
-        self.has_spawned = True
         next_point = self.next_point()
+        self.has_spawned = True
         if next_point:
             return TaskProxy(
                 self.tdef, next_point, state, False, self.stop_point,
@@ -1487,19 +1491,6 @@ class TaskProxy(object):
         else:
             # next_point instance is out of the sequence bounds
             return None
-
-    def ready_to_spawn(self):
-        """Spawn successor on any state beyond submit (except submit-failed, to
-        prevent multi-spawning a task with bad job submission config).
-
-        Allows successive instances to run in parallel, but not out of order.
-
-        """
-        if self.tdef.is_coldstart:
-            self.has_spawned = True
-        return (not self.has_spawned and
-                self.state.is_greater_than(TASK_STATUS_READY) and
-                self.state.status != TASK_STATUS_SUBMIT_FAILED)
 
     def get_state_summary(self):
         """Return a dict containing the state summary of this task proxy."""
@@ -1521,6 +1512,19 @@ class TaskProxy(object):
         if adjusted:
             p_next = min(adjusted)
         return p_next
+
+    def prev_point(self):
+        """Return the previous cycle point."""
+        p_prev = None
+        adjusted = []
+        for seq in self.tdef.sequences:
+            prv = seq.get_prev_point(self.point)
+            if prv:
+                # may be None if beyond the sequence bounds
+                adjusted.append(prv)
+        if adjusted:
+            p_prev = max(adjusted)
+        return p_prev
 
     def get_job_log_path(self, head_mode=None, submit_num=None, tail=None):
         """Return the job log path."""

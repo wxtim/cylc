@@ -11,7 +11,7 @@ description = """Test running with a hold-after cycle point."""
 [scheduling]
     initial cycle time = 20140101T00
     final cycle time   = 20140104T00
-    max active cycle points = 10    
+    max active cycle points = 10
     [[dependencies]]
         [[[R1]]]
             graph = stopper

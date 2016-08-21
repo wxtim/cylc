@@ -128,6 +128,11 @@ class TaskPool(object):
             self.TABLE_CHECKPOINT_ID: [],
             self.TABLE_TASK_POOL: []}
 
+        if config.cfg['cylc']['spawn two tasks ahead']:
+            self.max_n_waiting_instances = 2
+        else:
+            self.max_n_waiting_instances = 1
+
     def assign_queues(self):
         """self.myq[taskname] = qfoo"""
         config = SuiteConfig.get_inst()
@@ -232,32 +237,39 @@ class TaskPool(object):
         # (note this is not the same as recurrence bounds)
         if itask.stop_point and itask.point > itask.stop_point:
             self.log.info(
-                itask.identity + ' not adding to pool: beyond task stop cycle')
+                itask.identity + ' not adding to pool: beyond task stop point')
             del itask
             return False
 
-        # add in held state if beyond the suite stop point
-        if self.stop_point and itask.point > self.stop_point:
-            itask.log(
-                INFO,
-                "holding (beyond suite stop point) " + str(self.stop_point))
-            itask.state.reset_state(TASK_STATUS_HELD)
+        if self.stop_point:
+            if itask.point > self.stop_point:
+                if itask.prev_point() > self.stop_point:
+                    # Only keep first instance beyond the suite stop point.
+                    return False
+                itask.log(INFO,
+                          "holding (beyond suite stop cycle point %s)" % (
+                              str(self.stop_point)))
+                itask.state.reset_state(TASK_STATUS_HELD)
 
-        # add in held state if beyond the suite hold point
-        elif self.hold_point and itask.point > self.hold_point:
-            itask.log(
-                INFO,
-                "holding (beyond suite hold point) " + str(self.hold_point))
-            itask.state.reset_state(TASK_STATUS_HELD)
+        if self.hold_point:
+            if itask.point > self.hold_point:
+                if itask.prev_point() > self.hold_point:
+                    # Only keep first instance beyond the suite hold point.
+                    return False
+                itask.log(INFO,
+                          "holding (beyond suite hold cycle point %s) " % (
+                              str(self.hold_point)))
+                itask.state.reset_state(TASK_STATUS_HELD)
 
         # add in held state if a future trigger goes beyond the suite stop
         # point (note this only applies to tasks below the suite stop point
         # themselves)
-        elif self.task_has_future_trigger_overrun(itask):
+        if self.task_has_future_trigger_overrun(itask):
             itask.log(INFO, "holding (future trigger beyond stop point)")
             self.held_future_tasks.append(itask.identity)
             itask.state.reset_state(TASK_STATUS_HELD)
-        elif self.is_held and itask.state.status == TASK_STATUS_WAITING:
+
+        if self.is_held and itask.state.status == TASK_STATUS_WAITING:
             # Hold newly-spawned tasks in a held suite (e.g. due to manual
             # triggering of a held task).
             itask.state.reset_state(TASK_STATUS_HELD)
@@ -1287,25 +1299,40 @@ class TaskPool(object):
         """Spawn successor of itask."""
         if itask.has_spawned:
             return None
-        itask.has_spawned = True
         itask.log(DEBUG, 'forced spawning')
         new_task = itask.spawn(TASK_STATUS_WAITING)
-        if new_task and self.add_to_runahead_pool(new_task):
-            return new_task
-        else:
-            return None
+        if new_task:
+            # (Else out of task sequence bounds.)
+            if not self.add_to_runahead_pool(new_task):
+                # If not added because it was not the first instance beyond the
+                # suite hold- (or stop-point), allow respawning again later in
+                # case of release (or restart with a later stop point).
+                itask.has_spawned = False
 
     def spawn_all_tasks(self):
-        """Spawn successors of tasks in pool, if they're ready.
+        """Spawn new task instances in the pool.
 
-        Return the number of spawned tasks.
+        Any unspawned task with less than self.max_n_waiting_instances
+        waiting instances is spawned. Returns the number of spawned tasks.
         """
-        spawned_tasks = 0
+        n_spawned_tasks = 0
+        # Cound waiting instances of each task.
+        n_waiting = {}
         for itask in self.get_tasks():
-            if itask.ready_to_spawn():
+            if itask.state.status == "waiting":
+                if itask.tdef.name in n_waiting:
+                    n_waiting[itask.tdef.name] += 1
+                else:
+                    n_waiting[itask.tdef.name] = 1
+        # Spawn any unspawned tasks with too few waiting instances.
+        for itask in self.get_tasks():
+            if itask.has_spawned:
+                continue
+            if (itask.tdef.name not in n_waiting or
+                    n_waiting[itask.tdef.name] < self.max_n_waiting_instances):
                 self.force_spawn(itask)
-                spawned_tasks += 1
-        return spawned_tasks
+                n_spawned_tasks += 1
+        return n_spawned_tasks
 
     def remove_suiciding_tasks(self):
         """Remove any tasks that have suicide-triggered.

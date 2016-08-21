@@ -16,7 +16,7 @@ point of the suite."""
             graph = holdrelease => foo & stop
         [[[P1D]]]
             graph = """
-                foo
+                foo[-P1D]:submit => foo
             """
 [runtime]
     [[holdrelease]]
