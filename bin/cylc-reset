@@ -73,7 +73,7 @@ def main():
             raise SystemExit(exc)
 
     if options.state not in TASK_STATUSES_CAN_RESET_TO:
-        parser.error("Illegal STATE value: " + options.state)
+        parser.error("Illegal STATE value: %s" % options.state)
 
     prompt('Reset task(s) %s in %s' % (args, suite), options.force)
     pclient = SuiteCommandClient(
