@@ -67,7 +67,7 @@ script:
     # Only run the generic tests on Travis CI.
     - export CYLC_TEST_RUN_PLATFORM=false
     # Run tests with virtual frame buffer for X support.
-    - xvfb-run -a cylc test-battery -j 5
+    - xvfb-run -a cylc test-battery -j 5 tests/pre-initial/10-warm-insert.t tests/pre-initial/11-warm-insert-stall.t
 
 # Check output (more useful if you narrow down what tests get run)
 after_script:
