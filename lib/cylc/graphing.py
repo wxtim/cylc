@@ -226,7 +226,7 @@ class CGraphPlain(pygraphviz.AGraph):
     def add_edges(self, edges, ignore_suicide=False):
         edges.sort()  # TODO: does sorting help layout stability?
         for edge in edges:
-            left, right, skipped, suicide, conditional = edge
+            left, right, label, skipped, suicide, conditional = edge
             if suicide and ignore_suicide:
                 continue
             attrs = {}
@@ -248,7 +248,9 @@ class CGraphPlain(pygraphviz.AGraph):
                 # override
                 attrs['style'] = 'dotted'
                 attrs['arrowhead'] = 'oinv'
-
+            if label:
+                attrs['label'] = 'twat'
+ 
             attrs['penwidth'] = 2
 
             self.cylc_add_edge(
@@ -363,7 +365,7 @@ class CGraph(CGraphPlain):
 
 
 class edge(object):
-    def __init__(self, left, right, sequence, suicide=False,
+    def __init__(self, left, right, sequence, label='', suicide=False,
                  conditional=False):
         """contains qualified node names, e.g. 'foo[T-6]:out1'"""
         self.left = left
@@ -371,6 +373,7 @@ class edge(object):
         self.suicide = suicide
         self.sequence = sequence
         self.conditional = conditional
+        self.label = label
 
     def get_right(self, inpoint, start_point):
         inpoint_string = str(inpoint)

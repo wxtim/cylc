@@ -1601,7 +1601,7 @@ class SuiteConfig(object):
                         raise SuiteConfigError(
                             "ERROR, self-edge detected: %s => %s" % (
                                 left, right))
-            e = graphing.edge(left, right, seq, suicide, conditional)
+            e = graphing.edge(left, right, seq, lexpression, suicide, conditional)
             self.edges.append(e)
 
     def generate_taskdefs(self, line, left_nodes, right, section, seq,
@@ -1911,7 +1911,7 @@ class SuiteConfig(object):
                     if point not in gr_edges:
                         gr_edges[point] = []
                     gr_edges[point].append(
-                        (nl, nr, None, e.suicide, e.conditional))
+                        (nl, nr, None, 'X', e.suicide, e.conditional))
                 # Increment the cycle point.
                 point = e.sequence.get_next_point_on_sequence(point)
 
