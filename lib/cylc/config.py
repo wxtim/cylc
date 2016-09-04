@@ -1837,6 +1837,9 @@ class SuiteConfig(object):
         taskd.sequential = (
             name in self.cfg['scheduling']['special tasks']['sequential'])
 
+        taskd.is_coldstart = (
+            name in self.cfg['scheduling']['special tasks']['cold-start'])
+
         foo = copy(self.runtime['linearized ancestors'][name])
         foo.reverse()
         taskd.namespace_hierarchy = foo
