@@ -138,12 +138,13 @@ class GraphParser(object):
         self.triggers = {}
         self.original = {}
         self.suite_state_polling_tasks = {}
-        self.get_startup = False
+        # Back-compat cylc-5:
         self.startup_tasks = startup_tasks
         self.get_startup = False
+        self.r1_point = None
         self.startup_graph_text = ''
 
-    def parse_graph(self, graph_string, get_startup=False):
+    def parse_graph(self, graph_string, get_startup=False, r1_point=None):
         """Parse the graph string for a single graph section.
 
         (Assumes any general line-continuation markers have been processed).
@@ -157,6 +158,7 @@ class GraphParser(object):
              ii. Record parsed dependency information for each right-side node.
         """
         self.get_startup = get_startup
+        self.r1_point = r1_point
 
         # Strip comments, whitespace, and blank lines.
         non_blank_lines = []
@@ -390,35 +392,45 @@ class GraphParser(object):
         Arg info is [(name, offset, trigger_type)] for each name in expr.
         """
 
-        if right in self.startup_tasks and not self.get_startup:
-            return
+        if right in self.startup_tasks:
+            if not self.get_startup or self.r1_point:
+                return
+            elif self.r1_point and suicide:
+                return
 
         # Replace finish triggers here (must be done after member substn).
         trigs = []
         pruned = []
         for name, offset, trigger in info:
-            if not self.get_startup and name in self.startup_tasks:
-                pruned.append("%s%s%s" % (name, re.escape(offset), trigger))
-                continue
-            elif self.get_startup and name not in self.startup_tasks:
-                pruned.append("%s%s%s" % (name, re.escape(offset), trigger))
-                continue
-            if trigger == self.__class__.TRIG_FINISH:
+            if (self.get_startup and name in self.startup_tasks and
+                    self.r1_point and not offset):
+                that_offset = '[^]'
+            else:
+                that_offset = offset
+            if ((not self.get_startup and name in self.startup_tasks) or
+                    (self.get_startup and name not in self.startup_tasks)):
+                pruned.append("%s%s%s" % (name, that_offset, trigger))
+            elif trigger == self.__class__.TRIG_FINISH:
                 this = "%s%s%s" % (name, re.escape(offset), trigger)
                 that = "(%s%s%s%s%s%s%s)" % (
-                    name, offset, self.__class__.TRIG_SUCCEED,
+                    name, that_offset, self.__class__.TRIG_SUCCEED,
                     self.__class__.OP_OR,
-                    name, offset, self.__class__.TRIG_FAIL)
+                    name, that_offset, self.__class__.TRIG_FAIL)
                 expr = re.sub(this, that, expr)
                 trigs += [
-                    "%s%s%s" % (name, offset, self.__class__.TRIG_SUCCEED),
-                    "%s%s%s" % (name, offset, self.__class__.TRIG_FAIL)]
+                    "%s%s%s" % (name, that_offset, self.__class__.TRIG_SUCCEED),
+                    "%s%s%s" % (name, that_offset, self.__class__.TRIG_FAIL)]
             else:
-                trigs += ["%s%s%s" % (name, offset, trigger)]
+                this = "%s%s%s" % (name, re.escape(offset), trigger)
+                that = "%s%s%s" % (name, that_offset, trigger)
+                expr = re.sub(this, that, expr)
+                trigs += ["%s%s%s" % (name, that_offset, trigger)]
 
         for node in pruned:
-            expr = re.sub(node + '&', '', expr)
-            expr = re.sub('&' + node, '', expr)
+            expr = re.sub(re.escape(node) + '&', '', expr)
+            expr = re.sub('&' + re.escape(node), '', expr)
+            # TODO - IS THIS NEEDED?:
+            expr = re.sub(re.escape(node), '', expr)
 
         if self.get_startup:
             if expr and right:
@@ -431,16 +443,6 @@ class GraphParser(object):
             self.original[right] = {}
         self.triggers[right][expr] = (trigs, suicide)
         self.original[right][expr] = orig_expr
-
-
-    def _prune_expression(self, expression, pruned):
-        """Remove pruned nodes from a graph string left-side.
-
-        Used for pruning back-compat (cylc-5) start-up tasks from non-R1
-        sections.
-        """
-        return expression
-
 
     def _tidy_triggers(self):
         """Remove any null triggers for tasks that have non-null triggers.

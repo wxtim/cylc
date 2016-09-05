@@ -21,15 +21,6 @@ Do some consistency checking, then construct task proxy objects and graph
 structures.
 """
 
-# NOTE: OBSOLETED:
-#  * OLD INITIAL TASKS (start-up and cold-start)
-#  * IMPLICIT CYCLING
-#  * ASYNC GRAPH IN CYCLING SUITE
-#  * Ignored qualifiers on RHS, e.g. foo => FAM:succeed-all => bar
-#    now must be "foo => FAM" and "FAM:succeed-all => bar".
-#  * note cannot get-config retrieve an async graph anymore, it is moved to R1.
-# TODO: CONSIDER OBSOLETING ALL cylc-5 syntax?
-# TODO: check tutorial suites and CUG are consistent post cold-start remove.
 
 from copy import deepcopy, copy
 import re
@@ -39,7 +30,7 @@ import sys
 import traceback
 
 from cylc.c3mro import C3
-from cylc.graph_parser import GraphParser
+from cylc.graph_parser import GraphParser 
 from cylc.param_expand import NameExpander
 from cylc.cfgspec.suite import RawSuiteConfig
 from cylc.cycling.loader import (get_point, get_point_relative,
@@ -270,6 +261,16 @@ class SuiteConfig(object):
                         self.cfg['scheduling']['initial cycle point'] = "1"
                     if 'final cycle point' not in self.cfg['scheduling']:
                         self.cfg['scheduling']['final cycle point'] = "1"
+                else:
+                    # A cylc-5 async graph in a cycling suite defines a bunch
+                    # of cylc-5 start-up tasks.
+                    if 'special tasks' not in self.cfg['scheduling']:
+                        self.cfg['scheduling']['special tasks'] = {}
+                    if 'start-up' not in self.cfg['scheduling']['special tasks']:
+                        self.cfg['scheduling']['special tasks']['start-up'] = []
+                    for name, _a, _b in GraphParser.REC_NODES.findall(
+                        self.cfg['scheduling']['dependencies']['graph']):
+                        self.cfg['scheduling']['special tasks']['start-up'].append(name)
 
         # allow test suites with no [runtime]:
         if 'runtime' not in self.cfg:
@@ -1293,6 +1294,9 @@ class SuiteConfig(object):
                         "ERROR: script cannot be defined for automatic" +
                         " suite polling task " + l_task)
 
+    def get_coldstart_task_list(self):
+        return self.cfg['scheduling']['special tasks']['cold-start']
+
     def get_task_name_list(self):
         # return a list of all tasks used in the dependency graph
         return self.taskdefs.keys()
@@ -1391,6 +1395,25 @@ class SuiteConfig(object):
             if not my_taskdef_node.is_absolute:
                 if offset_string:
                     self.taskdefs[name].used_in_offset_trigger = True
+                    if SyntaxVersion.VERSION == VERSION_PREV:
+                        # Implicit cycling means foo[T+6] generates a +6
+                        # sequence.
+                        #if offset_string in offset_seq_map:
+                        #    seq_offset = offset_seq_map[offset_string]
+                        #else:
+                        seq_offset = get_sequence(
+                            section,
+                        self.cfg['scheduling']['initial cycle point'],
+                            self.cfg['scheduling']['final cycle point']
+                        )
+                        seq_offset.set_offset(
+                            get_interval(offset_string))
+                        #offset_seq_map[offset_string] = seq_offset
+                        self.taskdefs[name].add_sequence(
+                            seq_offset, is_implicit=True)
+                        if seq_offset not in self.sequences:
+                            self.sequences.append(seq_offset)
+                    # We don't handle implicit cycling in new-style cycling.
                 else:
                     self.taskdefs[name].add_sequence(seq)
 
@@ -1793,43 +1816,59 @@ class SuiteConfig(object):
         # for an R1 section and prune the rest out; 2) extract all normal
         # triggers prune start-up triggers identified in step 1.
         startup_tasks = self.cfg['scheduling']['special tasks']['start-up']
+        if startup_tasks:
+            set_syntax_version(VERSION_PREV,
+                               "start-up tasks: %s" % ",".join(startup_tasks))
         for section, graph in sections:
-            # TODO if section initial point is not suite initial point, need R1/sec-init-point
-            # and startup[^]!!!!!!!
             seq = get_sequence(section,
                                self.cfg['scheduling']['initial cycle point'],
                                self.cfg['scheduling']['final cycle point'])
-            base_interval = seq.get_interval()
-            self.sequences.append(seq)
-
             if startup_tasks:
+                first_point = seq.get_first_point(
+                    get_point(self.cfg['scheduling']['initial cycle point']))
+                if first_point != self.initial_point:
+                    r1_point = str(first_point)
+                    r1_sec = 'R1/%s' % r1_point
+                else:
+                    r1_point = None
+                    r1_sec = 'R1'
+                r1_seq = get_sequence(
+                    r1_sec,
+                    self.cfg['scheduling']['initial cycle point'],
+                    self.cfg['scheduling']['final cycle point'])
+                self.sequences.append(r1_seq)
                 gp = GraphParser(family_map, self.parameters, startup_tasks)
-                gp.parse_graph(graph, get_startup=True)
+                gp.parse_graph(graph, get_startup=True, r1_point=r1_point)
                 self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
-                self._proc_triggers(gp, 'R1', seq, base_interval)
+                self._proc_triggers(gp, r1_sec, r1_seq)
+                #gp.print_triggers()
                 if self.validation:
                     print '''\
 # REPLACING START-UP/ASYNC DEPENDENCIES WITH AN R1* SECTION
 # (VARYING INITIAL CYCLE POINT MAY AFFECT VALIDITY)
-    [[[R1]]]
-        graph = """%s""" '''% gp.startup_graph_text
-            gp = GraphParser(family_map, self.parameters, startup_tasks)
-            gp.parse_graph(graph, get_startup=False)
-            self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
-            self._proc_triggers(gp, section, seq, base_interval)
+    [[[%s]]]
+        graph = """%s""" '''% (r1_sec, gp.startup_graph_text)
 
-    def _proc_triggers(self, gp, section, seq, base_interval):
-            for right, val in gp.triggers.items():
-                for expr, trigs in val.items():
-                    lefts, suicide = trigs
-                    orig_expr = gp.original[right][expr]
-                    if not graphing_disabled:
-                        self.generate_edges(expr, orig_expr, lefts,
-                                            right, seq, suicide)
-                    self.generate_taskdefs(
-                        orig_expr, lefts, right, section, seq, base_interval)
-                    self.generate_triggers(
-                        expr, lefts, right, seq, suicide, base_interval)
+            self.sequences.append(seq)
+            gp = GraphParser(family_map, self.parameters, startup_tasks)
+            gp.parse_graph(graph)
+            self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
+            self._proc_triggers(gp, section, seq)
+            #gp.print_triggers()
+
+    def _proc_triggers(self, gp, section, seq):
+        base_interval = seq.get_interval()
+        for right, val in gp.triggers.items():
+            for expr, trigs in val.items():
+                lefts, suicide = trigs
+                orig_expr = gp.original[right][expr]
+                if not graphing_disabled:
+                    self.generate_edges(expr, orig_expr, lefts,
+                                        right, seq, suicide)
+                self.generate_taskdefs(
+                    orig_expr, lefts, right, section, seq, base_interval)
+                self.generate_triggers(
+                    expr, lefts, right, seq, suicide, base_interval)
 
     def get_taskdef(self, name):
         """Get the dense task runtime."""
