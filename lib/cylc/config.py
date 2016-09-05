@@ -1794,11 +1794,19 @@ class SuiteConfig(object):
         # triggers prune start-up triggers identified in step 1.
         startup_tasks = self.cfg['scheduling']['special tasks']['start-up']
         for section, graph in sections:
+            # TODO if section initial point is not suite initial point, need R1/sec-init-point
+            # and startup[^]!!!!!!!
+            seq = get_sequence(section,
+                               self.cfg['scheduling']['initial cycle point'],
+                               self.cfg['scheduling']['final cycle point'])
+            base_interval = seq.get_interval()
+            self.sequences.append(seq)
+
             if startup_tasks:
                 gp = GraphParser(family_map, self.parameters, startup_tasks)
                 gp.parse_graph(graph, get_startup=True)
                 self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
-                self._proc_triggers(gp, 'R1')
+                self._proc_triggers(gp, 'R1', seq, base_interval)
                 if self.validation:
                     print '''\
 # REPLACING START-UP/ASYNC DEPENDENCIES WITH AN R1* SECTION
@@ -1808,14 +1816,9 @@ class SuiteConfig(object):
             gp = GraphParser(family_map, self.parameters, startup_tasks)
             gp.parse_graph(graph, get_startup=False)
             self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
-            self._proc_triggers(gp, section)
+            self._proc_triggers(gp, section, seq, base_interval)
 
-    def _proc_triggers(self, gp, section):
-            seq = get_sequence(section,
-                               self.cfg['scheduling']['initial cycle point'],
-                               self.cfg['scheduling']['final cycle point'])
-            base_interval = seq.get_interval()
-            self.sequences.append(seq)
+    def _proc_triggers(self, gp, section, seq, base_interval):
             for right, val in gp.triggers.items():
                 for expr, trigs in val.items():
                     lefts, suicide = trigs
