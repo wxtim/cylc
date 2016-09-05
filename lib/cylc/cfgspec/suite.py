@@ -317,6 +317,7 @@ SPEC = {
         'special tasks': {
             'clock-trigger': vdr(vtype='string_list', default=[]),
             'cold-start': vdr(vtype='string_list', default=[]),
+            'start-up': vdr(vtype='string_list', default=[]),
             'external-trigger': vdr(vtype='string_list', default=[]),
             'clock-expire': vdr(vtype='string_list', default=[]),
             'sequential': vdr(vtype='string_list', default=[]),

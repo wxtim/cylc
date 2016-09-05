@@ -1787,17 +1787,35 @@ class SuiteConfig(object):
             else:
                 sections.append((section, sec_map['graph']))
 
+        # Back-compat for cylc-5 "start-up tasks" (which appear in general
+        # cycling sections but only run once at the initial cycle point):
+        # Parse each graph string twice: 1) extract all start-up triggers
+        # for an R1 section and prune the rest out; 2) extract all normal
+        # triggers prune start-up triggers identified in step 1.
+        startup_tasks = self.cfg['scheduling']['special tasks']['start-up']
         for section, graph in sections:
+            if startup_tasks:
+                gp = GraphParser(family_map, self.parameters, startup_tasks)
+                gp.parse_graph(graph, get_startup=True)
+                self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
+                self._proc_triggers(gp, 'R1')
+                if self.validation:
+                    print '''\
+# REPLACING START-UP/ASYNC DEPENDENCIES WITH AN R1* SECTION
+# (VARYING INITIAL CYCLE POINT MAY AFFECT VALIDITY)
+    [[[R1]]]
+        graph = """%s""" '''% gp.startup_graph_text
+            gp = GraphParser(family_map, self.parameters, startup_tasks)
+            gp.parse_graph(graph, get_startup=False)
+            self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
+            self._proc_triggers(gp, section)
+
+    def _proc_triggers(self, gp, section):
             seq = get_sequence(section,
                                self.cfg['scheduling']['initial cycle point'],
                                self.cfg['scheduling']['final cycle point'])
             base_interval = seq.get_interval()
-            gp = GraphParser(family_map, self.parameters)
             self.sequences.append(seq)
-
-            gp.parse_graph(graph)
-            self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
-
             for right, val in gp.triggers.items():
                 for expr, trigs in val.items():
                     lefts, suicide = trigs
