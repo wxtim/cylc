@@ -401,7 +401,10 @@ class GraphParser(object):
         # Replace finish triggers here (must be done after member substn).
         trigs = []
         pruned = []
+        startup_found = False
         for name, offset, trigger in info:
+            if name in self.startup_tasks:
+                startup_found = True
             if (self.get_startup and name in self.startup_tasks and
                     self.r1_point and not offset):
                 that_offset = '[^]'
@@ -418,13 +421,18 @@ class GraphParser(object):
                     name, that_offset, self.__class__.TRIG_FAIL)
                 expr = re.sub(this, that, expr)
                 trigs += [
-                    "%s%s%s" % (name, that_offset, self.__class__.TRIG_SUCCEED),
+                    "%s%s%s" % (name,
+                                that_offset, self.__class__.TRIG_SUCCEED),
                     "%s%s%s" % (name, that_offset, self.__class__.TRIG_FAIL)]
             else:
                 this = "%s%s%s" % (name, re.escape(offset), trigger)
                 that = "%s%s%s" % (name, that_offset, trigger)
                 expr = re.sub(this, that, expr)
                 trigs += ["%s%s%s" % (name, that_offset, trigger)]
+
+        if (self.get_startup and not startup_found and
+                right not in self.startup_tasks):
+            return
 
         for node in pruned:
             expr = re.sub(re.escape(node) + '&', '', expr)
@@ -445,9 +453,9 @@ class GraphParser(object):
         self.original[right][expr] = orig_expr
 
     def _tidy_triggers(self):
-        """Remove any null triggers for tasks that have non-null triggers.
+        """Remove any null triggers for tasks that also have non-null triggers.
 
-        (They're only needed for initial or lone nodes.)
+        (Null triggers are only needed for initial or lone nodes.)
         """
         clean_me = set()
         for right, val in self.triggers.items():

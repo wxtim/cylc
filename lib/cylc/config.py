@@ -30,7 +30,7 @@ import sys
 import traceback
 
 from cylc.c3mro import C3
-from cylc.graph_parser import GraphParser 
+from cylc.graph_parser import GraphParser
 from cylc.param_expand import NameExpander
 from cylc.cfgspec.suite import RawSuiteConfig
 from cylc.cycling.loader import (get_point, get_point_relative,
@@ -266,11 +266,14 @@ class SuiteConfig(object):
                     # of cylc-5 start-up tasks.
                     if 'special tasks' not in self.cfg['scheduling']:
                         self.cfg['scheduling']['special tasks'] = {}
-                    if 'start-up' not in self.cfg['scheduling']['special tasks']:
-                        self.cfg['scheduling']['special tasks']['start-up'] = []
-                    for name, _a, _b in GraphParser.REC_NODES.findall(
-                        self.cfg['scheduling']['dependencies']['graph']):
-                        self.cfg['scheduling']['special tasks']['start-up'].append(name)
+                    if 'start-up' not in self.cfg['scheduling'][
+                            'special tasks']:
+                        self.cfg['scheduling'][
+                            'special tasks']['start-up'] = []
+                    for name, _, _ in GraphParser.REC_NODES.findall(
+                            self.cfg['scheduling']['dependencies']['graph']):
+                        self.cfg['scheduling'][
+                            'special tasks']['start-up'].append(name)
 
         # allow test suites with no [runtime]:
         if 'runtime' not in self.cfg:
@@ -1396,19 +1399,19 @@ class SuiteConfig(object):
                 if offset_string:
                     self.taskdefs[name].used_in_offset_trigger = True
                     if SyntaxVersion.VERSION == VERSION_PREV:
-                        # Implicit cycling means foo[T+6] generates a +6
-                        # sequence.
-                        #if offset_string in offset_seq_map:
+                        # Implicit cycling: foo[T+6] generates a +6 sequence.
+                        # TODO: old version cached sequences:
+                        # if offset_string in offset_seq_map:
                         #    seq_offset = offset_seq_map[offset_string]
-                        #else:
+                        # else:
                         seq_offset = get_sequence(
                             section,
-                        self.cfg['scheduling']['initial cycle point'],
+                            self.cfg['scheduling']['initial cycle point'],
                             self.cfg['scheduling']['final cycle point']
                         )
                         seq_offset.set_offset(
                             get_interval(offset_string))
-                        #offset_seq_map[offset_string] = seq_offset
+                        # TODO: offset_seq_map[offset_string] = seq_offset
                         self.taskdefs[name].add_sequence(
                             seq_offset, is_implicit=True)
                         if seq_offset not in self.sequences:
@@ -1770,8 +1773,7 @@ class SuiteConfig(object):
             desc = self.runtime['descendants'][fam]
             family_map[fam] = [t for t in desc if t in runtime_tasks]
 
-        # Move a non-cycling graph to an R1 section.
-        # TODO - CHECK FOR ONLY CYCLING OR NON-CYCLING GRAPH.
+        # Move a cylc-5 non-cycling graph to an R1 section.
         non_cycling_graph = self.cfg['scheduling']['dependencies']['graph']
         if non_cycling_graph:
             section = get_sequence_cls().get_async_expr()
@@ -1817,13 +1819,15 @@ class SuiteConfig(object):
         # triggers prune start-up triggers identified in step 1.
         startup_tasks = self.cfg['scheduling']['special tasks']['start-up']
         if startup_tasks:
+            startup_trigs = {}
+            r1_points = []
             set_syntax_version(VERSION_PREV,
                                "start-up tasks: %s" % ",".join(startup_tasks))
-        for section, graph in sections:
-            seq = get_sequence(section,
-                               self.cfg['scheduling']['initial cycle point'],
-                               self.cfg['scheduling']['final cycle point'])
-            if startup_tasks:
+            for section, graph in sections:
+                seq = get_sequence(
+                    section,
+                    self.cfg['scheduling']['initial cycle point'],
+                    self.cfg['scheduling']['final cycle point'])
                 first_point = seq.get_first_point(
                     get_point(self.cfg['scheduling']['initial cycle point']))
                 if first_point != self.initial_point:
@@ -1832,36 +1836,79 @@ class SuiteConfig(object):
                 else:
                     r1_point = None
                     r1_sec = 'R1'
+                gp = GraphParser(family_map, self.parameters, startup_tasks)
+                gp.parse_graph(graph, get_startup=True, r1_point=r1_point)
+                self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
                 r1_seq = get_sequence(
                     r1_sec,
                     self.cfg['scheduling']['initial cycle point'],
                     self.cfg['scheduling']['final cycle point'])
-                self.sequences.append(r1_seq)
-                gp = GraphParser(family_map, self.parameters, startup_tasks)
-                gp.parse_graph(graph, get_startup=True, r1_point=r1_point)
-                self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
-                self._proc_triggers(gp, r1_sec, r1_seq)
-                #gp.print_triggers()
-                if self.validation:
-                    print '''\
+                if r1_point in startup_trigs:
+                    _, _, trigs, origs, texts = startup_trigs[r1_point]
+                    trigs.update(gp.triggers)
+                    origs.update(gp.original)
+                    if gp.startup_graph_text not in texts:
+                        texts += gp.startup_graph_text
+                else:
+                    trigs = gp.triggers
+                    origs = gp.original
+                    texts = gp.startup_graph_text
+                startup_trigs[r1_point] = (r1_seq, r1_sec, trigs, origs, texts)
+            r1_points = startup_trigs.keys()
+            r1_points_sorted = []
+            if None in r1_points:
+                pts = [None]
+                r1_points.remove(None)
+            else:
+                pts = []
+            r1_points_sorted = pts + sorted(r1_points)
+            seen = set()
+            for r1p in r1_points_sorted:
+                r1_seq, r1_sec, r1_trigs, r1_orig, r1_text = startup_trigs[r1p]
+                proc_trigs = {}
+                for name, trigs in r1_trigs.items():
+                    use = True
+                    proc_inner = {}
+                    for expr, info in trigs.items():
+                        if not use:
+                            break
+                        for upstream_name, _, _ in (
+                                GraphParser.REC_NODES.findall(expr)):
+                            key = '%s=>%s' % (upstream_name, name)
+                            if upstream_name in startup_tasks:
+                                if key in seen:
+                                    use = False
+                                    break
+                            seen.add(key)
+                        if use:
+                            proc_inner[expr] = info
+                    proc_trigs[name] = proc_inner
+                if proc_trigs:
+                    self.sequences.append(r1_seq)
+                    self._proc_triggers(proc_trigs, r1_orig, r1_sec, r1_seq)
+                    if self.validation:
+                        print '''\
 # REPLACING START-UP/ASYNC DEPENDENCIES WITH AN R1* SECTION
 # (VARYING INITIAL CYCLE POINT MAY AFFECT VALIDITY)
     [[[%s]]]
-        graph = """%s""" '''% (r1_sec, gp.startup_graph_text)
+        graph = """%s"""''' % (r1_sec, r1_text)
 
+        for section, graph in sections:
+            seq = get_sequence(section,
+                               self.cfg['scheduling']['initial cycle point'],
+                               self.cfg['scheduling']['final cycle point'])
             self.sequences.append(seq)
             gp = GraphParser(family_map, self.parameters, startup_tasks)
             gp.parse_graph(graph)
             self.suite_polling_tasks.update(gp.suite_state_polling_tasks)
-            self._proc_triggers(gp, section, seq)
-            #gp.print_triggers()
+            self._proc_triggers(gp.triggers, gp.original, section, seq)
 
-    def _proc_triggers(self, gp, section, seq):
+    def _proc_triggers(self, triggers, original, section, seq):
         base_interval = seq.get_interval()
-        for right, val in gp.triggers.items():
+        for right, val in triggers.items():
             for expr, trigs in val.items():
                 lefts, suicide = trigs
-                orig_expr = gp.original[right][expr]
+                orig_expr = original[right][expr]
                 if not graphing_disabled:
                     self.generate_edges(expr, orig_expr, lefts,
                                         right, seq, suicide)
