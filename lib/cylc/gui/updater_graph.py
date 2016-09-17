@@ -266,6 +266,18 @@ class GraphUpdater(threading.Thread):
 
         if shape:
             node.attr['shape'] = shape
+        #elif state == 'running':
+            #node.attr['shape'] = 'octagon'
+        #elif state == 'ready':
+            #node.attr['shape'] = 'octagon'
+        else:
+            node.attr['shape'] = 'ellipse'
+
+        node.attr['fixedsize'] = 'true'
+        node.attr['width'] = '1'
+        node.attr['height'] = '1'
+
+
 
     def update_graph(self):
         # TODO - check edges against resolved ones
@@ -400,7 +412,10 @@ class GraphUpdater(threading.Thread):
                 for point_string in pure_base_point_strings:
                     for node in point_string_nodes[point_string]:
                         nodes_to_remove.add(node)
-            self.graphw.cylc_remove_nodes_from(list(nodes_to_remove))
+
+            # Disable scissor nodes.
+            #self.graphw.cylc_remove_nodes_from(list(nodes_to_remove))
+
             # TODO - remove base nodes only connected to other base nodes?
             # Should these even exist any more?
 
@@ -421,9 +436,12 @@ class GraphUpdater(threading.Thread):
         # Set base node style defaults
         for node in self.graphw.nodes():
             node.attr.setdefault('style', 'filled')
-            node.attr['color'] = '#888888'
+            node.attr['color'] = '#a0b0c0'
             node.attr['fillcolor'] = 'white'
-            node.attr['fontcolor'] = '#888888'
+            node.attr['fontcolor'] = '#a0b0c0'
+            node.attr['fixedsize'] = 'true'
+            node.attr['width'] = '1'
+            node.attr['height'] = '1'
 
         for id in self.state_summary:
             try:
@@ -438,6 +456,11 @@ class GraphUpdater(threading.Thread):
             except:
                 continue
             self.set_live_node_attr(node, id)
+
+        for left, right in self.graphw.edges():
+            left_node = self.graphw.get_node(left)
+            edge = self.graphw.get_edge(left, right)
+            edge.attr['color'] = left_node.attr['color']
 
         self.graphw.graph_attr['rankdir'] = self.orientation
 

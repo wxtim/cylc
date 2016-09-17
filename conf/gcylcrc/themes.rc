@@ -77,3 +77,20 @@
         retrying = "color=#009999" # turquoise
         submit-retrying = "color=#007777" # turquoise2
         runahead   = "color=#000000"
+
+    [[demo]]
+        inherit = "default"
+        defaults  = "color=#bbbbbb", "style=filled", "fontcolor=white"
+        waiting   = "color=DodgerBlue"
+        held      = "color=#fc00ff"
+        queued    = "color=#e6c522", "fontcolor=black"
+        expired   = "color=#000000", "fontcolor=white"
+        submit-failed = "color=#ff6f00"
+        failed    = "color=#ff0035"
+        runahead   = "color=#8000c0"
+        ready     = "color=ForestGreen"
+        submitted = "color=ForestGreen"
+        running   = "color=ForestGreen"
+        succeeded = "color=#a0b0c0"
+        retrying  = "color=orange"
+        submit-retrying  = "color=#ffaf6f"

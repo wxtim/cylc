@@ -35,8 +35,8 @@ if ! cylc db pr --fail $SUITE >/dev/null; then
     exit 1
 fi
 
-FRAME_SIZE="1200x800" # pixels
-FRAME_RATE=5 # frames per second
+FRAME_SIZE="1200x900" # pixels
+FRAME_RATE=1 # frames per second
 
 # Move to the suite share directory.
 cd $( cylc get-global-config --print-run-dir )/$SUITE/share
@@ -53,10 +53,12 @@ echo
 echo "[INFO] Zero-padding frame numbers to $DIGITS digits."
 FORMAT="%0${DIGITS}d"
 PADDED=false
+# Renumber to allow for manual removal and addition of frames.
+COUNT=0
 for DOT_ORIG in $(ls -v frame-*.dot); do 
     TMP=${DOT_ORIG%.dot}
     N_OLD=${TMP#frame-}
-    printf -v N_NEW "$FORMAT" $(( 10#$N_OLD ))
+    printf -v N_NEW "$FORMAT" $(( 10#$COUNT ))
     DOT_NEW=frame-${N_NEW}.dot
     if [[ "$N_NEW" != "$N_OLD" ]]; then
         PADDED=true
@@ -66,6 +68,7 @@ for DOT_ORIG in $(ls -v frame-*.dot); do
         $CMD
         sleep 0.05
     fi
+    COUNT=$(( COUNT + 1 ))
 done
 $PADDED && echo
 
@@ -75,7 +78,7 @@ for DOT in $(ls -v frame-*.dot); do
     PNG=${DOT%dot}png
     echo -ne \\r
     echo -n $PNG
-    dot -Tpng -Gsize=9,9\! -o $PNG $DOT # -Nfontsize=50 -Estyle=bold 
+    dot -Tpng -Gsize=9,9\! -o $PNG $DOT -Nfontname=Courier\ 10\ Pitch
 done
 echo
 
@@ -104,7 +107,7 @@ vpxenc --good --cpu-used=0 --auto-alt-ref=1 --lag-in-frames=16 \
     frames.webm frames.yuv
 
 # Clean up intermediate files.
-rm *.png *.yuv
+#rm *.png *.yuv
 
 echo
 echo "[INFO] Done."
