@@ -12,6 +12,11 @@ gcylc graph view if the corresponding menu option is selecte) to a frames.webm
 movie, which can be played natively in the Firefox browser.
 
 Safe to re-run with different frame size and rate.
+
+# Defaults:
+\$FRAME_SIZE="1200x900" # pixels
+\$FRAME_RATE=2 # frames per second
+
 EOF
 }
 
@@ -35,8 +40,8 @@ if ! cylc db pr --fail $SUITE >/dev/null; then
     exit 1
 fi
 
-FRAME_SIZE="1200x900" # pixels
-FRAME_RATE=1 # frames per second
+FRAME_SIZE=${FRAME_SIZE:-"1200x900"} # pixels
+FRAME_RATE=${FRAME_RATE:-2} # frames per second
 
 # Move to the suite share directory.
 cd $( cylc get-global-config --print-run-dir )/$SUITE/share
