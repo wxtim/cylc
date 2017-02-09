@@ -1,0 +1,253 @@
+#!/usr/bin/env python
+
+# Copyright (C) 2008-2017 NIWA
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+class CommandError(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return repr(self.msg)
+
+
+class CommandNotFoundError(CommandError):
+    pass
+
+
+class CommandNotUniqueError(CommandError):
+    pass
+
+class CommandExistsError(Exception):
+    pass
+
+class CategoryExistsError(Exception):
+    pass
+
+class CategoryDoesNotExistsError(Exception):
+    pass
+
+class CommandManager(object):
+    """Manage description and execution of cylc sub-commands."""
+
+    def __init__(self):
+        self.categories = {}
+        self.commands = {}
+        self.categories['all'] = 'The complete command set.'
+
+    def add_category(self, category, description):
+        if category in self.categories:
+            # TODO
+            raise CategoryExistsError
+        self.categories[category] = description
+        self.commands[category] = {}
+
+    def add_command(self, category, command, description, aliases=[]):
+        if category not in self.categories.keys():
+            # TODO
+            raise CategoryDoesNotExistError
+        if command in self.commands[category].keys():
+            # TODO
+            raise CommandExistsError
+        self.commands[category][command] = (description, aliases)
+        if 'all' not in self.commands:
+            self.commands['all'] = {}
+        self.commands['all'][command] = (description, aliases)
+
+    def _get_category_help(self, category):
+        """Get descriptions of all commands in category."""
+        cat_help = "CATEGORY:\n %s" % self.categories[category]
+        items = {}
+        maxlen = 0
+        lines = []
+        commands = []
+        for command, (description, aliases) in self.commands[category].items():
+            commands.append(command)
+            key = '|'.join([command] + aliases)
+            items[command] = key, description
+            if len(key) > maxlen:
+                maxlen = len(key)
+        commands.sort()
+        for command in commands:
+            key, description = items[command]
+            lines.append("  %s %s %s" % (
+                key, '.' * (maxlen - len(key)) + '.', description))
+        return '\n'.join(lines)
+        
+    def _is_help(arg):
+        return arg in ['-h', '--help', '--hlep', 'help', 'hlep', '?']
+
+
+def main():
+    com = CommandManager()
+
+    com.add_category('admin', "Cylc installation, testing, and example suites.")
+    com.add_category('license', "Software licensing information (GPL v3.0).")
+    com.add_category('information', "Query suite servers or suite definitions.")
+    com.add_category('preparation', "Suite editing, validation, visualization, etc.")
+    com.add_category('discovery', "Detect running suites.")
+    com.add_category('control', "Suite start up, monitoring, and control.")
+    com.add_category('task', "The task messaging interface.")
+    com.add_category('hook', "Suite and task event hook scripts.")
+    com.add_category('utility', "Cycle arithmetic and templating, etc.")
+
+    com.add_command('admin', 'test-battery',
+                    'Run a battery of self-diagnosing test suites')
+    com.add_command('admin', 'import-examples',
+                    'Import example suites your suite run directory')
+    com.add_command('admin', 'upgrade-run-dir',
+                    'Upgrade a pre-cylc-6 suite run directory')
+    com.add_command('admin', 'check-software',
+                    'Check required software is installed.')
+    com.add_command('license', 'warranty',
+                    'Print the GPLv3 disclaimer of warranty')
+    com.add_command('license', 'conditions',
+                    'Print the GNU General Public License v3.0')
+    com.add_command('preparation', 'register',
+                    'Register a suite for use')
+    com.add_command('preparation', 'print',
+                    'Print registered suites')
+    com.add_command('preparation', 'get-directory',
+                    'Retrieve suite source directory paths')
+    com.add_command('preparation', 'edit',
+                    'Edit suite definitions, optionally inlined')
+    com.add_command('preparation', 'view',
+                    'View suite definitions, inlined and Jinja2 processed')
+    com.add_command('preparation', 'validate',
+                    'Parse and validate suite definitions')
+    com.add_command('preparation', '5to6',
+                    'Improve the cylc 6 compatibility of a cylc 5 suite file')
+    com.add_command('preparation', 'search',
+                    'Search in suite definitions')
+    com.add_command('preparation', 'graph',
+                    'Plot suite dependency graphs and runtime hierarchies')
+    com.add_command('preparation', 'graph-diff',
+                    'Compare two suite dependencies or runtime hierarchies')
+    com.add_command('preparation', 'diff',
+                    'Compare two suite definitions and print differences')
+    com.add_command('information', 'list',
+                    'List suite tasks and family namespaces')
+    com.add_command('information', 'dump',
+                    'Print the state of tasks in a running suite')
+    com.add_command('information', 'cat-state',
+                    'Print the state of tasks from the state dump')
+    com.add_command('information', 'show',
+                    'Print task state information, prerequisites and outputs etc.)')
+    com.add_command('information', 'cat-log',
+                    'Print various suite and task log files')
+    com.add_command('information', 'documentation',
+                    'Display cylc documentation (User Guide etc.)')
+    com.add_command('information', 'monitor',
+                    'An in-terminal suite monitor (see also gcylc)')
+    com.add_command('information', 'get-suite-config',
+                    'Print suite configuration items')
+    com.add_command('information', 'get-site-config',
+                    'Print site/user configuration items')
+    com.add_command('information', 'get-gui-config',
+                    'Print gcylc configuration items')
+    com.add_command('information', 'get-suite-contact',
+                    'Print the contact information of a suite daemon')
+    com.add_command('information', 'get-suite-version',
+                    'Print the cylc version of a suite daemon')
+    com.add_command('information', 'version',
+                    'Print the cylc release version')
+    com.add_command('information', 'gscan',
+                    'Scan GUI for monitoring multiple suites')
+    com.add_command('information', 'gpanel',
+                    'Internal interface for GNOME 2 panel applet')
+    com.add_command('control', 'gui',
+                    '(a.k.a. gcylc) cylc GUI for suite control etc.')
+    com.add_command('control', 'run',
+                    'Start a suite at a given cycle point')
+    com.add_command('control', 'stop',
+                    'Shut down running suites')
+    com.add_command('control', 'restart',
+                    'Restart a suite from a previous state')
+    com.add_command('control', 'trigger',
+                    'Manually trigger or re-trigger a task')
+    com.add_command('control', 'insert',
+                    'Insert tasks into a running suite')
+    com.add_command('control', 'remove',
+                    'Remove tasks from a running suite')
+    com.add_command('control', 'poll',
+                    'Poll submitted or running tasks')
+    com.add_command('control', 'kill',
+                    'Kill submitted or running tasks')
+    com.add_command('control', 'hold',
+                    'Hold (pause) suites or individual tasks')
+    com.add_command('control', 'release',
+                    'Release (unpause) suites or individual tasks')
+    com.add_command('control', 'reset',
+                    'Force one or more tasks to change state.')
+    com.add_command('control', 'spawn',
+                    'Force one or more tasks to spawn their successors.')
+    com.add_command('control', 'nudge',
+                    'Cause the cylc task processing loop to be invoked')
+    com.add_command('control', 'reload',
+                    'Reload the suite definition at run time')
+    com.add_command('control', 'set-runahead',
+                    'Change the runahead limit in a running suite.')
+    com.add_command('control', 'set-verbosity',
+                    'Change a running suite\'s logging verbosity')
+    com.add_command('control', 'ext-trigger',
+                    'Report an external trigger event to a suite')
+    com.add_command('control', 'checkpoint',
+                    'Tell suite to checkpoint its current state')
+    com.add_command('discovery', 'ping',
+                    'Check that a suite is running')
+    com.add_command('discovery', 'scan',
+                    'Scan a host for running suites')
+    com.add_command('discovery', 'check-versions',
+                    'Compare cylc versions on task host accounts')
+    com.add_command('task', 'submit',
+                    'Run a single task just as its parent suite would')
+    com.add_command('task', 'message',
+                    '(task messaging) Report task messages')
+    com.add_command('task', 'broadcast',
+                    'Change suite [runtime] settings on the fly')
+    com.add_command('task', 'jobs-kill',
+                    '(Internal) Kill task jobs')
+    com.add_command('task', 'jobs-poll',
+                    '(Internal) Retrieve status for task jobs')
+    com.add_command('task', 'jobs-submit',
+                    '(Internal) Submit task jobs')
+    com.add_command('task', 'job-submit',
+                    '(Internal) Submit a job')
+    com.add_command('utility', 'cycle-point',
+                    'Cycle point arithmetic and filename templating')
+    com.add_command('utility', 'random',
+                    'Generate a random integer within a given range')
+    com.add_command('utility', 'jobscript',
+                    'Generate a task job script and print it to stdout')
+    com.add_command('utility', 'scp-transfer',
+                    'Scp-based file transfer for cylc suites')
+    com.add_command('utility', 'suite-state',
+                    'Query the task states in a suite')
+    com.add_command('utility', 'ls-checkpoints',
+                    'Display task pool etc at given events')
+    com.add_command('hook', 'email-task',
+                    'A task event hook script that sends email alerts')
+    com.add_command('hook', 'email-suite',
+                    'A suite event hook script that sends email alerts')
+    com.add_command('hook', 'job-logs-retrieve',
+                    '(Internal) Retrieve logs from a remote host for a task job')
+    com.add_command('hook', 'check-triggering',
+                    'A suite shutdown event hook for cylc testing')
+
+    print com._get_category_help('hook')
+
+if __name__ == "__main__":
+    main()
