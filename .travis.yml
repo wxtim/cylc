@@ -65,7 +65,7 @@ script:
     - export CYLC_TEST_DIFF_CMD='diff -I Xlib -u'
     # Only run the generic tests on Travis CI.
     - export CYLC_TEST_RUN_PLATFORM=false
-    # Run tests with virtual frame buffer for X support.
+    # Run tests with virtual frame buffer for X support...
     - xvfb-run -a cylc test-battery --state=save -j 5 tests/restart/19-checkpoint.t
 
 # Check output (more useful if you narrow down what tests get run)
