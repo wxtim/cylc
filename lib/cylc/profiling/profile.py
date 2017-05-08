@@ -304,6 +304,10 @@ def profile(schedule):
         for experiment in experiments:
             try:
                 result_files = run_experiment(experiment['config'])
+            except ProfilingKilledException as exc:
+                # Profiling has been terminated, return what results we have.
+                print exc
+                return results, checkout_count, False
             except SuiteFailedException as exc:
                 # Experiment failed to run, move onto the next one.
                 print >> sys.stderr, ('Experiment "%s" failed at version "%s"'
@@ -311,10 +315,6 @@ def profile(schedule):
                 print >> sys.stderr, exc
                 success = False
                 continue
-            except ProfilingKilledException as exc:
-                # Profiling has been terminated, return what results we have.
-                print exc
-                return results, checkout_count, False
             else:
                 # Run analysis.
                 try:
