@@ -69,9 +69,7 @@ script:
     - export CYLC_TEST_RUN_PLATFORM=false
     # Run tests with virtual frame buffer for X support.
     - #xvfb-run -a cylc test-battery --state=save -j 5 || (echo -e "\n\nRerunning Failed Tests...\n\n"; cylc test-battery --state=save,failed -j 5)
-    - cylc profile-battery -e complex -v HEAD master
-    - cylc --version
-    - git branch
+    - cylc profile-battery -e complex -v HEAD master -y
 
 # Check output (more useful if you narrow down what tests get run)
 after_script:
