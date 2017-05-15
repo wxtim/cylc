@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) 2008-2017 NIWA
@@ -21,31 +22,31 @@ from cylc.task_id import TaskID
 import re
 
 # Cylc's ISO 8601 format.
-NODE_ISO_RE = re.compile(
-    r"^" +
-    r"(" + TaskID.NAME_RE + r")" +
-    r"""(?:\[        # Begin optional [offset] syntax
+NODE_ISO_REC = re.compile(
+    ur"^" +
+    ur"(" + TaskID.NAME_RE + ur")" +
+    ur"""(?:\[       # Begin optional [offset] syntax
          (?!T[+-])   # Do not match a 'T-' or 'T+' (this is the old format)
          ([^\]]+)    # Continue until next ']'
          \]          # Stop at next ']'
         )?           # End optional [offset] syntax]
         (:[\w-]+|)$  # Optional type (e.g. :succeed)
-     """, re.X)
+     """, re.U | re.X)
 
 # Cylc's ISO 8601 initial cycle point based format
-NODE_ISO_ICT_RE = re.compile(
-    r"^" +
-    r"(" + TaskID.NAME_RE + r")" +
-    r"""\[           # Begin square bracket syntax
+NODE_ISO_ICT_REC = re.compile(
+    ur"^" +
+    ur"(" + TaskID.NAME_RE + ur")" +
+    ur"""\[          # Begin square bracket syntax
         \^           # Initial cycle point offset marker
         ([^\]]*)     # Optional ^offset syntax
         \]           # End square bracket syntax
         (:[\w-]+|)$  # Optional type (e.g. :succeed)
-     """, re.X)
+     """, re.U | re.X)
 
 # A potentially non-regular offset, such as foo[01T+P1W].
-IRREGULAR_OFFSET_RE = re.compile(
-    r"""^            # Start of string
+IRREGULAR_OFFSET_REC = re.compile(
+    ur"""^           # Start of string
         (            # Begin group
          ..+         # EITHER: Two or more characters
          [+-]P       # Then either +P or -P for start of duration
@@ -54,7 +55,7 @@ IRREGULAR_OFFSET_RE = re.compile(
          [^P]+       # No 'P' characters anywhere (e.g. T00).
         )            # End group
         $            # End of string
-    """, re.X)
+    """, re.U | re.X)
 
 
 class GraphNodeError(Exception):
@@ -92,7 +93,7 @@ class graphnode(object):
         self.offset_is_irregular = False
         self.is_absolute = False
 
-        m = re.match(NODE_ISO_ICT_RE, node)
+        m = NODE_ISO_ICT_REC.match(node)
         if m:
             # node looks like foo[^], foo[^-P4D], foo[^]:fail, etc.
             self.is_absolute = True
@@ -102,7 +103,7 @@ class graphnode(object):
             prev_format = False
             # Can't always set syntax here, as we use [^] for backwards comp.
         else:
-            m = re.match(NODE_ISO_RE, node)
+            m = NODE_ISO_REC.match(node)
             if m:
                 # node looks like foo, foo:fail, foo[-PT6H], foo[-P4D]:fail...
                 name, offset_string, outp = m.groups()
@@ -131,7 +132,7 @@ class graphnode(object):
                 self.offset_string = str(
                     base_interval.get_inferred_child(offset_string))
             else:
-                if IRREGULAR_OFFSET_RE.search(offset_string):
+                if IRREGULAR_OFFSET_REC.search(offset_string):
                     self.offset_string = offset_string
                     self.offset_is_irregular = True
                 else:

@@ -329,12 +329,11 @@ def main():
             # Replace 'cat' with the remote tail command.
             cmd_tmpl = str(GLOBAL_CFG.get_host_item(
                 "remote tail command template", host, owner))
-            commands.append(shlex.split(cmd_tmpl % {"filename": filename}))
         else:
             # Replace 'cat' with the local tail command.
             cmd_tmpl = str(GLOBAL_CFG.get_host_item(
                 "local tail command template"))
-            commands.append(shlex.split(cmd_tmpl % {"filename": filename}))
+        commands.append(shlex.split(str(cmd_tmpl % {"filename": filename})))
     elif options.geditor or options.editor:
         command_list = shlex.split(editor)
         command_list.append(viewfile.name)

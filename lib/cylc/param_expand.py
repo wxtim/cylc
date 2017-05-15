@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) 2008-2017 NIWA
@@ -66,14 +67,14 @@ foo_m1=>bar_m1_n2
 """
 
 # To split runtime heading name lists.
-REC_NAMES = re.compile(r'(?:[^,<]|\<[^>]*\>)+')
+REC_NAMES = re.compile(ur'(?:[^,<]|\<[^>]*\>)+', re.U)
 # To extract 'name', '<parameters>', and 'other' from
 #   'name<parameters>other' (other is used for clock-offsets).
-REC_P_NAME = re.compile(r"(%s)(<.*?>)?(.+)?" % TaskID.NAME_RE)
+REC_P_NAME = re.compile(ur'(%s)(<.*?>)?(.+)?' % TaskID.NAME_RE, re.U)
 # To extract all parameter lists e.g. 'm,n,o' (from '<m,n,o>').
-REC_P_GROUP = re.compile(r"<(.*?)>")
+REC_P_GROUP = re.compile(ur'<(.*?)>', re.U)
 # To extract parameter name and optional offset or value e.g. 'm-1'.
-REC_P_OFFS = re.compile(r'(\w+)(?:\s*([-+=]\s*[\w]+))?')
+REC_P_OFFS = re.compile(ur'(\w+)(?:\s*([-+=]\s*[\w]+))?', re.U)
 
 
 def item_in_list(item, lst):
@@ -299,8 +300,8 @@ class GraphExpander(object):
                         else:
                             nval = val.zfill(len(self.param_cfg[pname][0]))
                             if nval != val:
-                                line = re.sub(item,
-                                              '%s=%s' % (pname, nval), line)
+                                line = re.compile(item, re.U).sub(
+                                    ur'%s=%s' % (pname, nval), line)
                         if not item_in_list(nval, self.param_cfg[pname]):
                             raise ParamExpandError(
                                 "ERROR, parameter %s out of range: %s" % (
@@ -351,9 +352,10 @@ class GraphExpander(object):
                 except KeyError as exc:
                     raise ParamExpandError('ERROR: parameter %s is not '
                                            'defined.' % str(exc.args[0]))
-                line = re.sub('<' + p_group + '>', repl, line)
+                line = re.compile(u'<' + p_group + u'>', re.U).sub(repl, line)
                 # Remove out-of-range nodes to first arrow.
-                line = re.sub('^.*--<REMOVE>--.*?=>\s*?', '', line)
+                line = re.compile(
+                    ur'^.*--<REMOVE>--.*?=>\s*?', re.U).sub('', line)
             line_set.add(line)
         else:
             # Recurse through index ranges.

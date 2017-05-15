@@ -1152,6 +1152,7 @@ conditions; see `cylc conditions`.
                             if itask.local_job_file_path:
                                 continue
                             deps = itask.state.get_resolved_dependencies()
+                            deps = [str(dep) for dep in deps]
                             LOG.info('triggered off %s' % deps, itask=itask)
                     self.task_job_mgr.submit_task_jobs(
                         self.suite, itasks, self.run_mode == 'simulation')

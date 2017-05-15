@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) 2008-2017 NIWA
@@ -61,6 +62,7 @@ class SuiteSrvFilesManager(object):
     KEY_VERSION = "CYLC_VERSION"
     PASSPHRASE_CHARSET = ascii_letters + digits
     PASSPHRASE_LEN = 20
+    REC_SUITE_NAME = re.compile(ur'\A[\w][\w\.\-+%@/]+\Z', re.U)
 
     def __init__(self):
         self.local_passphrases = set()
@@ -380,6 +382,8 @@ To see if %(suite)s is running on '%(host)s:%(port)s':
 
     def register(self, reg, source=None):
         """Generate service files for a suite. Record its source location."""
+        if not self.REC_SUITE_NAME.match(reg):
+            raise ValueError("'%s' is not a good suite name" % reg)
         self.detect_old_contact_file(reg)
         srv_d = self.get_suite_srv_dir(reg)
         target = os.path.join(srv_d, self.FILE_BASE_SOURCE)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) 2008-2017 NIWA
@@ -53,20 +54,22 @@ from parsec.util import replicate
 from cylc.suite_logging import OUT, ERR
 
 
-RE_SUITE_NAME_VAR = re.compile('\${?CYLC_SUITE_(REG_)?NAME}?')
-RE_TASK_NAME_VAR = re.compile('\${?CYLC_TASK_NAME}?')
-CLOCK_OFFSET_RE = re.compile(r'(' + TaskID.NAME_RE + r')(?:\(\s*(.+)\s*\))?')
-EXT_TRIGGER_RE = re.compile('(.*)\s*\(\s*(.+)\s*\)\s*')
+REC_SUITE_NAME_VAR = re.compile(ur'\${?CYLC_SUITE_(REG_)?NAME}?', re.U)
+REC_TASK_NAME_VAR = re.compile(ur'\${?CYLC_TASK_NAME}?', re.U)
+REC_CLOCK_OFFSET = re.compile(
+    ur'(' + TaskID.NAME_RE + r')(?:\(\s*(.+)\s*\))?', re.U)
+REC_EXT_TRIGGER = re.compile(ur'(.*)\s*\(\s*(.+)\s*\)\s*', re.U)
+REC_SEQUENCE_SPLIT = re.compile(ur"(?![^(]+\)),", flags=re.U)
 NUM_RUNAHEAD_SEQ_POINTS = 5  # Number of cycle points to look at per sequence.
 
 # Replace \W characters in conditional graph expressions.
 CONDITIONAL_REGEX_REPLACEMENTS = [
-    ("\[", "_leftsquarebracket_"),
-    ("\]", "_rightsquarebracket_"),
-    ("-", "_minus_"),
-    ("\^", "_caret_"),
-    (":", "_colon_"),
-    ("\+", "_plus_"),
+    (re.compile(ur"\[", re.U), "_leftsquarebracket_"),
+    (re.compile(ur"\]", re.U), "_rightsquarebracket_"),
+    (re.compile(ur"-", re.U), "_minus_"),
+    (re.compile(ur"\^", re.U), "_caret_"),
+    (re.compile(ur":", re.U), "_colon_"),
+    (re.compile(ur"\+", re.U), "_plus_"),
 ]
 
 try:
@@ -449,7 +452,7 @@ class SuiteConfig(object):
             for item in self.cfg['scheduling']['special tasks'][s_type]:
                 name = item
                 if s_type == 'external-trigger':
-                    m = re.match(EXT_TRIGGER_RE, item)
+                    m = REC_EXT_TRIGGER.match(item)
                     if m is None:
                         raise SuiteConfigError(
                             "ERROR: Illegal %s spec: %s" % (s_type, item)
@@ -458,7 +461,7 @@ class SuiteConfig(object):
                     extn = "(" + ext_trigger_msg + ")"
 
                 elif s_type in ['clock-trigger', 'clock-expire']:
-                    m = re.match(CLOCK_OFFSET_RE, item)
+                    m = REC_CLOCK_OFFSET.match(item)
                     if m is None:
                         raise SuiteConfigError(
                             "ERROR: Illegal %s spec: %s" % (s_type, item)
@@ -637,7 +640,7 @@ class SuiteConfig(object):
                 self.cfg['visualization']['node attributes'].items()):
             for attr in attrs:
                 try:
-                    key, value = re.split('\s*=\s*', attr)
+                    key, value = [item.strip() for item in attr.split('=', 1)]
                 except ValueError as exc:
                     fail = True
                     ERR.error(
@@ -708,13 +711,13 @@ class SuiteConfig(object):
         # Replace suite name in suite  URL.
         url = self.cfg['URL']
         if url is not '':
-            self.cfg['URL'] = re.sub(RE_SUITE_NAME_VAR, self.suite, url)
+            self.cfg['URL'] = REC_SUITE_NAME_VAR.sub(self.suite, url)
 
         # Replace suite and task name in task URLs.
         for name, cfg in self.cfg['runtime'].items():
             if cfg['URL']:
-                cfg['URL'] = re.sub(RE_TASK_NAME_VAR, name, cfg['URL'])
-                cfg['URL'] = re.sub(RE_SUITE_NAME_VAR, self.suite, cfg['URL'])
+                cfg['URL'] = REC_TASK_NAME_VAR.sub(name, cfg['URL'])
+                cfg['URL'] = REC_SUITE_NAME_VAR.sub(self.suite, cfg['URL'])
 
         if self.validation:
             if graphing_disabled:
@@ -1395,7 +1398,7 @@ class SuiteConfig(object):
             for name in self.cfg['scheduling']['special tasks'][task_type]:
                 if task_type in ['clock-trigger', 'clock-expire',
                                  'external-trigger']:
-                    name = re.sub('\(.*\)', '', name)
+                    name = re.compile(ur'\(.*\)', re.U).sub('', name)
                 if not TaskID.is_valid_name(name):
                     raise SuiteConfigError(
                         'ERROR: Illegal %s task name: %s' % (task_type, name))
@@ -1595,7 +1598,7 @@ class SuiteConfig(object):
         """
         label = expression
         for regex, replacement in CONDITIONAL_REGEX_REPLACEMENTS:
-            label = re.sub(regex, replacement, label)
+            label = regex.sub(replacement, label)
         return label
 
     def get_graph_raw(self, start_point_string, stop_point_string,
@@ -1888,8 +1891,8 @@ class SuiteConfig(object):
                 raise SuiteConfigError("ERROR: Final cycle point referenced"
                                        " ($) but not defined.")
             # If the section consists of more than one sequence, split it up.
-            if re.search("(?![^(]+\)),", section):
-                new_sections = re.split("(?![^(]+\)),", section)
+            if REC_SEQUENCE_SPLIT.search(section):
+                new_sections = REC_SEQUENCE_SPLIT.split(section)
                 for new_section in new_sections:
                     sections.append((new_section.strip(), sec_map['graph']))
             else:

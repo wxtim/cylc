@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) 2008-2017 NIWA
@@ -51,7 +52,7 @@ class Prerequisite(object):
                  "raw_conditional_expression", "point"]
 
     # Extracts T from "foo.T succeeded" etc.
-    CYCLE_POINT_RE = re.compile('^\w+\.(\S+) .*$')
+    CYCLE_POINT_RE = re.compile(ur'^\w+\.(\S+) .*$', re.U)
 
     def __init__(self, owner_id, point, start_point=None):
         self.point = point
@@ -75,7 +76,7 @@ class Prerequisite(object):
         self.satisfied[label] = False
         if hasattr(self, 'all_satisfied'):
             self.all_satisfied = False
-        m = re.match(self.__class__.CYCLE_POINT_RE, message)
+        m = self.__class__.CYCLE_POINT_RE.match(message)
         if m:
             self.target_point_strings.append(m.groups()[0])
         if pre_initial:
@@ -106,9 +107,10 @@ class Prerequisite(object):
             if k in drop_these:
                 continue
             if self.start_point:
-                m = re.search(
-                    r'(' + TaskID.NAME_RE + ')\.(' +
-                    TaskID.POINT_RE + ') ', self.messages[k])
+                m = re.compile(
+                    (ur'(' + TaskID.NAME_RE + ur')\.(' +
+                     TaskID.POINT_RE + ur') '),
+                    flags=re.U).search(self.messages[k])
                 if m:
                     try:
                         foo = m.group().split(".")[1].rstrip()
@@ -133,9 +135,8 @@ class Prerequisite(object):
             # Make a Python expression so we can eval() the logic.
             self.raw_conditional_expression = expr
             for label in self.messages:
-                expr = re.sub(
-                    r'\b' + label + r'\b', 'self.satisfied[\'' + label + '\']',
-                    expr)
+                expr = re.compile(ur'\b' + label + ur'\b', re.U).sub(
+                    ur"self.satisfied['" + label + ur"']", expr)
             self.conditional_expression = expr
 
     def is_satisfied(self):

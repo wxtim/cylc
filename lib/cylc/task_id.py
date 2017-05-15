@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) 2008-2017 NIWA
@@ -24,14 +25,14 @@ import re
 class TaskID(object):
     """Task ID utilities."""
 
-    DELIM = '.'
-    DELIM2 = '/'
-    NAME_RE = r"\w[\w\-+%@]*"
-    NAME_REC = re.compile(r"\A" + NAME_RE + r"\Z")
-    POINT_RE = r"\S+"
-    POINT_REC = re.compile(r"\A" + POINT_RE + r"\Z")
-    SYNTAX = 'NAME' + DELIM + 'CYCLE_POINT'
-    SYNTAX_OPT_POINT = 'NAME[' + DELIM + 'CYCLE_POINT]'
+    DELIM = ur'.'
+    DELIM2 = ur'/'
+    NAME_RE = ur'\w[\w\-+%@]*'
+    NAME_REC = re.compile(ur'\A' + NAME_RE + ur'\Z')
+    POINT_RE = ur'\S+'
+    POINT_REC = re.compile(ur'\A' + POINT_RE + ur'\Z')
+    SYNTAX = ur'NAME' + DELIM + ur'CYCLE_POINT'
+    SYNTAX_OPT_POINT = ur'NAME[' + DELIM + ur'CYCLE_POINT]'
 
     @classmethod
     def get(cls, name, point):
