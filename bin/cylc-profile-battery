@@ -146,6 +146,8 @@ def parse_args():
     parser.add_option('--test', action='store_true', default=False,
                       help='For development purposes, run experiment without '
                       'saving results and regardless of any prior runs.')
+    parser.add_option('--markdown', action='store_true', default=False,
+                      help='Output data tables in markdown format.')
     opts = parser.parse_args()[0]
 
     # Defaults for experiments and versions if we are not in list mode.
@@ -533,7 +535,7 @@ def run_schedule(schedule, host='localhost', test=False):
 
 
 def run_analysis(experiments, versions, interactive=False,
-                 quick_analysis=True, lobf_order=2, plot=True):
+                 quick_analysis=True, lobf_order=2, plot=True, markdown=False):
     """Runs analysis over the results already acquired.
 
     Args:
@@ -567,11 +569,12 @@ def run_analysis(experiments, versions, interactive=False,
 
         # Print a table of results.
         print
+        kwargs = {'transpose': not quick_analysis}
+        if markdown:
+            kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
         print_table(
             make_table(full_results, versions, experiment,
-                       quick_analysis=quick_analysis),
-            transpose=not quick_analysis
-        )
+                       quick_analysis=quick_analysis), **kwargs)
         print
 
         # Plot results.
@@ -763,9 +766,13 @@ def main():
         sys.exit(0)
 
     # Run analysis
-    run_analysis(experiments, versions, opts.interactive,
-                 not opts.full_results, opts.lobf_order,
-                 plot=not opts.no_plots)
+    run_analysis(experiments,
+                 versions,
+                 interactive=opts.interactive,
+                 quick_analysis=not opts.full_results,
+                 lobf_order=opts.lobf_order,
+                 plot=not opts.no_plots,
+                 markdown=opts.markdown)
 
 
 if __name__ == '__main__':

@@ -332,7 +332,8 @@ def make_table(results, versions, experiment, quick_analysis=False):
     return table
 
 
-def print_table(table, transpose=False):
+def print_table(table, transpose=False, seperator = '  ', border='',
+                headers=False):
     """Print a 2D list as a table.
 
     None values are printed as hyphens, use '' for blank cells.
@@ -354,15 +355,24 @@ def print_table(table, transpose=False):
         col_widths.append(
             max([len(table[row_no][col_no]) for row_no in range(len(table))]))
 
+    if headers:
+        table = [table[0], [[]] * len(table[0])] + table[1:]
+
     for row_no in range(len(table)):
         for col_no in range(len(table[row_no])):
             if col_no != 0:
-                sys.stdout.write('  ')
+                sys.stdout.write(seperator)
+            else:
+                if border:
+                    sys.stdout.write(border + ' ')
             cell = table[row_no][col_no]
             if type(cell) is list:
                 sys.stdout.write('-' * col_widths[col_no])
             else:
                 sys.stdout.write(cell + ' ' * (col_widths[col_no] - len(cell)))
+            if col_no == len(table[row_no]) - 1:
+                if border:
+                    sys.stdout.write(' ' + border)
         sys.stdout.write('\n')
 
 
