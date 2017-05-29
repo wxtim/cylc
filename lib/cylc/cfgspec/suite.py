@@ -398,6 +398,11 @@ SPEC = {
             },
         },
     },
+    'modules': {
+        '__MANY__': {
+            '__MANY__': vdr(vtype='string'),
+        },
+    },
     'visualization': {
         'initial cycle point': vdr(vtype='cycletime'),
         'final cycle point': vdr(vtype='final_cycletime'),

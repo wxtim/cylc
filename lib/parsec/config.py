@@ -67,7 +67,8 @@ class config(object):
         validate it against the spec, and if this is not the first load,
         combine/override with the existing loaded config."""
 
-        sparse = parse(rcfile, self.output_fname, self.tvars)
+        sparse, modules = parse(rcfile, self.output_fname, self.tvars)
+        self.modules = modules
 
         if self.upgrader is not None:
             self.upgrader(sparse, title)

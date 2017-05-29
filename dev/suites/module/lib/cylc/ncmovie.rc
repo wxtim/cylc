@@ -1,0 +1,17 @@
+#!Jinja2
+# INPUTS: -- {{FIELD_CODES}} -- {{IN_FILE}} -- {{OUT_MOVIE}} -- {{N}}
+[cylc]
+    [[parameters]]
+         n = 1..{{N}}
+[scheduling]
+    [[dependencies]]
+        graph = select => frames<n> => movie
+[runtime]
+    [[MODULE]]  # (Modules don't know their 'import as' name.)
+        pre-script = echo cakes
+    [[select]]
+        script = "echo SELECT {{IN_FILE}} \"{{FIELD_CODES}}\" fields.nc"
+    [[frames<n>]]
+        script = "echo FRAMES fields.nc frames-dir"
+    [[movie]]
+        script = "echo MOVIE frames-dir {{OUT_MOVIE}}"
