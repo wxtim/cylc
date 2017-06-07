@@ -1,0 +1,37 @@
+#!Jinja2
+
+# A suite which runs one task per-sequence for <sequences> sequences.
+# NOTE: A maximum of 5 tasks can run at a time.
+
+{% if not batch_system is defined %}
+    {% set batch_system = 'background' %}
+{% endif %}
+{% if not sleep_time is defined %}
+    {% set script = 'true' %}
+{% else %}
+    {% set script = 'sleep ' + sleep_time %}
+{% endif %}
+
+[scheduling]
+    initial cycle point = 2000
+    spawn to max active cycle points = true
+    max active cycle points = 5
+    [[dependencies]]
+{% for seq_no in range(sequences | default(10) | int) %}
+    {% set minutes = seq_no % 60 %}
+    {% set hours = ((seq_no / 60) | int) % 60 %}
+        [[[R{{cycles | default(1)}}/+PT{{hours}}H{{minutes}}M]]]
+            graph = task
+{% endfor %}
+
+[runtime]
+    [[task]]
+{% if cylc_compat_mode is defined and cylc_compat_mode == '6' %}
+        command scripting = {{ script }}
+        [[[job scripting]]]
+            method = {{ batch_system }}
+{% else %}
+        script = {{ script }}
+        [[[job]]]
+            batch system = {{ batch_system }}
+{% endif %}

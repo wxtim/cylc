@@ -1,0 +1,55 @@
+{
+    "runs": [
+        {
+            "name": "1",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=1"],
+            "repeats": 4
+        },
+        {
+            "name": "5",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=5"],
+            "repeats": 3
+        },
+        {
+            "name": "10",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=10"],
+            "repeats": 2
+        },
+        {
+            "name": "20",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=20"],
+            "repeats": 1
+        },
+        {
+            "name": "40",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=40"],
+            "repeats": 1
+        },
+        {
+            "name": "80",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=80"],
+            "repeats": 1
+        },
+        {
+            "name": "160",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=160"],
+            "repeats": 1
+        },
+        {
+            "name": "320",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=320"],
+            "repeats": 1
+        }
+    ],
+    "analysis": "scale",
+    "x-axis": "sequences",
+    "mode": "validate"
+}
