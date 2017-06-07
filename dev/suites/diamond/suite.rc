@@ -20,9 +20,7 @@
 [scheduling]
     cycling mode = integer
     initial cycle point = 1
-    {% if cycles is defined %}
-    final cycle point = {{cycles}}
-    {% endif %}
+    final cycle point = {{ cycles | default(2) }}
     [[dependencies]]
         [[[P1]]]
             graph = """
