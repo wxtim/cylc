@@ -1,0 +1,43 @@
+{
+    "runs": [
+        {
+            "name": "1",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=1"],
+            "repeats": 2
+        },
+        {
+            "name": "5",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=5"],
+            "repeats": 1
+        },
+        {
+            "name": "10",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=10"]
+        },
+        {
+            "name": "20",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=20"]
+        },
+        {
+            "name": "40",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=40"]
+        },
+        {
+            "name": "80",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=80"]
+        },
+        {
+            "name": "160",
+            "suite dir": "dev/suites/sequences/",
+            "options": ["sequences=160"]
+        }
+    ],
+    "analysis": "scale",
+    "x-axis": "sequences"
+}
