@@ -334,7 +334,7 @@ def install_experiments(experiment_ids, experiments, install_dir,
             else:
                 install_mode = install_modes['symlink']
             key = (sdir, append_codicil,)
-            if sdir not in suite_dirs:
+            if key not in suite_dirs:
                 new_sdir = os.path.join(install_sdir, str(random.random())[2:])
                 os.mkdir(new_sdir)
                 suite_dirs[key] = {'install dir': new_sdir, 'runs': [run],
@@ -371,9 +371,9 @@ def install_experiments(experiment_ids, experiments, install_dir,
     # Update experiments to installation directories.
     for sdir, append_codicil in suite_dirs:
         key = (sdir, append_codicil,)
+        print 'installing suite "%s" => "%s"' % (
+            sdir, suite_dirs[key]['install dir'])
         for run in suite_dirs[key]['runs']:
-            print 'installing suite "%s" => "%s"' % (
-                sdir, suite_dirs[key]['install dir'])
             run['suite dir'] = suite_dirs[key]['install dir']
 
     # Global config sourcing.
