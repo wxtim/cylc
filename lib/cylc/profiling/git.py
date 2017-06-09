@@ -23,6 +23,36 @@ class GitCheckoutError(Exception):
     """Exception to be raised if a git checkout command fails."""
     pass
 
+def archive_cylc_version(ref, repo_path, clone_path):
+    """Archive a cylc version at a particular version to a chosen dir.
+
+    Wrapper which adds a VERSION file for cylc. See archive_branch for details.
+
+    """
+    archive_branch(ref, repo_path, clone_path)
+    with open(os.path.join(clone_path, 'VERSION'), 'w+') as version_file:
+        version_file.write(ref)
+
+def archive_branch(ref, repo_path, clone_path):
+    """Archive and untar a git repository at a chosen version to a chosen dir.
+
+    Args:
+        ref (str): Any valid git identifier e.g. a branch name.
+        repo_path (str): The path the the repository to clone.
+        clone_path (str): A path, the basename of which does not exist.
+
+    Raises:
+        GitCheckoutError: In the event of a non-zero return code.
+
+    """
+    os.mkdir(os.path.join(clone_path))
+    cmd = ('git -C "{repo_path}" archive "{ref}" | (cd "{clone_path}" && '
+           'tar -xf -)').format(repo_path=repo_path, ref=ref,
+                                clone_path=clone_path)
+    proc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+    if proc.wait():
+        raise GitCheckoutError(proc.communicate()[1])
+
 
 def describe(ref=None):
     """Returns stdout of the `git describe <COMMIT>` command."""

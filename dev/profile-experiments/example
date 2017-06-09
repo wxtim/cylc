@@ -49,12 +49,9 @@
     # cylc run mode:
     # - `validate`: Profiles with `cylc validate <SUITE>` rather than
     #     `cylc run <SUITE>`.
-    # - `profile-simulation`: Manually overwrites all script to sleep 1 removes
-    #     any pre/post script, sets host to localhost and job-submission method
-    #     to background then runs `cylc run <SUITE> --mode=live`.
     # - `<MODE>`:   Profiles `cylc run` with `--mode=<MODE>`.
     # --- optional, default=None (equivilent to `live`) ---
-    "mode": "profile-simulation",
+    "mode": "live",
 
     # For experiments using analysis=scale, the label for the x-axis of
     # produced plots.

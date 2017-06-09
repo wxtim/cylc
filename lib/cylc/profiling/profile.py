@@ -15,338 +15,213 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Performs profiling of cylc.
 
-System calls to cylc are performed here.
+Initiates and runs the "main-suite" then performs analysis on its outputs.
 
 """
 
 import os
 import shutil
-from subprocess import (Popen, PIPE, call as subprocess_call)
+from subprocess import (Popen, PIPE, check_call, CalledProcessError)
 import sys
-import tempfile
 import time
 import traceback
 
-from . import (PROFILE_MODE_TIME, PROFILE_MODE_CYLC, PROFILE_MODES,
-               PROFILE_FILES, SUITE_STARTUP_STRING)
-from .analysis import extract_results
-from .git import (checkout, describe, GitCheckoutError,)
+from cylc.profiling import PROFILE_MODES, safe_name
+from cylc.profiling.analysis import extract_results, AnalysisException
+from cylc.profiling.profiling_suite_writer import write_profiling_suite
 
 
-def cylc_env(cylc_conf_path=''):
-    """Provide an environment for executing cylc commands in."""
-    cylc_env = os.environ.copy()
-    cylc_env['CYLC_CONF_PATH'] = cylc_conf_path
-    return cylc_env
+TASK_NAME_TEMPLATE = ('prof__exp_{experiment_name}__ver_{version_name}__run_'
+                      '{run_name}__repeat_{repeat_no}')
+
+# TODO: Unregister cylc 6.x suites?
 
 
-CLEAN_ENV = cylc_env()
-
-
-class SuiteFailedException(Exception):
-    """Exception to handle the failure of a suite-run / validate command."""
-
-    MESSAGE = '''ERROR: "{cmd}" returned a non-zero code.'
-    stdout: {stdout}
-    stderr: {stderr}'''
-
-    def __init__(self, cmd, stdout, stderr):
-        self.cmd = '$ ' + ' '.join(cmd)
-        self.stdout = stdout
-        self.stderr = stderr
-        Exception.__init__(self, str(self))
-
-    def __str__(self):
-        return self.MESSAGE.format(cmd=self.cmd, stdout=self.stdout,
-                                   stderr=self.stderr)
-
-
-class ProfilingKilledException(SuiteFailedException):
-    """Exception to handle the event that a user has canceled profiling whilst
-    a suite is runnnig."""
+class ProfilingException(Exception):
+    """Exception raised when an error has occured during profiling."""
     pass
 
 
-def cylc_major_version():
-    """Return the first character of the cylc version e.g. '7'."""
-    return Popen(['cylc', '--version'], env=CLEAN_ENV, stdout=PIPE
-                 ).communicate()[0].strip()[0]
-
-
-def register_suite(reg, sdir):
-    """Registers the suite located in sdir with the registration name reg."""
-    cmd = ['cylc', 'register', reg, sdir]
-    print '$ ' + ' '.join(cmd)
-    if not subprocess_call(cmd, stdout=PIPE, env=CLEAN_ENV):
-        return True
-    print '\tFailed'
-    return False
-
-
-def unregister_suite(reg):
-    """Unregisters the suite reg."""
-    cmd = ['cylc', 'unregister', reg]
-    print '$ ' + ' '.join(cmd)
-    subprocess_call(cmd, stdout=PIPE, env=CLEAN_ENV)
-
-
-def purge_suite(reg):
-    """Deletes the run directory for this suite."""
-    print '$ rm -rf ' + os.path.expanduser(os.path.join('~', 'cylc-run', reg))
-    try:
-        shutil.rmtree(os.path.expanduser(os.path.join('~', 'cylc-run', reg)))
-    except Exception:
-        return False
-    else:
-        return True
-
-
-def run_suite(reg, options, out_file, profile_modes, mode='live',
-              conf_path=''):
-    """Runs cylc run / cylc validate on the provided suite with the requested
-    profiling options.
-
-    Arguments:
-        reg (str): The registration of the suite to run.
-        options (list): List of jinja2 setting=value pairs.
-        out_file (str): The file to redirect stdout to.
-        profile_modes (list): List of profileing systems to employ
-            (i.e. cylc, time).
-        mode (str - optional): The mode to run the suite in, simulation, dummy,
-            live or validate.
-
-    Returns:
-        str - The path to the suite stderr if any is present.
-
-    """
-    cmds = []
-    env = cylc_env(cylc_conf_path=conf_path)
-
-    # Cylc profiling, echo command start time.
-    if PROFILE_MODE_CYLC in profile_modes:
-        cmds += ['echo', SUITE_STARTUP_STRING, r'$(date +%s.%N)', '&&']
-
-    # /usr/bin/time profiling.
-    if PROFILE_MODE_TIME in profile_modes:
-        if sys.platform == 'darwin':  # MacOS
-            cmds += ['/usr/bin/time', '-lp']
-        else:  # Assume Linux
-            cmds += ['/usr/bin/time', '-v']
-
-        # Run using `sh -c` to enable the redirecton of output (darwins
-        # /usr/bin/time command does not have a -o option).
-        cmds += ['sh', '-c', "'"]
-
-    # Cylc run.
-    run_cmds = []
-    if mode == 'validate':
-        run_cmds = ['cylc', 'validate']
-    elif mode == 'profile-simulation':
-        # In simulation mode task scripts are manually replaced with sleep 1.
-        run_cmds = ['cylc', 'run', '--mode', 'live']
-    else:
-        run_cmds = ['cylc', 'run', '--mode', mode]
-    run_cmds += [reg]
-    cmds += run_cmds
-
-    # Jinja2 params.
-    jinja2_params = ['-s {0}'.format(option) for option in options]
-    if mode == 'profile-simulation':
-        # Add namespaces jinja2 param (list of task names).
-        tmp = ['-s namespaces=root']
-        namespaces = Popen(
-            ['cylc', 'list', reg] + jinja2_params + tmp, stdout=PIPE,
-            env=env).communicate()[0].split() + ['root']
-        jinja2_params.append(
-            '-s namespaces={0}'.format(','.join(namespaces)))
-    cmds.extend(jinja2_params)
-
-    # Cylc profiling.
-    if PROFILE_MODE_CYLC in profile_modes:
-        if mode == 'validate':
-            sys.exit('ERROR: profile_mode "cylc" not possible in validate '
-                     'mode')
-        else:
-            cmds += ['--profile']
-
-    # No-detach mode.
-    if mode != 'validate':
-        cmds += ['--no-detach']
-
-    # Redirect output.
-    cmd_out = out_file + PROFILE_FILES['cmd-out']
-    cmd_err = out_file + PROFILE_FILES['cmd-err']
-    time_err = out_file + PROFILE_FILES['time-err']
-    startup_file = out_file + PROFILE_FILES['startup']
-    cmds += ['>', cmd_out, '2>', cmd_err]
-    if PROFILE_MODE_TIME in profile_modes:
-        cmds += ["'"]  # Close shell.
-
-    # Execute.
-    print '$ ' + ' '.join(cmds)
-    try:
-        proc = Popen(' '.join(cmds), shell=True, stderr=open(time_err, 'w+'),
-                     stdout=open(startup_file, 'w+'), env=env)
-        if proc.wait():
-            raise SuiteFailedException(run_cmds, cmd_out, cmd_err)
-    except KeyboardInterrupt:
-        kill_cmd = ['cylc', 'stop', '--kill', reg]
-        print '$ ' + ' '.join(kill_cmd)
-        subprocess_call(kill_cmd, env=env)
-        raise ProfilingKilledException(run_cmds, cmd_out, cmd_err)
-
-    # Return cylc stderr if present.
-    try:
-        if os.path.getsize(cmd_err) > 0:
-            return cmd_err
-    except OSError:
-        pass
-    return None
-
-
-def run_experiment(exp):
-    """Run the provided experiment with the currently checked-out cylc version.
-
-    Return a dictionary of result files by run name.
-
-    """
-    profile_modes = [PROFILE_MODES[mode] for mode in exp['profile modes']]
-    cylc_maj_version = cylc_major_version()
-    result_files = {}
-    to_purge = []
-    for run in exp['runs']:
-        results_for_run = []
-        sdir = os.path.expanduser(run['suite dir'])
-        reg = 'profile-' + str(time.time()).replace('.', '')
-        count = 0
-        while count < run['repeats'] + 1:
-            # Run suite.
-            out_file = tempfile.mkstemp()[1]
-            results_for_run.append(out_file)
-            register_suite(reg, sdir)
-            err_file = run_suite(
-                reg,
-                run['options'] + ['cylc_compat_mode=%s' % cylc_maj_version],
-                out_file,
-                profile_modes,
-                exp.get('mode', 'live'),
-                conf_path=run.get('globalrc', ''))
-            # Handle errors.
-            if err_file:
-                print >> sys.stderr, ('WARNING: non-empty suite error log: ' +
-                                      err_file)
-            # Tidy up.
-            if cylc_maj_version == '6':
-                unregister_suite(reg)
-            if not purge_suite(reg):
-                # Remove suite run dirs, if error then try again later.
-                to_purge.append(reg)
-            count += 1
-        result_files[run['name']] = results_for_run
-
-        if to_purge:
-            time.sleep(2)  # Wait a bit before trying again to remove run dirs.
-        for reg in to_purge:
-            if purge_suite(reg):
-                to_purge.remove(reg)
-
-        if to_purge:
-            print >> sys.stderr, ('ERROR: The following suite(s) run '
-                                  'directories could not be deleted:\n'
-                                  '\t' + ' '.join(to_purge)
-                                  )
-
-    return result_files
-
-
-def delete_result_files(result_files):
-    """Deletes the temp files used to store experiment results."""
-    for files in result_files.values():
-        for file_ in files:
-            for suffix in PROFILE_FILES.values():
-                try:
-                    os.remove(file_ + suffix)
-                except OSError:
-                    pass
-
-
-def profile(schedule):
-    """Perform profiling for the provided schedule.
+def run_cmd(cmd, background=False, verbose=True):
+    """Simple wrapper for running cylc commands.
 
     Args:
-        schedule (list): A list of tuples of the form
-            [(version_id, experiments)] where experiments is a list of
-            experiment objects.
+        cmd (list): The command to run e.g. ['sleep' ,'1'].
+        background (bool): If True then the command is run the background.
+        verbose (bool): If True then the command will be written to stdout
+            and a failure notice to stderr if applicable.
 
     Returns:
-        tuple - (results, checkout_count, success)
-          - results (dict) - A dictionary containing profiling results in the
-            form {version_id: experiment_id: metric: value}.
-          - checkout_count (int) - The number of times the git checkout command
-            has been executed.
-          - success (bool) - True if all experiments completed successfully,
-            else False.
+        bool: False if the command failed, else True.
+
     """
-    checkout_count = 0
+    if verbose:
+        print '$ ' + ' '.join(cmd)
+    ret = True
+    if background:
+        try:
+            Popen(cmd, stdout=PIPE)
+        except OSError:
+            ret = False
+    else:
+        try:
+            check_call(cmd, stdout=PIPE)
+        except CalledProcessError:
+            ret = False
+    if not ret:
+        print >> sys.stderr, '\tCommand Failed'
+    return ret
+
+
+def profile(schedule, install_dir, reg_base):
+    """Run profiling.
+
+    Args:
+        schedule (iterable): Collection of (version, experiment) tuples to
+            profile.
+        install_dir (str): The directory that the required cylc suites /
+            versions etc are installed in.
+
+    Return:
+            dict: Dictionary of results if successfull else False.
+            {'version-id': {'experiment-id': {'run-name': {'code': result}}
+
+    """
+    # Registration for profile suites.
+    #reg_base = 'profile-' + str(time.time()).replace('.', '')
+    reg = os.path.join(reg_base, 'main-suite')
+
+    # Create directory to install the 'main-suite' in.
+    suite_dir = os.path.join(install_dir, 'main-suite')
+    os.mkdir(suite_dir)
+
+    # Write out the 'main-suite' suite.rc file.
+    suite_handle = open(os.path.join(suite_dir, 'suite.rc'), 'w+')
+    write_profiling_suite(schedule, suite_handle.write, install_dir, reg_base)
+    suite_handle.close()
+
+    # Register the 'main-suite'.
+    if not run_cmd(['cylc', 'reg', reg, suite_dir]):
+        return False
+
+    # Open a GUI for the 'main-suite'.
+    run_cmd(['cylc', 'gui', reg], background=True)
+
+    # Run the 'main-suite'.
+    if not run_cmd(['cylc', 'run', reg, '--debug']):
+        # Error in the profiling suite - keep the suite directory.
+        print >> sys.stderr, (
+            'ERROR: See suite directory for details "%s".' % reg)
+        return False
+
+    # Retrieve results.
     results = {}
-    success = True
-    for version_id, experiments in sorted(schedule.iteritems()):
-        # Checkout cylc version.
-        if version_id != describe():
+    failures = []
+    successes = False
+    repeat_pad = max(len(str(x['repeats'])) for _, e in schedule for x in
+                     e['config']['runs'])  # Get padding (e.. 001).
+    for version, experiment in schedule:
+        results.setdefault(version['id'], {})
+        results[version['id']].setdefault(experiment['id'], {})
+        for run in experiment['config']['runs']:
             try:
-                checkout(version_id, delete_pyc=True)
-                checkout_count += 1
-            except GitCheckoutError:
-                sys.exit('Error: git checkout failed, were changes made to the'
-                         ' working copy?')
-
-        # Run Experiment.
-        for experiment in experiments:
-            try:
-                result_files = run_experiment(experiment['config'])
-            except ProfilingKilledException as exc:
-                # Profiling has been terminated, return what results we have.
-                print exc
-                return results, checkout_count, False
-            except SuiteFailedException as exc:
-                # Experiment failed to run, move onto the next one.
-                print >> sys.stderr, ('Experiment "%s" failed at version "%s"'
-                                      '' % (experiment['name'], version_id))
-                print >> sys.stderr, exc
-                success = False
-                continue
+                results[version['id']][experiment['id']][run['name']
+                ] = retrieve_results(
+                    reg, version, experiment, run, repeat_pad)
+            except ProfilingException:
+                # Run un-successfull - no results to process.
+                failures.append((version['name'], experiment['name'],
+                                run['name']))
+            except AnalysisException:
+                # Something went wrong during analysis.
+                failures.append((version['name'], experiment['name'],
+                                run['name']))
+                traceback.print_exc()
             else:
-                # Run analysis.
-                try:
-                    processed_results = extract_results(
-                        result_files, experiment['config'])
-                except:
-                    # Analysis failed, move onto the next experiment.
-                    traceback.print_exc()
-                    exp_files = []
-                    try:
-                        for run in result_files:
-                            exp_files.extend(result_files[run])
-                        print >> sys.stderr, (
-                            'Analysis failed on results from experiment "%s" '
-                            'running at version "%s".\n\tProfile files: %s' % (
-                                experiment['name'],
-                                version_id,
-                                ' '.join(exp_files)))
-                    except:
-                        print >> sys.stderr, 'HERE'
-                    if any(PROFILE_MODES[mode] == PROFILE_MODE_CYLC
-                            for mode in experiment['config']['profile modes']):
-                        print >> sys.stderr, (
-                            'Are you trying to use profile mode "cylc" '
-                            'with an older version of cylc?')
-                    success = False
-                    continue
-                else:
-                    if version_id not in results:
-                        results[version_id] = {}
-                    results[version_id][experiment['id']] = (
-                        processed_results)
-                    delete_result_files(result_files)
+                successes = True
 
-    return results, checkout_count, success
+    for failure in failures:
+        # Report any run failures.
+        print >> sys.stderr, (
+            'Experiment "{1}:{2}" failed at version "{0}".'.format(*failure))
+    if failures:
+        # Profiling un-successfull - keep the suite directory for inspection.
+        print >> sys.stderr, ('Results will be incomplete.')
+        print >> sys.stderr, (
+            'ERROR: See suite directory for details "%s".' % reg_base)
+
+    if not successes:
+        # No experiments successfully ran.
+        return False
+    else:
+        # Return fresh results.
+        return results
+
+
+def retrieve_results(reg, version, experiment, run, repeat_pad):
+    """Return a dictionary of results for a run.
+
+    Extracts and processes results from the suites run directory.
+
+    Args:
+        reg (str): The registration of the suite in which the profile files are
+            located (i.e. the 'main-suite').
+        version (dict): Dictionary representing a cylc version.
+        experiment (dict): Dictionary representing a profiling experiment.
+        run (dict): Dictionary representing a profiling "run".
+            A value contained within experiment['runs'].
+        repeat_pad (int): The number of digits in the repeat part of the task
+            name (i.e. 3 for 001, ...).
+
+    Return:
+        dict: Dictionary of (averaged) profiling results for this run.
+
+    """
+    run_files = []
+    for repeat in range(run['repeats'] + 1):
+        run_files.append(
+            retrieve_result_files(reg, version, experiment, run, repeat,
+                                  repeat_pad))
+    profile_modes = [PROFILE_MODES[mode] for mode in
+                     experiment['config']['profile modes']]
+    validate_mode = experiment['config'].get('validate_mode', False)
+    return extract_results(run_files, profile_modes, validate_mode)
+
+
+def retrieve_result_files(reg, version, experiment, run, repeat, repeat_pad):
+    """Return a dictionary of the file paths for the specified profile run.
+
+    Args:
+        reg (str): The registration of the suite in which the profile files are
+            located (i.e. the 'main-suite').
+        version (dict): Dictionary representing a cylc version.
+        experiment (dict): Dictionary representing a profiling experiment.
+        run (dict): Dictionary representing a profiling "run".
+            A value contained within experiment['runs'].
+        repeat (int): The repeat number of the profile run.
+        repeat_pad (int): The number of digits in the repeat part of the task
+            name (i.e. 3 for 001, ...).
+
+    Return:
+        dict: Dictionary of file paths.
+
+    """
+    repeat_no = '0' * (repeat_pad - len(str(repeat))) + str(repeat)
+    task_name = TASK_NAME_TEMPLATE.format(
+        experiment_name=safe_name(experiment['name']),
+        version_name=safe_name(version['name']),
+        run_name=safe_name(run['name']),
+        repeat_no=repeat_no)
+    suite_dir = os.path.join(os.path.expanduser('~'), 'cylc-run', reg)
+    work_dir = os.path.join(suite_dir, 'work', '1', task_name)
+    log_dir = os.path.join(suite_dir, 'log', 'job', '1', task_name, 'NN')
+
+    if not os.path.exists(os.path.join(work_dir, 'success')):
+        raise ProfilingException('Run not successfull.')
+
+    return {
+        'time': os.path.join(work_dir, 'time-err'),
+        'startup': os.path.join(work_dir, 'startup'),
+        'out': os.path.join(log_dir, 'job.out'),
+        'err': os.path.join(log_dir, 'job.err')
+    }

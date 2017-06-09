@@ -122,3 +122,9 @@ for metric in METRICS:
 
 # The profile mode(s) to use if un-specified.
 DEFAULT_PROFILE_MODES = ['time']
+
+def safe_name(name):
+    """Returns a safe string for experiment, run and version names."""
+    for char, repl in [('.', '_'), ('-', '_'), (' ', '_')]:
+        name = name.replace(char, repl)
+    return name

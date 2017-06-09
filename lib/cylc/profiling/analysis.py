@@ -30,12 +30,12 @@ try:
 except ImportError:
     CAN_PLOT = False
 
-from . import (PROFILE_MODE_TIME, PROFILE_MODE_CYLC, SUMMARY_LINE_REGEX,
-               MEMORY_LINE_REGEX, LOOP_MEMORY_LINE_REGEX, SLEEP_FUNCTION_REGEX,
-               SUITE_STARTUP_STRING, PROFILE_MODES, PROFILE_FILES, METRICS,
-               METRIC_TITLE, METRIC_UNIT, METRIC_FILENAME, METRIC_FIELDS,
-               QUICK_ANALYSIS_METRICS)
-from .git import (order_versions_by_date, describe)
+from cylc.profiling import (
+    PROFILE_MODE_TIME, PROFILE_MODE_CYLC, SUMMARY_LINE_REGEX,
+    MEMORY_LINE_REGEX, LOOP_MEMORY_LINE_REGEX, SLEEP_FUNCTION_REGEX,
+    SUITE_STARTUP_STRING, PROFILE_MODES, METRICS, METRIC_TITLE, METRIC_UNIT,
+    METRIC_FILENAME, METRIC_FIELDS, QUICK_ANALYSIS_METRICS)
+from cylc.profiling.git import (order_versions_by_date, describe)
 from cylc.wallclock import get_unix_time_from_time_string
 
 
@@ -49,6 +49,7 @@ def remove_profile_from_versions(versions):
 
     Removes -profile* from the version name then sorts the versions by date
     (using the new version names).
+
     """
     ret = list(versions)
     flag = False
@@ -79,32 +80,59 @@ def remove_profile_from_versions(versions):
     return versions
 
 
-def extract_results(result_file_dict, exp):
-    """Extract results from the result files output by each run."""
-    validate_mode = exp.get('validate_mode', False)
-    profile_modes = [PROFILE_MODES[mode] for mode in exp['profile modes']]
+class AnalysisException(Exception):
+    """Exception to be raised in the event of fatal error during analysis."""
+    pass
 
-    results = {}
-    data = {}
-    for run_name, result_files in result_file_dict.iteritems():
-        data[run_name] = []
-        for result_file in result_files:
-            profiling_results = {}
-            if PROFILE_MODE_TIME in profile_modes:
-                profiling_results.update(process_time_file(
-                    result_file + PROFILE_FILES['time-err']))
-            if PROFILE_MODE_CYLC in profile_modes:
-                suite_start_time = None
+
+def extract_results(result_files, profile_modes, validate_mode=False):
+    """Return a dictionaty of (averaged) results extracted from result_files.
+
+    Args:
+        result_files (list): A list of result files to process.
+        profile_modes (list): A list of profiling modes (e.g. 'time').
+        validate_mode (bool): If True results are processed as for cylc
+            validate.
+
+    Return:
+        dict: Dictionary of the form {'key': value} where key is a numerical
+        index (see cylc.profiling for details).
+
+    """
+    results = []
+    for result_file in result_files:
+        if PROFILE_MODE_TIME in profile_modes:
+            try:
+                results.append(process_time_file(result_file['time']))
+            except Exception:
+                raise AnalysisException('Analysis failed for method "%s" in '
+                                        'file "%s".' % (PROFILE_MODE_TIME,
+                                                        result_file['time']))
+        if PROFILE_MODE_CYLC in profile_modes:
+            suite_start_time = None
+            try:
                 if not validate_mode:
-                    suite_start_time = get_startup_time(
-                        result_file + PROFILE_FILES['startup'])
-                profiling_results.update(process_out_file(
-                    result_file + PROFILE_FILES['cmd-out'], suite_start_time,
-                    validate_mode))
-            data[run_name].append(profiling_results)
+                    suite_start_time = get_startup_time(result_file['startup'])
+                results.append(process_out_file(
+                    result_file['cmd-out'], suite_start_time, validate_mode))
+            except Exception:
+                raise AnalysisException('Analysis failed for method "%s" in '
+                                        'file "%s".' % (PROFILE_MODE_CYLC,
+                                                        result_file['out']))
 
-    results = process_results(data)
-    return results
+    ret = {}
+    for metric in results[0]:
+        # Get key for metric.
+        for key, metrics in METRICS.items():
+            if metric in metrics[3]:  # Field name.
+                break
+        else:
+            # Metric is not required - skip.
+            continue
+        # Compute average over repeats.
+        ret[key] = mean([results[i][metric] for i in range(len(results))])
+
+    return ret
 
 
 def get_startup_time(file_name):
@@ -124,7 +152,8 @@ def process_time_file(file_name):
             try:
                 field, value = line.strip().rsplit(': ', 1)
             except ValueError:
-                print 'ERROR: Could not parse line "%s"' % line.strip()
+                print >> sys.stderr, (
+                    'WARNING: Could not parse line "%s"' % line.strip())
                 continue
             try:  # Try to cast as integer.
                 ret[field] = int(value)
@@ -146,7 +175,8 @@ def process_time_file(file_name):
                         ret[field] = seconds
                     else:  # Cannot parse.
                         if 'Command being timed' not in line:
-                            print 'ERROR: Could not parse value "%s"' % line
+                            print >> sys.stderr, (
+                                'WARNING: Could not parse value "%s"' % line)
                             ret[field] = value
         if sys.platform == 'darwin':  # MacOS
             ret['total cpu time'] = (ret['user'] + ret['sys'])

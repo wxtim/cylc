@@ -13,6 +13,5 @@
         }
     ],
     "profile modes": ["time", "cylc"],
-    "analysis": "single",
-    "mode": "profile-simulation"
+    "analysis": "single"
 }
