@@ -24,6 +24,24 @@ class GitCheckoutError(Exception):
     pass
 
 
+def clone_branch(ref, repo_path, clone_path):
+    """Clone a git repository at a specified revision to a new directory.
+
+    Args:
+        ref (str): Any valid git identifier e.g. a branch name.
+        repo_path (str): The path the the repository to clone.
+        clone_path (str): A path, the basename of which does not exist.
+
+    Raises:
+        GitCheckoutError: In the event of a non-zero return code.
+
+    """
+    cmd = ['git', 'clone', '--branch', ref, repo_path, clone_path]
+    proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
+    if proc.wait():
+        raise GitCheckoutError(proc.communicate()[1])
+
+
 def describe(ref=None):
     """Returns stdout of the `git describe <COMMIT>` command."""
     try:
