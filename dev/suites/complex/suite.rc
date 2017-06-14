@@ -10,6 +10,12 @@
     {% set sleep_time = 1 %}
 {% endif %}
 
+{% if cylc_compat_mode is defined and cylc_compat_mode == '6' %}
+    {% set clock_trigger = 'clock-triggered' %}
+{% else %}
+    {% set clock_trigger = 'clock-trigger' %}
+{% endif %}
+
 title = "Complex Suite Demo"
 description = "This is a super-elaborate obfuscated version of a suite with no Jinja2 to condense it down."
 [cylc]
@@ -19,7 +25,7 @@ description = "This is a super-elaborate obfuscated version of a suite with no J
     final cycle point = 20150220T00
     runahead limit = PT6H
     [[special tasks]]
-        clock-trigger = \
+        {{clock_trigger}} = \
                           long_start_00(PT2H40M), brief_start_00(PT6H15M), \
                           long_start_06(PT2H40M), brief_start_06(PT6H15M), \
                           long_start_12(PT2H40M), brief_start_12(PT6H15M), \
