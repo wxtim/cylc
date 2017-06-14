@@ -14,9 +14,6 @@ title = "Complex Suite Demo"
 description = "This is a super-elaborate obfuscated version of a suite with no Jinja2 to condense it down."
 [cylc]
     UTC mode = True
-    [[events]]
-        timeout handler = rose suite-hook --mail --shutdown
-        timeout = P1D                       # 1 day.
 [scheduling]
     initial cycle point = 20150219T00
     final cycle point = 20150220T00
