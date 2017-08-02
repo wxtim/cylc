@@ -103,7 +103,7 @@ class TaskMessage(object):
 
     def _send_by_remote_port(self, messages):
         """Send message by talking to the daemon (remote?) port."""
-        from cylc.network.client import (
+        from cylc.network.httpclient import (
             SuiteRuntimeServiceClient, ClientError, ClientInfoError)
 
         # Convert time/duration into appropriate units
