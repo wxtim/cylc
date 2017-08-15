@@ -4,8 +4,10 @@ profiling."""
 import os
 import sys
 
+from parsec.config import ItemNotFoundError
+from cylc.cfgspec.globalcfg import GLOBAL_CFG
 from cylc.profiling import (PROFILE_MODES, PROFILE_MODE_CYLC, PROFILE_MODE_TIME,
-                            SUITE_STARTUP_STRING, safe_name)
+                            SUITE_STARTUP_STRING, safe_name, ProfilingException)
 
 
 def get_prof_script(reg, options, profile_modes, mode):
@@ -77,7 +79,8 @@ def get_prof_script(reg, options, profile_modes, mode):
     return ' '.join(cmds)
 
 
-def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
+def write_profiling_suite(schedule, writer, install_dir, reg_base='',
+                          host='localhost'):
     """Generate a suite.rc configuration file for the "main-suite".
 
     Args:
@@ -149,9 +152,6 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
                     'CYLC_CONF_PATH': os.path.join(
                         install_dir, run.get('globalrc', '')),
                     'SUITE_DIR': run['suite dir']
-                },
-                'job': {
-                    'execution time limit': 'PT30M'  # TODO
                 }
             }
 
@@ -197,6 +197,15 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
     # Add the task's runtime sections to the config.
     cfg['runtime'].update(runtime)
 
+    # Add host specification to the runtime configuration.
+    if host != 'localhost':
+        try:
+            cfg['runtime']['root'].update(GLOBAL_CFG.get(['profile battery',
+                                                          host]))
+        except ItemNotFoundError:
+            raise ProfilingException('WARNING: No configuration for host "%s" '
+                                     'found in global configuration,' % host)
+
     # Write out the suite.rc file.
     write_suiterc(cfg, writer)
 
@@ -213,7 +222,7 @@ def write_suiterc(cfg, writer, level=0):
     """
     stack = []
     for key, value in cfg.iteritems():
-        if type(value) is dict:
+        if isinstance(value, dict):
             stack.append((key, value))
         else:
             writer(' ' * (level * 4) +

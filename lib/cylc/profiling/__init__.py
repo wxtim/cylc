@@ -128,3 +128,13 @@ def safe_name(name):
     for char, repl in [('.', '_'), ('-', '_'), (' ', '_')]:
         name = name.replace(char, repl)
     return name
+
+
+class ProfilingException(Exception):
+    """Exception raised when an error has occured during profiling."""
+    pass
+
+
+class AnalysisException(Exception):
+    """Exception to be raised in the event of fatal error during analysis."""
+    pass

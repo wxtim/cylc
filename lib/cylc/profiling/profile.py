@@ -26,7 +26,7 @@ import sys
 import time
 import traceback
 
-from cylc.profiling import PROFILE_MODES, safe_name
+from cylc.profiling import PROFILE_MODES, safe_name, ProfilingException
 from cylc.profiling.analysis import extract_results, AnalysisException
 from cylc.profiling.profiling_suite_writer import write_profiling_suite
 
@@ -35,11 +35,6 @@ TASK_NAME_TEMPLATE = ('prof__exp_{experiment_name}__ver_{version_name}__run_'
                       '{run_name}__repeat_{repeat_no}')
 
 # TODO: Unregister cylc 6.x suites?
-
-
-class ProfilingException(Exception):
-    """Exception raised when an error has occured during profiling."""
-    pass
 
 
 def run_cmd(cmd, background=False, verbose=True):
@@ -73,7 +68,7 @@ def run_cmd(cmd, background=False, verbose=True):
     return ret
 
 
-def profile(schedule, install_dir, reg_base):
+def profile(schedule, install_dir, reg_base, host='localhost'):
     """Run profiling.
 
     Args:
@@ -97,7 +92,8 @@ def profile(schedule, install_dir, reg_base):
 
     # Write out the 'main-suite' suite.rc file.
     suite_handle = open(os.path.join(suite_dir, 'suite.rc'), 'w+')
-    write_profiling_suite(schedule, suite_handle.write, install_dir, reg_base)
+    write_profiling_suite(schedule, suite_handle.write, install_dir, reg_base,
+                          host)
     suite_handle.close()
 
     # Register the 'main-suite'.

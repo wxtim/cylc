@@ -23,6 +23,7 @@ import re
 import atexit
 import shutil
 from tempfile import mkdtemp
+
 from parsec.config import config
 from parsec.validate import validator as vdr
 from parsec.validate import coercers
@@ -258,6 +259,14 @@ SPEC = {
                 'directives': {'__MANY__': vdr(vtype='string')},
             },
         },
+    },
+
+    'profile battery': {
+        '__MANY__': {
+            '__MANY__': {
+                '__MANY__': vdr(vtype='string')
+            }
+        }
     },
 
     'suite host self-identification': {

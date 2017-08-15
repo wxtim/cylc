@@ -117,6 +117,8 @@ def parse_args():
                       'branches, commits are all valid.',
                       dest='versions', callback=multi_arg_callback,
                       action='callback')
+    parser.add_option('--host', dest='host', type='str', default='localhost',
+                      help='Specify the host to run the profiling on.')
     parser.add_option('-i', '--interactive', action='store_true',
                       help='Open any plots in interactive window rather '
                       'saving them to files.', default=False)
@@ -487,7 +489,7 @@ def install_cylc_versions(versions, install_dir):
                 os.path.join(install_dir, 'cylc', version['name']))
 
 
-def run_schedule(schedule, test=False):
+def run_schedule(schedule, host='localhost', test=False):
     """Run profiling using the provided schedule.
 
     Args:
@@ -501,6 +503,9 @@ def run_schedule(schedule, test=False):
                                         'cylc-run',
                                         reg_base)
     os.mkdir(profiler_install_dir)
+    if host != 'localhost':
+        # TODO install profiler directory.
+        pass
 
     # Install cylc versions as necessary.
     install_cylc_versions(dict((v['id'], v) for v, _ in schedule).values(),
@@ -511,7 +516,7 @@ def run_schedule(schedule, test=False):
                         profiler_install_dir)
 
     # Run profiling.
-    results = profile(schedule, profiler_install_dir, reg_base)
+    results = profile(schedule, profiler_install_dir, reg_base, host=host)
 
     if results is False:
         # Profiling failed, keep install directory.
@@ -750,7 +755,7 @@ def main():
     # Run experiments as necessary.
     schedule = get_schedule(versions, experiments, test=opts.test)
     if schedule:
-        if not run_schedule(schedule, opts.test):
+        if not run_schedule(schedule, opts.host, opts.test):
             sys.exit('Profiling failed.')
 
     # Don't run analysis if in "test" mode.

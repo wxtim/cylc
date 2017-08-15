@@ -34,7 +34,7 @@ from cylc.profiling import (
     PROFILE_MODE_TIME, PROFILE_MODE_CYLC, SUMMARY_LINE_REGEX,
     MEMORY_LINE_REGEX, LOOP_MEMORY_LINE_REGEX, SLEEP_FUNCTION_REGEX,
     SUITE_STARTUP_STRING, PROFILE_MODES, METRICS, METRIC_TITLE, METRIC_UNIT,
-    METRIC_FILENAME, METRIC_FIELDS, QUICK_ANALYSIS_METRICS)
+    METRIC_FILENAME, METRIC_FIELDS, QUICK_ANALYSIS_METRICS, AnalysisException)
 from cylc.profiling.git import (order_versions_by_date, describe)
 from cylc.wallclock import get_unix_time_from_time_string
 
@@ -78,11 +78,6 @@ def remove_profile_from_versions(versions):
         return ret
     # No -profile versions, return the original list.
     return versions
-
-
-class AnalysisException(Exception):
-    """Exception to be raised in the event of fatal error during analysis."""
-    pass
 
 
 def extract_results(result_files, profile_modes, validate_mode=False):
