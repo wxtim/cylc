@@ -161,6 +161,8 @@ class SuiteDatabaseManager(object):
                         obj.db_deletes_map.items()):
                     while db_deletes:
                         where_args = db_deletes.pop(0)
+                        if table_name == 'task_events':
+                            print 'DEL', where_args
                         self.pri_dao.add_delete_item(table_name, where_args)
                         self.pub_dao.add_delete_item(table_name, where_args)
             if any(obj.db_inserts_map.values()):
@@ -168,6 +170,8 @@ class SuiteDatabaseManager(object):
                         obj.db_inserts_map.items()):
                     while db_inserts:
                         db_insert = db_inserts.pop(0)
+                        if table_name == 'task_events':
+                            print 'INS', db_insert
                         self.pri_dao.add_insert_item(table_name, db_insert)
                         self.pub_dao.add_insert_item(table_name, db_insert)
             if (hasattr(obj, 'db_updates_map') and
@@ -176,6 +180,8 @@ class SuiteDatabaseManager(object):
                         obj.db_updates_map.items()):
                     while db_updates:
                         set_args, where_args = db_updates.pop(0)
+                        if table_name == 'task_events':
+                            print 'UPD', set_args, where_args
                         self.pri_dao.add_update_item(
                             table_name, set_args, where_args)
                         self.pub_dao.add_update_item(
