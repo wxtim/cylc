@@ -1514,6 +1514,7 @@ conditions; see `cylc conditions`.
             # run shutdown handlers
             self.run_event_handlers(self.EVENT_SHUTDOWN, str(reason))
 
+        self.task_events_mgr.shutdown()
         OUT.info("DONE")  # main thread exit
 
     def set_stop_point(self, stop_point_string):

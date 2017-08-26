@@ -30,6 +30,7 @@ This module provides logic to:
 from collections import namedtuple
 from logging import getLevelName, CRITICAL, ERROR, WARNING, INFO, DEBUG
 import os
+import pika
 from pipes import quote
 import re
 import shlex
@@ -118,6 +119,10 @@ class TaskEventsManager(object):
         self.mail_footer = None
         self.next_mail_time = None
         self.event_timers = {}
+        self.connection = pika.BlockingConnection(
+            pika.ConnectionParameters(host='localhost'))
+        self.channel = self.connection.channel()
+        self.channel.exchange_declare(exchange='cylc-logs', type='fanout')
 
     @staticmethod
     def get_host_conf(itask, key, default=None, skey="remote"):
@@ -381,6 +386,10 @@ class TaskEventsManager(object):
 
         if priority in [TaskMessage.WARNING, TaskMessage.CRITICAL]:
             self.setup_event_handlers(itask, priority.lower(), message)
+
+        # send to rabbitmq
+        msg = "<%s:%s> %s" % (self.suite, itask.identity, message)
+        self.channel.basic_publish(exchange='cylc-logs', routing_key='', body=msg)
 
     def setup_event_handlers(self, itask, event, message):
         """Set up handlers for a task event."""
@@ -870,3 +879,6 @@ class TaskEventsManager(object):
                         cmd,
                     ),
                     retry_delays))
+
+    def shutdown(self):
+        self.connection.close()
