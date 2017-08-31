@@ -2,12 +2,15 @@
 profiling."""
 
 import os
+import socket
 import sys
 
 from parsec.config import ItemNotFoundError
 from cylc.cfgspec.globalcfg import GLOBAL_CFG
 from cylc.profiling import (PROFILE_MODES, PROFILE_MODE_CYLC, PROFILE_MODE_TIME,
                             SUITE_STARTUP_STRING, safe_name, ProfilingException)
+
+LOCALHOST = socket.gethostname()
 
 
 def get_prof_script(reg, options, profile_modes, mode):
@@ -79,13 +82,12 @@ def get_prof_script(reg, options, profile_modes, mode):
     return ' '.join(cmds)
 
 
-def write_profiling_suite(schedule, writer, install_dir, reg_base='',
-                          host='localhost'):
+def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
     """Generate a suite.rc configuration file for the "main-suite".
 
     Args:
         schedule (iterable): Collection of (version, experiment) tuples to
-            profile.
+            profile. TODO.
         writer (fcn): Function to write out file using.
         install_dir (str): The directory that the required cylc suites /
             versions etc are installed in.
@@ -99,10 +101,10 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base='',
     experiment_keys = set([])
     version_keys = set([])
     run_keys = set([])
-    repeat_max = max(r['repeats'] for _, e in schedule for r in
+    repeat_max = max(r['repeats'] for _, _, e, _ in schedule for r in
                      e['config']['runs'])
 
-    for version, experiment in sorted(schedule):
+    for platform, version, experiment, run_name in sorted(schedule):
         # Get safe version name (used in cylc task name).
         ver_name = safe_name(version['name'])
         version_keys.add(ver_name)
@@ -117,6 +119,9 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base='',
 
         # Loop over this experiment's runs.
         for run in experiment['config']['runs']:
+            if run['name'] != run_name:
+                continue
+
             # Get safe run name (used in cylc task name).
             run_name = safe_name(run['name'])
             run_keys.add(run_name)
@@ -154,6 +159,16 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base='',
                     'SUITE_DIR': run['suite dir']
                 }
             }
+
+            # Add platform configuration to the task.
+            if platform != LOCALHOST:
+                try:
+                    runtime[task + 'repeat>'].update(
+                        GLOBAL_CFG.get(['profile battery', platform]))
+                except ItemNotFoundError:
+                    raise ProfilingException(
+                        'WARNING: No configuration for platform "%s" '
+                        'found in global configuration,' % platform)
 
     # Assemble a suite config.
     cfg = {
@@ -196,15 +211,6 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base='',
 
     # Add the task's runtime sections to the config.
     cfg['runtime'].update(runtime)
-
-    # Add host specification to the runtime configuration.
-    if host != 'localhost':
-        try:
-            cfg['runtime']['root'].update(GLOBAL_CFG.get(['profile battery',
-                                                          host]))
-        except ItemNotFoundError:
-            raise ProfilingException('WARNING: No configuration for host "%s" '
-                                     'found in global configuration,' % host)
 
     # Write out the suite.rc file.
     write_suiterc(cfg, writer)

@@ -41,6 +41,7 @@ IS_GIT_REPO = is_git_repo()
 # Files and directories
 PROFILE_DIR_NAME = '.profiling'  # Path to profiling directory.
 PROFILE_FILE_NAME = 'results.json'  # Path to profiling results file
+PROFILE_DB = 'results.db'
 PROFILE_PLOT_DIR_NAME = 'plots'  # Path to default plotting directory.
 USER_EXPERIMENT_DIR_NAME = 'experiments'  # Path to user defined experiments.
 EXPERIMENTS_PATH = os.path.join('dev', 'profile-experiments'
@@ -87,32 +88,34 @@ METRIC_TITLE = 0  # For display purposes.
 METRIC_UNIT = 1  # For display purposes.
 METRIC_FILENAME = 2  # For output plots (no extension).
 METRIC_FIELDS = 3  # Fields metrics can be derived from in order of preference.
+# WARNING: Changing metrics affects db table structure!
 METRICS = {  # Dict of all metrics measured by profile-battery.
-    '001': ('Elapsed Time', 's', 'elapsed-time', [
-            'real', 'Elapsed (wall clock) time (h:mm:ss or m:ss)',
-            'cpu time'],),
-    '002': ('CPU Time - Total', 's', 'cpu-time', ['total cpu time'],),
-    '003': ('CPU Time - User', 's', 'user-time', [
-            'user', 'User time (seconds)'],),
-    '004': ('CPU Time - System', 's', 'system-time', [
-            'sys', 'System time (seconds)'],),
-    '005': ('Max Memory', 'kb', 'memory', [
-            'maximum resident set size', 'Maximum resident set size (kbytes)',
-            'mxmem'],),
-    '006': ('File System - Inputs', None, 'file-ins', [
-            'block input operations', 'File system inputs'],),
-    '007': ('File System - Outputs', None, 'file-outs', [
-            'block output operations', 'File system outputs'],),
-    '008': ('Startup Time', 's', 'startup-time', ['startup time'],),
-    '009': ('Number Of Main Loop Iterations', None, 'loop-count', [
-            'loop count'],),
-    '010': ('Average Main Loop Iteration Time', 's', 'loop-time', [
-            'avg loop time'],),
-    '011': ('Elapsed Time - time.sleep()', 's', 'awake-time', [
-            'awake cpu time'],)
+    'elapsed_time': ('Elapsed Time', 's', 'elapsed-time', [
+        'real', 'Elapsed (wall clock) time (h:mm:ss or m:ss)', 'cpu time'],),
+    'cpu_time': ('CPU Time - Total', 's', 'cpu-time', ['total cpu time'],),
+    'user_time': ('CPU Time - User', 's', 'user-time', [
+        'user', 'User time (seconds)'],),
+    'system_time': ('CPU Time - System', 's', 'system-time', [
+        'sys', 'System time (seconds)'],),
+    'rss_memory': ('Max Memory', 'kb', 'memory', [
+        'maximum resident set size', 'Maximum resident set size (kbytes)',
+        'mxmem'],),
+    'file_ins': ('File System - Inputs', None, 'file-ins', [
+        'block input operations', 'File system inputs'],),
+    'file_outs': ('File System - Outputs', None, 'file-outs', [
+        'block output operations', 'File system outputs'],),
+    'startup_time': ('Startup Time', 's', 'startup-time', ['startup time'],),
+    'main_loop_ittrs': (
+        'Number Of Main Loop Iterations', None, 'loop-count', ['loop count'],),
+    'main_loop_ittr_time': (
+        'Average Main Loop Iteration Time', 's', 'loop-time',
+         ['avg loop time'],),
+    'elapsed_non_sleep_time': (
+        'Elapsed Time - time.sleep()', 's', 'awake-time', ['awake cpu time'],)
 }
 # Metrics used if --full is not set.
-QUICK_ANALYSIS_METRICS = set(['001', '002', '005'])
+#QUICK_ANALYSIS_METRICS = set(['001', '002', '005'])
+QUICK_ANALYSIS_METRICS = set(('elapsed_time', 'cpu_time', 'rss_memory'))
 # Reverse lookup of METRICS, dict of fields stored with their metric codes.
 METRICS_BY_FIELD = {}
 for metric in METRICS:

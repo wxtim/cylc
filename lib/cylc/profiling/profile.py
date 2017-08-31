@@ -68,12 +68,17 @@ def run_cmd(cmd, background=False, verbose=True):
     return ret
 
 
-def profile(schedule, install_dir, reg_base, host='localhost'):
+def profile(schedule, install_dir, reg_base):
     """Run profiling.
 
+    Note:
+        This only supports profiling experiment on one platform. Due to the CLI
+        API schedule can only contain keys for one platform meaning this can be
+        negated.
+
     Args:
-        schedule (iterable): Collection of (version, experiment) tuples to
-            profile.
+        schedule (iterable): Collection of (platform, version, experiment,
+            run_name) tuples to profile.
         install_dir (str): The directory that the required cylc suites /
             versions etc are installed in.
 
@@ -92,8 +97,7 @@ def profile(schedule, install_dir, reg_base, host='localhost'):
 
     # Write out the 'main-suite' suite.rc file.
     suite_handle = open(os.path.join(suite_dir, 'suite.rc'), 'w+')
-    write_profiling_suite(schedule, suite_handle.write, install_dir, reg_base,
-                          host)
+    write_profiling_suite(schedule, suite_handle.write, install_dir, reg_base)
     suite_handle.close()
 
     # Register the 'main-suite'.
@@ -111,19 +115,23 @@ def profile(schedule, install_dir, reg_base, host='localhost'):
         return False
 
     # Retrieve results.
-    results = {}
     failures = []
     successes = False
-    repeat_pad = max(len(str(x['repeats'])) for _, e in schedule for x in
+    repeat_pad = max(len(str(x['repeats'])) for _, _, e, _ in schedule for x in
                      e['config']['runs'])  # Get padding (e.. 001).
-    for version, experiment in schedule:
-        results.setdefault(version['id'], {})
-        results[version['id']].setdefault(experiment['id'], {})
+    results = []
+    for platform, version, experiment, run_name in schedule:
         for run in experiment['config']['runs']:
+            if run['name'] != run_name:
+                continue
             try:
-                results[version['id']][experiment['id']][run['name']
-                ] = retrieve_results(
-                    reg, version, experiment, run, repeat_pad)
+                # TODO: Standardise results / prof_results convention.
+                results.append((platform,
+                                version['id'],
+                                experiment['id'],
+                                run['name'],
+                               retrieve_results(reg, version, experiment,
+                                                run, repeat_pad)))
             except ProfilingException:
                 # Run un-successfull - no results to process.
                 failures.append((version['name'], experiment['name'],

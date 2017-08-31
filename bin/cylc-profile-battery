@@ -26,8 +26,8 @@ import os
 import random
 import re
 import shutil
+import socket
 import sys
-import tempfile
 import time
 
 # Write out floats to one decimal place only.
@@ -35,9 +35,10 @@ from json import encoder
 encoder.FLOAT_REPR = lambda o: format(o, '.1f')
 
 import cylc.profiling as prof
-from cylc.profiling.analysis import (make_table, print_table, plot_results)
+import cylc.profiling.analysis as analysis
 import cylc.profiling.git as git
 from cylc.profiling.profile import profile
+import cylc.profiling.results as results
 
 RUN_DOC = r"""cylc profile-battery [-e [EXPERIMENT ...]] [-v [VERSION ...]]
 
@@ -117,8 +118,10 @@ def parse_args():
                       'branches, commits are all valid.',
                       dest='versions', callback=multi_arg_callback,
                       action='callback')
-    parser.add_option('--host', dest='host', type='str', default='localhost',
-                      help='Specify the host to run the profiling on.')
+    parser.add_option('--host', dest='host', type='str',
+                      default=socket.gethostname(),
+                      help='Resolved host name for the experiment to run on, '
+                      'do not use "localhost"')
     parser.add_option('-i', '--interactive', action='store_true',
                       help='Open any plots in interactive window rather '
                       'saving them to files.', default=False)
@@ -165,55 +168,35 @@ def parse_args():
     return opts
 
 
-def get_results():
-    """Return data from the results file."""
-    if not os.path.exists(os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME,
-                                       prof.PROFILE_FILE_NAME)):
-        # Profile file does not exist, create it.
-        create_profile_directory()
-        return {}
-    else:
-        # Profile file exists, git list of results contained.
-        profile_file_path = os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME,
-                                         prof.PROFILE_FILE_NAME)
-        with open(profile_file_path, 'r') as profile_file:
-            try:
-                profile_results = json.load(profile_file)
-            except ValueError as exc:
-                print exc
-                sys.exit('ERROR: Could not read "%s". Check that it is valid'
-                         ' JSON or delete the file.' % profile_file_path)
-        return profile_results
-
-
-def get_result_keys():
-    """Return a list of (version_id, experiment_id,) tuples."""
-    profile_results = get_results()
-    result_keys = []
-    for version_id, experiment_ids in profile_results.iteritems():
-        result_keys.extend([(version_id, experiment_id) for experiment_id
-                            in experiment_ids.keys()])
-    return result_keys
-
-
-def get_schedule(versions, experiments, test=False):
+def get_schedule(conn, host, versions, experiments, test=False):
     """Determine which experiments to run with which versions.
+
+    Note:
+        Profiling only supports running experiments on a single host.
 
     Return:
         tuple - (schedule, experiments_to_run)
+            - platform (str) - Platform to run experiment on.
             - schedule (dict) - Dictionary of cylc version ids containing lists
               of the experiments to run for each.
             - experiments_to_run (set) - Set of (version_id, experiment_id)
               tuples of the experiments to run.
+            - runs .... TODO.
     """
     # Generate list of (version_id, experiment_id) tuples for experiment to
     # run.
-    experiment_keys = itertools.product(
-        [version['id'] for version in versions],
-        [experiment['id'] for experiment in experiments])
+    experiment_keys = set()
+    for experiment in experiments:
+        experiment_keys.update(set(itertools.product(
+            [host],
+            [version['id'] for version in versions],
+            [experiment['id']],
+            [run['name'] for run in experiment['config']['runs']]
+        )))
+
     # Acquire list of (version_id, experiment_id) tuples for experiments
     # already run.
-    result_keys = get_result_keys()
+    result_keys = results.get_keys(conn)
 
     # Exclude any previously acquired results.
     if test:
@@ -224,7 +207,7 @@ def get_schedule(versions, experiments, test=False):
 
     # Generate list of (version, experiment) tuples for the experiments to run.
     ret = []
-    for version_id, experiment_id in experiments_to_run:
+    for platform, version_id, experiment_id, run_name in experiments_to_run:
         for version in versions:
             if version['id'] == version_id:
                 break
@@ -235,7 +218,7 @@ def get_schedule(versions, experiments, test=False):
                 break
         else:
             raise Exception('Internal error.')
-        ret.append((version, experiment))
+        ret.append((platform, version, experiment, run_name))
     return ret
 
 
@@ -401,7 +384,8 @@ def get_experiments(experiment_names):
         config = load_experiment_config(file_path)
         experiments.append({
             'name': experiment_name,
-            'id': '{0}@{1}'.format(experiment_name, get_checksum(file_path)),
+            #'id': '{0}@{1}'.format(experiment_name, get_checksum(file_path)),
+            'id': get_checksum(file_path),
             'file': file_path,
             'config': config
         })
@@ -424,23 +408,16 @@ def update_nested_dictionaries(old, new):
     return old
 
 
-def append_new_results(results):
-    """Append new profiling results to results file."""
-    profile_file_path = os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME,
-                                     prof.PROFILE_FILE_NAME)
-    try:
-        with open(profile_file_path, 'r') as file_:
-            previous_results = json.load(file_)
-    except IOError as exc:
-        if exc.errno == 2:
-            previous_results = {}
-        else:
-            raise
-
-    ret = update_nested_dictionaries(previous_results, results)
-    os.remove(profile_file_path)
-    with open(profile_file_path, 'w+') as file_:
-        json.dump(ret, file_)
+def append_new_results(conn, results):
+    args = []
+    for platform, version_id, experiment_id, run_name, result_dict in results:
+        exp_results = (result_dict.get(metric, None) for metric in prof.METRICS)
+        args.append((platform, version_id, experiment_id, run_name) +
+                    tuple(exp_results))
+    stmt = 'INSERT INTO results VALUES(%s)' % ', '.join(
+        (4 + len(prof.METRICS)) * ['?'])
+    with conn:  # Commits automatically if successfull.
+        conn.cursor().executemany(stmt, args)
 
 
 def delete_results(result_keys, interactive=False):
@@ -491,12 +468,12 @@ def install_cylc_versions(versions, install_dir):
                 os.path.join(install_dir, 'cylc', version['name']))
 
 
-def run_schedule(schedule, host='localhost', test=False):
+def run_schedule(conn, schedule, test=False):
     """Run profiling using the provided schedule.
 
     Args:
-        schedule (iterable): Collection of (version, experiment) tuples to
-            profile.
+        schedule (iterable): Collection of
+            (platform, version, experiment, run_name) tuples to profile.
         test (bool): Results will not be stored if test=True.
 
     """
@@ -505,22 +482,21 @@ def run_schedule(schedule, host='localhost', test=False):
                                         'cylc-run',
                                         reg_base)
     os.mkdir(profiler_install_dir)
-    if host != 'localhost':
-        # TODO install profiler directory.
-        pass
 
     # Install cylc versions as necessary.
-    install_cylc_versions(dict((v['id'], v) for v, _ in schedule).values(),
-                          profiler_install_dir)
+    install_cylc_versions(
+        dict((v['id'], v) for _, v, _, _ in schedule).values(),
+        profiler_install_dir)
 
     # Install experiments as necessary
-    install_experiments(dict((e['id'], e) for _, e in schedule).values(),
-                        profiler_install_dir)
+    install_experiments(
+        dict((e['id'], e) for _, _, e, _ in schedule).values(),
+        profiler_install_dir)
 
     # Run profiling.
-    results = profile(schedule, profiler_install_dir, reg_base, host=host)
+    prof_results = profile(schedule, profiler_install_dir, reg_base)
 
-    if results is False:
+    if prof_results is False:
         # Profiling failed, keep install directory.
         return False
     else:
@@ -529,12 +505,13 @@ def run_schedule(schedule, host='localhost', test=False):
 
     # Append results to results file.
     if not test:  # Don't store results in --test mode.
-        append_new_results(results)
+        #append_new_results(results)
+        results.add(conn, prof_results)
 
     return True
 
 
-def run_analysis(experiments, versions, interactive=False,
+def run_analysis(platform, experiments, versions, interactive=False,
                  quick_analysis=True, lobf_order=2, plot=True, markdown=False):
     """Runs analysis over the results already acquired.
 
@@ -551,10 +528,10 @@ def run_analysis(experiments, versions, interactive=False,
 
     """
     # Get results
-    with open(os.path.join(prof.CYLC_DIR,
-                           prof.PROFILE_DIR_NAME,
-                           prof.PROFILE_FILE_NAME), 'r') as profile_file:
-        full_results = json.load(profile_file)
+    #with open(os.path.join(prof.CYLC_DIR,
+    #                       prof.PROFILE_DIR_NAME,
+    #                       prof.PROFILE_FILE_NAME), 'r') as profile_file:
+    #    full_results = json.load(profile_file)
 
     # Run analysis for each experiment requested.
     for experiment in experiments:
@@ -568,20 +545,22 @@ def run_analysis(experiments, versions, interactive=False,
             os.makedirs(plt_dir)
 
         # Print a table of results.
-        print
-        kwargs = {'transpose': not quick_analysis}
-        if markdown:
-            kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
-        print_table(
-            make_table(full_results, versions, experiment,
-                       quick_analysis=quick_analysis), **kwargs)
-        print
+        analysis.results_table(platform, versions, experiment)
+        #print
+        #kwargs = {'transpose': not quick_analysis}
+        #if markdown:
+        #    kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
+        #print_table(
+        #    make_table(full_results, versions, experiment,
+        #               quick_analysis=quick_analysis), **kwargs)
+        #print
 
         # Plot results.
         if not plot:
             continue
-        plot_results(full_results, versions, experiment, plt_dir,
-                     quick_analysis=quick_analysis, lobf_order=lobf_order)
+        analysis.plot_results(platform, versions, experiment, plt_dir,
+                              quick_analysis=quick_analysis,
+                              lobf_order=lobf_order)
         if plt_dir:
             print('Results for experiment "{exp}" have been written out to '
                   '"{dir}"'.format(exp=experiment['name'], dir=plt_dir))
@@ -610,10 +589,11 @@ def ls(exp_names, ver_names, delete=False):
 
     if not exp_names and not ver_names:
         # No experiments or versions specified => list all results.
-        for version_id in results:
-            for experiment_id in results[version_id]:
-                experiment_name = experiment_id.split('@')[0]
-                include_result(experiment_name, experiment_id, version_id)
+        for host in results:
+            for version_id in results[host]:
+                for experiment_id in results[host][version_id]:
+                    experiment_name = experiment_id.split('@')[0]
+                    include_result(experiment_name, experiment_id, version_id)
     else:
         # List only specified experiments and versions.
         version_ids = map(git.describe, ver_names)
@@ -672,17 +652,18 @@ def promote(experiment_id, yes=False):
 
     cur_exp_id = get_experiments([experiment_name])[0]['id']
 
-    candidate_versions = []
-    target_versions = []
-    for version in results:
-        for exp_id in results[version]:
-            exp_name, exp_ver = exp_id.rsplit('@', 1)
-            if exp_name != experiment_name:
-                continue
-            if exp_ver == experiment_version:
-                candidate_versions.append(version)
-            elif exp_id == cur_exp_id:
-                target_versions.append(version)
+    candidate_versions = set()
+    target_versions = set()
+    for host in results:
+        for version in results[host]:
+            for exp_id in results[version]:
+                exp_name, exp_ver = exp_id.rsplit('@', 1)
+                if exp_name != experiment_name:
+                    continue
+                if exp_ver == experiment_version:
+                    candidate_versions.add(version)
+                elif exp_id == cur_exp_id:
+                    target_versions.add(version)
 
     if not candidate_versions:
         sys.exit('There are no results for experiment "{experiment_id}".'
@@ -712,8 +693,10 @@ def promote(experiment_id, yes=False):
     if yes or response == 'y':
         # Promote results.
         try:
-            for version in candidate_versions:
-                results[version][cur_exp_id] = results[version][experiment_id]
+            for host in results:
+                for version in candidate_versions:
+                    results[host][version][cur_exp_id] = (
+                        results[version][experiment_id])
         except KeyError as exc:
             print exc
             sys.exit('Unexpected error.')
@@ -728,21 +711,21 @@ def promote(experiment_id, yes=False):
 def main():
     """cylc profile-battery"""
     opts = parse_args()
-
     if not prof.IS_GIT_REPO:
         print >> sys.stderr, ('ERROR: profiling requires cylc to be a git '
                               'repository.')
         sys.exit(2)
+    conn = results.get_conn()
 
     # Promote mode.
-    if opts.promote:
-        promote(opts.promote, opts.yes)
-        sys.exit(0)
+    #if opts.promote:
+    #    promote(opts.promote, opts.yes)
+    #    sys.exit(0)
 
     # If in "list" mode print out results then exit.
-    if opts.ls or opts.delete:
-        ls(opts.experiments, opts.versions, delete=opts.delete)
-        sys.exit(0)
+    #if opts.ls or opts.delete:
+    #    ls(opts.experiments, opts.versions, delete=opts.delete)
+    #    sys.exit(0)
 
     # Generate list of requested experiments and versions.
     experiments = get_experiments(opts.experiments)
@@ -756,9 +739,10 @@ def main():
         sys.exit('Experiment file(s) could not be loaded, profiling aborted.')
 
     # Run experiments as necessary.
-    schedule = get_schedule(versions, experiments, test=opts.test)
+    schedule = get_schedule(conn, opts.host, versions, experiments,
+                            test=opts.test)
     if schedule:
-        if not run_schedule(schedule, opts.host, opts.test):
+        if not run_schedule(conn, schedule, opts.test):
             sys.exit('Profiling failed.')
 
     # Don't run analysis if in "test" mode.
@@ -766,14 +750,23 @@ def main():
         sys.exit(0)
 
     # Run analysis
-    run_analysis(experiments,
-                 versions,
-                 interactive=opts.interactive,
-                 quick_analysis=not opts.full_results,
-                 lobf_order=opts.lobf_order,
-                 plot=not opts.no_plots,
-                 markdown=opts.markdown)
+    #run_analysis(opts.host,
+    #             experiments,
+    #             versions,
+    #             interactive=opts.interactive,
+    #             quick_analysis=not opts.full_results,
+    #             lobf_order=opts.lobf_order,
+    #             plot=not opts.no_plots,
+    #             markdown=opts.markdown)
 
+    # Print results table
+    for experiment in experiments:
+        analysis.results_table(conn,
+                               opts.host,
+                               versions,
+                               experiment,
+                               quick_analysis=not opts.full_results,
+                               markdown=opts.markdown)
 
 if __name__ == '__main__':
     main()

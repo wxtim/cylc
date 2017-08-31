@@ -30,6 +30,8 @@ try:
 except ImportError:
     CAN_PLOT = False
 
+import cylc.profiling.results as p_results  # TODO
+# TODO
 from cylc.profiling import (
     PROFILE_MODE_TIME, PROFILE_MODE_CYLC, SUMMARY_LINE_REGEX,
     MEMORY_LINE_REGEX, LOOP_MEMORY_LINE_REGEX, SLEEP_FUNCTION_REGEX,
@@ -293,6 +295,19 @@ def get_metrics_for_experiment(experiment, results, quick_analysis=False):
     return metrics
 
 
+def get_consistent_metrics(prof_results, quick_analysis=False):
+    metrics = None
+    for prof_result in prof_results:
+        result_metrics = set(prof_result[1])
+        if metrics:
+            metrics = metrics & result_metrics
+        else:
+            metrics = result_metrics
+    if quick_analysis:
+        return sorted(metrics & QUICK_ANALYSIS_METRICS)
+    return sorted(metrics)
+
+
 def get_metric_title(metric):
     """Return a user-presentable title for a given metric key."""
     metric_title = METRICS[metric][METRIC_TITLE]
@@ -302,10 +317,46 @@ def get_metric_title(metric):
     return metric_title
 
 
-def make_table(results, versions, experiment, quick_analysis=False):
+def results_table(conn, platform, versions, experiment, quick_analysis,
+                 markdown=False):
+    prof_results = p_results.get_dict(
+        conn,
+        platform,
+        [version['id'] for version in versions],
+        experiment['id'],
+        sorted=True)  # TODO: Rename sorted.
+
+    # TODO!?
+    #metrics = sorted(get_metrics_for_experiment(experiment, prof_results,
+    #                                            quick_analysis=quick_analysis))
+    metrics = get_consistent_metrics(prof_results, quick_analysis)
+
+    # Make header rows.
+    table = [['Version', 'Run'] + [get_metric_title(metric) for metric in
+                                   sorted(metrics)]]
+
+    for (_, version_id, experiment_id, run_name), result_fields in prof_results:
+        row = [version_id, run_name]
+        for metric in metrics:
+            try:
+                row.append(result_fields[metric])
+            except KeyError:
+                raise AnalysisException(
+                    'Could not make results table as results are incomplete. '
+                    'Metric "%s" missing from %s:%s at version %s' % (
+                        metric, experiment['name'], run_name, version_id
+                    ))
+        table.append(row)
+
+    kwargs = {'transpose': not quick_analysis}
+    if markdown:  # Move into print_table in the long run?
+        kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
+    print_table(table, **kwargs)
+
+def make_table(results, platform, versions, experiment, quick_analysis=False):
     """Produce a 2D array representing the results of the provided
     experiment."""
-    metrics = get_metrics_for_experiment(experiment, results,
+    metrics = get_metrics_for_experiment(experiment, results,  # TODO?
                                          quick_analysis=quick_analysis)
 
     # Make header rows.
@@ -315,7 +366,7 @@ def make_table(results, versions, experiment, quick_analysis=False):
     # Make content rows.
     try:
         for version in versions:
-            data = results[version['id']][experiment['id']]
+            data = results[platform][version['id']][experiment['id']]
             run_names = data.keys()
             try:
                 run_names.sort(key=lambda x: int(x))
