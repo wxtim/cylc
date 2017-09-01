@@ -23,6 +23,7 @@ class GitCheckoutError(Exception):
     """Exception to be raised if a git checkout command fails."""
     pass
 
+
 def archive_cylc_version(ref, repo_path, clone_path):
     """Archive a cylc version at a particular version to a chosen dir.
 
@@ -32,6 +33,7 @@ def archive_cylc_version(ref, repo_path, clone_path):
     archive_branch(ref, repo_path, clone_path)
     with open(os.path.join(clone_path, 'VERSION'), 'w+') as version_file:
         version_file.write(ref)
+
 
 def archive_branch(ref, repo_path, clone_path):
     """Archive and untar a git repository at a chosen version to a chosen dir.

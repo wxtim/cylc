@@ -22,26 +22,93 @@ RESULT_FIELDS = [
     'average_main_loop_iteration_time', 'elapsed_non_sleep_time'
 ]  # TODO: New standadrised metric system...
 
+import json
 import os
 import sqlite3
+import sys
+import tempfile
+import unittest
 
 import cylc.profiling as prof
+import cylc.profiling.analysis as analysis
+import cylc.profiling.git as git  # TODO: Rename utills?
 
 
-def get(conn, platforms=None, version_ids=None, experiment_ids=None,
-        run_names=None, sorted=False):
+def _results_sorter(one, two):
+    # Platform.
+    if one[0] < two[0]:
+        return 1
+    if one[0] > two[0]:
+        return -1
+    # Version.
+    one_com = git.get_commit_date(one[1])
+    two_com = git.get_commit_date(two[1])
+    if one_com > two_com:
+        return 1
+    if one_com < two_com:
+        return -1
+    # Experiment.
+    if one[2] > two[2]:
+        return 1
+    if one[2] < two[2]:
+        return -1
+    # Run.
+    if one[3] > two[3]:
+        return 1
+    if one[3] < two[3]:
+        return -1
+    return 0
+
+
+def _sync_experiments(conn, experiments=None, experiment_ids=None):
+    if not experiment_ids:
+        experiment_ids = [experiment['id'] for experiment in experiments]
+
+    stmt = 'SELECT experiment_id FROM results WHERE experiment_id IN (%s)' % (
+        ', '.join(['?'] * len(experiment_ids)))
+    curr = conn.cursor()
+    curr.execute(stmt, experiment_ids)
+    exps_in_results = set(x[0] for x in curr.fetchall())
+
+    stmt = ('SELECT experiment_id FROM experiments WHERE experiment_id IN '
+            '(%s)' % (', '.join(['?'] * len(experiment_ids))))
+    curr = conn.cursor()
+    curr.execute(stmt, experiment_ids)
+    exps_in_experiments = set(x[0] for x in curr.fetchall())
+
+    if experiments:
+        for experiment_id in exps_in_results - exps_in_experiments:
+            # Experiment present in the results table but not in the experiments
+            # table. Add an entry for it.
+            stmt = 'INSERT INTO experiments VALUES(%s)' % (', '.join(['?'] * 3))
+            experiment = filter_experiment(experiments, experiment_id)
+            options = get_experiment_options(experiment)
+            args = (experiment_id, experiment['name'], json.dumps(options))
+            with conn:
+                conn.execute(stmt, args)
+
+    for experiment_id in exps_in_experiments - exps_in_results:
+        # Experiment present in the experiments table but not used in the
+        # results tabke. Remove this (unused) entry.
+        stmt = 'DELETE FROM experiments WHERE experiment_id = (?)'
+        with conn:
+            conn.execute(stmt, experiment_id)
+
+
+def _results_call(conn, platforms=None, version_ids=None, experiment_ids=None,
+                  run_names=None, operator='SELECT'):
     where = []
     args = []
     if platforms:
         if not isinstance(platforms, list):
             platforms = [platforms]
-        where.append('platform IN (%s)' % ', '.join((['?'] * len(platforms))))
+        where.append('platform IN (%s)' % (', '.join(['?'] * len(platforms))))
         args.extend(platforms)
     if version_ids:
         if not isinstance(version_ids, list):
             version_ids = [version_ids]
         where.append(
-            'version_id IN (%s)' % ', '.join((['?'] * len(version_ids))))
+            'version_id IN (%s)' % (', '.join(['?'] * len(version_ids))))
         args.extend(version_ids)
     if experiment_ids:
         if not isinstance(experiment_ids, list):
@@ -56,13 +123,32 @@ def get(conn, platforms=None, version_ids=None, experiment_ids=None,
             'run_name IN (%s)' % (', '.join(['?'] * len(run_names))))
         args.extend(run_names)
 
-    stmt = 'SELECT * from results'
+    if operator == 'SELECT':
+        stmt = 'SELECT * from results'
+    elif operator == 'DELETE':
+        stmt = 'DELETE from results'
+    else:
+        raise Exception('Unsupported results operator "%s"' % operator)
     if where:
         stmt += ' WHERE %s' % ' AND '.join(where)
-    cur = conn.cursor()
-    cur.execute(stmt, args)
-    results = cur.fetchall()
-    results.sort()
+
+    if operator == 'SELECT':
+        curr = conn.cursor()
+        curr.execute(stmt, args)
+        return curr.fetchall()
+    else:
+        with conn:
+            conn.cursor().execute(stmt, args)
+
+
+def get(*args, **kwargs):
+    sort = False
+    if 'sort' in kwargs:
+        sort = kwargs['sort']
+        del kwargs['sort']
+    results = _results_call(*args, **kwargs)
+    if sort:
+        results.sort(_results_sorter)
     return results
 
 
@@ -78,7 +164,33 @@ def get_keys(*args, **kwargs):
     return tuple(tuple(row[0:4]) for row in get(*args, **kwargs))
 
 
-def get_conn():
+def get_experiment_ids(conn, experiment_names):
+    """
+    Return:
+        dict: {experiment_id: experiment_name}
+    """
+    curr = conn.cursor()
+    curr.execute(
+        'SELECT experiment_id FROM experiments WHERE name IN (%s)' % (
+        ', '.join(['?'] * len(experiment_names))),
+        experiment_names)
+    return dict((x, y[0]) for x, y in zip(experiment_names, curr.fetchmany()))
+
+
+def get_experiment_names(conn, experiment_ids):
+    """
+    Return:
+        dict: {experiment_name: experiment_id}
+    """
+    curr = conn.cursor()
+    curr.execute(
+        'SELECT name FROM experiments WHERE experiment_id IN (%s)' % (
+        ', '.join(['?'] * len(experiment_ids))),
+        experiment_ids)
+    return dict((x, y[0]) for x, y in zip(experiment_ids, curr.fetchmany()))
+
+
+def get_conn(db_file):
     """Return database connection.
 
     Creates profiling directory and database file if not present.
@@ -87,16 +199,8 @@ def get_conn():
         sqlite3.Connection
 
     """
-    profile_dir = os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME)
-    if not os.path.exists(profile_dir):
-        print 'Creating profiling directory.'
-        os.mkdir(profile_dir)
-        os.mkdir(os.path.join(profile_dir, prof.PROFILE_PLOT_DIR_NAME))
-        os.mkdir(os.path.join(profile_dir, prof.USER_EXPERIMENT_DIR_NAME))
-
-    profile_file = os.path.join(profile_dir, prof.PROFILE_DB)
-    if not os.path.exists(profile_file):
-        conn = sqlite3.connect(profile_file)
+    if not os.path.exists(db_file):
+        conn = sqlite3.connect(db_file)
         print 'Creating results database.'
         conn.cursor().execute(
             'CREATE TABLE experiments('
@@ -112,11 +216,11 @@ def get_conn():
             '%s)' % (', '.join('%s FLOAT' % i for i in RESULT_FIELDS)))
         conn.commit()
     else:
-        conn = sqlite3.connect(profile_file)
+        conn = sqlite3.connect(db_file)
     return conn
 
 
-def add(conn, results):
+def add(conn, results, experiments):
     args = []
     for platform, version_id, experiment_id, run_name, result_dict in results:
         exp_results = (result_dict.get(metric, None) for metric in
@@ -127,3 +231,283 @@ def add(conn, results):
         (4 + len(prof.METRICS)) * ['?'])
     with conn:  # Commits automatically if successfull.
         conn.cursor().executemany(stmt, args)
+
+    used_experiments = [filter_experiment(experiments, experiment_id) for
+                        experiment_id in set(result[2] for result in results)]
+    _sync_experiments(conn, experiments=experiments)
+
+
+def remove(*args, **kwargs):
+    kwargs['operator'] = 'SELECT'
+    changes = get_keys(*args, **kwargs)
+
+    kwargs['operator'] = 'DELETE'
+    _results_call(*args, **kwargs)
+
+    _sync_experiments(args[0], experiment_ids=[r[2] for r in changes])
+
+
+def print_result(conn, platform, versions, experiment, quick_analysis,
+                 markdown=False):
+    prof_results = get_dict(
+        conn,
+        platform,
+        [version['id'] for version in versions],
+        experiment['id'],
+        sort=True)
+
+    # TODO!?
+    #metrics = sorted(get_metrics_for_experiment(experiment, prof_results,
+    #                                            quick_analysis=quick_analysis))
+    metrics = analysis.get_consistent_metrics(prof_results, quick_analysis)
+
+    # Make header rows.
+    table = [['Version', 'Run'] + [analysis.get_metric_title(metric) for
+                                   metric in sorted(metrics)]]
+    table.append([None] * len(table[0]))  # Header underline.
+
+    for (_, version_id, _, run_name), result_fields in prof_results:
+        row = [version_id, run_name]
+        for metric in metrics:
+            try:
+                row.append(result_fields[metric])
+            except KeyError:
+                raise Exception(  # TODO ResultsException?
+                    'Could not make results table as results are incomplete. '
+                    'Metric "%s" missing from %s:%s at version %s' % (
+                        metric, experiment['name'], run_name, version_id
+                    ))
+        table.append(row)
+
+    kwargs = {'transpose': not quick_analysis}
+    if markdown:  # Move into print_table in the long run?
+        kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
+    _write_table(table, **kwargs)
+
+
+def _write_table(table, transpose=False, seperator = '  ', border='',
+                 headers=False):  # TODO: Rename or whatever?
+    """Print a 2D list as a table.
+
+    None values are printed as hyphens, use '' for blank cells.
+    """
+    if transpose:
+        table = map(list, zip(*table))
+    if not table:
+        return
+    for row_no in range(len(table)):
+        for col_no in range(len(table[0])):
+            cell = table[row_no][col_no]
+            if cell is None:
+                table[row_no][col_no] = []
+            else:
+                table[row_no][col_no] = str(cell)
+
+    col_widths = []
+    for col_no in range(len(table[0])):
+        col_widths.append(
+            max([len(table[row_no][col_no]) for row_no in range(len(table))]))
+
+    if headers:
+        table = [table[0], [[]] * len(table[0])] + table[1:]
+
+    for row_no in range(len(table)):
+        for col_no in range(len(table[row_no])):
+            if col_no != 0:
+                sys.stdout.write(seperator)
+            else:
+                if border:
+                    sys.stdout.write(border + ' ')
+            cell = table[row_no][col_no]
+            if type(cell) is list:
+                sys.stdout.write('-' * col_widths[col_no])
+            else:
+                sys.stdout.write(cell + ' ' * (col_widths[col_no] - len(cell)))
+            if col_no == len(table[row_no]) - 1:
+                if border:
+                    sys.stdout.write(' ' + border)
+        sys.stdout.write('\n')
+
+
+def print_list(conn, platforms, version_ids, experiment_ids):
+    # Get (platform, version_id, experiment_id) keys from the results DB.
+    prof_results = set(x[0:3] for x in get_keys(
+        conn,
+        platforms or None,
+        version_ids or None,
+        experiment_ids or None))
+
+    # Get dictionary of {experiment_id: experiment_name} pairs.
+    exp_name_dict = get_experiment_names(
+        conn,
+        [result[2] for result in prof_results])
+
+    # Make table from results.
+    table = [['Experiment Name', 'Experiment ID', 'Platform', 'Version ID'],
+             [None, None, None, None]]
+    for platform, version_id, experiment_id in sorted(prof_results):
+        table.append([exp_name_dict[experiment_id],
+                      experiment_id,
+                      platform,
+                      version_id])
+
+    # Print table to stdout.
+    _write_table(table)
+
+
+def filter_experiment(experiments, experiment_id):  # TODO: Use me!
+    for experiment in experiments:
+        if experiment['id'] == experiment_id:
+            return experiment
+    raise IndexError()
+
+
+def get_experiment_options(experiment):
+    options = {}
+    for key in ['analysis', 'x-axis']:
+        if key in experiment['config']:
+            options[key] = experiment['config'][key]
+    return options
+
+
+class TestAddResult(unittest.TestCase):
+
+    def setUp(self):
+        self.conn = get_conn(tempfile.mktemp())
+        add(self.conn,
+            [
+                ('a', 'b', 'c', 'd', {}),
+                ('a', 'g', 'e', 'd', {}),
+                ('f', 'b', 'e', 'd', {})
+            ],
+            [
+                {'id': 'c', 'name': 'C', 'config': {}},
+                {'id': 'e', 'name': 'E', 'config': {}}
+            ]
+        )
+
+    def test_result_added(self):
+        curr = self.conn.cursor()
+        curr.execute('SELECT * FROM results')
+        self.assertEqual(
+            curr.fetchall(),
+            [
+                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS),
+            ]
+        )
+
+    def test_experiment_added(self):
+        curr = self.conn.cursor()
+        curr.execute('SELECT * FROM experiments')
+        self.assertEqual(
+            curr.fetchall(),
+            [
+                (u'c', u'C', '{}'),
+                (u'e', u'E', '{}'),
+            ]
+        )
+
+
+class TestRemoveResult(unittest.TestCase):
+
+    def setUp(self):
+        self.conn = get_conn(tempfile.mktemp())
+        add(self.conn,
+            [
+                ('a', 'b', 'c', 'd', {}),
+                ('a', 'b', 'e', 'd', {})
+            ],
+            [
+                {'id': 'c', 'name': 'C', 'config': {}},
+                {'id': 'e', 'name': 'E', 'config': {}}
+            ]
+        )
+        remove(self.conn, experiment_ids=['e'])
+
+    def test_result_removed(self):
+        curr = self.conn.cursor()
+        curr.execute('SELECT experiment_id FROM results')
+        self.assertEqual(curr.fetchall(), [(u'c',)])
+
+    def test_experiment_removed(self):
+        curr = self.conn.cursor()
+        curr.execute('SELECT experiment_id FROM experiments')
+        self.assertEqual(curr.fetchall(), [(u'c',)])
+
+
+class TestGetResult(unittest.TestCase):
+
+    def setUp(self):
+        self.conn = get_conn(tempfile.mktemp())
+        add(self.conn,
+            [
+                ('a', 'b', 'c', 'd', {}),
+                ('a', 'g', 'e', 'd', {}),
+                ('f', 'b', 'e', 'd', {})
+            ],
+            [
+                {'id': 'c', 'name': 'C', 'config': {}},
+                {'id': 'e', 'name': 'E', 'config': {}}
+            ]
+        )
+
+    def test_get_all(self):
+        self.assertEqual(
+            get(self.conn),
+            [
+                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS)
+            ]
+        )
+
+    def test_get_by_platform(self):
+        self.assertEqual(
+            get(self.conn, platforms=['a']),
+            [
+                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
+            ]
+        )
+        self.assertEqual(
+            get(self.conn, platforms=['f']),
+            [
+                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS)
+            ]
+        )
+
+    def test_get_by_version(self):
+        self.assertEqual(
+            get(self.conn, version_ids=['b']),
+            [
+                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS)
+            ]
+        )
+        self.assertEqual(
+            get(self.conn, version_ids=['g']),
+            [
+                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
+            ]
+        )
+
+    def test_get_by_experiment(self):
+        self.assertEqual(
+            get(self.conn, experiment_ids=['c']),
+            [
+                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS)
+            ]
+        )
+        self.assertEqual(
+            get(self.conn, experiment_ids=['e']),
+            [
+                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS)
+            ]
+        )
+
+
+if __name__ == '__main__':
+    unittest.main()

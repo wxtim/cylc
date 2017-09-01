@@ -30,7 +30,6 @@ try:
 except ImportError:
     CAN_PLOT = False
 
-import cylc.profiling.results as p_results  # TODO
 # TODO
 from cylc.profiling import (
     PROFILE_MODE_TIME, PROFILE_MODE_CYLC, SUMMARY_LINE_REGEX,
@@ -315,116 +314,6 @@ def get_metric_title(metric):
     if metric_unit:
         metric_title += ' (' + metric_unit + ')'
     return metric_title
-
-
-def results_table(conn, platform, versions, experiment, quick_analysis,
-                 markdown=False):
-    prof_results = p_results.get_dict(
-        conn,
-        platform,
-        [version['id'] for version in versions],
-        experiment['id'],
-        sorted=True)  # TODO: Rename sorted.
-
-    # TODO!?
-    #metrics = sorted(get_metrics_for_experiment(experiment, prof_results,
-    #                                            quick_analysis=quick_analysis))
-    metrics = get_consistent_metrics(prof_results, quick_analysis)
-
-    # Make header rows.
-    table = [['Version', 'Run'] + [get_metric_title(metric) for metric in
-                                   sorted(metrics)]]
-
-    for (_, version_id, experiment_id, run_name), result_fields in prof_results:
-        row = [version_id, run_name]
-        for metric in metrics:
-            try:
-                row.append(result_fields[metric])
-            except KeyError:
-                raise AnalysisException(
-                    'Could not make results table as results are incomplete. '
-                    'Metric "%s" missing from %s:%s at version %s' % (
-                        metric, experiment['name'], run_name, version_id
-                    ))
-        table.append(row)
-
-    kwargs = {'transpose': not quick_analysis}
-    if markdown:  # Move into print_table in the long run?
-        kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
-    print_table(table, **kwargs)
-
-def make_table(results, platform, versions, experiment, quick_analysis=False):
-    """Produce a 2D array representing the results of the provided
-    experiment."""
-    metrics = get_metrics_for_experiment(experiment, results,  # TODO?
-                                         quick_analysis=quick_analysis)
-
-    # Make header rows.
-    table = [['Version', 'Run'] + [get_metric_title(metric) for metric in
-                                   sorted(metrics)]]
-
-    # Make content rows.
-    try:
-        for version in versions:
-            data = results[platform][version['id']][experiment['id']]
-            run_names = data.keys()
-            try:
-                run_names.sort(key=lambda x: int(x))
-            except ValueError:
-                run_names.sort()
-            for run_name in run_names:
-                table.append([version['name'], run_name] +
-                             [data[run_name][metric] for metric in
-                              sorted(metrics)])
-    except ValueError:
-        print('ERROR: Data is not complete. Try removing results and '
-              're-running any experiments')
-
-    return table
-
-
-def print_table(table, transpose=False, seperator = '  ', border='',
-                headers=False):
-    """Print a 2D list as a table.
-
-    None values are printed as hyphens, use '' for blank cells.
-    """
-    if transpose:
-        table = map(list, zip(*table))
-    if not table:
-        return
-    for row_no in range(len(table)):
-        for col_no in range(len(table[0])):
-            cell = table[row_no][col_no]
-            if cell is None:
-                table[row_no][col_no] = []
-            else:
-                table[row_no][col_no] = str(cell)
-
-    col_widths = []
-    for col_no in range(len(table[0])):
-        col_widths.append(
-            max([len(table[row_no][col_no]) for row_no in range(len(table))]))
-
-    if headers:
-        table = [table[0], [[]] * len(table[0])] + table[1:]
-
-    for row_no in range(len(table)):
-        for col_no in range(len(table[row_no])):
-            if col_no != 0:
-                sys.stdout.write(seperator)
-            else:
-                if border:
-                    sys.stdout.write(border + ' ')
-            cell = table[row_no][col_no]
-            if type(cell) is list:
-                sys.stdout.write('-' * col_widths[col_no])
-            else:
-                sys.stdout.write(cell + ' ' * (col_widths[col_no] - len(cell)))
-            if col_no == len(table[row_no]) - 1:
-                if border:
-                    sys.stdout.write(' ' + border)
-        sys.stdout.write('\n')
 
 
 def plot_single(results, run_names, versions, metric, experiment,
