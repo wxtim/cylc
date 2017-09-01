@@ -53,10 +53,16 @@ def _results_sorter(one, two):
     if one[2] < two[2]:
         return -1
     # Run.
-    if one[3] > two[3]:
-        return 1
-    if one[3] < two[3]:
-        return -1
+    try:
+        if int(one[3]) > int(two[3]):
+            return 1
+        if int(one[3]) < int(two[3]):
+            return -1
+    except ValueError:
+        if one[3] > two[3]:
+            return 1
+        if one[3] < two[3]:
+            return -1
     return 0
 
 
@@ -82,7 +88,7 @@ def _sync_experiments(conn, experiments=None, experiment_ids=None):
             # table. Add an entry for it.
             stmt = 'INSERT INTO experiments VALUES(%s)' % (', '.join(['?'] * 3))
             experiment = filter_experiment(experiments, experiment_id)
-            options = get_experiment_options(experiment)
+            options = get_experiment_options_from_file(experiment)
             args = (experiment_id, experiment['name'], json.dumps(options))
             with conn:
                 conn.execute(stmt, args)
@@ -190,6 +196,12 @@ def get_experiment_names(conn, experiment_ids):
     return dict((x, y) for x, y in ret)
 
 
+def get_experiment_options_from_db(conn, experiment_id):
+    return json.loads(conn.cursor().execute(
+        'SELECT options FROM experiments WHERE experiment_id = (?)',
+        [experiment_id]).fetchone()[0])
+
+
 def get_conn(db_file):
     """Return database connection.
 
@@ -283,6 +295,20 @@ def print_result(conn, platform, versions, experiment, quick_analysis,
     if markdown:  # Move into print_table in the long run?
         kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
     _write_table(table, **kwargs)
+
+
+def plot_result(conn, platform, versions, experiment, filepath,
+                quick_analysis=True, **kwargs):
+    prof_results = get_dict(
+        conn,
+        platform,
+        [version['id'] for version in versions],
+        experiment['id'],
+        sort=True)
+    experiment_options = get_experiment_options_from_db(conn, experiment['id'])
+    metrics = analysis.get_consistent_metrics(prof_results, quick_analysis)
+    analysis.plot_results(prof_results, versions, experiment_options,
+                          metrics, filepath, **kwargs)
 
 
 def _write_table(table, transpose=False, seperator = '  ', border='',
@@ -401,7 +427,7 @@ def filter_experiment(experiments, value, field='id'):  # TODO: Use me!
     raise IndexError()
 
 
-def get_experiment_options(experiment):
+def get_experiment_options_from_file(experiment):
     options = {}
     for key in ['analysis', 'x-axis']:
         if key in experiment['config']:

@@ -316,7 +316,7 @@ def get_metric_title(metric):
     return metric_title
 
 
-def plot_single(results, run_names, versions, metric, experiment,
+def plot_single(prof_results, run_names, versions, metric, experiment,
                 axis, c_map):
     """Create a bar chart comparing the results of all runs."""
     n_groups = len(versions)
@@ -327,8 +327,10 @@ def plot_single(results, run_names, versions, metric, experiment,
     colours = [c_map(x / (n_bars - 0.99)) for x in range(n_bars)]
 
     for bar_no, run_name in enumerate(run_names):
-        data = [results[version['id']][experiment['id']][run_name][metric]
-                for version in versions]
+        # No need to sort runs, this has been done already!
+        #data = [results[version['id']][experiment['id']][run_name][metric]
+        #        for version in versions]
+        data = [result[1][metric] for result in prof_results]
         axis.bar(ind + (bar_no * width), data, width, label=run_name,
                  color=colours[bar_no])
 
@@ -341,8 +343,9 @@ def plot_single(results, run_names, versions, metric, experiment,
         axis.legend(loc='upper left', prop={'size': 9})
 
 
-def plot_scale(results, run_names, versions, metric, experiment,
+def plot_scale(prof_results, run_names, versions, metric, experiment,
                axis, c_map, lobf_order=2):
+    # TODO: plot_single now works, plot_scale does not.
     """Create a scatter plot with line of best fit interpreting float(run_name)
     as the x-axis value."""
     x_data = [int(run_name) for run_name in run_names]
@@ -380,7 +383,51 @@ def plot_scale(results, run_names, versions, metric, experiment,
         axis.legend(loc='upper left', prop={'size': 9})
 
 
-def plot_results(results, versions, experiment, plt_dir=None,
+def plot_results(prof_results, versions, experiment_options, metrics, plot_dir,
+                 lobf_order=2):
+    if not CAN_PLOT:
+        sys.exit('\nERROR: Plotting requires numpy and maplotlib so cannot be '
+                 'run.')
+
+    c_map = colour_map.Set1
+    try:
+        run_names = sorted(set(result[0][3] for result in prof_results),
+                           key=int)
+    except ValueError:
+        run_names = sorted(set(result[0][3] for result in prof_results))
+    plot_type = experiment_options.get('analysis', 'single')
+
+    # One plot per metric.
+    for metric in metrics:
+        # Set up plotting.
+        fig = plt.figure(111)
+        axis = fig.add_subplot(111)
+
+        if plot_type == 'single':
+            plot_single(prof_results, run_names, versions, metric,
+                        experiment_options, axis, c_map)
+        elif plot_type == 'scale':
+            plot_scale(prof_results, run_names, versions, metric,
+                       experiment_options, axis, c_map, lobf_order=lobf_order)
+
+        # Common config.
+        axis.grid(True)
+        axis.set_ylabel(get_metric_title(metric))
+
+        # Output graph.
+        if not plot_dir:
+            # Output directory not specified, use interractive mode.
+            plt.show()
+        else:
+            # Output directory specified, save figure as a pdf.
+            fig.savefig(os.path.join(plot_dir,
+                                     METRICS[metric][METRIC_FILENAME] +
+                                     '.pdf'))
+
+            fig.clear()
+
+
+def plot_results2(results, versions, experiment, plt_dir=None,
                  quick_analysis=False, lobf_order=2):
     """Plot the results for the provided experiment.
 

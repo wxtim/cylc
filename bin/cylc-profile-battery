@@ -497,7 +497,7 @@ def ls(conn, platform, version_refs, experiment_names, delete=False):
     for exp_name in experiment_names:
         try:
             # Obtain experiment_id from expeirment_name.
-            experiment_ids.append(exp_id_dict[exp_name])
+            experiment_ids.extend(exp_id_dict[exp_name])
         except KeyError:
             # Not a valid expeiment name, treat it as an id.
             experiment_ids.append(exp_name)
@@ -519,7 +519,7 @@ def ls(conn, platform, version_refs, experiment_names, delete=False):
 
 
 def main():
-    """cylc profile-battery"""
+    """Implement `cylc profile-battery`."""
     opts = parse_args()
     if not prof.IS_GIT_REPO:
         print >> sys.stderr, ('ERROR: profiling requires cylc to be a git '
@@ -585,14 +585,41 @@ def main():
     #             plot=not opts.no_plots,  NOTE: Now opts.plot
     #             markdown=opts.markdown)
 
-    # Print results table
+    # Output results.
     for experiment in experiments:
+        # Print results table.
         results.print_result(conn,
                              platform,
                              versions,
                              experiment,
                              quick_analysis=not opts.full_results,
                              markdown=opts.markdown)
+        if opts.plot:
+            # Plot results.
+            if not opts.interactive:
+                plot_dir = make_plot_dir(experiment['name'])
+            else:
+                plot_dir = False
+            results.plot_result(conn,
+                                 platform,
+                                 versions,
+                                 experiment,
+                                 plot_dir,
+                                 quick_analysis=not opts.full_results,
+                                 lobf_order=opts.lobf_order)
+            if plot_dir:
+                print 'Plots written out to "%s"' % plot_dir
+
+
+def make_plot_dir(experiment_name):
+    """Make and return the path to a directory for an experiments plots."""
+    dirname = os.path.join(
+        prof.CYLC_DIR,
+        prof.PROFILE_DIR_NAME,
+        prof.PROFILE_PLOT_DIR_NAME,
+        '%s-%s' % (experiment_name, str(time.time()).split('.')[0]))
+    os.mkdir(dirname)
+    return dirname
 
 
 if __name__ == '__main__':
