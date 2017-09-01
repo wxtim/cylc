@@ -217,64 +217,6 @@ def get_schedule(conn, host, versions, experiments, test=False):
     return ret
 
 
-def get_versions(version_names):
-    """Produces a list of version objects from a list of cylc version names."""
-    versions = []
-    for version_name in version_names:
-        version_id = git.describe(version_name)
-        if version_id:
-            versions.append({
-                'name': version_name,
-                'id': version_id
-            })
-        else:
-            sys.exit('ERROR: cylc version "%s" not reccognised' % version_name)
-    return versions
-
-
-def get_checksum(file_path, chunk_size=4096):
-    """Returns a hash of a file."""
-    hash_ = hashlib.sha256()
-    with open(file_path, 'rb') as file_:
-        for chunk in iter(lambda: file_.read(chunk_size), b""):
-            hash_.update(chunk)
-        return hash_.hexdigest()[:15]
-
-
-def load_experiment_config(experiment_file):
-    """Returns a dictionary containing the contents of the experiment file."""
-    with open(experiment_file, 'r') as file_:
-        try:
-            ret = json.load(file_)
-        except ValueError as exc:
-            sys.exit('ERROR: Invalid JSON in experiment file"{0}"\n{1}'.format(
-                experiment_file, exc))
-
-    # Prepend CYLC_DIR to suite definition paths if they aren't provided as
-    # absolute paths.
-    try:
-        for run in ret['runs']:
-            if not os.path.isabs(os.path.expanduser(run['suite dir'])):
-                run['suite dir'] = os.path.join(prof.CYLC_DIR,
-                                                run['suite dir'])
-            run['suite dir'] = os.path.realpath(run['suite dir'])
-    except KeyError as exc:
-        print exc
-        sys.exit('Error: Experiment definition not complete.')
-
-    # Apply defaults.
-    for run in ret['runs']:
-        if 'repeats' not in run:
-            run['repeats'] = 0
-        if 'options' not in run:
-            run['options'] = []
-    if 'profile modes' not in ret:
-        ret['profile modes'] = prof.DEFAULT_PROFILE_MODES
-    if 'analysis' not in ret:
-        ret['analysis'] = 'single'
-
-    return ret
-
 
 def install_experiments(experiments, install_dir):
     """Install experiment dependencies for use in profiling
@@ -353,93 +295,6 @@ def install_experiments(experiments, install_dir):
                               'w+') as globalrc_file:
                         globalrc_file.write(string)
                 run['globalrc'] = dirname
-
-
-def get_experiments(experiment_names):
-    """Returns a dictionary of experiment names against experiment ids (which
-    contain a checksum)."""
-    experiments = []
-    for experiment_name in experiment_names:
-        file_name = experiment_name + '.json'
-        # Look for experiment file in the users experiment directory.
-        file_path = os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME,
-                                 prof.USER_EXPERIMENT_DIR_NAME, file_name)
-        if not os.path.exists(file_path):
-            # Look for experiment file in built-in experiment directory.
-            file_path = os.path.join(prof.CYLC_DIR, prof.EXPERIMENTS_PATH,
-                                     file_name)
-            if not os.path.exists(file_path):
-                # Could not find experiment file in either path. Exit!
-                print 'ERROR: Could not find experiment file for "%s"' % (
-                    experiment_name)
-                experiments.append({'name': experiment_name,
-                                    'id': 'Invalid',
-                                    'file': None})
-                continue
-        config = load_experiment_config(file_path)
-        experiments.append({
-            'name': experiment_name,
-            #'id': '{0}@{1}'.format(experiment_name, get_checksum(file_path)),
-            'id': get_checksum(file_path),
-            'file': file_path,
-            'config': config
-        })
-    return experiments
-
-
-def update_nested_dictionaries(old, new):
-    """Merges entries from new into old (overwrites old with new in the event
-    of a conflict."""
-    old = old.copy()
-    new = new.copy()
-    for key, value in new.iteritems():
-        if key in old:
-            if type(value) is dict:
-                old[key] = update_nested_dictionaries(old[key], new[key])
-            else:
-                old[key] = value
-        else:
-            old[key] = value
-    return old
-
-
-def append_new_results(conn, results):
-    args = []
-    for platform, version_id, experiment_id, run_name, result_dict in results:
-        exp_results = (result_dict.get(metric, None) for metric in prof.METRICS)
-        args.append((platform, version_id, experiment_id, run_name) +
-                    tuple(exp_results))
-    stmt = 'INSERT INTO results VALUES(%s)' % ', '.join(
-        (4 + len(prof.METRICS)) * ['?'])
-    with conn:  # Commits automatically if successfull.
-        conn.cursor().executemany(stmt, args)
-
-
-def delete_results(result_keys, interactive=False):
-    """Delete results from the results file provided as a list of version_id,
-    experiment_id tuples."""
-    if interactive:
-        usr = None
-        while usr not in ['y', 'n']:
-            usr = raw_input('Delete these results (y/n)? ')
-        if usr != 'y':
-            sys.exit(0)
-
-    results = get_results()
-
-    for version_id, experiment_id in result_keys:
-        try:
-            del results[version_id][experiment_id]
-            if not results[version_id]:
-                del results[version_id]
-        except KeyError:
-            pass
-
-    profile_file_path = os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME,
-                                     prof.PROFILE_FILE_NAME)
-    os.remove(profile_file_path)
-    with open(profile_file_path, 'w+') as results_file:
-        json.dump(results, results_file)
 
 
 def install_cylc_versions(versions, install_dir):
@@ -632,20 +487,34 @@ def promote(experiment_id, yes=False):
 def ls(conn, platform, version_refs, experiment_names, delete=False):
     # Get list of version_ids from version identifiers.
     version_ids = [git.describe(version) for version in version_refs]
-    # Get list of experiment_ids from experiment names.
-    if experiment_names:
-        # Get dictionary of {experiment_name: experiment_id} pairs.
-        exp_id_dict = results.get_experiment_ids(conn, experiment_names)
-    experiment_ids = [exp_id_dict[exp_name] for exp_name in experiment_names]
 
+    # Get dictionary for converting beteen experiment names and ids.
+    if experiment_names:
+        exp_id_dict = results.get_experiment_ids(conn, experiment_names)
+
+    # Get list of experiment_ids from experiment names.
+    experiment_ids = []
+    for exp_name in experiment_names:
+        try:
+            # Obtain experiment_id from expeirment_name.
+            experiment_ids.append(exp_id_dict[exp_name])
+        except KeyError:
+            # Not a valid expeiment name, treat it as an id.
+            experiment_ids.append(exp_name)
+
+    # Print results
     results.print_list(conn, platform, version_ids, experiment_ids)
     if not delete:
         return
+
+    # If we are in delete mode prompt the user to delete the displayed results.
     usr = None
     while usr not in ['y', 'n']:
         usr = raw_input('\nDelete these results (y/n)? ')
     if usr != 'y':
         return
+
+    # Delete the results.
     results.remove(conn, platform, version_ids, experiment_ids)
 
 
@@ -685,8 +554,8 @@ def main():
                  'to perform profiling.')
 
     # Generate list of requested experiments and versions.
-    experiments = get_experiments(opts.experiments)
-    versions = get_versions(opts.versions)
+    experiments = prof.get_experiments(opts.experiments)
+    versions = prof.get_versions(opts.versions)
 
     # Order versions.
     git.order_versions_by_date(versions)

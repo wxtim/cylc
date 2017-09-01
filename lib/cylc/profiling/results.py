@@ -167,27 +167,27 @@ def get_keys(*args, **kwargs):
 def get_experiment_ids(conn, experiment_names):
     """
     Return:
-        dict: {experiment_id: experiment_name}
+        dict: {experiment_name: experiment_ids}
     """
-    curr = conn.cursor()
-    curr.execute(
-        'SELECT experiment_id FROM experiments WHERE name IN (%s)' % (
-        ', '.join(['?'] * len(experiment_names))),
-        experiment_names)
-    return dict((x, y[0]) for x, y in zip(experiment_names, curr.fetchmany()))
+    ret = conn.cursor().execute(
+        'SELECT name, experiment_id FROM experiments WHERE name IN '
+        '(%s)' % (', '.join(['?'] * len(experiment_names))),
+        experiment_names).fetchall()
+    return dict((exp_name,
+                 [exp_id for name, exp_id in ret if name == exp_name]) for
+                exp_name in set(x[0] for x in ret))
 
 
 def get_experiment_names(conn, experiment_ids):
     """
     Return:
-        dict: {experiment_name: experiment_id}
+        dict: {experiment_id: experiment_name}
     """
-    curr = conn.cursor()
-    curr.execute(
-        'SELECT name FROM experiments WHERE experiment_id IN (%s)' % (
-        ', '.join(['?'] * len(experiment_ids))),
-        experiment_ids)
-    return dict((x, y[0]) for x, y in zip(experiment_ids, curr.fetchmany()))
+    ret = conn.cursor().execute(
+        'SELECT experiment_id, name FROM experiments WHERE experiment_id IN '
+        '(%s)' % (', '.join(['?'] * len(experiment_ids))),
+        experiment_ids).fetchall()
+    return dict((x, y) for x, y in ret)
 
 
 def get_conn(db_file):
@@ -340,24 +340,63 @@ def print_list(conn, platforms, version_ids, experiment_ids):
     # Get dictionary of {experiment_id: experiment_name} pairs.
     exp_name_dict = get_experiment_names(
         conn,
-        [result[2] for result in prof_results])
+        list(set([result[2] for result in prof_results])))
+
+    experiments = prof.get_experiments(set(exp_name_dict.values()),
+                                       load_config=False)
 
     # Make table from results.
     table = [['Experiment Name', 'Experiment ID', 'Platform', 'Version ID'],
              [None, None, None, None]]
-    for platform, version_id, experiment_id in sorted(prof_results):
-        table.append([exp_name_dict[experiment_id],
-                      experiment_id,
-                      platform,
-                      version_id])
+    previous = None
+    for platform, version_id, experiment_id in sorted(prof_results,
+                                                      _results_sorter):
+        # Get the experiment name.
+        experiment_name = exp_name_dict[experiment_id]
+        # Put an asterix infront of the current version.
+        experiment = filter_experiment(experiments, experiment_name, 'name')
+        if experiment['id'] == experiment_id:
+            experiment_id = '* %s' % experiment_id
+        else:
+            experiment_id = '  %s' % experiment_id
+        row = []
+        if previous:
+            # Treat the table as a tree, don't repeat entries vertically.
+            flag = True
+            for ind, token in enumerate((
+                    experiment_name, experiment_id, platform, version_id)):
+                if flag and previous[ind] == token:
+                    row.append('')
+                else:
+                    flag = False
+                    row.append(token)
+        else:
+            row = [experiment_name, experiment_id, platform, version_id]
+        table.append(row)
+        previous = (experiment_name, experiment_id, platform, version_id)
 
     # Print table to stdout.
     _write_table(table)
 
 
-def filter_experiment(experiments, experiment_id):  # TODO: Use me!
+def filter_experiment(experiments, value, field='id'):  # TODO: Use me!
+    """Return the experiment for which the value matches the field.
+
+    Args:
+        experiments (list): List of experiment dictionaries.
+        value (dynamic): The value to return the experiment for (e.g. the
+            experiment id).
+        field (str): The field to check against (e.g. 'id').
+
+    Returns:
+        dict: Experiment dictionary.
+
+    Raises:
+        IndexError: In the even that a matching experiment is not found.
+
+    """
     for experiment in experiments:
-        if experiment['id'] == experiment_id:
+        if experiment[field] == value:
             return experiment
     raise IndexError()
 
@@ -394,7 +433,7 @@ class TestAddResult(unittest.TestCase):
             [
                 (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS),
                 (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
-                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS)
             ]
         )
 
@@ -406,6 +445,47 @@ class TestAddResult(unittest.TestCase):
             [
                 (u'c', u'C', '{}'),
                 (u'e', u'E', '{}'),
+            ]
+        )
+
+    def test_modified_experiment_result_added(self):
+        add(self.conn,
+            [
+                ('f', 'g', 'h', 'd', {})
+            ],
+            [
+                {'id': 'h', 'name': 'C', 'config': {}}
+            ]
+        )
+        curr = self.conn.cursor()
+        curr.execute('SELECT * FROM results')
+        self.assertEqual(
+            curr.fetchall(),
+            [
+                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS),
+                (u'f', u'g', u'h', u'd') + (None,) * len(RESULT_FIELDS)
+            ]
+        )
+
+    def test_modified_experiment_experiment_added(self):
+        add(self.conn,
+            [
+                ('f', 'g', 'h', 'd', {})
+            ],
+            [
+                {'id': 'h', 'name': 'C', 'config': {}}
+            ]
+        )
+        curr = self.conn.cursor()
+        curr.execute('SELECT * FROM experiments')
+        self.assertEqual(
+            curr.fetchall(),
+            [
+                (u'c', u'C', '{}'),
+                (u'e', u'E', '{}'),
+                (u'h', u'C', '{}'),
             ]
         )
 

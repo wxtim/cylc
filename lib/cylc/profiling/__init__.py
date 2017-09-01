@@ -15,12 +15,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Module used for profiling different cylc versions."""
 
+import hashlib
+import json
 import os
 import re
 from subprocess import Popen, PIPE
 import sys
 
-from .git import is_git_repo
+from .git import is_git_repo, describe
+#import cylc.profiling.git as git  TODO?
 
 
 def get_cylc_directory():
@@ -141,3 +144,93 @@ class ProfilingException(Exception):
 class AnalysisException(Exception):
     """Exception to be raised in the event of fatal error during analysis."""
     pass
+
+
+def get_experiments(experiment_names, load_config=True):
+    """Returns a dictionary of experiment names against experiment ids (which
+    contain a checksum)."""
+    experiments = []
+    for experiment_name in experiment_names:
+        file_name = experiment_name + '.json'
+        # Look for experiment file in the users experiment directory.
+        file_path = os.path.join(CYLC_DIR, PROFILE_DIR_NAME,
+                                 USER_EXPERIMENT_DIR_NAME, file_name)
+        if not os.path.exists(file_path):
+            # Look for experiment file in built-in experiment directory.
+            file_path = os.path.join(CYLC_DIR, EXPERIMENTS_PATH, file_name)
+            if not os.path.exists(file_path):
+                # Could not find experiment file in either path. Exit!
+                print 'ERROR: Could not find experiment file for "%s"' % (
+                    experiment_name)
+                experiments.append({'name': experiment_name,
+                                    'id': 'Invalid',
+                                    'file': None})
+                continue
+        experiment = {
+            'name': experiment_name,
+            'id': get_checksum(file_path),
+            'file': file_path,
+        }
+        if load_config:
+            experiment['config'] = load_experiment_config(file_path)
+        experiments.append(experiment)
+    return experiments
+
+
+def load_experiment_config(experiment_file):
+    """Returns a dictionary containing the contents of the experiment file."""
+    with open(experiment_file, 'r') as file_:
+        try:
+            ret = json.load(file_)
+        except ValueError as exc:
+            sys.exit('ERROR: Invalid JSON in experiment file"{0}"\n{1}'.format(
+                experiment_file, exc))
+
+    # Prepend CYLC_DIR to suite definition paths if they aren't provided as
+    # absolute paths.
+    try:
+        for run in ret['runs']:
+            if not os.path.isabs(os.path.expanduser(run['suite dir'])):
+                run['suite dir'] = os.path.join(CYLC_DIR,
+                                                run['suite dir'])
+            run['suite dir'] = os.path.realpath(run['suite dir'])
+    except KeyError as exc:
+        print exc
+        sys.exit('Error: Experiment definition not complete.')
+
+    # Apply defaults.
+    for run in ret['runs']:
+        if 'repeats' not in run:
+            run['repeats'] = 0
+        if 'options' not in run:
+            run['options'] = []
+    if 'profile modes' not in ret:
+        ret['profile modes'] = DEFAULT_PROFILE_MODES
+    if 'analysis' not in ret:
+        ret['analysis'] = 'single'
+
+    return ret
+
+
+def get_checksum(file_path, chunk_size=4096):
+    """Returns a hash of a file."""
+    hash_ = hashlib.sha256()
+    with open(file_path, 'rb') as file_:
+        for chunk in iter(lambda: file_.read(chunk_size), b""):
+            hash_.update(chunk)
+        return hash_.hexdigest()[:15]
+
+
+def get_versions(version_names):
+    """Produces a list of version objects from a list of cylc version names."""
+    versions = []
+    for version_name in version_names:
+        version_id = describe(version_name)
+        if version_id:
+            versions.append({
+                'name': version_name,
+                'id': version_id
+            })
+        else:
+            sys.exit('ERROR: cylc version "%s" not reccognised' % version_name)
+    return versions
