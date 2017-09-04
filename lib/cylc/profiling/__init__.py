@@ -297,7 +297,7 @@ def get_versions(version_names):
 
 
 def _write_table(table, transpose=False, seperator = '  ', border='',
-                 headers=False):  # TODO: Rename or whatever?
+                 headers=False):
     """Print a 2D list as a table.
 
     None values are printed as hyphens, use '' for blank cells.

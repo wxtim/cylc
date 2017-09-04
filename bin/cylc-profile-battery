@@ -151,27 +151,29 @@ def parse_args():
     return opts
 
 
-def get_schedule(conn, host, versions, experiments, test=False):
-    """Determine which experiments to run with which versions.
+def get_schedule(conn, platform, versions, experiments, test=False):
+    """Determine which profiling runs muse be undertaken.
 
     Note:
-        Profiling only supports running experiments on a single host.
+        Profiling only supports running experiments on a single platform.
+
+    Args:
+        conn (sqlite3.Connection): Results database connection.
+        versions (list): List of version dictionaries.
+        experiments (list): List of experiment dictionaries.
+        test (bool): If True profiling is performed regardless of any
+            previously acquired results and new results are not saved.
 
     Return:
-        tuple - (schedule, experiments_to_run)
-            - platform (str) - Platform to run experiment on.
-            - schedule (dict) - Dictionary of cylc version ids containing lists
-              of the experiments to run for each.
-            - experiments_to_run (set) - Set of (version_id, experiment_id)
-              tuples of the experiments to run.
-            - runs .... TODO.
+        list - [(platform, verision_id, experiment_id, run_name), ...]
+
     """
     # Generate list of (version_id, experiment_id) tuples for experiment to
     # run.
     experiment_keys = set()
     for experiment in experiments:
         experiment_keys.update(set(itertools.product(
-            [host],
+            [platform],
             [version['id'] for version in versions],
             [experiment['id']],
             [run['name'] for run in experiment['config']['runs']]

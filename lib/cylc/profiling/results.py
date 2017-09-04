@@ -131,7 +131,7 @@ def _results_call(conn, platforms=None, version_ids=None, experiment_ids=None,
         run_names (list): List of run names (str).
         operator (str): The operation to perform (i.e. 'SELECT' or 'DELETE').
         sort (bool): If True, when operator=='SELECT' results will be sorted
-            by result key. # TODO: TEST ME!!!
+            by result key.
 
     Returns:
         list / None: List if operator='SELECT' else None.
