@@ -117,17 +117,11 @@ METRICS = {  # Dict of all metrics measured by profile-battery.
         'Elapsed Time - time.sleep()', 's', 'awake-time', ['awake cpu time'],)
 }
 # Metrics used if --full is not set.
-#QUICK_ANALYSIS_METRICS = set(['001', '002', '005'])
 QUICK_ANALYSIS_METRICS = set(('elapsed_time', 'cpu_time', 'rss_memory'))
-# Reverse lookup of METRICS, dict of fields stored with their metric codes.
-METRICS_BY_FIELD = {}
-for metric in METRICS:
-    for field in METRICS[metric][METRIC_FIELDS]:
-        METRICS_BY_FIELD[field] = metric
-
 
 # The profile mode(s) to use if un-specified.
 DEFAULT_PROFILE_MODES = ['time']
+
 
 def safe_name(name):
     """Returns a safe string for experiment, run and version names."""
@@ -210,6 +204,24 @@ def load_experiment_config(experiment_file):
         ret['analysis'] = 'single'
 
     return ret
+
+
+def get_dict_by_attr(lst, value, field='id'):
+    """Return the first dictionary where dict[field] == value.
+
+    Raises:
+        IndexError: If no matching item is found.
+
+    Args:
+        lst (list): List of dictionaries.
+        field (str): The dictionary field to compare.
+        value: The value to compare against.
+
+    """
+    for item in lst:
+        if item[field] == value:
+            return item
+    raise IndexError()
 
 
 def get_checksum(file_path, chunk_size=4096):

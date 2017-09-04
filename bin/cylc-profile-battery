@@ -85,18 +85,6 @@ of results use the --full option.
 """
 
 
-def create_profile_directory():
-    """Creates a directory for storing results and user experiments in."""
-    profile_dir = os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME)
-    os.mkdir(profile_dir)
-    os.mkdir(os.path.join(profile_dir, prof.PROFILE_PLOT_DIR_NAME))
-    os.mkdir(os.path.join(profile_dir, prof.USER_EXPERIMENT_DIR_NAME))
-    print 'creating', os.path.join(profile_dir, prof.PROFILE_FILE_NAME)
-    with open(os.path.join(profile_dir, prof.PROFILE_FILE_NAME),
-              'w+') as profile_file:
-        profile_file.write('{}')
-
-
 def parse_args():
     """Parse command line arguments for this script."""
     def multi_arg_callback(option, _, value, parser):
@@ -203,19 +191,14 @@ def get_schedule(conn, host, versions, experiments, test=False):
     # Generate list of (version, experiment) tuples for the experiments to run.
     ret = []
     for platform, version_id, experiment_id, run_name in experiments_to_run:
-        for version in versions:
-            if version['id'] == version_id:
-                break
-        else:
-            raise Exception('Internal error.')
-        for experiment in experiments:
-            if experiment['id'] == experiment_id:
-                break
-        else:
-            raise Exception('Internal error.')
+        try:
+            version = prof.get_dict_by_attr(versions, version_id)
+            experiment = prof.get_dict_by_attr(experiments, experiment_id)
+        except IndexError:
+            raise Exception('Internal error. Configuration could not be '
+                            'found for the requested ids.')
         ret.append((platform, version, experiment, run_name))
     return ret
-
 
 
 def install_experiments(experiments, install_dir):
@@ -463,6 +446,32 @@ def ls(conn, platform, version_refs, experiment_names, delete=False):
     results.remove(conn, platform, version_ids, experiment_ids)
 
 
+def make_plot_dir(experiment_name):
+    """Make and return the path to a directory for an experiments plots."""
+    dirname = os.path.join(
+        prof.CYLC_DIR,
+        prof.PROFILE_DIR_NAME,
+        prof.PROFILE_PLOT_DIR_NAME,
+        '%s-%s' % (experiment_name, str(time.time()).split('.')[0]))
+    os.mkdir(dirname)
+    return dirname
+
+
+def profile_directory():
+    """Return the path to the profile directory.
+
+    Create the directory (and sub dirs) if not present.
+
+    """
+    profile_dir = os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME)
+    if not os.path.exists(profile_dir):
+        print 'Creating profiling directory.'
+        os.mkdir(profile_dir)
+        os.mkdir(os.path.join(profile_dir, prof.PROFILE_PLOT_DIR_NAME))
+        os.mkdir(os.path.join(profile_dir, prof.USER_EXPERIMENT_DIR_NAME))
+    return profile_dir
+
+
 def main():
     """Implement `cylc profile-battery`."""
     opts = parse_args()
@@ -471,15 +480,9 @@ def main():
                               'repository.')
         sys.exit(2)
 
-    profile_dir = os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME)
-    if not os.path.exists(profile_dir):
-        print 'Creating profiling directory.'
-        os.mkdir(profile_dir)
-        os.mkdir(os.path.join(profile_dir, prof.PROFILE_PLOT_DIR_NAME))
-        os.mkdir(os.path.join(profile_dir, prof.USER_EXPERIMENT_DIR_NAME))
-    profile_dir = os.path.join(prof.CYLC_DIR, prof.PROFILE_DIR_NAME)
-    db_file = os.path.join(profile_dir, prof.PROFILE_DB)
-    conn = results.get_conn(db_file)
+    conn = results.get_conn(os.path.join(
+        profile_directory(),
+        prof.PROFILE_DB))
 
     # Promote mode.
     #if opts.promote:
@@ -491,6 +494,7 @@ def main():
         ls(conn, opts.platform, opts.versions, opts.experiments, opts.delete)
         sys.exit(0)
 
+    # Default to the system hostname if not platform provided.
     platform = opts.platform or socket.gethostname()
 
     # Fail if no experiments / versions provided ...
@@ -544,17 +548,6 @@ def main():
                           lobf_order=opts.lobf_order)
             if plot_dir:
                 print 'Plots written out to "%s"' % plot_dir
-
-
-def make_plot_dir(experiment_name):
-    """Make and return the path to a directory for an experiments plots."""
-    dirname = os.path.join(
-        prof.CYLC_DIR,
-        prof.PROFILE_DIR_NAME,
-        prof.PROFILE_PLOT_DIR_NAME,
-        '%s-%s' % (experiment_name, str(time.time()).split('.')[0]))
-    os.mkdir(dirname)
-    return dirname
 
 
 if __name__ == '__main__':

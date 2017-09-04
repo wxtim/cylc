@@ -103,7 +103,7 @@ def _sync_experiments(conn, experiments=None, experiment_ids=None):
             # Experiment present in the results table but not in the experiments
             # table. Add an entry for it.
             stmt = 'INSERT INTO experiments VALUES(%s)' % (', '.join(['?'] * 3))
-            experiment = filter_experiment(experiments, experiment_id)
+            experiment = prof.get_dict_by_attr(experiments, experiment_id)
             options = _get_experiment_options_from_file(experiment)
             args = (experiment_id, experiment['name'], json.dumps(options))
             with conn:
@@ -348,7 +348,7 @@ def add(conn, results, experiments):
     with conn:  # Commits automatically if successfull.
         conn.cursor().executemany(stmt, args)
 
-    used_experiments = [filter_experiment(experiments, experiment_id) for
+    used_experiments = [prof.get_dict_by_attr(experiments, experiment_id) for
                         experiment_id in set(result[2] for result in results)]
     _sync_experiments(conn, experiments=experiments)
 
@@ -406,7 +406,8 @@ def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
         # Get the experiment name.
         experiment_name = exp_name_dict[experiment_id]
         # Put an asterix infront of the current version.
-        experiment = filter_experiment(experiments, experiment_name, 'name')
+        experiment = prof.get_dict_by_attr(experiments, experiment_name,
+                                           'name')
         if experiment['id'] == experiment_id:
             experiment_id = '* %s' % experiment_id
         else:
@@ -429,28 +430,6 @@ def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
 
     # Print table to stdout.
     prof._write_table(table)
-
-
-def filter_experiment(experiments, value, field='id'):  # TODO: Use me!
-    """Return the experiment for which the value matches the field.
-
-    Args:
-        experiments (list): List of experiment dictionaries.
-        value (dynamic): The value to return the experiment for (e.g. the
-            experiment id).
-        field (str): The field to check against (e.g. 'id').
-
-    Returns:
-        dict: Experiment dictionary.
-
-    Raises:
-        IndexError: In the even that a matching experiment is not found.
-
-    """
-    for experiment in experiments:
-        if experiment[field] == value:
-            return experiment
-    raise IndexError()
 
 
 class TestAddResult(unittest.TestCase):
