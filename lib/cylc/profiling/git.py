@@ -96,12 +96,11 @@ def checkout(branch, delete_pyc=False):
 
 def get_commit_date(commit):
     """Returns the commit date (in unix time) of the profided commit."""
-    try:
-        return int(Popen(['git', 'show', '-s', '--format=%at', commit],
-                         stdout=PIPE, stderr=PIPE
-                         ).communicate()[0].split()[-1])
-    except IndexError:
-        get_commit_date(commit.split('-')[0])
+    proc = Popen(['git', 'show', '-s', '--format=%at', commit],
+                 stdout=PIPE, stderr=PIPE)
+    if proc.wait():
+        raise KeyError()
+    return proc.communicate()[0].split()[-1]
 
 
 def order_versions_by_date(versions):

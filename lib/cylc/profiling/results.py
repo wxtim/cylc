@@ -25,7 +25,6 @@ RESULT_FIELDS = [
 import json
 import os
 import sqlite3
-import sys
 import tempfile
 import unittest
 
@@ -35,35 +34,29 @@ import cylc.profiling.git as git  # TODO: Rename utills?
 
 def _results_sorter(one, two):
     """Comparison function for sorting result keys."""
-    # Platform.
-    if one[0] < two[0]:
-        return 1
-    if one[0] > two[0]:
-        return -1
-    # Version.
-    one_com = git.get_commit_date(one[1])
-    two_com = git.get_commit_date(two[1])
-    if one_com > two_com:
-        return 1
-    if one_com < two_com:
-        return -1
-    # Experiment.
-    if one[2] > two[2]:
-        return 1
-    if one[2] < two[2]:
-        return -1
-    # Run.
+    # Sort by platform.
+    ret = cmp(one[0], two[0])
+    if ret:
+        return ret
+    # Sort by version commit date.
     try:
-        if int(one[3]) > int(two[3]):
-            return 1
-        if int(one[3]) < int(two[3]):
-            return -1
+        ret = cmp(git.get_commit_date(two[1]), git.get_commit_date(one[1]))
+    except KeyError:
+        # Error retrieving commit date - skip.
+        pass
+    else:
+        if ret:
+            return ret
+    # Sort by experiment id.
+    ret = cmp(one[2], two[2])
+    if ret:
+        return ret
+    # Sort by run name.
+    try:
+        # Attempt to parse as integer.
+        return cmp(int(one[3]), int(two[3]))
     except ValueError:
-        if one[3] > two[3]:
-            return 1
-        if one[3] < two[3]:
-            return -1
-    return 0
+        return cmp(one[3], two[3])
 
 
 def _sync_experiments(conn, experiments=None, experiment_ids=None):
@@ -118,7 +111,7 @@ def _sync_experiments(conn, experiments=None, experiment_ids=None):
 
 
 def _results_call(conn, platforms=None, version_ids=None, experiment_ids=None,
-                  run_names=None, operator='SELECT'):
+                  run_names=None, operator='SELECT', sort=False):
     """Execute a call to the results table.
 
     platforms, version_ids, experiment_ids, run_names are used as WHERE
@@ -137,6 +130,8 @@ def _results_call(conn, platforms=None, version_ids=None, experiment_ids=None,
         experiment_ids (list): List of experiment ids (str).
         run_names (list): List of run names (str).
         operator (str): The operation to perform (i.e. 'SELECT' or 'DELETE').
+        sort (bool): If True, when operator=='SELECT' results will be sorted
+            by result key. # TODO: TEST ME!!!
 
     Returns:
         list / None: List if operator='SELECT' else None.
@@ -180,7 +175,10 @@ def _results_call(conn, platforms=None, version_ids=None, experiment_ids=None,
     if operator == 'SELECT':
         curr = conn.cursor()
         curr.execute(stmt, args)
-        return curr.fetchall()
+        if sort:
+            return sorted(curr.fetchall(), _results_sorter)
+        else:
+            return curr.fetchall()
     else:
         with conn:
             conn.cursor().execute(stmt, args)
@@ -192,14 +190,7 @@ def get(*args, **kwargs):
     For arguments see _results_call().
 
     """
-    sort = False
-    if 'sort' in kwargs:
-        sort = kwargs['sort']
-        del kwargs['sort']
-    results = _results_call(*args, **kwargs)
-    if sort:
-        results.sort(_results_sorter)
-    return results
+    return _results_call(*args, **kwargs)
 
 
 def get_dict(*args, **kwargs):
@@ -394,15 +385,29 @@ def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
         conn,
         list(set([result[2] for result in result_keys])))
 
+    # Get experiment dictionaries (sans config - no file operations).
+    # TODO: If we delete the experiment file we can't list the results!
     experiments = prof.get_experiments(set(exp_name_dict.values()),
                                        load_config=False)
+
+    # Sort result keys.
+    def sorty(one, two):
+        return (
+            # Experiment name.
+            cmp(exp_name_dict[one[2]], exp_name_dict[two[2]]) or
+            # Experiment version.
+            cmp(one[2], two[2]) or
+            # Platform.
+            cmp(one[0], two[0]) or
+            # Version commit date.
+            cmp(git.get_commit_date(two[1]), git.get_commit_date(one[1]))
+        )
 
     # Make table from results.
     table = [['Experiment Name', 'Experiment ID', 'Platform', 'Version ID'],
              [None, None, None, None]]
     previous = None
-    for platform, version_id, experiment_id in sorted(result_keys,
-                                                      _results_sorter):
+    for platform, version_id, experiment_id in sorted(result_keys, sorty):
         # Get the experiment name.
         experiment_name = exp_name_dict[experiment_id]
         # Put an asterix infront of the current version.
@@ -546,9 +551,9 @@ class TestGetResult(unittest.TestCase):
         self.conn = get_conn(tempfile.mktemp())
         add(self.conn,
             [
-                ('a', 'b', 'c', 'd', {}),
-                ('a', 'g', 'e', 'd', {}),
-                ('f', 'b', 'e', 'd', {})
+                ('a', 'b', 'c', 'd', {RESULT_FIELDS[0]: '1.0'}),
+                ('a', 'g', 'e', 'd', {RESULT_FIELDS[0]: 2.0}),
+                ('f', 'b', 'e', 'd', {RESULT_FIELDS[0]: 3.0})
             ],
             [
                 {'id': 'c', 'name': 'C', 'config': {}},
@@ -556,60 +561,111 @@ class TestGetResult(unittest.TestCase):
             ]
         )
 
-    def test_get_all(self):
+    def test_get_result_keys(self):
+        # Get all.
+        self.assertEqual(
+            get_keys(self.conn),
+            (
+                (u'a', u'b', u'c', u'd'),
+                (u'a', u'g', u'e', u'd'),
+                (u'f', u'b', u'e', u'd')
+            )
+        )
+        # Get by platform
+        self.assertEqual(
+            get_keys(self.conn, platforms=['a']),
+            (
+                (u'a', u'b', u'c', u'd'),
+                (u'a', u'g', u'e', u'd')
+            )
+        )
+        self.assertEqual(
+            get_keys(self.conn, platforms=['f']),
+            (
+                (u'f', u'b', u'e', u'd'),
+            )
+        )
+        # Get by version.
+        self.assertEqual(
+            get_keys(self.conn, version_ids=['b']),
+            (
+                (u'a', u'b', u'c', u'd'),
+                (u'f', u'b', u'e', u'd')
+            )
+        )
+        self.assertEqual(
+            get_keys(self.conn, version_ids=['g']),
+            (
+                (u'a', u'g', u'e', u'd'),
+            )
+        )
+        # Get by experiment.
+        self.assertEqual(
+            get_keys(self.conn, experiment_ids=['c']),
+            (
+                (u'a', u'b', u'c', u'd'),
+            )
+        )
+        self.assertEqual(
+            get_keys(self.conn, experiment_ids=['e']),
+            (
+                (u'a', u'g', u'e', u'd'),
+                (u'f', u'b', u'e', u'd')
+            )
+        )
+
+    def test_get_result_values(self):
+        temp = len(RESULT_FIELDS) - 1
         self.assertEqual(
             get(self.conn),
             [
-                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS),
-                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
-                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS)
+                (u'a', u'b', u'c', u'd', 1.0) + (None,) * temp,
+                (u'a', u'g', u'e', u'd', 2.0) + (None,) * temp,
+                (u'f', u'b', u'e', u'd', 3.0) + (None,) * temp
+            ]
+        )
+        result_dict = dict((key, None) for key in RESULT_FIELDS)
+        result_dict[RESULT_FIELDS[0]] = 3.0
+        self.assertEqual(
+            get_dict(self.conn, platforms='f'),
+            [
+                ((u'f', u'b', u'e', u'd'), result_dict)
             ]
         )
 
-    def test_get_by_platform(self):
-        self.assertEqual(
-            get(self.conn, platforms=['a']),
+class TestResultSorting(unittest.TestCase):
+
+    def setUp(self):
+        self.conn = get_conn(tempfile.mktemp())
+        add(self.conn,
             [
-                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS),
-                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
-            ]
-        )
-        self.assertEqual(
-            get(self.conn, platforms=['f']),
+                ('b', 'b', 'd', 'd', {}),
+                ('b', 'b', 'e', '2', {}),
+                ('b', 'b', 'e', '1', {}),
+                ('b', 'b', 'e', '3', {}),
+                ('b', 'b', 'c', 'd', {}),
+                ('a', 'b', 'c', 'd', {}),
+            ],
             [
-                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS)
+                {'id': 'c', 'name': 'C', 'config': {}},
+                {'id': 'd', 'name': 'C', 'config': {}},
+                {'id': 'e', 'name': 'E', 'config': {}}
             ]
         )
 
-    def test_get_by_version(self):
+    def test_sorting(self):
         self.assertEqual(
-            get(self.conn, version_ids=['b']),
-            [
-                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS),
-                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS)
-            ]
-        )
-        self.assertEqual(
-            get(self.conn, version_ids=['g']),
-            [
-                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
-            ]
+            get_keys(self.conn, sort=True),
+            (
+                (u'a', u'b', u'c', u'd'),
+                (u'b', u'b', u'c', u'd'),
+                (u'b', u'b', u'd', u'd'),
+                (u'b', u'b', u'e', u'1'),
+                (u'b', u'b', u'e', u'2'),
+                (u'b', u'b', u'e', u'3')
+            )
         )
 
-    def test_get_by_experiment(self):
-        self.assertEqual(
-            get(self.conn, experiment_ids=['c']),
-            [
-                (u'a', u'b', u'c', u'd') + (None,) * len(RESULT_FIELDS)
-            ]
-        )
-        self.assertEqual(
-            get(self.conn, experiment_ids=['e']),
-            [
-                (u'a', u'g', u'e', u'd') + (None,) * len(RESULT_FIELDS),
-                (u'f', u'b', u'e', u'd') + (None,) * len(RESULT_FIELDS)
-            ]
-        )
 
 
 if __name__ == '__main__':
