@@ -151,58 +151,6 @@ def parse_args():
     return opts
 
 
-def get_schedule(conn, platform, versions, experiments, test=False):
-    """Determine which profiling runs muse be undertaken.
-
-    Note:
-        Profiling only supports running experiments on a single platform.
-
-    Args:
-        conn (sqlite3.Connection): Results database connection.
-        versions (list): List of version dictionaries.
-        experiments (list): List of experiment dictionaries.
-        test (bool): If True profiling is performed regardless of any
-            previously acquired results and new results are not saved.
-
-    Return:
-        list - [(platform, verision_id, experiment_id, run_name), ...]
-
-    """
-    # Generate list of (version_id, experiment_id) tuples for experiment to
-    # run.
-    experiment_keys = set()
-    for experiment in experiments:
-        experiment_keys.update(set(itertools.product(
-            [platform],
-            [version['id'] for version in versions],
-            [experiment['id']],
-            [run['name'] for run in experiment['config']['runs']]
-        )))
-
-    # Acquire list of (version_id, experiment_id) tuples for experiments
-    # already run.
-    result_keys = results.get_keys(conn)
-
-    # Exclude any previously acquired results.
-    if test:
-        # Don't exclude experiments if in "test" mode.
-        experiments_to_run = set(experiment_keys)
-    else:
-        experiments_to_run = set(experiment_keys) - set(result_keys)
-
-    # Generate list of (version, experiment) tuples for the experiments to run.
-    ret = []
-    for platform, version_id, experiment_id, run_name in experiments_to_run:
-        try:
-            version = prof.get_dict_by_attr(versions, version_id)
-            experiment = prof.get_dict_by_attr(experiments, experiment_id)
-        except IndexError:
-            raise Exception('Internal error. Configuration could not be '
-                            'found for the requested ids.')
-        ret.append((platform, version, experiment, run_name))
-    return ret
-
-
 def install_experiments(experiments, install_dir):
     """Install experiment dependencies for use in profiling
     
@@ -303,6 +251,58 @@ def install_cylc_versions(versions, install_dir):
                 os.path.join(install_dir, 'cylc', version['name']))
 
 
+def get_schedule(conn, platform, versions, experiments, test=False):
+    """Determine which profiling runs muse be undertaken.
+
+    Note:
+        Profiling only supports running experiments on a single platform.
+
+    Args:
+        conn (sqlite3.Connection): Results database connection.
+        versions (list): List of version dictionaries.
+        experiments (list): List of experiment dictionaries.
+        test (bool): If True profiling is performed regardless of any
+            previously acquired results and new results are not saved.
+
+    Return:
+        list - [(platform, verision_id, experiment_id, run_name), ...]
+
+    """
+    # Generate list of (version_id, experiment_id) tuples for experiment to
+    # run.
+    experiment_keys = set()
+    for experiment in experiments:
+        experiment_keys.update(set(itertools.product(
+            [platform],
+            [version['id'] for version in versions],
+            [experiment['id']],
+            [run['name'] for run in experiment['config']['runs']]
+        )))
+
+    # Acquire list of (version_id, experiment_id) tuples for experiments
+    # already run.
+    result_keys = results.get_keys(conn)
+
+    # Exclude any previously acquired results.
+    if test:
+        # Don't exclude experiments if in "test" mode.
+        experiments_to_run = set(experiment_keys)
+    else:
+        experiments_to_run = set(experiment_keys) - set(result_keys)
+
+    # Generate list of (version, experiment) tuples for the experiments to run.
+    ret = []
+    for platform, version_id, experiment_id, run_name in experiments_to_run:
+        try:
+            version = prof.get_dict_by_attr(versions, version_id)
+            experiment = prof.get_dict_by_attr(experiments, experiment_id)
+        except IndexError:
+            raise Exception('Internal error. Configuration could not be '
+                            'found for the requested ids.')
+        ret.append((platform, version, experiment, run_name))
+    return ret
+
+
 def run_schedule(conn, schedule, experiments, test=False):
     """Run profiling using the provided schedule.
 
@@ -340,7 +340,6 @@ def run_schedule(conn, schedule, experiments, test=False):
 
     # Append results to results file.
     if not test:  # Don't store results in --test mode.
-        #append_new_results(results)
         results.add(conn, prof_results, experiments)
 
     return True
@@ -415,6 +414,7 @@ def promote(experiment_id, yes=False):
 
 
 def ls(conn, platform, version_refs, experiment_names, delete=False):
+    """Implement `cylc profile-battery --ls`."""
     # Get list of version_ids from version identifiers.
     version_ids = [git.describe(version) for version in version_refs]
 
@@ -490,6 +490,10 @@ def main():
     #if opts.promote:
     #    promote(opts.promote, opts.yes)
     #    sys.exit(0)
+
+    # Use `hostname` if platform set to "localhost".
+    if opts.platform == 'localhost':
+        opts.platform = socket.gethostname()
 
     # If in "list" mode print out results then exit.
     if opts.ls or opts.delete:
