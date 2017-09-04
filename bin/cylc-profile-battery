@@ -20,7 +20,6 @@ versions."""
 import glob
 import hashlib
 import itertools
-import json
 import optparse
 import os
 import random

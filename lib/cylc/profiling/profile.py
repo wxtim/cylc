@@ -20,10 +20,8 @@ Initiates and runs the "main-suite" then performs analysis on its outputs.
 """
 
 import os
-import shutil
 from subprocess import (Popen, PIPE, check_call, CalledProcessError)
 import sys
-import time
 import traceback
 
 from cylc.profiling import (PROFILE_MODES, safe_name, ProfilingException,
