@@ -361,6 +361,7 @@ def remove(*args, **kwargs):
     _sync_experiments(args[0], experiment_ids=[r[2] for r in changes])
 
 
+# TODO: Rename tabulate?
 def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
     """Print a list of results present in the DB.
 
@@ -404,8 +405,7 @@ def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
         )
 
     # Make table from results.
-    table = [['Experiment Name', 'Experiment ID', 'Platform', 'Version ID'],
-             [None, None, None, None]]
+    table = [['Experiment Name', 'Experiment ID', 'Platform', 'Version ID']]
     previous = None
     for platform, version_id, experiment_id in sorted(result_keys, sorty):
         # Get the experiment name.
@@ -432,7 +432,7 @@ def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
         previous = (experiment_name, experiment_id, platform, version_id)
 
     # Print table to stdout.
-    prof._write_table(table)
+    prof._write_table(table, headers=True)
 
 
 class TestAddResult(unittest.TestCase):

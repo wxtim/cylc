@@ -7,7 +7,7 @@ import sys
 
 from parsec.config import ItemNotFoundError
 from cylc.cfgspec.globalcfg import GLOBAL_CFG
-from cylc.profiling import (PROFILE_MODES, PROFILE_MODE_CYLC, PROFILE_MODE_TIME,
+from cylc.profiling import (PROFILE_MODE_CYLC, PROFILE_MODE_TIME,
                             SUITE_STARTUP_STRING, safe_name, ProfilingException)
 
 LOCALHOST = socket.gethostname()
@@ -142,8 +142,7 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
             script = get_prof_script(
                 os.path.join(reg_base, '${CYLC_TASK_NAME}'),
                 run['options'] + ['cylc_compat_mode=%s' % version['id'][0]],
-                [PROFILE_MODES[m] for m in experiment.get('profile modes',
-                                                          ['time'])],
+                experiment.get('profile modes', ['time']),
                 experiment['config'].get('mode', 'live')
             )
 

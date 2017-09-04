@@ -298,6 +298,12 @@ def get_schedule(conn, platform, versions, experiments, test=False):
         except IndexError:
             raise Exception('Internal error. Configuration could not be '
                             'found for the requested ids.')
+        if (
+            prof.PROFILE_MODE_CYLC in experiment['config']['profile modes'] and
+            not git.is_ancestor_commit(prof.CYLC_PROFILING_COMMIT, version_id)
+        ):
+            sys.exit('Cannot use "profile mode = cylc" with version "%s". '
+                     '--profile was introduced in 6.11.0' % version_id)
         ret.append((platform, version, experiment, run_name))
     return ret
 

@@ -416,7 +416,6 @@ def tabulate(conn, platform, versions, experiment, quick_analysis,
     # Make header rows.
     table = [['Version', 'Run'] + [get_metric_title(metric) for
                                    metric in sorted(metrics)]]
-    table.append([None] * len(table[0]))  # Header underline.
 
     for (_, version_id, _, run_name), result_fields in prof_results:
         row = [version_id, run_name]
@@ -431,7 +430,7 @@ def tabulate(conn, platform, versions, experiment, quick_analysis,
                     ))
         table.append(row)
 
-    kwargs = {'transpose': not quick_analysis}
+    kwargs = {'transpose': not quick_analysis, 'headers': True}
     if markdown:  # Move into print_table in the long run?
         kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
     prof._write_table(table, **kwargs)

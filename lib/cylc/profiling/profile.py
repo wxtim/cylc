@@ -24,8 +24,8 @@ from subprocess import (Popen, PIPE, check_call, CalledProcessError)
 import sys
 import traceback
 
-from cylc.profiling import (PROFILE_MODES, safe_name, ProfilingException,
-                            AnalysisException)
+# TODO: import as ...
+from cylc.profiling import safe_name, ProfilingException, AnalysisException
 from cylc.profiling.analysis import extract_results
 from cylc.profiling.profiling_suite_writer import write_profiling_suite
 
@@ -184,8 +184,7 @@ def retrieve_results(reg, version, experiment, run, repeat_pad):
         run_files.append(
             retrieve_result_files(reg, version, experiment, run, repeat,
                                   repeat_pad))
-    profile_modes = [PROFILE_MODES[mode] for mode in
-                     experiment['config']['profile modes']]
+    profile_modes = experiment['config']['profile modes']
     validate_mode = experiment['config'].get('validate_mode', False)
     return extract_results(run_files, profile_modes, validate_mode)
 

@@ -50,17 +50,12 @@ USER_EXPERIMENT_DIR_NAME = 'experiments'  # Path to user defined experiments.
 EXPERIMENTS_PATH = os.path.join('dev', 'profile-experiments'
                                 )  # Path to built-in experiments.
 
-# Ancestor commit for cylc profile-battery
-PROFILE_COMMIT = '0f5a7999ba9c93174d846a6679db4ce413388df7'
-
 # Ancestor commit for analysis-compatible cylc (run|validate) --profile
 CYLC_PROFILING_COMMIT = '016e6a97be16eaf1a33ea19398a1ade09f86719e'
 
 # Profiling config.
-PROFILE_MODE_TIME = 'PROFILE_MODE_TIME'
-PROFILE_MODE_CYLC = 'PROFILE_MODE_CYLC'
-PROFILE_MODES = {'time': PROFILE_MODE_TIME,
-                 'cylc': PROFILE_MODE_CYLC}
+PROFILE_MODE_TIME = 'time'
+PROFILE_MODE_CYLC = 'cylc'
 
 # Profile file suffixes.
 PROFILE_FILES = {
@@ -108,9 +103,9 @@ METRICS = {  # Dict of all metrics measured by profile-battery.
     'file_outs': ('File System - Outputs', None, 'file-outs', [
         'block output operations', 'File system outputs'],),
     'startup_time': ('Startup Time', 's', 'startup-time', ['startup time'],),
-    'main_loop_ittrs': (
+    'main_loop_iterations': (
         'Number Of Main Loop Iterations', None, 'loop-count', ['loop count'],),
-    'main_loop_ittr_time': (
+    'average_main_loop_iteration_time': (
         'Average Main Loop Iteration Time', 's', 'loop-time',
          ['avg loop time'],),
     'elapsed_non_sleep_time': (
