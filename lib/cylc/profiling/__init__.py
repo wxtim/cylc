@@ -234,3 +234,47 @@ def get_versions(version_names):
         else:
             sys.exit('ERROR: cylc version "%s" not reccognised' % version_name)
     return versions
+
+
+def _write_table(table, transpose=False, seperator = '  ', border='',
+                 headers=False):  # TODO: Rename or whatever?
+    """Print a 2D list as a table.
+
+    None values are printed as hyphens, use '' for blank cells.
+    """
+    if transpose:
+        table = map(list, zip(*table))
+    if not table:
+        return
+    for row_no in range(len(table)):
+        for col_no in range(len(table[0])):
+            cell = table[row_no][col_no]
+            if cell is None:
+                table[row_no][col_no] = []
+            else:
+                table[row_no][col_no] = str(cell)
+
+    col_widths = []
+    for col_no in range(len(table[0])):
+        col_widths.append(
+            max([len(table[row_no][col_no]) for row_no in range(len(table))]))
+
+    if headers:
+        table = [table[0], [[]] * len(table[0])] + table[1:]
+
+    for row_no in range(len(table)):
+        for col_no in range(len(table[row_no])):
+            if col_no != 0:
+                sys.stdout.write(seperator)
+            else:
+                if border:
+                    sys.stdout.write(border + ' ')
+            cell = table[row_no][col_no]
+            if type(cell) is list:
+                sys.stdout.write('-' * col_widths[col_no])
+            else:
+                sys.stdout.write(cell + ' ' * (col_widths[col_no] - len(cell)))
+            if col_no == len(table[row_no]) - 1:
+                if border:
+                    sys.stdout.write(' ' + border)
+        sys.stdout.write('\n')

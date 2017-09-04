@@ -26,8 +26,9 @@ import sys
 import time
 import traceback
 
-from cylc.profiling import PROFILE_MODES, safe_name, ProfilingException
-from cylc.profiling.analysis import extract_results, AnalysisException
+from cylc.profiling import (PROFILE_MODES, safe_name, ProfilingException,
+                            AnalysisException)
+from cylc.profiling.analysis import extract_results
 from cylc.profiling.profiling_suite_writer import write_profiling_suite
 
 
@@ -43,8 +44,7 @@ def run_cmd(cmd, background=False, verbose=True):
     Args:
         cmd (list): The command to run e.g. ['sleep' ,'1'].
         background (bool): If True then the command is run the background.
-        verbose (bool): If True then the command will be written to stdout
-            and a failure notice to stderr if applicable.
+        verbose (bool): If True then the command will be written to stdout.
 
     Returns:
         bool: False if the command failed, else True.

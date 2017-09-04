@@ -361,61 +361,6 @@ def run_schedule(conn, schedule, experiments, test=False):
     return True
 
 
-def run_analysis(platform, experiments, versions, interactive=False,
-                 quick_analysis=True, lobf_order=2, plot=True, markdown=False):
-    """Runs analysis over the results already acquired.
-
-    Args:
-        versions (list): List of version dicts.
-        experiments (list): List of experiment dicts.
-        interactive (bool - optional): If True then interractive matplotlib
-            windows will display rather than being rendered to a file.
-        quick_analysis (bool - optional): If True then only a small set of the
-            gathered metrics will be output.
-        lobf_order (int - optional): The polynomial order to be used for
-            generating the lines of best fit on all plots produced.
-        plot (bool - optional): If True then plotting will be performed.
-
-    """
-    # Get results
-    #with open(os.path.join(prof.CYLC_DIR,
-    #                       prof.PROFILE_DIR_NAME,
-    #                       prof.PROFILE_FILE_NAME), 'r') as profile_file:
-    #    full_results = json.load(profile_file)
-
-    # Run analysis for each experiment requested.
-    for experiment in experiments:
-        plt_dir = False
-        if not interactive:
-            plt_dir = os.path.join(prof.CYLC_DIR,
-                                   prof.PROFILE_DIR_NAME,
-                                   prof.PROFILE_PLOT_DIR_NAME,
-                                   experiment['name'] + '-' +
-                                   str(int(time.time())))
-            os.makedirs(plt_dir)
-
-        # Print a table of results.
-        analysis.results_table(platform, versions, experiment)
-        #print
-        #kwargs = {'transpose': not quick_analysis}
-        #if markdown:
-        #    kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
-        #print_table(
-        #    make_table(full_results, versions, experiment,
-        #               quick_analysis=quick_analysis), **kwargs)
-        #print
-
-        # Plot results.
-        if not plot:
-            continue
-        analysis.plot_results(platform, versions, experiment, plt_dir,
-                              quick_analysis=quick_analysis,
-                              lobf_order=lobf_order)
-        if plt_dir:
-            print('Results for experiment "{exp}" have been written out to '
-                  '"{dir}"'.format(exp=experiment['name'], dir=plt_dir))
-
-
 def promote(experiment_id, yes=False):
     """Promote any results for the provided experiment version to the current
     version."""
@@ -503,7 +448,7 @@ def ls(conn, platform, version_refs, experiment_names, delete=False):
             experiment_ids.append(exp_name)
 
     # Print results
-    results.print_list(conn, platform, version_ids, experiment_ids)
+    results.listify(conn, platform, version_ids, experiment_ids)
     if not delete:
         return
 
@@ -575,38 +520,28 @@ def main():
     if opts.test:
         sys.exit(0)
 
-    # Run analysis
-    #run_analysis(platform,
-    #             experiments,
-    #             versions,
-    #             interactive=opts.interactive,
-    #             quick_analysis=not opts.full_results,
-    #             lobf_order=opts.lobf_order,
-    #             plot=not opts.no_plots,  NOTE: Now opts.plot
-    #             markdown=opts.markdown)
-
     # Output results.
     for experiment in experiments:
         # Print results table.
-        results.print_result(conn,
-                             platform,
-                             versions,
-                             experiment,
-                             quick_analysis=not opts.full_results,
-                             markdown=opts.markdown)
+        analysis.tabulate(conn,
+                          platform,
+                          versions,
+                          experiment,
+                          quick_analysis=not opts.full_results,
+                          markdown=opts.markdown)
         if opts.plot:
             # Plot results.
             if not opts.interactive:
                 plot_dir = make_plot_dir(experiment['name'])
             else:
                 plot_dir = False
-            results.plot_result(conn,
-                                 platform,
-                                 versions,
-                                 experiment,
-                                 plot_dir,
-                                 quick_analysis=not opts.full_results,
-                                 lobf_order=opts.lobf_order)
+            analysis.plot(conn,
+                          platform,
+                          versions,
+                          experiment,
+                          plot_dir,
+                          quick_analysis=not opts.full_results,
+                          lobf_order=opts.lobf_order)
             if plot_dir:
                 print 'Plots written out to "%s"' % plot_dir
 

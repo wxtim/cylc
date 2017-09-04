@@ -30,11 +30,11 @@ import tempfile
 import unittest
 
 import cylc.profiling as prof
-import cylc.profiling.analysis as analysis
 import cylc.profiling.git as git  # TODO: Rename utills?
 
 
 def _results_sorter(one, two):
+    """Comparison function for sorting result keys."""
     # Platform.
     if one[0] < two[0]:
         return 1
@@ -67,6 +67,22 @@ def _results_sorter(one, two):
 
 
 def _sync_experiments(conn, experiments=None, experiment_ids=None):
+    """Sync experiments table with results table.
+
+    One of experiments or experiment_ids must be provided. These lists should
+    contain only the details of experiments which may have changed (i.e. with
+    the addition / removal of results).
+
+    Note:
+        New experiments can be entered into the table only if they are provided
+        via the experiments keyword.
+
+    Args:
+        conn (sqlite3.Connection): Results database connection.
+        experiments (list): List of experiment dictionaries.
+        experiment_ids (list): List of experiment_id strings.
+
+    """
     if not experiment_ids:
         experiment_ids = [experiment['id'] for experiment in experiments]
 
@@ -88,7 +104,7 @@ def _sync_experiments(conn, experiments=None, experiment_ids=None):
             # table. Add an entry for it.
             stmt = 'INSERT INTO experiments VALUES(%s)' % (', '.join(['?'] * 3))
             experiment = filter_experiment(experiments, experiment_id)
-            options = get_experiment_options_from_file(experiment)
+            options = _get_experiment_options_from_file(experiment)
             args = (experiment_id, experiment['name'], json.dumps(options))
             with conn:
                 conn.execute(stmt, args)
@@ -103,6 +119,29 @@ def _sync_experiments(conn, experiments=None, experiment_ids=None):
 
 def _results_call(conn, platforms=None, version_ids=None, experiment_ids=None,
                   run_names=None, operator='SELECT'):
+    """Execute a call to the results table.
+
+    platforms, version_ids, experiment_ids, run_names are used as WHERE
+    parameters when provided.
+
+    Supported SQL Operators:
+        SELECT:
+            Return a list of db entry (tuples) matching the query parameters.
+        DELETE:
+            Return None, remove entries matching the seqrch query parameters.
+
+    Args:
+        conn (sqlite3.Connection): Results database connection.
+        platforms (list): List of platform names (str).
+        version_ids (list): List of version id strings (str).
+        experiment_ids (list): List of experiment ids (str).
+        run_names (list): List of run names (str).
+        operator (str): The operation to perform (i.e. 'SELECT' or 'DELETE').
+
+    Returns:
+        list / None: List if operator='SELECT' else None.
+
+    """
     where = []
     args = []
     if platforms:
@@ -148,6 +187,11 @@ def _results_call(conn, platforms=None, version_ids=None, experiment_ids=None,
 
 
 def get(*args, **kwargs):
+    """Return a list of results matching the provided parameters.
+
+    For arguments see _results_call().
+
+    """
     sort = False
     if 'sort' in kwargs:
         sort = kwargs['sort']
@@ -159,6 +203,17 @@ def get(*args, **kwargs):
 
 
 def get_dict(*args, **kwargs):
+    """Return a list of the form [keys, results].
+
+    For arguments see _results_call().
+
+    Return:
+        list: [keys, results]
+            - keys: Tuple of the form (platform, version_id, experiment_id,
+              run_name).
+            - results: Dictionary of metric name against value.
+
+    """
     ret = []
     for result in get(*args, **kwargs):
         ret.append((result[0:4], dict((RESULT_FIELDS[ind], value) for
@@ -167,13 +222,23 @@ def get_dict(*args, **kwargs):
 
 
 def get_keys(*args, **kwargs):
+    """Return a list of experiment keys (as tuples)
+
+    For arguments see _results_call().
+
+    Return:
+        list: [(platform, version_id, experiment_id, run_name), ...]
+
+    """
     return tuple(tuple(row[0:4]) for row in get(*args, **kwargs))
 
 
 def get_experiment_ids(conn, experiment_names):
-    """
+    """Obtain experiment ids from experiment name.
+
     Return:
         dict: {experiment_name: experiment_ids}
+
     """
     ret = conn.cursor().execute(
         'SELECT name, experiment_id FROM experiments WHERE name IN '
@@ -185,9 +250,11 @@ def get_experiment_ids(conn, experiment_names):
 
 
 def get_experiment_names(conn, experiment_ids):
-    """
+    """Obtain experiment names from experiment ids.
+
     Return:
         dict: {experiment_id: experiment_name}
+
     """
     ret = conn.cursor().execute(
         'SELECT experiment_id, name FROM experiments WHERE experiment_id IN '
@@ -196,7 +263,33 @@ def get_experiment_names(conn, experiment_ids):
     return dict((x, y) for x, y in ret)
 
 
+def _get_experiment_options_from_file(experiment):
+    """Extract options from an experiment file.
+
+    Args:
+        experiment (dict): Experiment dictionary.
+
+    Returns:
+        dict: {'option': 'value'}
+
+    """
+    options = {}
+    for key in ['analysis', 'x-axis']:
+        if key in experiment['config']:
+            options[key] = experiment['config'][key]
+    return options
+
+
 def get_experiment_options_from_db(conn, experiment_id):
+    """Return options for a particular experiment.
+
+    Raises:
+        IndexError: If experiment_id is not in the database.
+
+    Returns:
+        dict: {'option': 'value'}
+
+    """
     return json.loads(conn.cursor().execute(
         'SELECT options FROM experiments WHERE experiment_id = (?)',
         [experiment_id]).fetchone()[0])
@@ -233,6 +326,17 @@ def get_conn(db_file):
 
 
 def add(conn, results, experiments):
+    """Insert provided results into the results table.
+
+    Ensure the experiments table is synconised to reflect this.
+
+    Args:
+        results (dict): Dictionary of results (i.e. {'metric': value}), results
+            dictionary need not contain an entry for each metric.
+        experiments (list): List of experiment dictionaries for any experiments
+            present in results (required to syncronise the experiments table.
+
+    """
     args = []
     for platform, version_id, experiment_id, run_name, result_dict in results:
         exp_results = (result_dict.get(metric, None) for metric in
@@ -250,6 +354,13 @@ def add(conn, results, experiments):
 
 
 def remove(*args, **kwargs):
+    """Delete results matching the provided query.
+
+    Ensures the experiments table is syncronised with this change.
+
+    For arguments see _results_call().
+
+    """
     kwargs['operator'] = 'SELECT'
     changes = get_keys(*args, **kwargs)
 
@@ -259,105 +370,20 @@ def remove(*args, **kwargs):
     _sync_experiments(args[0], experiment_ids=[r[2] for r in changes])
 
 
-def print_result(conn, platform, versions, experiment, quick_analysis,
-                 markdown=False):
-    prof_results = get_dict(
-        conn,
-        platform,
-        [version['id'] for version in versions],
-        experiment['id'],
-        sort=True)
+def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
+    """Print a list of results present in the DB.
 
-    # TODO!?
-    #metrics = sorted(get_metrics_for_experiment(experiment, prof_results,
-    #                                            quick_analysis=quick_analysis))
-    metrics = analysis.get_consistent_metrics(prof_results, quick_analysis)
+    Args:
+        Platforms (list): If provided results be be filtered to the provided
+            platform names (str).
+        version_ids (list): If provided versions will be filtered to the
+            provied version ids (str).
+        experiment_ids (list): If provided experiments will be filtered to the
+            provided experiment ids (str).
 
-    # Make header rows.
-    table = [['Version', 'Run'] + [analysis.get_metric_title(metric) for
-                                   metric in sorted(metrics)]]
-    table.append([None] * len(table[0]))  # Header underline.
-
-    for (_, version_id, _, run_name), result_fields in prof_results:
-        row = [version_id, run_name]
-        for metric in metrics:
-            try:
-                row.append(result_fields[metric])
-            except KeyError:
-                raise Exception(  # TODO ResultsException?
-                    'Could not make results table as results are incomplete. '
-                    'Metric "%s" missing from %s:%s at version %s' % (
-                        metric, experiment['name'], run_name, version_id
-                    ))
-        table.append(row)
-
-    kwargs = {'transpose': not quick_analysis}
-    if markdown:  # Move into print_table in the long run?
-        kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
-    _write_table(table, **kwargs)
-
-
-def plot_result(conn, platform, versions, experiment, filepath,
-                quick_analysis=True, **kwargs):
-    prof_results = get_dict(
-        conn,
-        platform,
-        [version['id'] for version in versions],
-        experiment['id'],
-        sort=True)
-    experiment_options = get_experiment_options_from_db(conn, experiment['id'])
-    metrics = analysis.get_consistent_metrics(prof_results, quick_analysis)
-    analysis.plot_results(prof_results, versions, experiment_options,
-                          metrics, filepath, **kwargs)
-
-
-def _write_table(table, transpose=False, seperator = '  ', border='',
-                 headers=False):  # TODO: Rename or whatever?
-    """Print a 2D list as a table.
-
-    None values are printed as hyphens, use '' for blank cells.
     """
-    if transpose:
-        table = map(list, zip(*table))
-    if not table:
-        return
-    for row_no in range(len(table)):
-        for col_no in range(len(table[0])):
-            cell = table[row_no][col_no]
-            if cell is None:
-                table[row_no][col_no] = []
-            else:
-                table[row_no][col_no] = str(cell)
-
-    col_widths = []
-    for col_no in range(len(table[0])):
-        col_widths.append(
-            max([len(table[row_no][col_no]) for row_no in range(len(table))]))
-
-    if headers:
-        table = [table[0], [[]] * len(table[0])] + table[1:]
-
-    for row_no in range(len(table)):
-        for col_no in range(len(table[row_no])):
-            if col_no != 0:
-                sys.stdout.write(seperator)
-            else:
-                if border:
-                    sys.stdout.write(border + ' ')
-            cell = table[row_no][col_no]
-            if type(cell) is list:
-                sys.stdout.write('-' * col_widths[col_no])
-            else:
-                sys.stdout.write(cell + ' ' * (col_widths[col_no] - len(cell)))
-            if col_no == len(table[row_no]) - 1:
-                if border:
-                    sys.stdout.write(' ' + border)
-        sys.stdout.write('\n')
-
-
-def print_list(conn, platforms, version_ids, experiment_ids):
     # Get (platform, version_id, experiment_id) keys from the results DB.
-    prof_results = set(x[0:3] for x in get_keys(
+    result_keys = set(x[0:3] for x in get_keys(
         conn,
         platforms or None,
         version_ids or None,
@@ -366,7 +392,7 @@ def print_list(conn, platforms, version_ids, experiment_ids):
     # Get dictionary of {experiment_id: experiment_name} pairs.
     exp_name_dict = get_experiment_names(
         conn,
-        list(set([result[2] for result in prof_results])))
+        list(set([result[2] for result in result_keys])))
 
     experiments = prof.get_experiments(set(exp_name_dict.values()),
                                        load_config=False)
@@ -375,7 +401,7 @@ def print_list(conn, platforms, version_ids, experiment_ids):
     table = [['Experiment Name', 'Experiment ID', 'Platform', 'Version ID'],
              [None, None, None, None]]
     previous = None
-    for platform, version_id, experiment_id in sorted(prof_results,
+    for platform, version_id, experiment_id in sorted(result_keys,
                                                       _results_sorter):
         # Get the experiment name.
         experiment_name = exp_name_dict[experiment_id]
@@ -402,7 +428,7 @@ def print_list(conn, platforms, version_ids, experiment_ids):
         previous = (experiment_name, experiment_id, platform, version_id)
 
     # Print table to stdout.
-    _write_table(table)
+    prof._write_table(table)
 
 
 def filter_experiment(experiments, value, field='id'):  # TODO: Use me!
@@ -425,14 +451,6 @@ def filter_experiment(experiments, value, field='id'):  # TODO: Use me!
         if experiment[field] == value:
             return experiment
     raise IndexError()
-
-
-def get_experiment_options_from_file(experiment):
-    options = {}
-    for key in ['analysis', 'x-axis']:
-        if key in experiment['config']:
-            options[key] = experiment['config'][key]
-    return options
 
 
 class TestAddResult(unittest.TestCase):

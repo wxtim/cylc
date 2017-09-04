@@ -21,21 +21,20 @@ import sys
 
 # Import modules required for plotting if avaliable.
 try:
-    import numpy
-    import warnings
-    warnings.simplefilter('ignore', numpy.RankWarning)
     import matplotlib.cm as colour_map
     import matplotlib.pyplot as plt
+    import numpy
+    import warnings
     CAN_PLOT = True
+    # Filter numpy polyfit warnings.
+    warnings.simplefilter('ignore', numpy.RankWarning)
+    # Filter gtk depreciations originating from matplotlib.
+    warnings.simplefilter('ignore', DeprecationWarning)
 except ImportError:
     CAN_PLOT = False
 
-# TODO
-from cylc.profiling import (
-    PROFILE_MODE_TIME, PROFILE_MODE_CYLC, SUMMARY_LINE_REGEX,
-    MEMORY_LINE_REGEX, LOOP_MEMORY_LINE_REGEX, SLEEP_FUNCTION_REGEX,
-    SUITE_STARTUP_STRING, PROFILE_MODES, METRICS, METRIC_TITLE, METRIC_UNIT,
-    METRIC_FILENAME, METRIC_FIELDS, QUICK_ANALYSIS_METRICS, AnalysisException)
+import cylc.profiling as prof
+import cylc.profiling.results as results
 from cylc.profiling.git import (order_versions_by_date, describe)
 from cylc.wallclock import get_unix_time_from_time_string
 
@@ -95,38 +94,39 @@ def extract_results(result_files, profile_modes, validate_mode=False):
         index (see cylc.profiling for details).
 
     """
-    results = []
+    processed_results = []
     for result_file in result_files:
-        if PROFILE_MODE_TIME in profile_modes:
+        if prof.PROFILE_MODE_TIME in profile_modes:
             try:
-                results.append(process_time_file(result_file['time']))
+                processed_results.append(process_time_file(result_file['time']))
             except Exception:
-                raise AnalysisException('Analysis failed for method "%s" in '
-                                        'file "%s".' % (PROFILE_MODE_TIME,
-                                                        result_file['time']))
-        if PROFILE_MODE_CYLC in profile_modes:
+                raise prof.AnalysisException(
+                    'Analysis failed for method "%s" in file "%s".' % (
+                        prof.PROFILE_MODE_TIME, result_file['time']))
+        if prof.PROFILE_MODE_CYLC in profile_modes:
             suite_start_time = None
             try:
                 if not validate_mode:
                     suite_start_time = get_startup_time(result_file['startup'])
-                results.append(process_out_file(
+                processed_results.append(process_out_file(
                     result_file['cmd-out'], suite_start_time, validate_mode))
             except Exception:
-                raise AnalysisException('Analysis failed for method "%s" in '
-                                        'file "%s".' % (PROFILE_MODE_CYLC,
-                                                        result_file['out']))
+                raise prof.AnalysisException(
+                    'Analysis failed for method "%s" in file "%s".' % (
+                        prof.PROFILE_MODE_CYLC, result_file['out']))
 
     ret = {}
-    for metric in results[0]:
+    for metric in processed_results[0]:
         # Get key for metric.
-        for key, metrics in METRICS.items():
+        for key, metrics in prof.METRICS.items():
             if metric in metrics[3]:  # Field name.
                 break
         else:
             # Metric is not required - skip.
             continue
         # Compute average over repeats.
-        ret[key] = mean([results[i][metric] for i in range(len(results))])
+        ret[key] = mean([processed_results[i][metric] for
+                         i in range(len(processed_results))])
 
     return ret
 
@@ -191,16 +191,16 @@ def process_out_file(file_name, suite_start_time, validate=False):
         lines = out_file.readlines()
 
         # Get start time.
-        if lines[0].startswith(SUITE_STARTUP_STRING):
+        if lines[0].startswith(prof.SUITE_STARTUP_STRING):
             ret['suite start time'] = float(
-                lines[0][len(SUITE_STARTUP_STRING):])
+                lines[0][len(prof.SUITE_STARTUP_STRING):])
 
         # Scan through log entries.
         ret['memory'] = []
         loop_mem_entries = []
         for line in lines:
             # Profile summary.
-            match = SUMMARY_LINE_REGEX.search(line)
+            match = prof.SUMMARY_LINE_REGEX.search(line)
             if match:
                 ret['function calls'] = int(match.groups()[0])
                 ret['primitive function calls'] = int(match.groups()[1])
@@ -208,14 +208,14 @@ def process_out_file(file_name, suite_start_time, validate=False):
                 continue
 
             # Memory info.
-            match = MEMORY_LINE_REGEX.search(line)
+            match = prof.MEMORY_LINE_REGEX.search(line)
             if match:
                 memory, module, checkpoint = tuple(match.groups())
                 ret['memory'].append((module, checkpoint, int(memory),))
 
                 # Main loop memory info.
                 if not validate:
-                    match = LOOP_MEMORY_LINE_REGEX.search(checkpoint)
+                    match = prof.LOOP_MEMORY_LINE_REGEX.search(checkpoint)
                     if match:
                         loop_no, time_str = match.groups()
                         loop_mem_entries.append((
@@ -225,7 +225,7 @@ def process_out_file(file_name, suite_start_time, validate=False):
                 continue
 
             # Sleep time.
-            match = SLEEP_FUNCTION_REGEX.search(line)
+            match = prof.SLEEP_FUNCTION_REGEX.search(line)
             if match:
                 ret['sleep time'] = float(match.groups()[0])
                 continue
@@ -256,20 +256,20 @@ def process_out_file(file_name, suite_start_time, validate=False):
 def process_results(results):
     """Average over results for each run."""
     processed_results = {}
-    all_metrics = set(METRICS.keys())
+    all_metrics = set(prof.METRICS.keys())
     for run_name, run in results.iteritems():
         processed_results[run_name] = {}
         this_result = dict((metric, []) for metric in all_metrics)
         for result in run:
             for metric in all_metrics:
-                for field in METRICS[metric][METRIC_FIELDS]:
+                for field in prof.METRICS[metric][prof.METRIC_FIELDS]:
                     if field in result:
                         this_result[metric].append(result[field])
             all_metrics = all_metrics & set(this_result.keys())
         for metric in all_metrics:
             if this_result[metric]:
                 processed_results[run_name][metric] = mean(this_result[metric])
-    for metric in set(METRICS.keys()) - all_metrics:
+    for metric in set(prof.METRICS.keys()) - all_metrics:
         for run_name, run in processed_results.iteritems():
             del run[metric]
     return processed_results
@@ -290,7 +290,7 @@ def get_metrics_for_experiment(experiment, results, quick_analysis=False):
                 else:
                     metrics = set(run.keys())
     if quick_analysis:
-        return metrics & QUICK_ANALYSIS_METRICS
+        return metrics & prof.QUICK_ANALYSIS_METRICS
     return metrics
 
 
@@ -303,60 +303,63 @@ def get_consistent_metrics(prof_results, quick_analysis=False):
         else:
             metrics = result_metrics
     if quick_analysis:
-        return sorted(metrics & QUICK_ANALYSIS_METRICS)
+        return sorted(metrics & prof.QUICK_ANALYSIS_METRICS)
     return sorted(metrics)
 
 
 def get_metric_title(metric):
     """Return a user-presentable title for a given metric key."""
-    metric_title = METRICS[metric][METRIC_TITLE]
-    metric_unit = METRICS[metric][METRIC_UNIT]
+    metric_title = prof.METRICS[metric][prof.METRIC_TITLE]
+    metric_unit = prof.METRICS[metric][prof.METRIC_UNIT]
     if metric_unit:
         metric_title += ' (' + metric_unit + ')'
     return metric_title
 
 
-def plot_single(prof_results, run_names, versions, metric, experiment,
-                axis, c_map):
+def plot_single(prof_results, run_names, versions, metric, _, axis, c_map):
     """Create a bar chart comparing the results of all runs."""
+    # Bar chart parameters.
     n_groups = len(versions)
     n_bars = len(run_names)
     ind = numpy.arange(n_groups)
     spacing = 0.1
     width = (1. - spacing) / n_bars
+
+    # Colour map.
     colours = [c_map(x / (n_bars - 0.99)) for x in range(n_bars)]
 
-    for bar_no, run_name in enumerate(run_names):
-        # No need to sort runs, this has been done already!
-        #data = [results[version['id']][experiment['id']][run_name][metric]
-        #        for version in versions]
-        data = [result[1][metric] for result in prof_results]
-        axis.bar(ind + (bar_no * width), data, width, label=run_name,
-                 color=colours[bar_no])
+    # Iterate over runs.
+    for run_no, run_name in enumerate(run_names):
+        # Get data from results. NOTE: All results are pre-sorted.
+        y_data = [prof_result[metric] for key, prof_result in prof_results if
+                  key[3] == str(run_name)]
 
+        axis.bar(ind + (run_no * width), y_data, width,
+                 label=str(run_name), color=colours[run_no])
+
+    # Plot labels.
     axis.set_xticks(ind + ((width * n_bars) / 2.))
-    axis.set_xticklabels([version['name'] for
-                          version in versions])
+    axis.set_xticklabels([version['name'] for version in versions])
     axis.set_xlabel('Cylc Version')
     axis.set_xlim([0, (1. * n_groups) - spacing])
     if len(run_names) > 1:
         axis.legend(loc='upper left', prop={'size': 9})
 
 
-def plot_scale(prof_results, run_names, versions, metric, experiment,
+def plot_scale(prof_results, run_names, versions, metric, experiment_options,
                axis, c_map, lobf_order=2):
-    # TODO: plot_single now works, plot_scale does not.
     """Create a scatter plot with line of best fit interpreting float(run_name)
     as the x-axis value."""
-    x_data = [int(run_name) for run_name in run_names]
+    # Colour map.
     colours = [c_map(x / (len(versions) - 0.99)) for x in range(len(versions))]
+    # Plot labels.
+    x_data = [int(run_name) for run_name in run_names]
 
+    # Iterate over versions.
     for ver_no, version in enumerate(reversed(versions)):
-        y_data = []
-        for run_name in run_names:
-            y_data.append(
-                results[version['id']][experiment['id']][run_name][metric]
-            )
+        # Get data from results. NOTE: All versions & results are pre-sorted.
+        y_data = [prof_result[metric] for key, prof_result in prof_results if
+                  key[1] == version['id']]
 
         # Plot data point.
         if lobf_order >= 1:
@@ -368,47 +371,80 @@ def plot_scale(prof_results, run_names, versions, metric, experiment,
         # Compute and plot line of best fit.
         if lobf_order >= 1:
             if lobf_order > 8:
-                print('WARNING: Line of best fit order too high (' +
-                      lobf_order + '). Order has been set to 3.')
-                lobf_order = 3
+                reset = 3
+                print('WARNING: Line of best fit order too high (%s). Order '
+                      'has been set to %s.' % (lobf_order, reset))
+                lobf_order = reset
             lobf = numpy.polyfit(x_data, y_data, lobf_order)
             line = numpy.linspace(x_data[0], x_data[-1], 100)
             points = numpy.poly1d(lobf)(line)
             axis.plot(line, points, '-', color=colours[ver_no],
                       label=version['name'])
 
-        # Plot settings.
-        axis.set_xlabel(experiment['config']['x-axis'] if 'x-axis' in
-                        experiment['config'] else 'Tasks')
+        # Plot labels.
+        axis.set_xlabel(experiment_options.get('x-axis', 'Tasks'))
         axis.legend(loc='upper left', prop={'size': 9})
 
 
-def plot_results(prof_results, versions, experiment_options, metrics, plot_dir,
-                 lobf_order=2):
+def plot(conn, platform, versions, experiment, plot_dir, quick_analysis=True,
+         lobf_order=2):
+    """Plot results.
+
+    Args:
+        conn (sqlite3.Connection): Results database connection.
+        platform (str): Select results for the given platform.
+        versions (list): List of version dictionaries. Select results for given
+            versions.
+        experiment (dict): Experiment dictionay. Select results for given
+            experiment.
+        plot_dir (str/bool): Directory to safe plot files to. If False plots
+            will be displayed interractively.
+        quick_analysis (bool): If True only plot a short-list of metrics.
+
+    """
     if not CAN_PLOT:
         sys.exit('\nERROR: Plotting requires numpy and maplotlib so cannot be '
                  'run.')
 
-    c_map = colour_map.Set1
+    # Obtain relevant results.
+    prof_results = results.get_dict(
+        conn,
+        platform,
+        [version['id'] for version in versions],
+        experiment['id'],
+        sort=True)
+
+    # Obtain list of relevant metrics.
+    metrics = get_consistent_metrics(prof_results, quick_analysis)
+
+    # Obtain experiment configuration.
+    experiment_options = results.get_experiment_options_from_db(
+        conn, experiment['id'])
+
+    # Obtain sorted list of run names.
+    run_names = sorted(set(result[0][3] for result in prof_results))
     try:
-        run_names = sorted(set(result[0][3] for result in prof_results),
-                           key=int)
+        # If all run names are integers cast them else leave them as strings.
+        run_names = map(int, run_names)
     except ValueError:
-        run_names = sorted(set(result[0][3] for result in prof_results))
+        pass
+
+    # Plot parameters.
+    c_map = colour_map.Set1
     plot_type = experiment_options.get('analysis', 'single')
 
-    # One plot per metric.
+    # Create one plot per metric.
     for metric in metrics:
         # Set up plotting.
         fig = plt.figure(111)
         axis = fig.add_subplot(111)
 
+        plot_args = (prof_results, run_names, versions, metric,
+                     experiment_options, axis, c_map)
         if plot_type == 'single':
-            plot_single(prof_results, run_names, versions, metric,
-                        experiment_options, axis, c_map)
+            plot_single(*plot_args)
         elif plot_type == 'scale':
-            plot_scale(prof_results, run_names, versions, metric,
-                       experiment_options, axis, c_map, lobf_order=lobf_order)
+            plot_scale(*plot_args, lobf_order=lobf_order)
 
         # Common config.
         axis.grid(True)
@@ -420,72 +456,58 @@ def plot_results(prof_results, versions, experiment_options, metrics, plot_dir,
             plt.show()
         else:
             # Output directory specified, save figure as a pdf.
-            fig.savefig(os.path.join(plot_dir,
-                                     METRICS[metric][METRIC_FILENAME] +
-                                     '.pdf'))
+            fig.savefig(os.path.join(
+                plot_dir,
+                prof.METRICS[metric][prof.METRIC_FILENAME] +
+                '.pdf'))
 
             fig.clear()
 
 
-def plot_results2(results, versions, experiment, plt_dir=None,
-                 quick_analysis=False, lobf_order=2):
-    """Plot the results for the provided experiment.
-
-    By default plots are
-    written out to plt_dir. If not plt_dir then the plots will be displayed
-    interactively.
+def tabulate(conn, platform, versions, experiment, quick_analysis,
+             markdown=False):
+    """Print a table of results.
 
     Args:
-        results (dict): The data contained in the profiling results file.
-        versions (list): List of version dictionaries for versions to plot.
-        experiment (dict): Experiment dict for the experiment to plot.
-        plt_dir (str): Directory to render any plots into.
-        quick_analysis (bool - optional): If True only a small set of metrics
-            will be plotted.
-        lobf_order (int - optional): The polynomial order for the line of best
-            fit, will be used for ALL plots.
+        conn (sqlite3.Connection): Results database connection.
+        platform (str): Platform to display results for.
+        versions (list): List of version dictionaries representing cylc versions
+            to display results for.
+        experiment (dict): Experiment dictionary representing the profiling
+            experiment to display results for.
+        quick_analysis (bool): If True only display a subset of results.
+        markdown (bool): If True output the table in markdown format.
 
     """
-    # Are we able to plot?
-    if not CAN_PLOT:
-        print('\nWarning: Plotting requires numpy and maplotlib so cannot be '
-              'run.')
-        return
+    prof_results = results.get_dict(
+        conn,
+        platform,
+        [version['id'] for version in versions],
+        experiment['id'],
+        sort=True)
 
-    versions = remove_profile_from_versions(versions)
+    # TODO!?
+    metrics = get_consistent_metrics(prof_results, quick_analysis)
 
-    metrics = get_metrics_for_experiment(experiment, results,
-                                         quick_analysis=quick_analysis)
-    run_names = [run['name'] for run in experiment['config']['runs']]
-    plot_type = experiment['config']['analysis']
+    # Make header rows.
+    table = [['Version', 'Run'] + [get_metric_title(metric) for
+                                   metric in sorted(metrics)]]
+    table.append([None] * len(table[0]))  # Header underline.
 
-    c_map = colour_map.Set1
+    for (_, version_id, _, run_name), result_fields in prof_results:
+        row = [version_id, run_name]
+        for metric in metrics:
+            try:
+                row.append(result_fields[metric])
+            except KeyError:
+                    raise prof.AnalysisException(  # TODO: Remove?
+                    'Could not make results table as results are incomplete. '
+                    'Metric "%s" missing from %s:%s at version %s' % (
+                        metric, experiment['name'], run_name, version_id
+                    ))
+        table.append(row)
 
-    # One plot per metric.
-    for metric in metrics:
-        # Set up plotting.
-        fig = plt.figure(111)
-        axis = fig.add_subplot(111)
-
-        if plot_type == 'single':
-            plot_single(results, run_names, versions, metric,
-                        experiment, axis, c_map)
-        elif plot_type == 'scale':
-            plot_scale(results, run_names, versions, metric,
-                       experiment, axis, c_map, lobf_order=lobf_order)
-
-        # Common config.
-        axis.grid(True)
-        axis.set_ylabel(get_metric_title(metric))
-
-        # Output graph.
-        if not plt_dir:
-            # Output directory not specified, use interractive mode.
-            plt.show()
-        else:
-            # Output directory specified, save figure as a pdf.
-            fig.savefig(os.path.join(plt_dir,
-                                     METRICS[metric][METRIC_FILENAME] +
-                                     '.pdf'))
-
-            fig.clear()
+    kwargs = {'transpose': not quick_analysis}
+    if markdown:  # Move into print_table in the long run?
+        kwargs.update({'seperator': ' | ', 'border': '|', 'headers': True})
+    prof._write_table(table, **kwargs)
