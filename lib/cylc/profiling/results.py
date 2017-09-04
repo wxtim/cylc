@@ -385,13 +385,13 @@ def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
         conn,
         list(set([result[2] for result in result_keys])))
 
-    # Get experiment dictionaries (sans config - no file operations).
-    # TODO: If we delete the experiment file we can't list the results!
-    experiments = prof.get_experiments(set(exp_name_dict.values()),
-                                       load_config=False)
+    # Get dictionary of experiment names vs the current experiment id.
+    current_experiments = dict((exp_name, prof.get_experiment_id(exp_name)) for
+                               exp_name in exp_name_dict.values())
 
     # Sort result keys.
     def sorty(one, two):
+        """Sort function for user presentation or result entries."""
         return (
             # Experiment name.
             cmp(exp_name_dict[one[2]], exp_name_dict[two[2]]) or
@@ -411,9 +411,7 @@ def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
         # Get the experiment name.
         experiment_name = exp_name_dict[experiment_id]
         # Put an asterix infront of the current version.
-        experiment = prof.get_dict_by_attr(experiments, experiment_name,
-                                           'name')
-        if experiment['id'] == experiment_id:
+        if current_experiments[experiment_name] == experiment_id:
             experiment_id = '* %s' % experiment_id
         else:
             experiment_id = '  %s' % experiment_id

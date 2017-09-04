@@ -140,26 +140,62 @@ class AnalysisException(Exception):
     pass
 
 
+def get_experiment_file(experiment_name):
+    """Return the path to the experiment file for the provided name.
+
+    Args:
+        experiment_name (str): The name of the experiment to locate the file
+            for.
+
+    Raises:
+        ValueError: In the event that the file cannot be located.
+
+    Returns:
+        str: The path to the experiment file.
+
+    """
+    file_name = experiment_name + '.json'
+    # Look for experiment file in the users experiment directory.
+    file_path = os.path.join(CYLC_DIR, PROFILE_DIR_NAME,
+                             USER_EXPERIMENT_DIR_NAME, file_name)
+    if not os.path.exists(file_path):
+        # Look for experiment file in built-in experiment directory.
+        file_path = os.path.join(CYLC_DIR, EXPERIMENTS_PATH, file_name)
+        if not os.path.exists(file_path):
+            raise ValueError('ERROR: Could not find experiment file for '
+                             '"%s"' % experiment_name)
+    return file_path
+
+
 def get_experiments(experiment_names, load_config=True):
-    """Returns a dictionary of experiment names against experiment ids (which
-    contain a checksum)."""
+    """Return list of experiment dictionaries for the provided names.
+
+    Note:
+        If an experiment file cannot be located the "id" attribute will be set
+        to 'Invalid' and the "file" to 'None'.
+
+    Args:
+        experiment_names (list): List of names (str) for the experiments to
+            load.
+        load_config (bool): If True then the experiment file will be read,
+            parsed and added to the returned dictionary.
+
+    Returns:
+        list: List of experiment dictionaries containing the fields:
+        name, id, file and config (if load_config == True).
+
+    """
     experiments = []
     for experiment_name in experiment_names:
-        file_name = experiment_name + '.json'
-        # Look for experiment file in the users experiment directory.
-        file_path = os.path.join(CYLC_DIR, PROFILE_DIR_NAME,
-                                 USER_EXPERIMENT_DIR_NAME, file_name)
-        if not os.path.exists(file_path):
-            # Look for experiment file in built-in experiment directory.
-            file_path = os.path.join(CYLC_DIR, EXPERIMENTS_PATH, file_name)
-            if not os.path.exists(file_path):
-                # Could not find experiment file in either path. Exit!
-                print 'ERROR: Could not find experiment file for "%s"' % (
-                    experiment_name)
-                experiments.append({'name': experiment_name,
-                                    'id': 'Invalid',
-                                    'file': None})
-                continue
+        try:
+            file_path = get_experiment_file(experiment_name)
+        except ValueError as exc:
+            # Could not find experiment file in either path. Exit!
+            print >> sys.stderr, exc
+            experiments.append({'name': experiment_name,
+                                'id': 'Invalid',
+                                'file': None})
+            continue
         experiment = {
             'name': experiment_name,
             'id': get_checksum(file_path),
@@ -169,6 +205,18 @@ def get_experiments(experiment_names, load_config=True):
             experiment['config'] = load_experiment_config(file_path)
         experiments.append(experiment)
     return experiments
+
+
+def get_experiment_id(experiment_name):
+    """Return the id for the current version of an experiment.
+
+    Returns None in the event the experiment file cannot be found.
+
+    """
+    try:
+        return get_checksum(get_experiment_file(experiment_name))
+    except ValueError:
+        return None
 
 
 def load_experiment_config(experiment_file):
