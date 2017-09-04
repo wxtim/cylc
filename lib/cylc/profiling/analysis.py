@@ -39,106 +39,19 @@ from cylc.profiling.git import (order_versions_by_date, describe)
 from cylc.wallclock import get_unix_time_from_time_string
 
 
-def mean(data):
+def _mean(data):
     """Return the mean average of a list of numbers."""
     return sum(data) / float(len(data))
 
 
-def remove_profile_from_versions(versions):
-    """Handles any versions with "-profile" in the version_name.
-
-    Removes -profile* from the version name then sorts the versions by date
-    (using the new version names).
-
-    """
-    ret = list(versions)
-    flag = False
-    temp = {}
-    for version in ret:
-        try:
-            # Remove -profile from version_name if present.
-            ind = version['name'].index('-profile')
-            version['name'] = version['name'][:ind]
-            version_id = describe(version['name'])
-            # Temporally change the version_id to match the version_name.
-            if version_id:
-                temp[version['name']] = version['id']
-                version['id'] = version_id
-        except ValueError:
-            continue
-        else:
-            flag = True
-    if flag:
-        # Sort versions by date.
-        order_versions_by_date(ret)
-        # Revert version_ids.
-        for version in ret:
-            if version['name'] in temp:
-                version['id'] = temp[version['name']]
-        return ret
-    # No -profile versions, return the original list.
-    return versions
-
-
-def extract_results(result_files, profile_modes, validate_mode=False):
-    """Return a dictionaty of (averaged) results extracted from result_files.
-
-    Args:
-        result_files (list): A list of result files to process.
-        profile_modes (list): A list of profiling modes (e.g. 'time').
-        validate_mode (bool): If True results are processed as for cylc
-            validate.
-
-    Return:
-        dict: Dictionary of the form {'key': value} where key is a numerical
-        index (see cylc.profiling for details).
-
-    """
-    processed_results = []
-    for result_file in result_files:
-        if prof.PROFILE_MODE_TIME in profile_modes:
-            try:
-                processed_results.append(process_time_file(result_file['time']))
-            except Exception:
-                raise prof.AnalysisException(
-                    'Analysis failed for method "%s" in file "%s".' % (
-                        prof.PROFILE_MODE_TIME, result_file['time']))
-        if prof.PROFILE_MODE_CYLC in profile_modes:
-            suite_start_time = None
-            try:
-                if not validate_mode:
-                    suite_start_time = get_startup_time(result_file['startup'])
-                processed_results.append(process_out_file(
-                    result_file['cmd-out'], suite_start_time, validate_mode))
-            except Exception:
-                raise prof.AnalysisException(
-                    'Analysis failed for method "%s" in file "%s".' % (
-                        prof.PROFILE_MODE_CYLC, result_file['out']))
-
-    ret = {}
-    for metric in processed_results[0]:
-        # Get key for metric.
-        for key, metrics in prof.METRICS.items():
-            if metric in metrics[3]:  # Field name.
-                break
-        else:
-            # Metric is not required - skip.
-            continue
-        # Compute average over repeats.
-        ret[key] = mean([processed_results[i][metric] for
-                         i in range(len(processed_results))])
-
-    return ret
-
-
-def get_startup_time(file_name):
+def _get_startup_time(file_name):
     """Return the value of the "SUITE STARTUP" entry as a string."""
     with open(file_name, 'r') as startup_file:
         return re.search('SUITE STARTUP: (.*)',
                          startup_file.read()).groups()[0]
 
 
-def process_time_file(file_name):
+def _process_time_file(file_name):
     """Extracts results from a result file generated using the /usr/bin/time
     profiler."""
     with open(file_name, 'r') as time_file:
@@ -182,7 +95,7 @@ def process_time_file(file_name):
         return ret
 
 
-def process_out_file(file_name, suite_start_time, validate=False):
+def _process_out_file(file_name, suite_start_time, validate=False):
     """Extract data from the out log file."""
     if not os.path.exists(file_name):
         sys.exit('No file with path {0}'.format(file_name))
@@ -253,70 +166,7 @@ def process_out_file(file_name, suite_start_time, validate=False):
     return ret
 
 
-def process_results(results):
-    """Average over results for each run."""
-    processed_results = {}
-    all_metrics = set(prof.METRICS.keys())
-    for run_name, run in results.iteritems():
-        processed_results[run_name] = {}
-        this_result = dict((metric, []) for metric in all_metrics)
-        for result in run:
-            for metric in all_metrics:
-                for field in prof.METRICS[metric][prof.METRIC_FIELDS]:
-                    if field in result:
-                        this_result[metric].append(result[field])
-            all_metrics = all_metrics & set(this_result.keys())
-        for metric in all_metrics:
-            if this_result[metric]:
-                processed_results[run_name][metric] = mean(this_result[metric])
-    for metric in set(prof.METRICS.keys()) - all_metrics:
-        for run_name, run in processed_results.iteritems():
-            del run[metric]
-    return processed_results
-
-
-def get_metrics_for_experiment(experiment, results, quick_analysis=False):
-    """Return a set of metric keys present in the results for experiment
-
-    If a metric is missing from one result it is skipped.
-
-    """
-    metrics = set([])
-    for version_id in results:
-        if experiment['id'] in results[version_id]:
-            for run in results[version_id][experiment['id']].values():
-                if metrics:
-                    metrics = metrics & set(run.keys())
-                else:
-                    metrics = set(run.keys())
-    if quick_analysis:
-        return metrics & prof.QUICK_ANALYSIS_METRICS
-    return metrics
-
-
-def get_consistent_metrics(prof_results, quick_analysis=False):
-    metrics = None
-    for prof_result in prof_results:
-        result_metrics = set(prof_result[1])
-        if metrics:
-            metrics = metrics & result_metrics
-        else:
-            metrics = result_metrics
-    if quick_analysis:
-        return sorted(metrics & prof.QUICK_ANALYSIS_METRICS)
-    return sorted(metrics)
-
-
-def get_metric_title(metric):
-    """Return a user-presentable title for a given metric key."""
-    metric_title = prof.METRICS[metric][prof.METRIC_TITLE]
-    metric_unit = prof.METRICS[metric][prof.METRIC_UNIT]
-    if metric_unit:
-        metric_title += ' (' + metric_unit + ')'
-    return metric_title
-
-
-def plot_single(prof_results, run_names, versions, metric, _, axis, c_map):
+def _plot_single(prof_results, run_names, versions, metric, _, axis, c_map):
     """Create a bar chart comparing the results of all runs."""
     # Bar chart parameters.
     n_groups = len(versions)
@@ -346,7 +196,7 @@ def plot_single(prof_results, run_names, versions, metric, _, axis, c_map):
         axis.legend(loc='upper left', prop={'size': 9})
 
 
-def plot_scale(prof_results, run_names, versions, metric, experiment_options,
+def _plot_scale(prof_results, run_names, versions, metric, experiment_options,
                axis, c_map, lobf_order=2):
     """Create a scatter plot with line of best fit interpreting float(run_name)
     as the x-axis value."""
@@ -386,6 +236,80 @@ def plot_scale(prof_results, run_names, versions, metric, experiment_options,
         axis.legend(loc='upper left', prop={'size': 9})
 
 
+def get_consistent_metrics(prof_results, quick_analysis=False):
+    metrics = None
+    for prof_result in prof_results:
+        result_metrics = set(prof_result[1])
+        if metrics:
+            metrics = metrics & result_metrics
+        else:
+            metrics = result_metrics
+    if quick_analysis:
+        return sorted(metrics & prof.QUICK_ANALYSIS_METRICS)
+    return sorted(metrics)
+
+
+def extract_results(result_files, profile_modes, validate_mode=False):
+    """Return a dictionaty of (averaged) results extracted from result_files.
+
+    Args:
+        result_files (list): A list of result files to process.
+        profile_modes (list): A list of profiling modes (e.g. 'time').
+        validate_mode (bool): If True results are processed as for cylc
+            validate.
+
+    Return:
+        dict: Dictionary of the form {'key': value} where key is a numerical
+        index (see cylc.profiling for details).
+
+    """
+    processed_results = []
+    for result_file in result_files:
+        if prof.PROFILE_MODE_TIME in profile_modes:
+            try:
+                processed_results.append(_process_time_file(result_file['time']))
+            except Exception:
+                raise prof.AnalysisException(
+                    'Analysis failed for method "%s" in file "%s".' % (
+                        prof.PROFILE_MODE_TIME, result_file['time']))
+        if prof.PROFILE_MODE_CYLC in profile_modes:
+            suite_start_time = None
+            try:
+                if not validate_mode:
+                    suite_start_time = _get_startup_time(result_file['startup'])
+                processed_results.append(_process_out_file(
+                    result_file['cmd-out'], suite_start_time, validate_mode))
+            except Exception:
+                raise prof.AnalysisException(
+                    'Analysis failed for method "%s" in file "%s".' % (
+                        prof.PROFILE_MODE_CYLC, result_file['out']))
+
+    ret = {}
+    for metric in processed_results[0]:
+        # Get key for metric.
+        for key, metrics in prof.METRICS.items():
+            if metric in metrics[3]:  # Field name.
+                break
+        else:
+            # Metric is not required - skip.
+            continue
+        # Compute average over repeats.
+        ret[key] = _mean([processed_results[i][metric] for
+                         i in range(len(processed_results))])
+
+    return ret
+
+
+# TODO Move?
+def get_metric_title(metric):
+    """Return a user-presentable title for a given metric key."""
+    metric_title = prof.METRICS[metric][prof.METRIC_TITLE]
+    metric_unit = prof.METRICS[metric][prof.METRIC_UNIT]
+    if metric_unit:
+        metric_title += ' (' + metric_unit + ')'
+    return metric_title
+
+
 def plot(conn, platform, versions, experiment, plot_dir, quick_analysis=True,
          lobf_order=2):
     """Plot results.
@@ -412,7 +336,7 @@ def plot(conn, platform, versions, experiment, plot_dir, quick_analysis=True,
         platform,
         [version['id'] for version in versions],
         experiment['id'],
-        sort=True)
+        sort=True)  # This sorts all results keys appropriately.
 
     # Obtain list of relevant metrics.
     metrics = get_consistent_metrics(prof_results, quick_analysis)
@@ -442,9 +366,9 @@ def plot(conn, platform, versions, experiment, plot_dir, quick_analysis=True,
         plot_args = (prof_results, run_names, versions, metric,
                      experiment_options, axis, c_map)
         if plot_type == 'single':
-            plot_single(*plot_args)
+            _plot_single(*plot_args)
         elif plot_type == 'scale':
-            plot_scale(*plot_args, lobf_order=lobf_order)
+            _plot_scale(*plot_args, lobf_order=lobf_order)
 
         # Common config.
         axis.grid(True)
@@ -484,7 +408,7 @@ def tabulate(conn, platform, versions, experiment, quick_analysis,
         platform,
         [version['id'] for version in versions],
         experiment['id'],
-        sort=True)
+        sort=True)  # This sorts all results keys appropriately.
 
     # TODO!?
     metrics = get_consistent_metrics(prof_results, quick_analysis)
