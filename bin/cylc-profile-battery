@@ -350,72 +350,28 @@ def run_schedule(conn, schedule, experiments, test=False):
     return True
 
 
-def promote(experiment_id, yes=False):
-    """Promote any results for the provided experiment version to the current
-    version."""
-    if '@' not in experiment_id:
-        sys.exit('A version must be supplied to promote an experiment e.g. '
-                 'exp@a1b2c3d4e5')
-    experiment_name, experiment_version = experiment_id.rsplit('@', 1)
+def promote(conn, experiment_id, yes=False):
+    """Promote results from an older to a newer version of an experiment.
 
-    results = get_results()  # Get contents of results file.
-
-    cur_exp_id = get_experiments([experiment_name])[0]['id']
-
-    candidate_versions = set()
-    target_versions = set()
-    for host in results:
-        for version in results[host]:
-            for exp_id in results[version]:
-                exp_name, exp_ver = exp_id.rsplit('@', 1)
-                if exp_name != experiment_name:
-                    continue
-                if exp_ver == experiment_version:
-                    candidate_versions.add(version)
-                elif exp_id == cur_exp_id:
-                    target_versions.add(version)
-
-    if not candidate_versions:
-        sys.exit('There are no results for experiment "{experiment_id}".'
-                 ''.format(experiment_id=experiment_id))
-    ls([experiment_name], [])
-    if target_versions:
-        candidate_versions = [version for version in candidate_versions if
-                              version not in target_versions]
-        print
-        print('Only the results for cylc versions not already profiled in '
-              'the current experiment version will be promoted.')
-    git.order_identifiers_by_date(candidate_versions)
-
-    print
-    print('Promote the following results for experiment "{name}" at version '
-          '"{candidate}" to the current version "{target}":'.format(
-              name=experiment_name,
-              candidate=experiment_version,
-              target=cur_exp_id.rsplit('@', 1)[1]
-          ))
-    print '\t', ' '.join(candidate_versions)
-
+    Implement `cylc profile-battery --promote`.
+    
+    Args:
+        conn (sqlite3.Connection): Results database connection.
+        experiment_id (str): The id of the experiment to upgrade.
+        yes (bool): If True don't prompt before upgrading.
+    
+    """
+    experiment = prof.get_experiments(
+        [results.get_experiment_names(conn, [experiment_id]).values()[0]])[0]
     if not yes:
-        response = None
-        while response not in ['y', 'n']:
-            response = raw_input('Upgrade these versions? (y/n): ')
-    if yes or response == 'y':
-        # Promote results.
-        try:
-            for host in results:
-                for version in candidate_versions:
-                    results[host][version][cur_exp_id] = (
-                        results[version][experiment_id])
-        except KeyError as exc:
-            print exc
-            sys.exit('Unexpected error.')
-        else:
-            append_new_results(results)
-        # Provide option to delete duplicates.
-        ls([experiment_id], candidate_versions, delete=True)
-    else:
-        sys.exit('Aborted, not changes made.')
+        results.tabulate(conn, experiment_ids=[experiment_id])
+        usr = None
+        while usr not in ['y', 'n']:
+            usr = raw_input('\nUpdate "%s" => "%s"? (y/n): ' % (
+                experiment_id, experiment['id']))
+        if usr != 'y':
+            return
+    results.update_experiment(conn, experiment_id, experiment)
 
 
 def ls(conn, platform, version_refs, experiment_names, delete=False):
@@ -438,7 +394,7 @@ def ls(conn, platform, version_refs, experiment_names, delete=False):
             experiment_ids.append(exp_name)
 
     # Print results
-    results.listify(conn, platform, version_ids, experiment_ids)
+    results.tabulate(conn, platform, version_ids, experiment_ids)
     if not delete:
         return
 
@@ -492,9 +448,9 @@ def main():
         prof.PROFILE_DB))
 
     # Promote mode.
-    #if opts.promote:
-    #    promote(opts.promote, opts.yes)
-    #    sys.exit(0)
+    if opts.promote:
+        promote(conn, opts.promote, opts.yes)
+        sys.exit(0)
 
     # Use `hostname` if platform set to "localhost".
     if opts.platform == 'localhost':

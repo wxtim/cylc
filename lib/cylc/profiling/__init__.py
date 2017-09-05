@@ -65,6 +65,9 @@ PROFILE_FILES = {
     'startup': '-startup'
 }
 
+# Options to save from experiment files.
+EXPERIMENT_OPTIONS = ['analysis', 'x-axis']
+
 
 # ------------- REGEXES ---------------
 # Matches the summary line from the cylc <cmd> --profile output.

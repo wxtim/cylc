@@ -107,7 +107,7 @@ def _sync_experiments(conn, experiments=None, experiment_ids=None):
         # results tabke. Remove this (unused) entry.
         stmt = 'DELETE FROM experiments WHERE experiment_id = (?)'
         with conn:
-            conn.execute(stmt, experiment_id)
+            conn.execute(stmt, [experiment_id])
 
 
 def _results_call(conn, platforms=None, version_ids=None, experiment_ids=None,
@@ -265,7 +265,7 @@ def _get_experiment_options_from_file(experiment):
 
     """
     options = {}
-    for key in ['analysis', 'x-axis']:
+    for key in prof.EXPERIMENT_OPTIONS:
         if key in experiment['config']:
             options[key] = experiment['config'][key]
     return options
@@ -322,8 +322,7 @@ def add(conn, results, experiments):
     Ensure the experiments table is synconised to reflect this.
 
     Args:
-        results (dict): Dictionary of results (i.e. {'metric': value}), results
-            dictionary need not contain an entry for each metric.
+        results (tuple): Tuple of result keys and a results dictionary.
         experiments (list): List of experiment dictionaries for any experiments
             present in results (required to syncronise the experiments table.
 
@@ -361,8 +360,24 @@ def remove(*args, **kwargs):
     _sync_experiments(args[0], experiment_ids=[r[2] for r in changes])
 
 
-# TODO: Rename tabulate?
-def listify(conn, platforms=None, version_ids=None, experiment_ids=None):
+def update_experiment(conn, experiment_id, experiment):
+    """Update results for an experment to relfect an updated experiment dict.
+
+    Args:
+        experiment_id (str): The id of the experiement to update.
+        experiment (dict): The new experiment dictionary to update the old
+            experiment_id to.
+
+    """
+    new_results = [
+        key[0:2] + (experiment['id'],) + key[3:4] + (result,) for
+        key, result in get_dict(conn, experiment_ids=[experiment_id])
+    ]
+    remove(conn, experiment_ids=[experiment_id])
+    add(conn, new_results, [experiment])
+
+
+def tabulate(conn, platforms=None, version_ids=None, experiment_ids=None):
     """Print a list of results present in the DB.
 
     Args:
@@ -662,6 +677,48 @@ class TestResultSorting(unittest.TestCase):
                 (u'b', u'b', u'e', u'2'),
                 (u'b', u'b', u'e', u'3')
             )
+        )
+
+
+class TestResultPromotion(unittest.TestCase):
+
+    def setUp(self):
+        self.conn = get_conn(tempfile.mktemp())
+        add(self.conn,
+            [
+                ('a', 'b', 'c', 'd', {RESULT_FIELDS[0]: 1.0})
+            ],
+            [
+                {'id': 'c', 'name': 'C', 'config': {
+                    prof.EXPERIMENT_OPTIONS[0]: 1}}
+            ]
+        )
+
+    def test_promotion(self):
+        update_experiment(
+            self.conn,
+            'c',
+            {'id': 'e', 'name': 'C', 'config': {prof.EXPERIMENT_OPTIONS[0]: 2}}
+        )
+        # Ensure results updated.
+        self.assertEqual(
+            get(self.conn, experiment_ids=['c']), []
+        )
+        self.assertEqual(
+            get(self.conn, experiment_ids=['e']),
+            [
+                ('a', 'b', 'e', 'd', 1.0) + (None,) * (len(RESULT_FIELDS) - 1)
+            ]
+        )
+        # Ensure experiment added
+        self.assertEqual(
+            get_experiment_options_from_db(self.conn, 'e'),
+            {prof.EXPERIMENT_OPTIONS[0]: 2}
+        )
+        self.assertEqual(
+            self.conn.cursor().execute(
+                'SELECT * FROM experiments WHERE name = (?)', 'C').fetchall(),
+                [(u'e', u'C', json.dumps({prof.EXPERIMENT_OPTIONS[0]: 2}))]
         )
 
 
