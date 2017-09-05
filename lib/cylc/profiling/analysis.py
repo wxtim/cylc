@@ -418,7 +418,8 @@ def tabulate(conn, platform, versions, experiment, quick_analysis,
                                    metric in sorted(metrics)]]
 
     for (_, version_id, _, run_name), result_fields in prof_results:
-        row = [version_id, run_name]
+        version = prof.get_dict_by_attr(versions, version_id)
+        row = [version['name'], run_name]
         for metric in metrics:
             try:
                 row.append(result_fields[metric])

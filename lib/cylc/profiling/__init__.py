@@ -185,6 +185,7 @@ def get_experiments(experiment_names, load_config=True):
 
     """
     experiments = []
+    experiment_ids = []
     for experiment_name in experiment_names:
         try:
             file_path = get_experiment_file(experiment_name)
@@ -195,9 +196,13 @@ def get_experiments(experiment_names, load_config=True):
                                 'id': 'Invalid',
                                 'file': None})
             continue
+        experiment_id = get_checksum(file_path)
+        if experiment_id in experiment_ids:
+            continue
+        experiment_ids.append(experiment_id)
         experiment = {
             'name': experiment_name,
-            'id': get_checksum(file_path),
+            'id': experiment_id,
             'file': file_path,
         }
         if load_config:
@@ -283,8 +288,15 @@ def get_checksum(file_path, chunk_size=4096):
 def get_versions(version_names):
     """Produces a list of version objects from a list of cylc version names."""
     versions = []
+    version_ids = []
     for version_name in version_names:
+        # Prevent duplicates.
         version_id = describe(version_name)
+        if version_id in version_ids:
+            continue
+        version_ids.append(version_id)
+
+        # Build version dictionary.
         if version_id:
             versions.append({
                 'name': version_name,
