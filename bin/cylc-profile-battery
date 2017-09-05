@@ -162,7 +162,7 @@ def install_experiments(experiments, install_dir):
               subdirectory.
     
     """
-    install_sdir = os.path.join(install_dir, 'suites')
+    install_sdir = os.path.join(install_dir, prof.PROFILE_SUITE_DIR)
     os.mkdir(install_sdir)
 
     # Install suites.
@@ -239,15 +239,12 @@ def install_cylc_versions(versions, install_dir):
             - Cylc versions will be installed in a "cylc" subdirectory.
             
     """
-    os.mkdir(os.path.join(install_dir, 'cylc'))
+    os.mkdir(os.path.join(install_dir, prof.PROFILE_CYLC_DIR))
     for version in versions:
-        print 'Installing cylc: %s => %s' % (
-            version['name'],
-            os.path.join(install_dir, 'cylc', version['name']))
-        git.archive_cylc_version(
-                version['name'],
-                prof.CYLC_DIR,
-                os.path.join(install_dir, 'cylc', version['name']))
+        version_path = os.path.join(install_dir, prof.PROFILE_CYLC_DIR,
+                                    version['id'])
+        print 'Installing cylc: %s => %s' % (version['name'], version_path)
+        git.archive_cylc_version(version['name'], prof.CYLC_DIR, version_path)
 
 
 def get_schedule(conn, platform, versions, experiments, test=False):

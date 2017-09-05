@@ -7,8 +7,7 @@ import sys
 
 from parsec.config import ItemNotFoundError
 from cylc.cfgspec.globalcfg import GLOBAL_CFG
-from cylc.profiling import (PROFILE_MODE_CYLC, PROFILE_MODE_TIME,
-                            SUITE_STARTUP_STRING, safe_name, ProfilingException)
+import cylc.profiling as prof
 
 LOCALHOST = socket.gethostname()
 
@@ -21,7 +20,7 @@ def get_prof_script(reg, options, profile_modes, mode):
         options (list): List of Jinja2 variables to provide as 'key=value'
             pairs.
         profile_modes (list): List of profile modes to use (e.g.
-            PROFILE_MODE_TIME).
+            prof.PROFILE_MODE_TIME).
         mode (str): The cylc run mode to profile the suite using (e.g. live).
 
     Return:
@@ -31,11 +30,11 @@ def get_prof_script(reg, options, profile_modes, mode):
     cmds = []
 
     # Cylc profiling, echo command start time.
-    if PROFILE_MODE_CYLC in profile_modes:
-        cmds += ['echo', SUITE_STARTUP_STRING, r'$(date +%s.%N)', '&&']
+    if prof.PROFILE_MODE_CYLC in profile_modes:
+        cmds += ['echo', prof.SUITE_STARTUP_STRING, r'$(date +%s.%N)', '&&']
 
     # /usr/bin/time profiling.
-    if PROFILE_MODE_TIME in profile_modes:
+    if prof.PROFILE_MODE_TIME in profile_modes:
         # TODO: This needs to be applied to the host!
         if sys.platform == 'darwin':  # MacOS
             cmds += ['/usr/bin/time', '-lp']
@@ -59,7 +58,7 @@ def get_prof_script(reg, options, profile_modes, mode):
     cmds.extend(['-s {0}'.format(option) for option in options])
 
     # Cylc profiling.
-    if PROFILE_MODE_CYLC in profile_modes:
+    if prof.PROFILE_MODE_CYLC in profile_modes:
         if mode == 'validate':
             sys.exit('ERROR: profile_mode "cylc" not possible in validate '
                      'mode')
@@ -73,7 +72,7 @@ def get_prof_script(reg, options, profile_modes, mode):
     # Redirect cylc output to the cylc .out and .err files.
     cmds += ['>', r'\"${CYLC_TASK_LOG_ROOT}.out\"',
              '2>', r'\"${CYLC_TASK_LOG_ROOT}.err\"']
-    if PROFILE_MODE_TIME in profile_modes:
+    if prof.PROFILE_MODE_TIME in profile_modes:
         cmds += ['"']  # Close shell.
 
     # Redirect profiling output.
@@ -106,11 +105,11 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
 
     for platform, version, experiment, run_name in sorted(schedule):
         # Get safe version name (used in cylc task name).
-        ver_name = safe_name(version['name'])
+        ver_name = prof.safe_name(version['name'])
         version_keys.add(ver_name)
 
         # Get safe experiment name (used in cylc task name).
-        exp_name = safe_name(experiment['name'])
+        exp_name = prof.safe_name(experiment['name'])
         experiment_keys.add(exp_name)
 
         # Add a family for this experiment (if not already done).
@@ -123,7 +122,7 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
                 continue
 
             # Get safe run name (used in cylc task name).
-            run_name = safe_name(run['name'])
+            run_name = prof.safe_name(run['name'])
             run_keys.add(run_name)
 
             # Generate task name.
@@ -138,10 +137,18 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
                              + str(repeat))
                 graph.append(task + 'repeat=%s>' % repeat_no)
 
+            # Generate a registration name for this suite.
+            # TODO: Centralise.
+            cylc_major_version = version['id'].split('.')[0]
+            if int(cylc_major_version) >= 7:
+                suite_reg = os.path.join(reg_base, '${CYLC_TASK_NAME}')
+            else:
+                suite_reg = '%s.%s' % (reg_base, '${CYLC_TASK_NAME}')
+
             # Generate the script for this task.
             script = get_prof_script(
-                os.path.join(reg_base, '${CYLC_TASK_NAME}'),
-                run['options'] + ['cylc_compat_mode=%s' % version['id'][0]],
+                suite_reg,
+                run['options'] + ['cylc_compat_mode=%s' % cylc_major_version],
                 experiment.get('profile modes', ['time']),
                 experiment['config'].get('mode', 'live')
             )
@@ -149,10 +156,12 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
             # Add a [runtime] entry for this task.
             runtime[task + 'repeat>'] = {
                 'inherit': exp_name.upper(),
+                'pre-script': 'cylc reg "%s" "${SUITE_DIR}"' % suite_reg,
                 'script': script,
                 'environment': {
                     'PATH': '"%s:${PATH}"' % os.path.join(
-                        install_dir, 'cylc', ver_name, 'bin'),
+                        install_dir, prof.PROFILE_CYLC_DIR, version['id'],
+                        'bin'),
                     'CYLC_CONF_PATH': os.path.join(
                         install_dir, run.get('globalrc', '')),
                     'SUITE_DIR': run['suite dir']
@@ -165,7 +174,7 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
                     runtime[task + 'repeat>'].update(
                         GLOBAL_CFG.get(['profile battery', platform]))
                 except ItemNotFoundError:
-                    raise ProfilingException(
+                    raise prof.ProfilingException(
                         'WARNING: No configuration for platform "%s" '
                         'found in global configuration,' % platform)
 
@@ -198,8 +207,6 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
         },
         'runtime': {
             'root': {
-                'pre-script': 'cylc reg "%s" "${SUITE_DIR}"' %
-                    os.path.join(reg_base, '${CYLC_TASK_NAME}'),
                 'post-script': 'touch success',
                 'job': {
                     'execution time limit': 'PT6H'  # Default.

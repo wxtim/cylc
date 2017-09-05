@@ -25,7 +25,8 @@ import sys
 import traceback
 
 # TODO: import as ...
-from cylc.profiling import safe_name, ProfilingException, AnalysisException
+from cylc.profiling import (safe_name, ProfilingException,
+                            AnalysisException)
 from cylc.profiling.analysis import extract_results
 from cylc.profiling.profiling_suite_writer import write_profiling_suite
 
@@ -179,6 +180,11 @@ def retrieve_results(reg, version, experiment, run, repeat_pad):
         dict: Dictionary of (averaged) profiling results for this run.
 
     """
+    if int(version['id'].split('.')[0]) < 6:
+        # We are profiling a cylc 6 suite. Registrations use a full-stop for
+        # hierarchical suites.
+        reg = reg.replace(os.sep, '.')
+
     run_files = []
     for repeat in range(run['repeats'] + 1):
         run_files.append(

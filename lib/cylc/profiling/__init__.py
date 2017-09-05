@@ -43,12 +43,13 @@ IS_GIT_REPO = is_git_repo()
 
 # Files and directories
 PROFILE_DIR_NAME = '.profiling'  # Path to profiling directory.
-PROFILE_FILE_NAME = 'results.json'  # Path to profiling results file
 PROFILE_DB = 'results.db'
 PROFILE_PLOT_DIR_NAME = 'plots'  # Path to default plotting directory.
 USER_EXPERIMENT_DIR_NAME = 'experiments'  # Path to user defined experiments.
 EXPERIMENTS_PATH = os.path.join('dev', 'profile-experiments'
                                 )  # Path to built-in experiments.
+PROFILE_SUITE_DIR = 'suites'
+PROFILE_CYLC_DIR = 'cylc-versions'
 
 # Ancestor commit for analysis-compatible cylc (run|validate) --profile
 CYLC_PROFILING_COMMIT = '016e6a97be16eaf1a33ea19398a1ade09f86719e'
@@ -122,8 +123,8 @@ DEFAULT_PROFILE_MODES = ['time']
 
 
 def safe_name(name):
-    """Returns a safe string for experiment, run and version names."""
-    for char, repl in [('.', '_'), ('-', '_'), (' ', '_')]:
+    """Returns a safe parameter-name for experiment, run and version names."""
+    for char, repl in [('.', '_'), ('-', '_'), (' ', '_'), ('/', '_')]:
         name = name.replace(char, repl)
     return name
 
