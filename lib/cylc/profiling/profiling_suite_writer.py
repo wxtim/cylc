@@ -154,6 +154,11 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
             )
 
             # Add a [runtime] entry for this task.
+
+            if 'globalrc' in run:
+                cylc_conf_path = os.path.join(install_dir, run['globalrc'])
+            else:
+                cylc_conf_path = ''
             runtime[task + 'repeat>'] = {
                 'inherit': exp_name.upper(),
                 'pre-script': 'cylc reg "%s" "${SUITE_DIR}"' % suite_reg,
@@ -162,8 +167,7 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
                     'PATH': '"%s:${PATH}"' % os.path.join(
                         install_dir, prof.PROFILE_CYLC_DIR, version['id'],
                         'bin'),
-                    'CYLC_CONF_PATH': os.path.join(
-                        install_dir, run.get('globalrc', '')),
+                    'CYLC_CONF_PATH': cylc_conf_path,
                     'SUITE_DIR': run['suite dir']
                 }
             }
