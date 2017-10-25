@@ -1,5 +1,7 @@
 # Cylc Installation.
 
+TEST
+
 **See [The Cylc User Guide](https://cylc.github.io/cylc/documentation.html) for
 detailed instructions.**
 
