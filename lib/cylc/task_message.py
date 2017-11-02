@@ -85,10 +85,10 @@ class TaskMessage(object):
                 import traceback
                 traceback.print_exc()
             return
-        if (self.env_map.get('CYLC_TASK_COMMS_METHOD') == 'ssh' and
-                self._send_by_ssh()):
-            return
-        self._send_by_remote_port(messages)
+        if self.env_map.get('CYLC_TASK_COMMS_METHOD') == 'ssh':
+            self._send_by_ssh()):
+        else:
+            self._send_by_remote_port(messages)
 
     def _print_messages(self, messages):
         """Print message to send."""
