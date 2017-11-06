@@ -124,8 +124,8 @@ SPEC = {
     },
 
     'communication': {
-        'method': vdr(vtype='string', default="https",
-                      options=["https", "http"]),
+        'method': vdr(
+            vtype='string', default="https", options=["https", "http"]),
         'base port': vdr(vtype='integer', default=43001),
         'maximum number of ports': vdr(vtype='integer', default=100),
         'proxies on': vdr(vtype='boolean', default=False),
@@ -232,6 +232,52 @@ SPEC = {
         'mail to': vdr(vtype='string'),
         'reset timer': vdr(vtype='boolean', default=False),
         'submission timeout': vdr(vtype='interval'),
+    },
+
+    'task platforms': {
+        '__MANY__': {
+            # Cluster access
+            'login hosts': vdr(vtype='string_list'),
+            'scp command': vdr(vtype='string'),
+            'ssh command': vdr(vtype='string'),
+            'use login shell': vdr(vtype='boolean'),
+            'cylc executable': vdr(vtype='string'),
+
+            # Directory structure
+            'run directory': vdr(vtype='string'),
+            'work directory': vdr(vtype='string'),
+
+            # Cluster batch system and job file
+            'batch system': vdr(vtype='string'),
+            'job name length maximum': vdr(vtype='integer'),
+            'copyable environment variables': vdr(
+                vtype='string_list', default=[]),
+
+            # Tailer and viewer of job logs while running on batch system
+            'job err tailer': vdr(vtype='string'),
+            'job err viewer': vdr(vtype='string'),
+            'job out tailer': vdr(vtype='string'),
+            'job out viewer': vdr(vtype='string'),
+
+            # Job communication and polling
+            'communication method': vdr(
+                vtype='string', options=["default", "ssh", "poll"]),
+            'submission polling intervals': vdr(vtype='interval_list'),
+            'execution polling intervals': vdr(vtype='interval_list'),
+            'execution time limit polling intervals': vdr(
+                vtype='interval_list'),
+
+            # Job log retrieval
+            'retrieve job logs': vdr(vtype='boolean'),
+            'retrieve job logs command': vdr(vtype='string'),
+            'retrieve job logs max size': vdr(vtype='string'),
+            'retrieve job logs retry delays': vdr(vtype='interval_list'),
+
+            # TODO Job metrics collection
+            # TODO File system sharing with suite host and other clusters
+            # TODO URL to dash board?
+            # TODO Batch system commands and automatic directives
+        },
     },
 
     'test battery': {
