@@ -24,8 +24,9 @@ import threading
 from time import sleep
 import traceback
 
-from cylc.cfgspec.globalcfg import GLOBAL_CFG
 import cylc.flags
+from cylc.cfgspec.globalcfg import GLOBAL_CFG
+from cylc.cfgspec.gcylc import gcfg
 from cylc.graphing import CGraphPlain
 from cylc.gui.warning_dialog import warning_dialog
 from cylc.gui.util import get_id_summary
@@ -77,7 +78,8 @@ class GraphUpdater(threading.Thread):
         self.best_fit = True  # zoom to page size
         self.normal_fit = False  # zoom to 1.0 scale
         self.crop = False
-        self.subgraphs_on = False   # organise by cycle point.
+        # Organise by cycle point.
+        self.subgraphs_on = gcfg.gt(['show subgraphs'])
 
         self.descendants = {}
         self.all_families = []

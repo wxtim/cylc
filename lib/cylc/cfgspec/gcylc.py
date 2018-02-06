@@ -48,6 +48,8 @@ SPEC = {
         options=["small", "medium", "large", "extra large"]),
     'initial side-by-side views': vdr(vtype='boolean', default=False),
     'initial views': vdr(vtype='string_list', default=["text"]),
+    'show cycle point sub-graphs': vdr(
+        vtype='boolean', default=True),
     'maximum update interval': vdr(
         vtype='interval', default=DurationFloat(15)),
     'sort by definition order': vdr(vtype='boolean', default=True),
