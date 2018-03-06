@@ -58,11 +58,13 @@ from cylc.task_id import TaskID
 from cylc.task_job_mgr import TaskJobManager
 from cylc.task_pool import TaskPool
 from cylc.task_proxy import TaskProxy, TaskProxySequenceBoundsError
-from cylc.task_state import TASK_STATUSES_ACTIVE, TASK_STATUS_FAILED
+from cylc.task_state import (
+    TASK_STATUSES_ACTIVE, TASK_STATUSES_NEVER_ACTIVE, TASK_STATUS_FAILED)
 from cylc.templatevars import load_template_vars
 from cylc.version import CYLC_VERSION
 from cylc.wallclock import (
-    get_current_time_string, get_seconds_as_interval_string)
+    get_current_time_string, get_seconds_as_interval_string,
+    get_time_string_from_unix_time as time2str)
 from cylc.profiler import Profiler
 
 
@@ -132,17 +134,15 @@ class Scheduler(object):
         self.config = None
 
         self.is_restart = is_restart
-        if self.is_restart:
-            self.restart_warm_point = None
-        self._cli_initial_point_string = None
-        self._cli_start_point_string = None
+        self.cli_initial_point_string = None
+        self.cli_start_point_string = None
         start_point_str = None
         if len(args) > 1:
             start_point_str = args[1]
         if getattr(self.options, 'warm', None):
-            self._cli_start_point_string = start_point_str
+            self.cli_start_point_string = start_point_str
         else:
-            self._cli_initial_point_string = start_point_str
+            self.cli_initial_point_string = start_point_str
         self.template_vars = load_template_vars(
             self.options.templatevars, self.options.templatevars_file)
 
@@ -315,9 +315,8 @@ conditions; see `cylc conditions`.
             # This logic handles the lack of initial cycle point in "suite.rc".
             # Things that can't change on suite reload.
             pri_dao = self.suite_db_mgr.get_pri_dao()
-            pri_dao.select_suite_params(self._load_initial_cycle_point)
+            pri_dao.select_suite_params(self._load_suite_params_1)
             pri_dao.select_suite_template_vars(self._load_template_vars)
-            pri_dao.select_suite_params(self._load_warm_cycle_point)
             # Take checkpoint and commit immediately so that checkpoint can be
             # copied to the public database.
             pri_dao.take_checkpoints("restart")
@@ -378,15 +377,7 @@ conditions; see `cylc conditions`.
             self.load_tasks_for_run()
         self.profiler.log_memory("scheduler.py: after load_tasks")
 
-        self.suite_db_mgr.put_suite_params(
-            self.run_mode,
-            CYLC_VERSION,
-            str(cylc.flags.utc),
-            self.initial_point,
-            self.final_point,
-            self.pool.is_held,
-            self.config.cfg['cylc']['cycle point format'],
-            self._cli_start_point_string)
+        self.suite_db_mgr.put_suite_params(self)
         self.suite_db_mgr.put_suite_template_vars(self.template_vars)
         self.suite_db_mgr.put_runtime_inheritance(self.config)
         self.configure_suite_environment()
@@ -440,9 +431,9 @@ conditions; see `cylc conditions`.
     def load_tasks_for_restart(self):
         """Load tasks for restart."""
         self.suite_db_mgr.pri_dao.select_suite_params(
-            self._load_suite_params, self.options.checkpoint)
-        if self.restart_warm_point:
-            self.start_point = self.restart_warm_point
+            self._load_suite_params_2, self.options.checkpoint)
+        if self.cli_start_point_string:
+            self.start_point = self.cli_start_point_string
         self.suite_db_mgr.pri_dao.select_broadcast_states(
             self.task_events_mgr.broadcast_mgr.load_db_broadcast_states,
             self.options.checkpoint)
@@ -470,7 +461,7 @@ conditions; see `cylc conditions`.
                 self.proc_pool.process()
         self.command_poll_tasks()
 
-    def _load_suite_params(self, row_idx, row):
+    def _load_suite_params_2(self, row_idx, row):
         """Load previous initial/final cycle point."""
         if row_idx == 0:
             LOG.info("LOADING suite parameters")
@@ -884,14 +875,7 @@ conditions; see `cylc conditions`.
         self.configure_suite_environment()
         if self.options.genref or self.options.reftest:
             self.configure_reftest(recon=True)
-        self.suite_db_mgr.put_suite_params(
-            self.run_mode,
-            CYLC_VERSION,
-            str(cylc.flags.utc),
-            self.initial_point,
-            self.final_point,
-            self.pool.is_held,
-            self.config.cfg['cylc']['cycle point format'])
+        self.suite_db_mgr.put_suite_params(self)
         cylc.flags.iflag = True
 
     def set_suite_timer(self):
@@ -974,8 +958,8 @@ conditions; see `cylc conditions`.
         self.config = SuiteConfig(
             self.suite, self.suiterc, self.template_vars,
             run_mode=self.run_mode,
-            cli_initial_point_string=self._cli_initial_point_string,
-            cli_start_point_string=self._cli_start_point_string,
+            cli_initial_point_string=self.cli_initial_point_string,
+            cli_start_point_string=self.cli_start_point_string,
             cli_final_point_string=self.options.final_point_string,
             is_reload=is_reload,
             mem_log_func=self.profiler.log_memory,
@@ -1024,23 +1008,19 @@ conditions; see `cylc conditions`.
         if self.run_mode != self.config.run_mode:
             self.run_mode = self.config.run_mode
 
-    def _load_initial_cycle_point(self, _, row):
-        """Load previous initial cycle point.
+    def _load_suite_params_1(self, _, row):
+        """Load previous initial cycle point or (warm) start cycle point.
 
-        For restart, it may be missing from "suite.rc", but was specified as a
-        command line argument on cold/warm start.
+        For restart, these may be missing from "suite.rc", but was specified as
+        a command line argument on cold/warm start.
         """
         key, value = row
         if key == "initial_point":
-            self._cli_initial_point_string = value
+            self.cli_initial_point_string = value
             self.task_events_mgr.pflag = True
-
-    def _load_warm_cycle_point(self, _, row):
-        """Load previous warm start point on restart"""
-        key, value = row
-        if key == "warm_point":
-            self._cli_start_point_string = value
-            self.restart_warm_point = value
+        elif key in ["start_point", "warm_point"]:
+            self.cli_start_point_string = value
+            self.task_events_mgr.pflag = True
 
     def _load_template_vars(self, _, row):
         """Load suite start up template variables."""
@@ -1227,6 +1207,22 @@ conditions; see `cylc conditions`.
             # Something has to be very wrong here, so stop the suite
             raise SchedulerError(str(exc))
 
+    def late_tasks_check(self):
+        """Report tasks that are late for their clock triggers."""
+        now = time()
+        for itask in self.pool.get_tasks():
+            if (not itask.is_late and itask.get_late_time() and
+                    itask.state.status in TASK_STATUSES_NEVER_ACTIVE and
+                    now > itask.get_late_time()):
+                msg = '%s (late-time=%s)' % (
+                    self.task_events_mgr.EVENT_LATE,
+                    time2str(itask.get_late_time()))
+                itask.is_late = True
+                LOG.warning(msg, itask=itask)
+                self.task_events_mgr.setup_event_handlers(
+                    itask, self.task_events_mgr.EVENT_LATE, msg)
+                self.suite_db_mgr.put_insert_task_late_flags(itask)
+
     def timeout_check(self):
         """Check suite and task timers."""
         self.check_suite_timer()
@@ -1355,8 +1351,9 @@ conditions; see `cylc conditions`.
 
             # PROCESS ALL TASKS whenever something has changed that might
             # require renegotiation of dependencies, etc.
-            if self.process_tasks():
+            if self.should_process_tasks():
                 self.process_task_pool()
+            self.late_tasks_check()
 
             self.process_queued_task_messages()
             self.process_command_queue()
@@ -1463,22 +1460,13 @@ conditions; see `cylc conditions`.
             if self._get_events_conf(self.EVENT_TIMEOUT):
                 self.set_suite_timer()
 
-    def process_tasks(self):
+    def should_process_tasks(self):
         """Return True if waiting tasks are ready."""
         # do we need to do a pass through the main task processing loop?
         process = False
 
-        # External triggers must be matched now. If any are matched pflag
-        # is set to tell process_tasks() that task processing is required.
-        broadcast_mgr = self.task_events_mgr.broadcast_mgr
-        broadcast_mgr.add_ext_triggers(self.ext_trigger_queue)
-        for itask in self.pool.get_tasks():
-            if (itask.state.external_triggers and
-                    broadcast_mgr.match_ext_trigger(itask)):
-                process = True
-
         if self.task_events_mgr.pflag:
-            # this flag is turned on by commands that change task state
+            # This flag is turned on by commands that change task state
             process = True
             self.task_events_mgr.pflag = False  # reset
 
@@ -1487,10 +1475,18 @@ conditions; see `cylc conditions`.
             process = True
             self.task_job_mgr.task_remote_mgr.ready = False  # reset
 
-        self.pool.set_expired_tasks()
-        if self.pool.waiting_tasks_ready():
-            process = True
-
+        broadcast_mgr = self.task_events_mgr.broadcast_mgr
+        broadcast_mgr.add_ext_triggers(self.ext_trigger_queue)
+        now = time()
+        for itask in self.pool.get_tasks():
+            # External trigger matching and task expiry must be done
+            # regardless, so they need to be in separate "if ..." blocks.
+            if broadcast_mgr.match_ext_trigger(itask):
+                process = True
+            if self.pool.set_expired_task(itask, now):
+                process = True
+            if itask.is_ready(now):
+                process = True
         if self.run_mode == 'simulation' and self.pool.sim_time_check(
                 self.message_queue):
             process = True

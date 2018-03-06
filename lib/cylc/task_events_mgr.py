@@ -81,6 +81,7 @@ class TaskEventsManager(object):
     * Generate and manage task event handlers.
     """
     EVENT_FAILED = TASK_OUTPUT_FAILED
+    EVENT_LATE = "late"
     EVENT_RETRY = "retry"
     EVENT_STARTED = TASK_OUTPUT_STARTED
     EVENT_SUBMITTED = TASK_OUTPUT_SUBMITTED
@@ -177,7 +178,7 @@ class TaskEventsManager(object):
             with open(job_activity_log, "ab") as handle:
                 handle.write(ctx_str + '\n')
         except IOError as exc:
-            LOG.warning("%s: write failed\n%s" % (job_activity_log, exc))
+            LOG.debug("%s: write failed\n%s" % (job_activity_log, exc))
         if ctx.cmd and ctx.ret_code:
             LOG.error(ctx_str)
         elif ctx.cmd:
@@ -828,10 +829,15 @@ class TaskEventsManager(object):
             # Custom event handler can be a command template string
             # or a command that takes 4 arguments (classic interface)
             # Note quote() fails on None, need str(None).
-            user_at_host = itask.summary['job_hosts'][itask.submit_num]
-            if '@' not in user_at_host:
-                # (only has 'user@' on the front if user is not suite owner).
-                user_at_host = '%s@%s' % (get_user(), user_at_host)
+            try:
+                user_at_host = itask.summary['job_hosts'][itask.submit_num]
+            except KeyError:
+                # May not yet be set, e.g. "late" event
+                user_at_host = ''
+            else:
+                if '@' not in user_at_host:
+                    # (only prefix 'user@' if user is not suite owner).
+                    user_at_host = '%s@%s' % (get_user(), user_at_host)
             try:
                 handler_data = {
                     "event": quote(event),
