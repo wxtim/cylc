@@ -42,6 +42,8 @@ NAME='select-suite-params.out'
 sqlite3 "${DB_FILE}" 'SELECT key,value FROM suite_params ORDER BY key' \
     >"${NAME}"
 sed -i "s/$(cylc --version)/<SOME-VERSION>/g" "${NAME}"
+# Remove value as actual time may vary
+sed -i 's/^\(prev_late_time|\).*$/\1/' "${NAME}"
 cmp_ok "${TEST_SOURCE_DIR}/${TEST_NAME_BASE}/${NAME}" "${NAME}"
 
 NAME='select-task-events.out'

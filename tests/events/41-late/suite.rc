@@ -1,0 +1,16 @@
+[cylc]
+    UTC mode = True
+[scheduling]
+    initial cycle point = now
+    [[special tasks]]
+        clock-trigger = t2
+    [[dependencies]]
+        [[[R1]]]
+            graph = t1 => t2
+[runtime]
+    [[t1]]
+        script = sleep 61
+    [[t2]]
+        script = true
+        [[[events]]]
+            late handler = my-handler %(message)s

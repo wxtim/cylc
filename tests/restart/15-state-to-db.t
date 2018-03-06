@@ -57,11 +57,14 @@ run_ok "${TEST_NAME_BASE}-suite_params" \
     'SELECT key,value FROM suite_params ORDER BY key'
 sed -i "s/$(cylc --version)/<SOME-VERSION>/g" \
     "${TEST_NAME_BASE}-suite_params.stdout"
+# Remove value as actual time may vary
+sed -i 's/^\(prev_late_time|\).*$/\1/' "${TEST_NAME_BASE}-suite_params.stdout"
 cmp_ok "${TEST_NAME_BASE}-suite_params.stdout" <<__OUT__
-UTC_mode|True
+UTC_mode|1
 cylc_version|<SOME-VERSION>
 final_point|20050101T0000Z
 initial_point|20000101T0000Z
+prev_late_time|
 run_mode|live
 __OUT__
 run_ok "${TEST_NAME_BASE}-suite_params_checkpoints" \
