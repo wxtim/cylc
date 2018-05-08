@@ -138,7 +138,6 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
                 graph.append(task + 'repeat=%s>' % repeat_no)
 
             # Generate a registration name for this suite.
-            # TODO: Centralise.
             cylc_major_version = version['id'].split('.')[0]
             if int(cylc_major_version) >= 7:
                 suite_reg = os.path.join(reg_base, '${CYLC_TASK_NAME}')
