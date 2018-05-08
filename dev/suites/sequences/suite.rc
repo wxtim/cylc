@@ -12,6 +12,9 @@
     {% set script = 'sleep ' + sleep_time %}
 {% endif %}
 
+[cylc]
+    abort if any task fails = True
+
 [scheduling]
     initial cycle point = 2000
     spawn to max active cycle points = true

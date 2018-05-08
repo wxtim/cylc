@@ -13,6 +13,9 @@
     {% set no_members = 50 %}
 {% endif %}
 
+[cylc]
+    abort if any task fails = True
+
 [scheduling]
     [[dependencies]]
         graph = FAM1:succeed-all => FAM2

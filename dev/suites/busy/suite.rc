@@ -2,6 +2,7 @@
 title = Suite-1000-x3
 description = A suite of 1000 tasks per cycle
 [cylc]
+    abort if any task fails = True
     UTC mode = True # Ignore DST
 [scheduling]
     initial cycle point = 20130101T00

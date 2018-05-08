@@ -20,6 +20,9 @@
     {% set script = 'sleep ' + sleep_time %}
 {% endif %}
 
+[cylc]
+    abort if any task fails = True
+
 [scheduling]
     cycling mode = integer
     initial cycle point = 1
