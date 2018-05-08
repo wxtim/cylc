@@ -72,8 +72,8 @@ def profile(schedule, install_dir, reg_base):
 
     Note:
         This only supports profiling experiment on one platform. Due to the CLI
-        API schedule can only contain keys for one platform meaning this can be
-        negated.
+        API. `schedule` can only contain keys for one platform meaning this can
+        be negated. TODO?
 
     Args:
         schedule (iterable): Collection of (platform, version, experiment,
@@ -87,7 +87,6 @@ def profile(schedule, install_dir, reg_base):
 
     """
     # Registration for profile suites.
-    #reg_base = 'profile-' + str(time.time()).replace('.', '')
     reg = os.path.join(reg_base, 'main-suite')
 
     # Create directory to install the 'main-suite' in.
