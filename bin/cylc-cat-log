@@ -43,8 +43,8 @@ the general command reinvocation options for sites using ssh-based task
 messaging."""
 
 import sys
-from cylc.remote import remrun, remote_cylc_cmd
-if remrun(reveal=True):
+from cylc.remote import remrun, remote_cylc_cmd, get_proc_ancestors
+if remrun():
     sys.exit(0)
 
 import os
@@ -52,7 +52,6 @@ import re
 import shlex
 import signal
 import traceback
-import threading
 from glob import glob
 from time import sleep
 from pipes import quote
@@ -83,50 +82,6 @@ MODES = {
 
 
 BUFSIZE = 1024 * 1024
-
-
-def get_proc_ancestors(pid):
-    """Return list of parent PIDs back to init."""
-    ancestors = []
-    while True:
-        p = Popen(["ps", "-p", str(pid), "-oppid="], stdout=PIPE)
-        ppid = p.communicate()[0].strip()
-        if int(ppid) != 1:
-            pid = ppid
-            ancestors.append(pid)
-        else:
-            return ancestors
-
-
-def suicide():
-    """Kill myself if my process ancestry changes.
-
-    Execute in a thread when tail-follow mode is invoked from another host over
-    ssh. If the ssh connection is shut down at the remote end, this process
-    will be orphaned and needs to suicide (it spawns a tail-follow process that
-    otherwise will not die).
-
-    Note: sshd executes commands with $SHELL -c "<comand> <args>":
-    1) bash-4 execs "<command> <args>" so it becomes the top level process
-    under sshd, so <command> gets inherited by init when ssh dies. In this case
-    suicide by killing my own process group.
-    2) bash-3 and tcsh (and others?) do not exec, so "$SHELL -c ..." remains
-    and gets inherited by init when ssh dies. In this case suicide by killing
-    my parent's process group.
-
-    """
-    pid = os.getpid()
-    ppid = os.getppid()
-    orig_anc = get_proc_ancestors(pid)
-    while True:
-        if os.getppid() != ppid:
-            # case 1)
-            os.killpg(pid, signal.SIGTERM)
-        elif get_proc_ancestors(pid) != orig_anc:
-            # case 2)
-            os.killpg(ppid, signal.SIGTERM)
-        else:
-            sleep(1)
 
 
 def split_user_at_host(user_at_host):
@@ -197,24 +152,19 @@ def view_log(logpath, mode, tailer_tmpl, batchview_cmd=None, remote=False):
             cmd = tailer_tmpl % {"filename": logpath}
         # Ensure that the tail command dies if the parent process dies.
         ppid = os.getppid()
-        if remote:
-            fn = os.setpgrp
-        else:
-            fn = None
-        proc = Popen(
-            shlex.split(cmd), stdin=open(os.devnull), preexec_fn=fn)
-        try:
-            while True:
-                sleep(0.5)
-                if proc.poll() is not None:
-                    break
-                if os.getppid() != ppid:
-                    os.killpg(proc.pid, signal.SIGTERM)
-                    break
-        except KeyboardInterrupt:
-            pass
-        proc.wait()
-        return 0
+        pid = os.getpid()
+        panc = get_proc_ancestors(pid)
+
+        proc = Popen(shlex.split(cmd), stdin=open(os.devnull))
+        while True:
+            sleep(0.5)
+            if proc.poll() is not None:
+                break
+            if get_proc_ancestors(pid) != panc:
+                os.kill(proc.pid, signal.SIGTERM)
+                break
+
+        return proc.wait()
 
 
 def get_option_parser():
@@ -265,11 +215,6 @@ def get_option_parser():
         "--remote-arg",
         help="(for internal use: continue processing on job host)",
         action="append", dest="remote_args")
-
-    parser.add_option(
-        "--by-remrun",
-        help="(for internal use: was invoked by remrun)",
-        action="store_true", default=False, dest="by_remrun")
 
     return parser
 
@@ -356,12 +301,6 @@ def main():
 
     suite_name = args[0]
     mode = MODES[options.mode]
-
-    if options.by_remrun and mode == "tail":
-        # If invoked remotely by ssh, start a watcher thread to kill my
-        # processes if the parent ssh connection gets killed.
-        t = threading.Thread(target=suicide)
-        t.start()
 
     if len(args) == 1:
         # Cat suite logs, local only.
@@ -487,8 +426,8 @@ def main():
                 point, task, options.submit_num, options.filename))
             tail_tmpl = str(glbl_cfg().get_host_item("tail command template"))
             out = view_log(logpath, mode, tail_tmpl, batchview_cmd)
-            if out == 1:
-                sys.exit(1)
+            if mode != 'edit':
+                sys.exit(out)
         if mode == 'edit':
             tmpfile_edit(out, options.geditor)
 
