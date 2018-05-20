@@ -356,6 +356,8 @@ class SuiteRuntimeServiceClient(object):
 
     def call_server_impl(self, url, method, payload):
         """Determine whether to use requests or urllib2 to call suite API."""
+        # TEMPORARY:
+        print ">>> URL:", url, method, payload
         impl = self._call_server_impl_urllib2
         try:
             import requests
@@ -365,7 +367,12 @@ class SuiteRuntimeServiceClient(object):
             if [int(_) for _ in requests.__version__.split(".")] >= [2, 4, 2]:
                 impl = self._call_server_impl_requests
         try:
-            return impl(url, method, payload)
+            # TEMPORARY:
+            # return impl(url, method, payload)
+            import json
+            res = impl(url, method, payload)
+            print json.dumps(res, indent=2)
+            return res
         except ClientConnectError as exc:
             if self.suite is None:
                 raise
@@ -396,6 +403,12 @@ class SuiteRuntimeServiceClient(object):
             session_method = self.session.get
         scheme = url.split(':', 1)[0]  # Can use urlparse?
         username, password, verify = self._get_auth(scheme)
+        # TEMPORARY:
+        # note with anon auth, verify is False: don't need ssl.cert
+        print ">>> username: %s" % username
+        print ">>> password:'%s'" % password
+        print ">>> verify:'%s'" % verify
+        import pudb; pudb.set_trace()
         try:
             ret = session_method(
                 url,

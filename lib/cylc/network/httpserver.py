@@ -740,6 +740,8 @@ class SuiteRuntimeService(object):
         (See the documentation above for the boolean version of this function).
 
         """
+        # TEMPORARY: GIVE FULL ACCESS EVEN WITHOUT PASSPHRASE.
+        return True
         auth_user, prog_name, user, host, uuid = _get_client_info()
         priv_level = self._get_priv_level(auth_user)
         if (PRIVILEGE_LEVELS.index(priv_level) <
