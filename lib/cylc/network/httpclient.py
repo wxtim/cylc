@@ -408,7 +408,6 @@ class SuiteRuntimeServiceClient(object):
         print ">>> username: %s" % username
         print ">>> password:'%s'" % password
         print ">>> verify:'%s'" % verify
-        import pudb; pudb.set_trace()
         try:
             ret = session_method(
                 url,
