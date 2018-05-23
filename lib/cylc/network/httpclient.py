@@ -141,7 +141,7 @@ class SuiteRuntimeServiceClient(object):
 
     def __init__(
             self, suite, owner=None, host=None, port=None, timeout=None,
-            my_uuid=None, print_uuid=False, auth=None):
+            my_uuid=None, print_uuid=False, print_response=False, auth=None):
         self.suite = suite
         if not owner:
             owner = get_user()
@@ -159,6 +159,7 @@ class SuiteRuntimeServiceClient(object):
         self.my_uuid = my_uuid or uuid4()
         if print_uuid:
             sys.stderr.write('%s\n' % self.my_uuid)
+        self.print_response = print_response
 
         self.prog_name = os.path.basename(sys.argv[0])
         self.auth = auth
@@ -365,7 +366,12 @@ class SuiteRuntimeServiceClient(object):
             if [int(_) for _ in requests.__version__.split(".")] >= [2, 4, 2]:
                 impl = self._call_server_impl_requests
         try:
-            return impl(url, method, payload)
+            response = impl(url, method, payload)
+            if self.print_response:
+                import json
+                sys.stderr.write("[URL] %s\n" % url)
+                sys.stderr.write("[RES] %s\n\n" % json.dumps(response, indent=4))
+            return response
         except ClientConnectError as exc:
             if self.suite is None:
                 raise

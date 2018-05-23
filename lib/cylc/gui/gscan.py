@@ -63,10 +63,11 @@ class ScanApp(object):
 
     def __init__(
             self, hosts=None, patterns_name=None, patterns_owner=None,
-            comms_timeout=None, interval=None):
+            comms_timeout=None, print_response=False, interval=None):
         gobject.threads_init()
         set_exception_hook_dialog("cylc gscan")
         setup_icons()
+        self.print_reponse = print_response
 
         self.window = gtk.Window()
         title = "cylc gscan"

@@ -57,7 +57,8 @@ def main():
     pclient = SuiteRuntimeServiceClient(
         suite, options.owner, options.host, options.port,
         options.comms_timeout, my_uuid=options.set_uuid,
-        print_uuid=options.print_uuid, auth=auth)
+        print_uuid=options.print_uuid, auth=auth,
+        print_response=options.print_response)
     if options.no_input:
         kwargs = {}
     else:

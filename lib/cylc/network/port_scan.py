@@ -43,7 +43,7 @@ MSG_TIMEOUT = "TIMEOUT"
 SLEEP_INTERVAL = 0.01
 
 
-def _scan_worker(conn, timeout, my_uuid):
+def _scan_worker(conn, timeout, my_uuid, print_response):
     """Port scan worker."""
     srv_files_mgr = SuiteSrvFilesManager()
     while True:
@@ -53,13 +53,14 @@ def _scan_worker(conn, timeout, my_uuid):
             item = conn.recv()
             if item == MSG_QUIT:
                 break
-            conn.send(_scan_item(timeout, my_uuid, srv_files_mgr, item))
+            conn.send(_scan_item(timeout, my_uuid, print_response,
+                      srv_files_mgr, item))
         except KeyboardInterrupt:
             break
     conn.close()
 
 
-def _scan_item(timeout, my_uuid, srv_files_mgr, item):
+def _scan_item(timeout, my_uuid, print_response, srv_files_mgr, item):
     """Connect to item host:port (item) to get suite identify."""
     host, port = item
     host_anon = host
@@ -67,6 +68,7 @@ def _scan_item(timeout, my_uuid, srv_files_mgr, item):
         host_anon = get_host_ip_by_name(host)  # IP reduces DNS traffic
     client = SuiteRuntimeServiceClient(
         None, host=host_anon, port=port, my_uuid=my_uuid,
+        print_response=print_response,
         timeout=timeout, auth=SuiteRuntimeServiceClient.ANON_AUTH)
     try:
         result = client.identify()
@@ -107,7 +109,7 @@ def _scan_item(timeout, my_uuid, srv_files_mgr, item):
         return (host, port, result)
 
 
-def scan_many(items, timeout=None, updater=None):
+def scan_many(items, timeout=None, print_response=False, updater=None):
     """Call "identify" method of suites on many host:port.
 
     Args:
@@ -204,7 +206,7 @@ def scan_many(items, timeout=None, updater=None):
                 my_conn, conn = Pipe()
                 try:
                     proc = Process(
-                        target=_scan_worker, args=(conn, timeout, my_uuid))
+                        target=_scan_worker, args=(conn, timeout, my_uuid, print_response))
                 except OSError:
                     # Die if unable to start any worker process.
                     # OK to wait and see if any worker process already running.

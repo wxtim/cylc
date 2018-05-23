@@ -68,7 +68,8 @@ def main():
     summary = SuiteRuntimeServiceClient(
         suite, options.owner, options.host, options.port,
         options.comms_timeout, my_uuid=options.set_uuid,
-        print_uuid=options.print_uuid).get_suite_state_summary()
+        print_uuid=options.print_uuid,
+        print_response=options.print_response).get_suite_state_summary()
 
     if options.disp_form == "raw":
         print summary

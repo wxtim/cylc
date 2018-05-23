@@ -36,13 +36,15 @@ class db_updater(threading.Thread):
 
     SCAN_INTERVAL = 60.0
 
-    def __init__(self, regd_treestore, filtr=None, timeout=None):
+    def __init__(self, regd_treestore, filtr=None, timeout=None,
+                 print_response=False):
         self.db = SuiteSrvFilesManager()
         self.quit = False
         if timeout:
             self.timeout = float(timeout)
         else:
             self.timeout = None
+        self.print_response = print_response
 
         self.regd_treestore = regd_treestore
         super(db_updater, self).__init__()
@@ -106,7 +108,8 @@ class db_updater(threading.Thread):
         # Scan for running suites
         choices = []
         for host, port, suite_identity in scan_many(
-                get_scan_items_from_fs(), timeout=self.timeout):
+                get_scan_items_from_fs(), timeout=self.timeout,
+                print_response=self.print_response):
             name = suite_identity[KEY_NAME]
             owner = suite_identity[KEY_OWNER]
             if is_remote_user(owner):
@@ -269,13 +272,13 @@ class db_updater(threading.Thread):
 
 
 class dbchooser(object):
-    def __init__(self, title, parent, tmpdir, timeout):
+    def __init__(self, title, parent, tmpdir, timeout, print_response):
 
         if timeout:
             self.timeout = float(timeout)
         else:
             self.timeout = None
-
+        self.print_response = print_response
         self.chosen = None
 
         self.updater = None
@@ -400,7 +403,8 @@ class dbchooser(object):
     def start_updater(self, filtr=None):
         if self.updater:
             self.updater.quit = True  # does this take effect?
-        self.updater = db_updater(self.regd_treestore, filtr, self.timeout)
+        self.updater = db_updater(self.regd_treestore, filtr, self.timeout,
+                                  self.print_response)
         self.updater.start()
 
     # TODO: a button to do this?

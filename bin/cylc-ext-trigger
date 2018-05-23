@@ -81,7 +81,7 @@ def main():
     pclient = SuiteRuntimeServiceClient(
         suite, options.owner, options.host, options.port,
         options.comms_timeout, my_uuid=options.set_uuid,
-        print_uuid=options.print_uuid)
+        print_uuid=options.print_uuid, print_response=options.print_response)
 
     max_n_tries = int(options.max_n_tries)
     retry_intvl_secs = float(options.retry_intvl_secs)

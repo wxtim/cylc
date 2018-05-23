@@ -87,6 +87,7 @@ def main():
         patterns_name=options.patterns_name,
         patterns_owner=options.patterns_owner,
         comms_timeout=options.comms_timeout,
+        print_response=options.print_response,
         interval=options.interval)
     try:
         gtk.main()

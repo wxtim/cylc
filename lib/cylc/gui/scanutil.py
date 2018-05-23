@@ -563,7 +563,8 @@ def update_suites_info(updater, full_mode=False):
             DEBUG_DELIM, DEBUG_DELIM.join(str(item) for item in items)))
     # Scan
     for host, port, result in scan_many(
-            items, timeout=timeout, updater=updater):
+            items, timeout=timeout, print_response=updater.cfg.print_response,
+            updater=updater):
         if updater.quit:
             return
         if (name_pattern and not name_pattern.match(result[KEY_NAME]) or

@@ -237,7 +237,8 @@ class Updater(threading.Thread):
         if self.client is None:
             self.client = SuiteRuntimeServiceClient(
                 self.cfg.suite, self.cfg.owner, self.cfg.host, self.cfg.port,
-                self.cfg.comms_timeout, self.cfg.my_uuid)
+                self.cfg.comms_timeout, self.cfg.my_uuid,
+                print_response=self.cfg.print_response)
         try:
             my_state = self.client.get_latest_state(full_mode=self.full_mode)
         except ClientError:

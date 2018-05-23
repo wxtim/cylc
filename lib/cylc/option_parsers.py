@@ -189,6 +189,11 @@ Arguments:"""
                 ),
                 action="store", default=None, dest="set_uuid")
 
+            self.add_std_option(
+                "--print-response",
+                help=("Print server URL and JSON response to stderr."),
+                action="store_true", default=False, dest="print_response")
+ 
             if not self.noforce:
                 self.add_std_option(
                     "-f", "--force",

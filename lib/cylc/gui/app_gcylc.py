@@ -131,9 +131,8 @@ class InitData(object):
     """
 Class to hold initialisation data.
     """
-    def __init__(self, suite, owner, host, port,
-                 comms_timeout, template_vars, ungrouped_views,
-                 use_defn_order):
+    def __init__(self, suite, owner, host, port, comms_timeout, print_response,
+                 template_vars, ungrouped_views, use_defn_order):
         self.suite = suite
         self.owner = owner
         self.host = host
@@ -142,6 +141,7 @@ Class to hold initialisation data.
             self.comms_timeout = float(comms_timeout)
         else:
             self.comms_timeout = None
+        self.print_response = print_response
 
         self.template_vars_opts = ""
         for item in template_vars.items():
@@ -511,7 +511,7 @@ Main Control GUI that displays one or more views or interfaces to the suite.
         VIEWS["graph"] = ControlGraph
         VIEWS_ORDERED.append("graph")
 
-    def __init__(self, suite, owner, host, port, comms_timeout,
+    def __init__(self, suite, owner, host, port, comms_timeout, print_response,
                  template_vars, restricted_display):
 
         gobject.threads_init()
@@ -525,8 +525,8 @@ Main Control GUI that displays one or more views or interfaces to the suite.
                 self.__class__.VIEWS_ORDERED.remove('graph')
 
         self.cfg = InitData(
-            suite, owner, host, port, comms_timeout, template_vars,
-            gcfg.get(["ungrouped views"]),
+            suite, owner, host, port, comms_timeout, print_response,
+            template_vars, gcfg.get(["ungrouped views"]),
             gcfg.get(["sort by definition order"]))
 
         self.theme_name = gcfg.get(['use theme'])
@@ -973,7 +973,8 @@ Main Control GUI that displays one or more views or interfaces to the suite.
         else:
             title = "Open Another Suite"
         app = dbchooser(
-            title, self.window, self.cfg.cylc_tmpdir, self.cfg.comms_timeout)
+            title, self.window, self.cfg.cylc_tmpdir, self.cfg.comms_timeout,
+            self.cfg.print_response)
         reg, auth = None, None
         while True:
             response = app.window.run()
