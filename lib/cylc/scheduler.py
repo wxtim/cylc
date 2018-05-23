@@ -226,7 +226,7 @@ class Scheduler(object):
             # Setup the suite log.
             SuiteLog.get_inst(self.suite).pimp(detach)
             self.proc_pool = SuiteProcPool()
-            self.httpserver = HTTPServer(self.suite)
+            self.httpserver = HTTPServer(self.suite, self.options.no_auth)
             self.port = self.httpserver.port
             self.configure()
             self.profiler.start()
@@ -331,7 +331,7 @@ conditions; see `cylc conditions`.
         self.profiler.log_memory("scheduler.py: before load_suiterc")
         self.load_suiterc()
         self.profiler.log_memory("scheduler.py: after load_suiterc")
-        self.httpserver.connect(self)
+        self.httpserver.connect(self, self.options.no_auth)
 
         self.suite_db_mgr.on_suite_start(self.is_restart)
         if self.config.cfg['scheduling']['hold after point']:

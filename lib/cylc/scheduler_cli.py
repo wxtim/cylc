@@ -162,6 +162,13 @@ def parse_commandline(is_restart):
         help="Specify the suite source.",
         metavar="SOURCE", action="store", dest="source")
 
+    parser.add_option(
+        "--no-auth",
+        help="Disable server authentication. WARNING: anyone with access to"
+        " your suite's <server>:<port> will be able to control you suite and"
+        " execute arbitrary code on your account via edit runs.",
+        action="store_true", default=False, dest="no_auth")
+
     options, args = parser.parse_args()
 
     if not is_restart and options.warm and len(args) < 2:

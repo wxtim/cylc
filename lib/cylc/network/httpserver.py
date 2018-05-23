@@ -51,14 +51,18 @@ class HTTPServer(object):
 
     API = 2
     LOG_CONNECT_DENIED_TMPL = "[client-connect] DENIED %s@%s:%s %s"
+    LOG_NO_AUTH_WARNING = "DANGER: AUTHENTICATION DISABLED!"
     RE_MESSAGE_TIME = re.compile(
         r'\A(.+) at (' + RE_DATE_TIME_FORMAT_EXTENDED + r')\Z', re.DOTALL)
 
-    def __init__(self, suite):
+    def __init__(self, suite, no_auth):
         # Suite only needed for back-compat with old clients (see below):
         self.suite = suite
         self.engine = None
         self.port = None
+        self.no_auth = no_auth
+        if no_auth:
+            LOG.warning(self.__class__.LOG_NO_AUTH_WARNING)
 
         # Figure out the ports we are allowed to use.
         base_port = glbl_cfg().get(['communication', 'base port'])
@@ -108,11 +112,11 @@ class HTTPServer(object):
         return str(self.API)
 
     @staticmethod
-    def connect(schd):
+    def connect(schd, no_auth):
         """Mount suite schedular object to the web server."""
-        cherrypy.tree.mount(SuiteRuntimeService(schd), '/')
+        cherrypy.tree.mount(SuiteRuntimeService(schd, no_auth), '/')
         # For back-compat with "scan"
-        cherrypy.tree.mount(SuiteRuntimeService(schd), '/id')
+        cherrypy.tree.mount(SuiteRuntimeService(schd, no_auth), '/id')
 
     @staticmethod
     def disconnect(schd):
@@ -145,13 +149,14 @@ class HTTPServer(object):
 
         cherrypy.config['log.screen'] = None
         key = binascii.hexlify(os.urandom(16))
-        cherrypy.config.update({
-            'tools.auth_digest.on': True,
-            'tools.auth_digest.realm': self.suite,
-            'tools.auth_digest.get_ha1': self.get_ha1,
-            'tools.auth_digest.key': key,
-            'tools.auth_digest.algorithm': self.hash_algorithm
-        })
+        if not self.no_auth:
+            cherrypy.config.update({
+                'tools.auth_digest.on': True,
+                'tools.auth_digest.realm': self.suite,
+                'tools.auth_digest.get_ha1': self.get_ha1,
+                'tools.auth_digest.key': key,
+                'tools.auth_digest.algorithm': self.hash_algorithm
+                })
         cherrypy.tools.connect_log = cherrypy.Tool(
             'on_end_resource', self._report_connection_if_denied)
         cherrypy.config['tools.connect_log.on'] = True
@@ -205,7 +210,7 @@ class SuiteRuntimeService(object):
     LOG_FORGET_TMPL = '[client-forget] %s'
     LOG_CONNECT_ALLOWED_TMPL = "[client-connect] %s@%s:%s privilege='%s' %s"
 
-    def __init__(self, schd):
+    def __init__(self, schd, no_auth):
         self.schd = schd
         # Client sessions, 'time' is time of latest visit.
         # Some methods may store extra info to the client session dict.
@@ -215,6 +220,8 @@ class SuiteRuntimeService(object):
         self._id_start_time = time()
         # Number of client id requests
         self._num_id_requests = 0
+        # Authentication disabled?
+        self.no_auth = no_auth
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -740,6 +747,9 @@ class SuiteRuntimeService(object):
         (See the documentation above for the boolean version of this function).
 
         """
+        if self.no_auth:
+            # Give full access to all clients.
+            return True
         auth_user, prog_name, user, host, uuid = _get_client_info()
         priv_level = self._get_priv_level(auth_user)
         if (PRIVILEGE_LEVELS.index(priv_level) <
