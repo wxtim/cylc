@@ -356,6 +356,7 @@ class SuiteRuntimeServiceClient(object):
 
     def call_server_impl(self, url, method, payload):
         """Determine whether to use requests or urllib2 to call suite API."""
+        print "\nCALLING SERVER API:", url, method, payload
         impl = self._call_server_impl_urllib2
         try:
             import requests
@@ -365,7 +366,11 @@ class SuiteRuntimeServiceClient(object):
             if [int(_) for _ in requests.__version__.split(".")] >= [2, 4, 2]:
                 impl = self._call_server_impl_requests
         try:
-            return impl(url, method, payload)
+            print "\nSERVER API RESPONSE:"
+            response = impl(url, method, payload)
+            import json
+            print json.dumps(response, indent=3)
+            return response
         except ClientConnectError as exc:
             if self.suite is None:
                 raise
