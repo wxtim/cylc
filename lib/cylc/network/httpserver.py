@@ -154,6 +154,22 @@ class HTTPServer(object):
             'tools.auth_digest.key': key,
             'tools.auth_digest.algorithm': self.hash_algorithm
         })
+
+        # The following is required to allow a web app to be served by httpd on
+        # http://localhost/../index.html, with internal queries to
+        # https://suite-host:43xxx/blah. Otherwise Firefox errors:
+        # - Cross-Origin Request Blocked: The Same Origin Policy disallows
+        # - reading the remote resource at https://vagrant:43xxx/blah.
+        # - (Reason: CORS header "Access-Control-Allow-Orlgin" missing).
+        # TODO: ALLOWED ORIGINS SHOULD BE CONFIGURABLE, DEFAULT LOCAL DOMAIN?
+        cherrypy.config.update({
+           'tools.response_headers.on': True,
+           'tools.response_headers.headers': [
+               ('Content-Type', 'application/json'),
+               ('Access-Control-Allow-Origin', '*'),
+               ]
+        })
+
         cherrypy.tools.connect_log = cherrypy.Tool(
             'on_end_resource', self._report_connection_if_denied)
         cherrypy.config['tools.connect_log.on'] = True
