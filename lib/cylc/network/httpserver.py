@@ -145,8 +145,10 @@ class HTTPServer(object):
 
         cherrypy.config['log.screen'] = None
         key = binascii.hexlify(os.urandom(16))
+        # WARNING: DIGEST AUTH OFF
+        # => 'tools.auth_digest.on': False,
         cherrypy.config.update({
-            'tools.auth_digest.on': True,
+            'tools.auth_digest.on': False,
             'tools.auth_digest.realm': self.suite,
             'tools.auth_digest.get_ha1': self.get_ha1,
             'tools.auth_digest.key': key,
@@ -740,6 +742,9 @@ class SuiteRuntimeService(object):
         (See the documentation above for the boolean version of this function).
 
         """
+        # WARNING: DIGEST AUTH OFF
+        # => GIVE ALL USERS FULL PRIVELEGES
+        return True
         auth_user, prog_name, user, host, uuid = _get_client_info()
         priv_level = self._get_priv_level(auth_user)
         if (PRIVILEGE_LEVELS.index(priv_level) <
