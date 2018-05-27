@@ -994,6 +994,7 @@ class SuiteConfig(object):
                 if name not in self.runtime['first-parent descendants'][p]:
                     self.runtime['first-parent descendants'][p].append(name)
 
+        # First-parent children (i.e. next generation only).
         for par, descs in self.runtime['first-parent descendants'].items():
             self.runtime['first-parent children'][par] = []
             for desc in descs:
@@ -1010,10 +1011,7 @@ class SuiteConfig(object):
             children = fpc[parent]
             tree['children'] = []
             for child in children:
-                #if child in fpc:
                 tree['children'].append(self.build_tree({}, child))
-                #else:
-                #    tree['children'].append(child)
         return tree
 
     def compute_inheritance(self, use_simple_method=True):

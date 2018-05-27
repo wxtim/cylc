@@ -352,6 +352,13 @@ class SuiteRuntimeService(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
+    def get_task_states_tree(self):
+        """Return the tree structure of task states."""
+        self._check_access_priv_and_report(PRIV_FULL_READ)
+        return self.schd.info_get_task_states_tree()
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
     def get_task_info(self, names):
         """Return info of a task."""
         self._check_access_priv_and_report(PRIV_FULL_READ)

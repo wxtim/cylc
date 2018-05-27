@@ -651,6 +651,10 @@ conditions; see `cylc conditions`.
         """Return the global, task, and family summary data structures."""
         return self.state_summary_mgr.get_state_summary()
 
+    def info_get_task_states_tree(self):
+        """Return the global, task, and family summary data structures."""
+        return self.state_summary_mgr.get_task_states_tree()
+
     def info_get_task_info(self, names):
         """Return info of a task."""
         results = {}

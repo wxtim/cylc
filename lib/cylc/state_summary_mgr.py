@@ -158,12 +158,43 @@ class StateSummaryMgr(object):
         else:
             global_summary['status_string'] = SUITE_STATUS_RUNNING
 
+        from copy import deepcopy
+        family_tree = {}
+        family_tree['name'] = 'suite'
+        family_tree['children'] = []
+        live_cycle_points = task_states.keys()
+        # TODO - update existing structure in-place for efficiency?
+        for cp in live_cycle_points:
+            tree = deepcopy(schd.config.family_tree)
+            self.update_tree(cp, tree, task_states[cp])
+            family_tree['children'].append(
+                {
+                    'name': cp,
+                    'children': tree['children']
+                }
+            )
+        #import json
+        #print
+        #print json.dumps(family_tree, indent=3)
+
         # Replace the originals (atomic update, for access from other threads).
+        self.family_tree = family_tree
         self.task_summary = task_summary
         self.global_summary = global_summary
         self.family_summary = family_summary
         self.state_count_totals = state_count_totals
         self.state_count_cycles = state_count_cycles
+
+    def update_tree(self, cycle_point, tree, task_states):
+        for child in tree['children']:
+            child_name = child['name']
+            if 'children' in child:
+                child['state'] = 'FAMILY'
+                self.update_tree(cycle_point, child, task_states)
+            elif child_name in task_states:
+                child['state'] = task_states[child_name]
+            else:
+                child['state'] = 'ghost'
 
     @staticmethod
     def _get_tasks_info(schd):
@@ -188,6 +219,9 @@ class StateSummaryMgr(object):
             task_states[point_string][name] = ts['state']
 
         return task_summary, task_states
+
+    def get_task_states_tree(self):
+        return self.family_tree
 
     def get_state_summary(self):
         """Return the global, task, and family summary data structures."""
