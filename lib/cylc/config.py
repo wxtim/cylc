@@ -146,6 +146,8 @@ class SuiteConfig(object):
             # hierarchy (first parents are collapsible in suite
             # visualization)
             'first-parent descendants': {},
+            # First generation descendants.
+            'first-parent children': {},
         }
         # tasks
         self.leaves = []
@@ -991,6 +993,28 @@ class SuiteConfig(object):
                     self.runtime['first-parent descendants'][p] = []
                 if name not in self.runtime['first-parent descendants'][p]:
                     self.runtime['first-parent descendants'][p].append(name)
+
+        for par, descs in self.runtime['first-parent descendants'].items():
+            self.runtime['first-parent children'][par] = []
+            for desc in descs:
+                if self.runtime['first-parent ancestors'][desc][1] == par:
+                    self.runtime['first-parent children'][par].append(desc)
+
+        # Nested tree hierarchy.
+        self.family_tree = self.build_tree({}, 'root')
+
+    def build_tree(self, tree, parent):
+        tree['name'] = parent
+        fpc = self.runtime['first-parent children']
+        if parent in fpc:
+            children = fpc[parent]
+            tree['children'] = []
+            for child in children:
+                #if child in fpc:
+                tree['children'].append(self.build_tree({}, child))
+                #else:
+                #    tree['children'].append(child)
+        return tree
 
     def compute_inheritance(self, use_simple_method=True):
         if cylc.flags.verbose:
