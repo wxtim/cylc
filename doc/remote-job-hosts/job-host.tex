@@ -109,6 +109,8 @@ morekeywords={shell$},
 \begin{document}
 \maketitle
 
+[v1.1 - minor introductory text changes]
+
 \section{Introduction}
 
 Managing tasks in a workflow requires more than just job execution: cylc
@@ -116,15 +118,16 @@ performs additional actions with \lstinline=rsync= for file transfer, and
 direct execution of \lstinline=cylc= sub-commands over non-interactive
 SSH.\footnote{Cylc used to run bare shell expressions over SSH, which required
 a bash shell and made whitelisting difficult.}
-Security-conscious sites may want to restrict access to job hosts, however,
-with SSH connections whitelisted to allow only \lstinline=rsync= for file
-transfer, and a local batch system that sees the job host.\footnote{A malicious
-script could be \lstinline=rsync='d and executed from a batch job, but batch
-jobs are considered easier to audit.}
 
-This document details cylc remote job management, and considers the feasibility
-of doing it without SSH when there is a local batch system that sees the job
-hosts.
+Some sites may want to restrict access to job hosts by whitelisting SSH
+connections to allow only \lstinline=rsync= for file transfer, and providing a
+local batch system that sees the job hosts.\footnote{A malicious script could
+be \lstinline=rsync='d and executed from a batch job, but batch jobs are
+considered easier to audit.}
+
+This document describes cylc remote job management requirements, and considers
+the feasibility of doing it without SSH when there is a local batch system that
+sees the job hosts.
 
 \section{Executive Summary}
 
