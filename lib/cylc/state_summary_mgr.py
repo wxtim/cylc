@@ -18,6 +18,7 @@
 """Manage suite state summary for client, e.g. GUI."""
 
 from time import time
+from copy import deepcopy
 
 import cylc.flags
 from cylc.task_id import TaskID
@@ -158,7 +159,6 @@ class StateSummaryMgr(object):
         else:
             global_summary['status_string'] = SUITE_STATUS_RUNNING
 
-        from copy import deepcopy
         family_tree = {}
         family_tree['name'] = 'suite'
         family_tree['children'] = []
@@ -175,7 +175,7 @@ class StateSummaryMgr(object):
             )
         #import json
         #print
-        #print json.dumps(family_tree, indent=3)
+        #print json.dumps(task_summary, indent=3)
 
         # Replace the originals (atomic update, for access from other threads).
         self.family_tree = family_tree
@@ -193,8 +193,14 @@ class StateSummaryMgr(object):
                 self.update_tree(cycle_point, child, task_states)
             elif child_name in task_states:
                 child['state'] = task_states[child_name]
+                task_id = child_name + "." + cycle_point
+                try:
+                    child['batch_sys'] = self.task_summary[task_id]['batch_sys_name']
+                except KeyError:
+                    child['batch_sys'] = 'none'
             else:
                 child['state'] = 'ghost'
+                child['batch_sys'] = 'none'
 
     @staticmethod
     def _get_tasks_info(schd):
