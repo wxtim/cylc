@@ -131,6 +131,8 @@ class SuiteConfig(object):
         self.custom_runahead_limit = None
         self.max_num_active_cycle_points = None
 
+        # TODO - do we need all of the following structures??
+        # TODO - why are there 2ndary families in first-parent structures?
         # runtime hierarchy dicts keyed by namespace name:
         self.runtime = {
             # lists of parent namespaces
@@ -1007,10 +1009,15 @@ class SuiteConfig(object):
     def build_tree(self, tree, parent):
         tree['name'] = parent
         fpc = self.runtime['first-parent children']
+        des = self.runtime['descendants']
         if parent in fpc:
             children = fpc[parent]
             tree['children'] = []
             for child in children:
+                if child not in fpc and child in des:
+                    # This child is a parent, but not a first-parent.
+                    # (child in des: tasks have no descendants).
+                    continue
                 tree['children'].append(self.build_tree({}, child))
         return tree
 
@@ -1077,11 +1084,10 @@ class SuiteConfig(object):
 
     # def print_inheritance(self):
     #     # (use for debugging)
-    #     for foo in self.runtime:
-    #         log_msg = '\t' + foo
-    #         for item, val in self.runtime[foo].items():
-    #             log_msg += '\t\t' + item + '\t' + val
-    #         OUT.info(log_msg)
+    #     import json
+    #     for key, val in self.runtime.items():
+    #         print '\n', key
+    #         print json.dumps(val, indent=3)
 
     def compute_runahead_limits(self):
         """Extract the runahead limits information."""

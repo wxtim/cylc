@@ -163,19 +163,20 @@ class StateSummaryMgr(object):
         family_tree['name'] = 'suite'
         family_tree['children'] = []
         live_cycle_points = task_states.keys()
-        # TODO - update existing structure in-place for efficiency?
         for cp in live_cycle_points:
             tree = deepcopy(schd.config.family_tree)
-            self.update_tree(cp, tree, task_states[cp])
+            self.update_tree(cp, tree, task_states[cp], task_summary,
+                             family_summary)
             family_tree['children'].append(
                 {
                     'name': cp,
+                    'state': 'ghost',
                     'children': tree['children']
                 }
             )
         #import json
         #print
-        #print json.dumps(task_summary, indent=3)
+        #print json.dumps(family_tree, indent=3)
 
         # Replace the originals (atomic update, for access from other threads).
         self.family_tree = family_tree
@@ -185,22 +186,29 @@ class StateSummaryMgr(object):
         self.state_count_totals = state_count_totals
         self.state_count_cycles = state_count_cycles
 
-    def update_tree(self, cycle_point, tree, task_states):
+    def update_tree(self, cycle_point, tree, task_states, task_summary,
+                    family_summary):
         for child in tree['children']:
             child_name = child['name']
+            c_id = child_name + "." + cycle_point
             if 'children' in child:
-                child['state'] = 'FAMILY'
-                self.update_tree(cycle_point, child, task_states)
-            elif child_name in task_states:
-                child['state'] = task_states[child_name]
-                task_id = child_name + "." + cycle_point
+                # Family.
                 try:
-                    child['batch_sys'] = self.task_summary[task_id]['batch_sys_name']
+                    child['state'] = family_summary[c_id]['state']
                 except KeyError:
-                    child['batch_sys'] = 'none'
+                    child['state'] = 'ghost'
+                self.update_tree(cycle_point, child, task_states, task_summary,
+                                 family_summary)
+            elif child_name in task_states:
+                # Task.
+                child['state'] = task_states[child_name]
+                try:
+                    child['children'] = task_summary[c_id].items()
+                except KeyError:
+                    pass
             else:
+                # Ghost.
                 child['state'] = 'ghost'
-                child['batch_sys'] = 'none'
 
     @staticmethod
     def _get_tasks_info(schd):
