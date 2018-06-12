@@ -208,7 +208,7 @@ class SuiteConfig(object):
                 if just_has_async_graph:
                     # There aren't any other graphs, so set integer cycling.
                     self.cfg['scheduling']['cycling mode'] = (
-                        INTEGER_CYCLING_TYPE
+                        Cycler.INTEGER_CYCLING_TYPE
                     )
                     if 'initial cycle point' not in self.cfg['scheduling']:
                         self.cfg['scheduling']['initial cycle point'] = "1"
