@@ -464,6 +464,7 @@ class ExclusionBase(object):
 
 from isodatetime.data import Calendar
 
+
 class Cycler(object):
 
     cycling_mode = None

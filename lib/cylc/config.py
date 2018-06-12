@@ -1924,7 +1924,7 @@ class SuiteConfig(object):
         # Move a cylc-5 non-cycling graph to an R1 section.
         non_cycling_graph = self.cfg['scheduling']['dependencies']['graph']
         if non_cycling_graph:
-            section = Cycler.get_sequence_cls().get_async_expr()
+            section = Cycler.sequence_cls.get_async_expr()
             self.cfg['scheduling']['dependencies'][section] = (
                 OrderedDictWithDefaults())
             self.cfg['scheduling']['dependencies'][section]['graph'] = (
