@@ -39,7 +39,7 @@ from time import sleep
 
 from cylc.cfgspec.glbl_cfg import glbl_cfg
 from cylc.config import SuiteConfig
-from cylc.cycling.loader import get_point
+from cylc.cycling import Cycler
 import cylc.flags
 from cylc.mp_pool import SuiteProcPool
 from cylc.option_parsers import CylcOptionParser as COP
@@ -97,7 +97,8 @@ def main():
             sys.exit("No task found for %s" % arg)
         for taskdef in taskdefs:
             itasks.append(TaskProxy(
-                taskdef, get_point(point_str).standardise(), is_startup=True))
+                taskdef, Cycler.get_point(point_str).standardise(),
+                                          is_startup=True))
 
     # Initialise job submit environment
     glbl_cfg().create_cylc_run_tree(suite)

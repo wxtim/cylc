@@ -21,7 +21,7 @@
 import math
 
 from cylc.conditional_simplifier import ConditionalSimplifier
-from cylc.cycling.loader import get_point
+from cylc.cycling import Cycler
 from cylc.suite_logging import ERR
 
 
@@ -136,7 +136,7 @@ class Prerequisite(object):
                 continue
             if self.start_point:
                 if message[1]:  # Cycle point.
-                    if (get_point(message[1]) < self.start_point and
+                    if (Cycler.get_point(message[1]) < self.start_point and
                             self.point >= self.start_point):
                         # Drop if outside of relevant point range.
                         drop_these.append(message)
@@ -265,7 +265,7 @@ class Prerequisite(object):
     def get_target_points(self):
         """Return a list of cycle points target by each prerequisite,
         including each component of conditionals."""
-        return [get_point(p) for p in self.target_point_strings]
+        return [Cycler.get_point(p) for p in self.target_point_strings]
 
     def get_resolved_dependencies(self):
         """Return a list of satisfied dependencies.

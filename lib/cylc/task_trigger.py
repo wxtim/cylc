@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cylc.cycling.loader import get_point_relative
+from cylc.cycling import Cycler
 from cylc.prerequisite import Prerequisite
 from cylc.task_outputs import (
     TASK_OUTPUT_EXPIRED, TASK_OUTPUT_SUBMITTED, TASK_OUTPUT_SUBMIT_FAILED,
@@ -84,7 +84,7 @@ class TaskTrigger(object):
         if self.abs_cycle_point:
             point = self.abs_cycle_point
         elif self.cycle_point_offset:
-            point = get_point_relative(
+            point = Cycler.get_point_relative(
                 self.cycle_point_offset, point)
         return point
 
@@ -153,7 +153,7 @@ class Dependency(object):
             if task_trigger.cycle_point_offset is not None:
                 # Inter-cycle trigger - compute the trigger's cycle point from
                 # its offset.
-                prereq_offset_point = get_point_relative(
+                prereq_offset_point = Cycler.get_point_relative(
                     task_trigger.cycle_point_offset, point)
                 if prereq_offset_point > point:
                     # Update tdef.max_future_prereq_offset.

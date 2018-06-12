@@ -24,8 +24,7 @@ from cylc.broadcast_report import (
     CHANGE_FMT, CHANGE_PREFIX_SET,
     get_broadcast_change_report,
     get_broadcast_bad_options_report)
-from cylc.cycling import PointParsingError
-from cylc.cycling.loader import get_point, standardise_point_string
+from cylc.cycling import PointParsingError, Cycler
 from cylc.suite_logging import LOG
 from cylc.task_id import TaskID
 
@@ -117,12 +116,12 @@ class BroadcastMgr(object):
         point_strings = []
         cutoff_point = None
         if cutoff is not None:
-            cutoff_point = get_point(str(cutoff))
+            cutoff_point = Cycler.get_point(str(cutoff))
         with self.lock:
             for point_string in self.broadcasts:
                 if cutoff_point is None or (
                         point_string not in self.ALL_CYCLE_POINTS_STRS and
-                        get_point(point_string) < cutoff_point):
+                        Cycler.get_point(point_string) < cutoff_point):
                     point_strings.append(point_string)
         if not point_strings:
             return (None, {"expire": [cutoff]})
@@ -224,7 +223,8 @@ class BroadcastMgr(object):
                     # Standardise the point and check its validity.
                     bad_point = False
                     try:
-                        point_string = standardise_point_string(point_string)
+                        point_string = Cycler.standardise_point_string(
+                            point_string)
                     except PointParsingError:
                         if point_string != '*':
                             bad_point_strings.append(point_string)

@@ -33,8 +33,8 @@ from parsec.util import printcfg
 
 from cylc.cfgspec.glbl_cfg import glbl_cfg
 from cylc.config import SuiteConfig
-from cylc.cycling import PointParsingError
-from cylc.cycling.loader import get_point, standardise_point_string
+from cylc.cycling import PointParsingError, Cycler
+#from cylc.cycling.loader import Cycler.get_point, Cycler.standardise_point_string
 from cylc.daemonize import daemonize
 from cylc.exceptions import CylcError
 import cylc.flags
@@ -335,11 +335,11 @@ conditions; see `cylc conditions`.
 
         self.suite_db_mgr.on_suite_start(self.is_restart)
         if self.config.cfg['scheduling']['hold after point']:
-            self.pool_hold_point = get_point(
+            self.pool_hold_point = Cycler.get_point(
                 self.config.cfg['scheduling']['hold after point'])
 
         if self.options.hold_point_string:
-            self.pool_hold_point = get_point(
+            self.pool_hold_point = Cycler.get_point(
                 self.options.hold_point_string)
 
         if self.pool_hold_point:
@@ -484,7 +484,7 @@ conditions; see `cylc conditions`.
                 continue
             # the suite_params table prescribes a start/stop cycle
             # (else we take whatever the suite.rc file gives us)
-            point = get_point(value)
+            point = Cycler.get_point(value)
             my_point = getattr(self, self_attr)
             if getattr(self.options, option_ignore_attr):
                 # ignore it and take whatever the suite.rc file gives us
@@ -620,7 +620,7 @@ conditions; see `cylc conditions`.
         Used to process incoming command arguments.
         """
         try:
-            point_string = standardise_point_string(point_string)
+            point_string = Cycler.standardise_point_string(point_string)
         except PointParsingError as exc:
             # (This is only needed to raise a clearer error message).
             raise ValueError(
@@ -629,7 +629,7 @@ conditions; see `cylc conditions`.
 
     def get_standardised_point(self, point_string):
         """Return a standardised point."""
-        return get_point(self.get_standardised_point_string(point_string))
+        return Cycler.get_point(self.get_standardised_point_string(point_string))
 
     def get_standardised_taskid(self, task_id):
         """Return task ID with standardised cycle point."""
@@ -1022,7 +1022,7 @@ conditions; see `cylc conditions`.
         # self.config already alters the 'initial cycle point' for CLI.
         self.initial_point = self.config.initial_point
         self.start_point = self.config.start_point
-        self.final_point = get_point(
+        self.final_point = Cycler.get_point(
             self.options.final_point_string or
             self.config.cfg['scheduling']['final cycle point']
         )
@@ -1123,10 +1123,10 @@ conditions; see `cylc conditions`.
                 'abort if shutdown handler fails'] = True
             if not recon:
                 spec = LogSpec(os.path.join(self.config.fdir, 'reference.log'))
-                self.initial_point = get_point(spec.get_initial_point_string())
-                self.start_point = get_point(
+                self.initial_point = Cycler.get_point(spec.get_initial_point_string())
+                self.start_point = Cycler.get_point(
                     spec.get_start_point_string()) or self.initial_point
-                self.final_point = get_point(spec.get_final_point_string())
+                self.final_point = Cycler.get_point(spec.get_final_point_string())
             self.ref_test_allowed_failures = rtc['expected task failures']
             if (not rtc['allow task failures'] and
                     not self.ref_test_allowed_failures):
@@ -1598,7 +1598,7 @@ conditions; see `cylc conditions`.
 
     def set_stop_point(self, stop_point_string):
         """Set stop point."""
-        stop_point = get_point(stop_point_string)
+        stop_point = Cycler.get_point(stop_point_string)
         self.stop_point = stop_point
         LOG.info("Setting stop cycle point: %s" % stop_point_string)
         self.pool.set_stop_point(self.stop_point)

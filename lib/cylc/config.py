@@ -34,11 +34,7 @@ from cylc.exceptions import CylcError
 from cylc.graph_parser import GraphParser
 from cylc.param_expand import NameExpander
 from cylc.cfgspec.suite import RawSuiteConfig
-from cylc.cycling.loader import (
-    get_point, get_point_relative, get_interval, get_interval_cls,
-    get_sequence, get_sequence_cls, init_cyclers, INTEGER_CYCLING_TYPE,
-    ISO8601_CYCLING_TYPE)
-from cylc.cycling import IntervalParsingError
+from cylc.cycling import Cycler, IntervalParsingError
 from cylc.envvar import check_varnames
 import cylc.flags
 from cylc.graphnode import GraphNodeParser, GraphNodeError
@@ -311,7 +307,7 @@ class SuiteConfig(object):
         self.mem_log("config.py: after get(sparse=False)")
 
         # after the call to init_cyclers, we can start getting proper points.
-        init_cyclers(self.cfg)
+        Cycler.load(self.cfg)
 
         # Running in UTC time? (else just use the system clock)
         cylc.flags.utc = self.cfg['cylc']['UTC mode']
@@ -325,13 +321,13 @@ class SuiteConfig(object):
                 "This suite requires an initial cycle point.")
         if icp == "now":
             icp = get_current_time_string()
-        self.initial_point = get_point(icp).standardise()
+        self.initial_point = Cycler.get_point(icp).standardise()
         self.cfg['scheduling']['initial cycle point'] = str(self.initial_point)
         if cli_start_point_string:
             # Warm start from a point later than initial point.
             if cli_start_point_string == "now":
                 cli_start_point_string = get_current_time_string()
-            cli_start_point = get_point(cli_start_point_string).standardise()
+            cli_start_point = Cycler.get_point(cli_start_point_string).standardise()
             self.start_point = cli_start_point
         else:
             # Cold start.
@@ -342,7 +338,7 @@ class SuiteConfig(object):
             valid_icp = False
             for entry in (
                     self.cfg['scheduling']['initial cycle point constraints']):
-                possible_pt = get_point_relative(
+                possible_pt = Cycler.get_point_relative(
                     entry, self.initial_point
                 ).standardise()
                 if self.initial_point == possible_pt:
@@ -367,24 +363,24 @@ class SuiteConfig(object):
         final_point = None
         if final_point_string is not None:
             # Is the final "point"(/interval) relative to initial?
-            if get_interval_cls().get_null().TYPE == INTEGER_CYCLING_TYPE:
+            if Cycler.cycling_mode == Cycler.INTEGER_CYCLING_TYPE:
                 if "P" in final_point_string:
                     # Relative, integer cycling.
-                    final_point = get_point_relative(
+                    final_point = Cycler.get_point_relative(
                         self.cfg['scheduling']['final cycle point'],
                         self.initial_point
                     ).standardise()
             else:
                 try:
                     # Relative, ISO8601 cycling.
-                    final_point = get_point_relative(
+                    final_point = Cycler.get_point_relative(
                         final_point_string, self.initial_point).standardise()
                 except ValueError:
                     # (not relative)
                     pass
             if final_point is None:
                 # Must be absolute.
-                final_point = get_point(final_point_string).standardise()
+                final_point = Cycler.get_point(final_point_string).standardise()
             self.cfg['scheduling']['final cycle point'] = str(final_point)
 
         if final_point is not None and self.initial_point > final_point:
@@ -399,7 +395,7 @@ class SuiteConfig(object):
             valid_fcp = False
             for entry in (
                     self.cfg['scheduling']['final cycle point constraints']):
-                possible_pt = get_point_relative(
+                possible_pt = Cycler.get_point_relative(
                     entry, final_point).standardise()
                 if final_point == possible_pt:
                     valid_fcp = True
@@ -451,7 +447,7 @@ class SuiteConfig(object):
                                     s_type, item))
                     try:
                         offset_interval = (
-                            get_interval(offset_string).standardise())
+                            Cycler.get_interval(offset_string).standardise())
                     except IntervalParsingError:
                         raise SuiteConfigError(
                             "ERROR: Illegal %s spec: %s" % (
@@ -663,11 +659,11 @@ class SuiteConfig(object):
         vfcp = self.cfg['visualization']['final cycle point']
         if vfcp:
             try:
-                vfcp = get_point_relative(
+                vfcp = Cycler.get_point_relative(
                     self.cfg['visualization']['final cycle point'],
                     self.initial_point).standardise()
             except ValueError:
-                vfcp = get_point(
+                vfcp = Cycler.get_point(
                     self.cfg['visualization']['final cycle point']
                 ).standardise()
         else:
@@ -1074,12 +1070,12 @@ class SuiteConfig(object):
 
         limit = self.cfg['scheduling']['runahead limit']
         if (limit is not None and limit.isdigit() and
-                get_interval_cls().get_null().TYPE == ISO8601_CYCLING_TYPE):
+                Cycler.cycling_mode == Cycler.ISO8601_CYCLING_TYPE):
             # Backwards-compatibility for raw number of hours.
             limit = "PT%sH" % limit
 
         # The custom runahead limit is None if not user-configured.
-        self.custom_runahead_limit = get_interval(limit)
+        self.custom_runahead_limit = Cycler.get_interval(limit)
 
     def get_custom_runahead_limit(self):
         """Return the custom runahead limit (may be None)."""
@@ -1282,7 +1278,7 @@ class SuiteConfig(object):
             else:
                 # (And [] for "fail no points".)
                 for point_str in f_pts_orig:
-                    f_pts.append(get_point(point_str).standardise())
+                    f_pts.append(Cycler.get_point(point_str).standardise())
             rtc['simulation']['fail cycle points'] = f_pts
 
     def get_parent_lists(self):
@@ -1595,7 +1591,8 @@ class SuiteConfig(object):
             abs_cycle_point = None
             cycle_point_offset = None
             if offset_is_from_icp:
-                first_point = get_point_relative(offset, self.initial_point)
+                first_point = Cycler.get_point_relative(offset,
+                                                        self.initial_point)
                 last_point = seq.get_stop_point()
                 abs_cycle_point = first_point
                 if last_point is None:
@@ -1741,16 +1738,16 @@ class SuiteConfig(object):
             return self._last_graph_raw_edges
 
         # Now define the concrete graph edges (pairs of nodes) for plotting.
-        start_point = get_point(start_point_string)
+        start_point = Cycler.get_point(start_point_string)
         actual_first_point = self.get_actual_first_point(start_point)
 
-        suite_final_point = get_point(
+        suite_final_point = Cycler.get_point(
             self.cfg['scheduling']['final cycle point'])
 
         # For the computed stop point, we store n_points of each sequence,
         # and then cull later to the first n_points over all sequences.
         if stop_point_string is not None:
-            stop_point = get_point(stop_point_string)
+            stop_point = Cycler.get_point(stop_point_string)
         else:
             stop_point = None
 
@@ -1800,7 +1797,8 @@ class SuiteConfig(object):
                         try:
                             l_point = cache[offset]
                         except KeyError:
-                            l_point = get_point_relative(offset, rel_point)
+                            l_point = Cycler.get_point_relative(offset,
+                                                                rel_point)
                             cache[offset] = l_point
                     else:
                         l_point = point
@@ -1855,13 +1853,14 @@ class SuiteConfig(object):
             vfcp = self.cfg['visualization']['final cycle point']
             if vfcp:
                 try:
-                    stop_point = get_point_relative(
-                        vfcp, get_point(start_point_string)).standardise()
+                    stop_point = Cycler.get_point_relative(
+                        vfcp, Cycler.get_point(start_point_string)
+                    ).standardise()
                 except ValueError:
-                    stop_point = get_point(vfcp).standardise()
+                    stop_point = Cycler.get_point(vfcp).standardise()
 
         if stop_point is not None:
-            if stop_point < get_point(start_point_string):
+            if stop_point < Cycler.get_point(start_point_string):
                 # Avoid a null graph.
                 stop_point_string = start_point_string
             else:
@@ -1925,7 +1924,7 @@ class SuiteConfig(object):
         # Move a cylc-5 non-cycling graph to an R1 section.
         non_cycling_graph = self.cfg['scheduling']['dependencies']['graph']
         if non_cycling_graph:
-            section = get_sequence_cls().get_async_expr()
+            section = Cycler.get_sequence_cls().get_async_expr()
             self.cfg['scheduling']['dependencies'][section] = (
                 OrderedDictWithDefaults())
             self.cfg['scheduling']['dependencies'][section]['graph'] = (
@@ -1964,7 +1963,7 @@ class SuiteConfig(object):
         task_triggers = {}
         for section, graph in sections:
             try:
-                seq = get_sequence(section, icp, fcp)
+                seq = Cycler.get_sequence(section, icp, fcp)
             except (AttributeError, TypeError, ValueError, CylcError) as exc:
                 if cylc.flags.debug:
                     traceback.print_exc()

@@ -28,7 +28,7 @@ import sys
 import xdot
 
 from cylc.config import SuiteConfig
-from cylc.cycling.loader import get_point
+from cylc.cycling import Cycler
 from cylc.graphing import CGraphPlain, CGraph
 from cylc.gui import util
 from cylc.task_id import TaskID
@@ -403,7 +403,7 @@ class MyDotWindow(CylcDotViewerCommon):
                 if cache[sequence][p_str]:
                     return False
             else:
-                temp = sequence.is_on_sequence(get_point(point))
+                temp = sequence.is_on_sequence(Cycler.get_point(point))
                 if cache is not None:
                     cache.setdefault(sequence, {})[p_str] = temp
                 if temp:

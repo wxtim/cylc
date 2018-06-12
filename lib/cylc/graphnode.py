@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Provide graph node parsing and caching service"""
 
-from cylc.cycling.loader import get_interval, get_interval_cls
+from cylc.cycling import Cycler
 from cylc.task_id import TaskID
 import re
 
@@ -80,9 +80,9 @@ class GraphNodeParser(object):
         """Return and cache the standardised offset string."""
         if offset not in self._offsets:
             if offset:
-                res = get_interval(offset).standardise()
+                res = Cycler.get_interval(offset).standardise()
             else:
-                res = get_interval_cls().get_null_offset()
+                res = Cycler.interval_cls.get_null_offset()
             self._offsets[offset] = str(res)
         return self._offsets[offset]
 

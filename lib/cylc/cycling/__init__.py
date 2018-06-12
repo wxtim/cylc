@@ -462,6 +462,89 @@ class ExclusionBase(object):
         return ret
 
 
+from isodatetime.data import Calendar
+
+class Cycler(object):
+
+    cycling_mode = None
+    point_relative_fcn = None
+    offset_absolute_fcn = None
+    point_cls = None
+    interval_cls = None
+    sequence_cls = None
+
+    ISO8601_CYCLING_TYPE = 'iso8601'
+    INTEGER_CYCLING_TYPE = 'integer'
+
+    @classmethod
+    def load(cls, cfg):
+        cycling_mode = cfg['scheduling']['cycling mode']
+
+        if cycling_mode in Calendar.MODES:
+            from cylc.cycling.iso8601 import (
+                get_point_relative,
+                is_offset_absolute,
+                ISO8601Point as point,
+                ISO8601Interval as interval,
+                ISO8601Sequence as sequence,
+                init_from_cfg
+            )
+            cls.cycling_mode = cls.ISO8601_CYCLING_TYPE
+        else:
+            from cylc.cycling.integer import (
+                get_point_relative,
+                is_offset_absolute,
+                IntegerPoint as point,
+                IntegerInterval as interval,
+                IntegerSequence as sequence,
+                init_from_cfg
+            )
+            cls.cycling_mdoe = cls.INTEGER_CYCLING_TYPE
+
+        cls.point_fcns = (get_point_relative, is_offset_absolute)
+        cls.point_cls = point
+        cls.interval_cls = interval
+        cls.sequence_cls = sequence
+        init_from_cfg(cfg)
+
+    @classmethod
+    def get_point(cls, *args, **kwargs):
+        if args[0] is None:
+            return None
+        return cls.point_cls(*args, **kwargs)
+
+    @classmethod
+    def get_interval(cls, *args, **kwargs):
+        if args[0] is None:
+            return None
+        return cls.interval_cls(*args, **kwargs)
+
+    @classmethod
+    def get_sequence(cls, *args, **kwargs):
+        if args[0] is None:
+            return None
+        return cls.sequence_cls(*args, **kwargs)
+
+    @classmethod
+    def get_point_relative(cls, *args, **kwargs):
+        return cls.point_fcns[0](*args, **kwargs)
+
+    @classmethod
+    def is_offset_absolute(cls, *args, **kwargs):
+        return cls.point_fcns[1](*args, **kwargs)
+
+    @classmethod
+    def standardise_point_string(cls, point_string):
+        """Return a standardised version of point_string."""
+        if point_string is None:
+            return None
+        point = cls.get_point(point_string)
+        if point is not None:
+            point.standardise()
+            point_string = str(point)
+        return point_string
+
+
 if __name__ == "__main__":
     import unittest
 

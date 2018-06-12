@@ -20,8 +20,7 @@
 
 from collections import deque
 
-from cylc.cycling.loader import (
-    get_point_relative, get_interval, is_offset_absolute)
+from cylc.cycling import Cycler
 from cylc.task_id import TaskID
 
 
@@ -124,9 +123,9 @@ class TaskDef(object):
                 return None
             if sequence is None:
                 # This indicates a simple offset interval such as [-PT6H].
-                cutoff_points.append(point - get_interval(offset_string))
+                cutoff_points.append(point - Cycler.get_interval(offset_string))
                 continue
-            if is_offset_absolute(offset_string):
+            if Cycler.is_offset_absolute(offset_string):
                 stop_point = sequence.get_stop_point()
                 if stop_point:
                     # Stop point of the sequence is a good cutoff point for an
@@ -144,7 +143,7 @@ class TaskDef(object):
             while dependent_point is not None:
                 # TODO: Is it realistically possible to hang in this loop?
                 target_point = (
-                    get_point_relative(offset_string, dependent_point))
+                    Cycler.get_point_relative(offset_string, dependent_point))
                 if target_point > point:
                     # Assume monotonic (target_point can never jump back).
                     break

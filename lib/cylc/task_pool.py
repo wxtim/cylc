@@ -36,7 +36,7 @@ import json
 from time import time
 
 from cylc.config import SuiteConfigError
-from cylc.cycling.loader import get_point, standardise_point_string
+from cylc.cycling import Cycler
 from cylc.suite_logging import LOG
 from cylc.task_action_timer import TaskActionTimer
 from cylc.task_events_mgr import (
@@ -120,7 +120,7 @@ class TaskPool(object):
                 n_warnings += 1
                 continue
             try:
-                point_str = standardise_point_string(point_str)
+                point_str = Cycler.standardise_point_string(point_str)
             except ValueError as exc:
                 LOG.warning(
                     self.ERR_PREFIX_TASKID_MATCH + ("%s (%s)" % (item, exc)))
@@ -138,8 +138,8 @@ class TaskPool(object):
             stop_point = None
         else:
             try:
-                stop_point = get_point(
-                    standardise_point_string(stop_point_str))
+                stop_point = Cycler.get_point(
+                    Cycler.standardise_point_string(stop_point_str))
             except ValueError as exc:
                 LOG.warning("Invalid stop point: %s (%s)" % (
                     stop_point_str, exc))
@@ -151,7 +151,7 @@ class TaskPool(object):
             # TODO - insertion of start-up tasks? (startup=False assumed here)
 
             # Check that the cycle point is on one of the tasks sequences.
-            point = get_point(key[1])
+            point = Cycler.get_point(key[1])
             if not no_check:  # Check if cycle point is on the tasks sequence.
                 for sequence in taskdef.sequences:
                     if sequence.is_on_sequence(point):
@@ -344,7 +344,7 @@ class TaskPool(object):
         try:
             itask = TaskProxy(
                 self.config.get_taskdef(name),
-                get_point(cycle),
+                Cycler.get_point(cycle),
                 hold_swap=hold_swap,
                 has_spawned=bool(spawned),
                 submit_num=submit_num,
@@ -1198,7 +1198,7 @@ class TaskPool(object):
             return False
         if itask.expire_time is None:
             itask.expire_time = (
-                itask.get_point_as_seconds() +
+                itask.Cycler.get_point_as_seconds() +
                 itask.get_offset_as_seconds(itask.tdef.expiration_offset))
         if now > itask.expire_time:
             msg = 'Task expired (skipping job).'
@@ -1304,7 +1304,7 @@ class TaskPool(object):
                     point_str = "*"
                 else:
                     try:
-                        point_str = standardise_point_string(point_str)
+                        point_str = Cycler.standardise_point_string(point_str)
                     except ValueError:
                         # point_str may be a glob
                         pass

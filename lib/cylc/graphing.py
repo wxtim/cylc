@@ -21,7 +21,7 @@ ImportError due to pygraphviz/graphviz not being installed."""
 
 import pygraphviz
 
-from cylc.cycling.loader import get_point, get_point_relative
+from cylc.cycling import Cycler
 from cylc.task_id import TaskID
 
 
@@ -354,13 +354,13 @@ class CGraph(CGraphPlain):
         vfcp = suiterc.cfg['visualization']['final cycle point']
         if vfcp:
             try:
-                stop_point = get_point_relative(
-                    vfcp, get_point(start_point_string)).standardise()
+                stop_point = Cycler.get_point_relative(
+                    vfcp, Cycler.get_point(start_point_string)).standardise()
             except ValueError:
-                stop_point = get_point(vfcp).standardise()
+                stop_point = Cycler.get_point(vfcp).standardise()
 
         if stop_point is not None:
-            if stop_point < get_point(start_point_string):
+            if stop_point < Cycler.get_point(start_point_string):
                 # Avoid a null graph.
                 stop_point_string = start_point_string
             else:
