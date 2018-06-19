@@ -26,19 +26,10 @@ from .git import is_git_repo, describe
 #import cylc.profiling.git as git  TODO?
 
 
-def get_cylc_directory():
-    """Returns the location of cylc's working copy."""
-    ver_str, _ = Popen(['cylc', 'version', '--long'], stdout=PIPE
-                       ).communicate()
-    try:
-        return os.path.realpath(re.search('\((.*)\)', ver_str).groups()[0])
-    except IndexError:
-        sys.exit('Could not locate local git repository for cylc.')
-
+CYLC_DIR = os.environ['CYLC_DIR']
+os.chdir(CYLC_DIR)
 
 # Ensure that the cylc directory is a git repository.
-CYLC_DIR = get_cylc_directory()
-os.chdir(CYLC_DIR)
 IS_GIT_REPO = is_git_repo()
 
 # Files and directories
@@ -92,28 +83,40 @@ METRIC_FILENAME = 2  # For output plots (no extension).
 METRIC_FIELDS = 3  # Fields metrics can be derived from in order of preference.
 # WARNING: Changing metrics affects db table structure!
 METRICS = {  # Dict of all metrics measured by profile-battery.
-    'elapsed_time': ('Elapsed Time', 's', 'elapsed-time', [
-        'real', 'Elapsed (wall clock) time (h:mm:ss or m:ss)', 'cpu time'],),
-    'cpu_time': ('CPU Time - Total', 's', 'cpu-time', ['total cpu time'],),
-    'user_time': ('CPU Time - User', 's', 'user-time', [
-        'user', 'User time (seconds)'],),
-    'system_time': ('CPU Time - System', 's', 'system-time', [
-        'sys', 'System time (seconds)'],),
-    'rss_memory': ('Max Memory', 'kb', 'memory', [
-        'maximum resident set size', 'Maximum resident set size (kbytes)',
-        'mxmem'],),
-    'file_ins': ('File System - Inputs', None, 'file-ins', [
-        'block input operations', 'File system inputs'],),
-    'file_outs': ('File System - Outputs', None, 'file-outs', [
-        'block output operations', 'File system outputs'],),
-    'startup_time': ('Startup Time', 's', 'startup-time', ['startup time'],),
+    'elapsed_time': (
+        'Elapsed Time', 's', 'elapsed-time',
+        ['real', 'Elapsed (wall clock) time (h:mm:ss or m:ss)', 'cpu time'],),
+    'cpu_time': (
+        'CPU Time - Total', 's', 'cpu-time',
+        ['total cpu time'],),
+    'user_time': (
+        'CPU Time - User', 's', 'user-time',
+        ['user', 'User time (seconds)'],),
+    'system_time': (
+        'CPU Time - System', 's', 'system-time',
+        ['sys', 'System time (seconds)'],),
+    'rss_memory': (
+        'Max Memory', 'kb', 'memory',
+        ['maximum resident set size', 'Maximum resident set size (kbytes)',
+         'mxmem'],),
+    'file_ins': (
+        'File System - Inputs', None, 'file-ins',
+        ['block input operations', 'File system inputs'],),
+    'file_outs': (
+        'File System - Outputs', None, 'file-outs',
+        ['block output operations', 'File system outputs'],),
+    'startup_time': (
+        'Startup Time', 's', 'startup-time',
+        ['startup time'],),
     'main_loop_iterations': (
-        'Number Of Main Loop Iterations', None, 'loop-count', ['loop count'],),
+        'Number Of Main Loop Iterations', None, 'loop-count',
+        ['loop count'],),
     'average_main_loop_iteration_time': (
         'Average Main Loop Iteration Time', 's', 'loop-time',
          ['avg loop time'],),
     'elapsed_non_sleep_time': (
-        'Elapsed Time - time.sleep()', 's', 'awake-time', ['awake cpu time'],)
+        'Elapsed Time - time.sleep()', 's', 'awake-time',
+        ['awake cpu time'],)
 }
 # Metrics used if --full is not set.
 QUICK_ANALYSIS_METRICS = set(('elapsed_time', 'cpu_time', 'rss_memory'))

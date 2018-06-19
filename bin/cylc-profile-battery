@@ -107,6 +107,7 @@ def parse_args():
                       'branches, commits are all valid.',
                       dest='versions', callback=multi_arg_callback,
                       action='callback')
+    # TODO - platform should be a list?
     parser.add_option('-p', '--platform', type='str', dest='platform',
                       default=None,
                       help='Resolved host name for the experiment to run on, '
