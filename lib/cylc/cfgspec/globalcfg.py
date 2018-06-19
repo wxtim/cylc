@@ -44,8 +44,6 @@ SPEC = {
     'process pool size': vdr(vtype='integer', default=4),
     'process pool timeout': vdr(vtype='interval', default=DurationFloat(600)),
     'temporary directory': vdr(vtype='string'),
-    'state dump rolling archive length': vdr(
-        vtype='integer', default=10),
     'disable interactive command prompts': vdr(vtype='boolean', default=True),
     'enable run directory housekeeping': vdr(vtype='boolean', default=False),
     'run directory rolling archive length': vdr(
@@ -234,10 +232,10 @@ SPEC = {
         'submission timeout': vdr(vtype='interval'),
     },
 
-    'task platforms': {
+    'job platforms': {
         '__MANY__': {
-            # Cluster access
-            'login hosts': vdr(vtype='string_list'),
+            # Access to platform
+            'hosts': vdr(vtype='string_list'),
             'scp command': vdr(vtype='string'),
             'ssh command': vdr(vtype='string'),
             'use login shell': vdr(vtype='boolean'),
@@ -252,6 +250,7 @@ SPEC = {
             'job name length maximum': vdr(vtype='integer'),
             'copyable environment variables': vdr(
                 vtype='string_list', default=[]),
+            'global init-script': vdr(vtype='string'),
 
             # Tailer and viewer of job logs while running on batch system
             'job err tailer': vdr(vtype='string'),
@@ -267,16 +266,17 @@ SPEC = {
             'execution time limit polling intervals': vdr(
                 vtype='interval_list'),
 
-            # Job log retrieval
+            # Job log retrieval and event handler settings
             'retrieve job logs': vdr(vtype='boolean'),
             'retrieve job logs command': vdr(vtype='string'),
             'retrieve job logs max size': vdr(vtype='string'),
             'retrieve job logs retry delays': vdr(vtype='interval_list'),
+            'task event handler retry delays': vdr(vtype='interval_list'),
 
             # TODO Job metrics collection
             # TODO File system sharing with suite host and other clusters
             # TODO URL to dash board?
-            # TODO Batch system commands and automatic directives
+            # TODO Custom batch system commands and automatic directives
         },
     },
 
@@ -558,26 +558,36 @@ class GlobalConfig(config):
             host = 'localhost'
 
         # is there a matching host section?
-        host_key = None
+        value = None
+        modify_dirs = False
         if host:
-            if host in cfg['hosts']:
-                # there's an entry for this host
-                host_key = host
-            else:
+            try:
+                value = cfg['job platforms'][host][item]
+            except KeyError:
+                value = None
+            if value is None:
+                try:
+                    value = cfg['hosts'][host][item]
+                    modify_dirs = True
+                except KeyError:
+                    value = None
+            if value is None:
                 # try for a pattern match
                 for cfg_host in cfg['hosts']:
                     if re.match(cfg_host, host):
-                        host_key = cfg_host
-                        break
-        modify_dirs = False
-        if host_key is not None:
-            # entry exists, any unset items under it have already
-            # defaulted to modified localhost values (see site cfgspec)
-            value = cfg['hosts'][host_key][item]
-        else:
-            # no entry so default to localhost and modify appropriately
+                        try:
+                            value = cfg['hosts'][cfg_host][item]
+                        except KeyError:
+                            pass
+                        else:
+                            modify_dirs = True
+                            break
+        if value is None:
             value = cfg['hosts']['localhost'][item]
-            modify_dirs = True
+
+        # TODO: handle 'batch system' and ['batch systems']
+        # TODO: handle default values
+
         if value is not None and 'directory' in item:
             if replace_home or modify_dirs:
                 # Replace local home dir with $HOME for eval'n on other host.
@@ -588,7 +598,8 @@ class GlobalConfig(config):
                 if owner_home is None:
                     owner_home = os.path.expanduser('~%s' % owner)
                 value = value.replace(os.environ['HOME'], owner_home)
-        if item == "task communication method" and value == "default":
+        if item in ['communication method', 'task communication method'] and (
+                value == 'default'):
             # Translate "default" to client-server comms: "https" or "http".
             value = cfg['communication']['method']
         return value

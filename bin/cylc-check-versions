@@ -70,8 +70,8 @@ def main():
     account_set = set()
     for name in config.get_namespace_list('all tasks'):
         account_set.add((
-            config.get_config(['runtime', name, 'remote', 'owner']),
-            config.get_config(['runtime', name, 'remote', 'host'])))
+            config.get_config(['runtime', name, 'job', 'owner']),
+            config.get_config(['runtime', name, 'job', 'host'])))
     task_remote_mgr = TaskRemoteMgr(
         suite, SuiteProcPool(), suite_srv_files_mgr)
     for _, host_str in account_set:

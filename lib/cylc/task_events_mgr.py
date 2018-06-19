@@ -203,13 +203,16 @@ class TaskEventsManager(object):
         else:
             return can_poll
 
-    def get_host_conf(self, itask, key, default=None, skey="remote"):
-        """Return a host setting from suite then global configuration."""
+    def get_job_conf(self, itask, key, default=None):
+        """Return a job (platform) setting.
+
+        Search broadcast, then suite, then global configuration.
+        """
         overrides = self.broadcast_mgr.get_broadcast(itask.identity)
-        if skey in overrides and overrides[skey].get(key) is not None:
-            return overrides[skey][key]
-        elif itask.tdef.rtconfig[skey].get(key) is not None:
-            return itask.tdef.rtconfig[skey][key]
+        if 'job' in overrides and overrides['job'].get(key) is not None:
+            return overrides['job'][key]
+        elif itask.tdef.rtconfig['job'].get(key) is not None:
+            return itask.tdef.rtconfig['job'][key]
         else:
             try:
                 return glbl_cfg().get_host_item(
@@ -765,10 +768,10 @@ class TaskEventsManager(object):
         events = (self.EVENT_FAILED, self.EVENT_RETRY, self.EVENT_SUCCEEDED)
         if (event not in events or
                 user_at_host in [get_user() + '@localhost', 'localhost'] or
-                not self.get_host_conf(itask, "retrieve job logs") or
+                not self.get_job_conf(itask, "retrieve job logs") or
                 id_key in self.event_timers):
             return
-        retry_delays = self.get_host_conf(
+        retry_delays = self.get_job_conf(
             itask, "retrieve job logs retry delays")
         if not retry_delays:
             retry_delays = [0]
@@ -777,7 +780,7 @@ class TaskEventsManager(object):
                 self.HANDLER_JOB_LOGS_RETRIEVE,  # key
                 self.HANDLER_JOB_LOGS_RETRIEVE,  # ctx_type
                 user_at_host,
-                self.get_host_conf(itask, "retrieve job logs max size"),
+                self.get_job_conf(itask, "retrieve job logs max size"),
             ),
             retry_delays)
 
@@ -817,7 +820,7 @@ class TaskEventsManager(object):
         retry_delays = self._get_events_conf(
             itask,
             'handler retry delays',
-            self.get_host_conf(itask, "task event handler retry delays"))
+            self.get_job_conf(itask, "task event handler retry delays"))
         if not retry_delays:
             retry_delays = [0]
         # There can be multiple custom event handlers
@@ -911,13 +914,13 @@ class TaskEventsManager(object):
             timeref = itask.summary['started_time']
             timeout_key = 'execution timeout'
             timeout = self._get_events_conf(itask, timeout_key)
-            delays = self.get_host_conf(
-                itask, 'execution polling intervals', skey='job',
-                default=[900])  # Default 15 minute intervals
+            # Default 15 minute intervals
+            delays = self.get_job_conf(
+                itask, 'execution polling intervals', default=[900])
             if itask.summary[self.KEY_EXECUTE_TIME_LIMIT]:
                 time_limit = itask.summary[self.KEY_EXECUTE_TIME_LIMIT]
                 try:
-                    host_conf = self.get_host_conf(itask, 'batch systems')
+                    host_conf = self.get_job_conf(itask, 'batch systems')
                     batch_sys_conf = host_conf[itask.summary['batch_sys_name']]
                 except (TypeError, KeyError):
                     batch_sys_conf = {}
@@ -937,9 +940,9 @@ class TaskEventsManager(object):
             timeref = itask.summary['submitted_time']
             timeout_key = 'submission timeout'
             timeout = self._get_events_conf(itask, timeout_key)
-            delays = self.get_host_conf(
-                itask, 'submission polling intervals', skey='job',
-                default=[900])  # Default 15 minute intervals
+            # Default 15 minute intervals
+            delays = self.get_job_conf(
+                itask, 'submission polling intervals', default=[900])
         try:
             itask.timeout = timeref + float(timeout)
             timeout_str = intvl_as_str(timeout)

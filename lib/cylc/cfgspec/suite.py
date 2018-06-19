@@ -368,20 +368,18 @@ SPEC = {
                 'execution retry delays': vdr(
                     vtype='interval_list', default=[]),
                 'execution time limit': vdr(vtype='interval'),
+                'host': vdr(vtype='string'),
+                'owner': vdr(vtype='string'),
+                'retrieve job logs': vdr(vtype='boolean', default=None),
+                'retrieve job logs max size': vdr(vtype='string'),
+                'retrieve job logs retry delays': vdr(
+                    vtype='interval_list'),
                 'shell': vdr(vtype='string', default='/bin/bash'),
                 'submission polling intervals': vdr(
                     vtype='interval_list'),
                 'submission retry delays': vdr(
                     vtype='interval_list', default=[]),
-            },
-            'remote': {
-                'host': vdr(vtype='string'),
-                'owner': vdr(vtype='string'),
                 'suite definition directory': vdr(vtype='string'),
-                'retrieve job logs': vdr(vtype='boolean', default=None),
-                'retrieve job logs max size': vdr(vtype='string'),
-                'retrieve job logs retry delays': vdr(
-                    vtype='interval_list'),
             },
             'events': {
                 'execution timeout': vdr(vtype='interval'),
@@ -552,6 +550,13 @@ def upg(cfg, descr):
         '7.6.0',
         ['group'],
         ['meta', 'group'])
+    for key in [
+            'host', 'owner', 'retrieve job logs', 'retrieve job logs max size',
+            'retrieve job logs retry delays', 'suite definition directory']:
+        u.deprecate(
+            '7.8.0',
+            ['runtime', '__MANY__', 'remote', key],
+            ['runtime', '__MANY__', 'job', key])
     u.obsolete('7.2.2', ['cylc', 'dummy mode'])
     u.obsolete('7.2.2', ['cylc', 'simulation mode'])
     u.obsolete('7.2.2', ['runtime', '__MANY__', 'dummy mode'])
