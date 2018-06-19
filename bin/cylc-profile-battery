@@ -321,15 +321,18 @@ def run_schedule(conn, schedule, experiments, test=False):
                                         reg_base)
     os.mkdir(profiler_install_dir)
 
-    # Install cylc versions as necessary.
-    install_cylc_versions(
-        dict((v['id'], v) for _, v, _, _ in schedule).values(),
-        profiler_install_dir)
+    try:
+        # Install cylc versions as necessary.
+        install_cylc_versions(
+            dict((v['id'], v) for _, v, _, _ in schedule).values(),
+            profiler_install_dir)
 
-    # Install experiments as necessary
-    install_experiments(
-        dict((e['id'], e) for _, _, e, _ in schedule).values(),
-        profiler_install_dir)
+        # Install experiments as necessary
+        install_experiments(
+            dict((e['id'], e) for _, _, e, _ in schedule).values(),
+            profiler_install_dir)
+    except KeyboardInterrupt:
+        sys.exit('Profiling aborted - keyboard interrupt')
 
     # Run profiling.
     prof_results = profile(schedule, profiler_install_dir, reg_base)
