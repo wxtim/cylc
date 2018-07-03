@@ -570,7 +570,68 @@ class TaskPool(object):
             except KeyError:
                 pass
 
+
     def get_ready_tasks(self):
+        now = time()
+        ready_tasks = []
+        qconfig = self.config.cfg['scheduling']['queues']
+        qrelease = {}
+
+        # * queue unqueued tasks that are ready to run or manually forced
+        # * compute number of active tasks in queue
+        for queue in self.queues:
+            n_active = 0
+            n_release = 0
+            n_limit = qconfig[queue]['limit']
+
+            for itask in self.queues[queue].values():
+
+                if itask.state.status != TASK_STATUS_QUEUED:
+                    # only need to check that unqueued tasks are ready
+                    if itask.is_ready(now):
+                        # queue the task
+                        itask.state.reset_state(TASK_STATUS_QUEUED)
+                        itask.reset_manual_trigger()
+                        # move the task to the back of the queue
+                        self.queues[queue][itask.identity] = \
+                            self.queues[queue].pop(itask.identity)
+
+                    # compute number of active tasks in queue
+                    if itask.state.status in [TASK_STATUS_READY,
+                                              TASK_STATUS_SUBMITTED,
+                                              TASK_STATUS_RUNNING]:
+                        n_active += 1
+
+            if n_limit != 0:
+                qrelease[queue] = n_limit - n_active
+            else:
+                qrelease[queue] = None
+
+
+        for itask in (x for y in self.queues.values() for x in y.values() if
+                      x.state.status == TASK_STATUS_QUEUED):
+            can_release = True
+            queues = [q_name for q_name, q_conf in qconfig.items() if
+                      itask in q_conf['members']]
+            for queue in queues:
+                if qrelease[queue] is None:
+                    continue
+                if qrelease[queue] < 1:
+                    can_release = False
+                    break
+
+            if can_release:
+                ready_tasks.append(itask)
+                itask.reset_manual_trigger()
+                for queue in queues:
+                    if not qrelease[queue] is None:
+                        qrelease[queue] -= 1
+
+        LOG.debug('%d task(s) de-queued' % len(ready_tasks))
+        return ready_tasks
+
+
+    def get_ready_tasks2(self):
         """
         1) queue tasks that are ready to run (prerequisites satisfied,
         clock-trigger time up) or if their manual trigger flag is set.
@@ -594,6 +655,7 @@ class TaskPool(object):
         now = time()
         ready_tasks = []
         qconfig = self.config.cfg['scheduling']['queues']
+        import pdb; pdb.set_trace()
 
         for queue in self.queues:
             tasks = self.queues[queue].values()
