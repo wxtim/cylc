@@ -135,7 +135,7 @@ def write_profiling_suite(schedule, writer, install_dir, reg_base=''):
             for repeat in range(run['repeats'] + 1):
                 repeat_no = ('0' * (len(str(repeat_max)) - len(str(repeat)))
                              + str(repeat))
-                graph.append(task + 'repeat=%s>' % repeat_no)
+                graph.append(task + 'repeat=%s> => colate_results' % repeat_no)
 
             # Generate a registration name for this suite.
             cylc_major_version = version['id'].split('.')[0]

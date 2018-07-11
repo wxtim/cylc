@@ -25,7 +25,7 @@ import sys
 import traceback
 
 # TODO: import as ...
-from cylc.profiling import (safe_name, ProfilingException,
+from cylc.profiling import (safe_name, ProfilingException, CYLC_DIR,
                             AnalysisException)
 from cylc.profiling.analysis import extract_results
 from cylc.profiling.profiling_suite_writer import write_profiling_suite
@@ -97,6 +97,15 @@ def profile(schedule, install_dir, reg_base):
     suite_handle = open(os.path.join(suite_dir, 'suite.rc'), 'w+')
     write_profiling_suite(schedule, suite_handle.write, install_dir, reg_base)
     suite_handle.close()
+
+    # Install result extraction script.
+    # TODO - this in the write_profiling_suite module ...
+    import shutil
+    os.mkdir(os.path.join(suite_dir, 'bin'))
+    shutil.copyfile(
+        os.path.join(CYLC_DIR, 'lib', 'cylc', 'profiling', 'collate_results'),
+        os.path.join(suite_dir, 'bin', 'collate_results')
+    )
 
     # Register the 'main-suite'.
     if not run_cmd(['cylc', 'reg', reg, suite_dir]):
