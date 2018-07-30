@@ -43,13 +43,14 @@ def empyprocess(flines, dir_, template_vars=None):
         os.chdir(dir_)
         ftempl = StringIO('\n'.join(flines))
         xtempl = StringIO()
-        interpreter = em.Interpreter(output=em.UncloseableFile(xtempl))
-        interpreter.file(ftempl, '<template>', template_vars)
+        x_interpreter = em.Interpreter(output=em.UncloseableFile(xtempl))
+        x_interpreter.file(ftempl, '<template>', template_vars)
     except Exception as exc:
-        lineno = interpreter.contexts[-1].identify()[1]
-        raise EmPyError(interpreter.meta(exc), lineno), None, sys.exc_info()[2]
+        print >> sys.stderr, 'XXXXX' + str(exc)
+        lineno = x_interpreter.contexts[-1].identify()[1]
+        raise EmPyError(x_interpreter.meta(exc), lineno), None, sys.exc_info()[2]
     finally:
-        interpreter.shutdown()
+        x_interpreter.shutdown()
         xsuite = xtempl.getvalue()
         os.chdir(cwd)
         ftempl.close()
