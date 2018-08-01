@@ -67,7 +67,7 @@ install:
     - ssh-keyscan -t rsa localhost >> ~/.ssh/known_hosts
 
     # Install dependencies
-    - $PKGM install build-essential texlive-latex-base
+    - #$PKGM install build-essential texlive-latex-base  TODO - linux only?
     - $PKGM install at python-pip python-dev graphviz libgraphviz-dev python-gtk2-dev
       heirloom-mailx
     # Pygraphviz needs special treatment to avoid an error from "from . import release"
