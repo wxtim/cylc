@@ -39,6 +39,7 @@ matrix:
     #  env: CHUNK='4/4' PKGM='apt-get'
     - name: "Mac OS (short)"
       env: CHUNK='1/8' PKGM='brew'
+      language: generic
       os: osx
 
 # General environment setup before we start installing stuff
