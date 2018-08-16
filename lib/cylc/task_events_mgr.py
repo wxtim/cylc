@@ -149,6 +149,13 @@ class TaskEventsManager(object):
         # when required.
         self.pflag = False
 
+    @classmethod
+    def event_is_valid(cls, event):
+        return event in (cls.EVENT_FAILED, cls.EVENT_LATE, cls.EVENT_RETRY,
+                cls.EVENT_STARTED, cls.EVENT_SUBMITTED,
+                cls.EVENT_SUBMIT_FAILED, cls.EVENT_SUBMIT_RETRY,
+                cls.EVENT_SUCCEEDED)
+
     @staticmethod
     def check_poll_time(itask, now=None):
         """Set the next task execution/submission poll time.

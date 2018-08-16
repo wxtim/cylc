@@ -54,6 +54,7 @@ from parsec.OrderedDict import OrderedDictWithDefaults
 from parsec.util import replicate
 from cylc.suite_logging import OUT, ERR
 from cylc.suite_srv_files_mgr import SuiteSrvFilesManager
+from cylc.task_events_mgr import TaskEventsManager
 from cylc.task_outputs import TASK_OUTPUT_SUCCEEDED
 from cylc.cfgspec.utils import (
     get_interval_as_seconds, DEFAULT_XTRIG_INTVL_SECS)
@@ -1420,6 +1421,7 @@ class SuiteConfig(object):
         """
 
         for taskdef in self.taskdefs.values():
+            events = taskdef.rtconfig['events']
             try:
                 taskdef.check_for_explicit_cycling()
             except TaskDefError as exc:
@@ -1431,8 +1433,16 @@ class SuiteConfig(object):
                     ('deprecated: [runtime][%s][job]shell=%s: '
                      'use of ksh to run cylc task job file') %
                     (taskdef.name, job_shell))
-            # Check custom event handler templates compat with task meta
-            if taskdef.rtconfig['events']:
+            if events:
+                # Check task events are legal
+                if events['handler events']:
+                    for event in events['handler events']:
+                        if not TaskEventsManager.event_is_valid(event):
+                            raise SuiteConfigError(
+                                'ERROR: bad task event'
+                                    ' %s: %s' % (taskdef.name, event))
+
+                # Check custom event handler templates compat with task meta
                 subs = dict((key, key) for key in self.TASK_EVENT_TMPL_KEYS)
                 for key, value in self.cfg['meta'].items():
                     subs['suite_' + key.lower()] = value
