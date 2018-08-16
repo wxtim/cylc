@@ -151,6 +151,9 @@ class TaskEventsManager(object):
 
     @classmethod
     def event_is_valid(cls, event):
+        # TODO - THIS DOES NOT COVER ALL EVENTS (see 'custom handler' etc.).
+        # WE NEED A LIST OF ALL VALID EVENTS, THEN SIMPLY USE IT AS AN OPTION
+        # LIST IN THE CONFIG SPEC.
         return event in (cls.EVENT_FAILED, cls.EVENT_LATE, cls.EVENT_RETRY,
                 cls.EVENT_STARTED, cls.EVENT_SUBMITTED,
                 cls.EVENT_SUBMIT_FAILED, cls.EVENT_SUBMIT_RETRY,
