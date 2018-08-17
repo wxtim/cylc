@@ -79,9 +79,13 @@ install:
     # BSD utilities, it is not advisable to overwrite the BSD utils.
     - #brew install coreutils
     # timeout - required for regular functioning
-    - echo -e '#!/bin/bash\ngtimeout "$@"' > bin/timeout
+    > 
+      echo '#!/bin/bash
+      gtimeout "$@"' > bin/timeout
     # find - required for testing purposes
-    - echo -e '#!/bin/bash\ngfind "$@"' > bin/find
+    >
+      echo -e '#!/bin/bash
+      gfind "$@"' > bin/find
 
 # Run tests
 script: 
