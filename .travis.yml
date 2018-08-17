@@ -77,7 +77,7 @@ install:
     # install GNU utilities for mac os
     # NOTE: commands are installed with a leading 'g' to separate them from the
     # BSD utilities, it is not advisable to overwrite the BSD utils.
-    - brew install coreutils
+    - #brew install coreutils
     # timeout - required for regular functioning
     - echo -e '#!/bin/bash\ngtimeout "$@"' > bin/timeout
     # find - required for testing purposes
