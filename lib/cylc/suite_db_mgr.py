@@ -256,39 +256,38 @@ class SuiteDatabaseManager(object):
                 "namespace": namespace,
                 "inheritance": json.dumps(value)})
 
-    def put_suite_params(self, schd):
+    def put_suite_params(self, items, update=False):
         """Put various suite parameters from schd in runtime database.
 
         This method queues the relevant insert statements.
 
+        # TODO - differentiate between insert and mutate
+
         Arguments:
-            schd (cylc.scheduler.Scheduler): scheduler object.
+            items (dict): Key value pairs of suite parameters to insert.
+
         """
-        if schd.final_point is None:
-            # Store None as proper null value in database. No need to do this
-            # for initial cycle point, which should never be None.
-            final_point_str = None
+        db_items = [
+            dict((('key', key), ('value', value))) for key, value in
+            items.items()
+        ]
+        if update:
+            self.db_updates_map.setdefault(self.TABLE_SUITE_PARAMS, [])
+            self.db_updates_map[self.TABLE_SUITE_PARAMS].extend(db_items)
         else:
-            final_point_str = str(schd.final_point)
+            self.db_inserts_map[self.TABLE_SUITE_PARAMS].extend(db_items)
+
+    def insert_suite_params(self, items):
         self.db_inserts_map[self.TABLE_SUITE_PARAMS].extend([
-            {"key": "uuid_str",
-             "value": schd.task_job_mgr.task_remote_mgr.uuid_str},
-            {"key": "run_mode", "value": schd.run_mode},
-            {"key": "cylc_version", "value": CYLC_VERSION},
-            {"key": "UTC_mode", "value": cylc.flags.utc},
-            {"key": "initial_point", "value": str(schd.initial_point)},
-            {"key": "final_point", "value": final_point_str},
+            dict((('key', key), ('value', value))) for key, value in
+            items.items()
         ])
-        if schd.config.cfg['cylc']['cycle point format']:
-            self.db_inserts_map[self.TABLE_SUITE_PARAMS].append({
-                "key": "cycle_point_format",
-                "value": schd.config.cfg['cylc']['cycle point format']})
-        if schd.pool.is_held:
-            self.db_inserts_map[self.TABLE_SUITE_PARAMS].append({
-                "key": "is_held", "value": 1})
-        if schd.cli_start_point_string:
-            self.db_inserts_map[self.TABLE_SUITE_PARAMS].append({
-                "key": "start_point", "value": schd.cli_start_point_string})
+
+    def update_suite_params(self, items):
+        self.db_updates_map.setdefault(self.TABLE_SUITE_PARAMS, [])
+        self.db_updates_map[self.TABLE_SUITE_PARAMS].extend([
+            ({'value': value}, {'key': key}) for key, value in items.items()
+        ])
 
     def put_suite_template_vars(self, template_vars):
         """Put template_vars in runtime database.

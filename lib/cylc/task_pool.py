@@ -69,16 +69,15 @@ class TaskPool(object):
     STOP_REQUEST_NOW = 'REQUEST(NOW)'
     STOP_REQUEST_NOW_NOW = 'REQUEST(NOW-NOW)'
 
-    def __init__(self, config, stop_point, suite_db_mgr, task_events_mgr,
+    def __init__(self, config, suite_params, suite_db_mgr, task_events_mgr,
                  proc_pool, xtrigger_mgr):
         self.config = config
-        self.stop_point = stop_point
+        self.suite_params = suite_params
         self.suite_db_mgr = suite_db_mgr
         self.task_events_mgr = task_events_mgr
         self.proc_pool = proc_pool
         self.xtrigger_mgr = xtrigger_mgr
 
-        self.reloading = False
         self.custom_runahead_limit = self.config.get_custom_runahead_limit()
         self.max_future_offset = None
         self._prev_runahead_base_point = None
@@ -97,7 +96,7 @@ class TaskPool(object):
         self.pool_changed = []
         self.rhpool_changed = []
 
-        self.is_held = False
+        self.suite_params.is_held = False
         self.hold_point = None
         self.held_future_tasks = []
 
@@ -203,12 +202,12 @@ class TaskPool(object):
                 "holding (beyond suite hold point) %s" % self.hold_point,
                 itask=itask)
             itask.state.set_held()
-        elif (self.stop_point and itask.point <= self.stop_point and
+        elif (self.suite_params.stop_point and itask.point <= self.suite_params.stop_point and
                 self.task_has_future_trigger_overrun(itask)):
             LOG.info("holding (future trigger beyond stop point)", itask=itask)
             self.held_future_tasks.append(itask.identity)
             itask.state.set_held()
-        elif self.is_held and itask.state.status == TASK_STATUS_WAITING:
+        elif self.suite_params.is_held and itask.state.status == TASK_STATUS_WAITING:
             # Hold newly-spawned tasks in a held suite (e.g. due to manual
             # triggering of a held task).
             itask.state.set_held()
@@ -314,8 +313,8 @@ class TaskPool(object):
                         )
                     )
             self._prev_runahead_base_point = runahead_base_point
-        if self.stop_point and latest_allowed_point > self.stop_point:
-            latest_allowed_point = self.stop_point
+        if self.suite_params.stop_point and latest_allowed_point > self.suite_params.stop_point:
+            latest_allowed_point = self.suite_params.stop_point
 
         for point, itask_id_map in self.runahead_pool.copy().items():
             if point <= latest_allowed_point:
@@ -648,10 +647,10 @@ class TaskPool(object):
 
     def task_has_future_trigger_overrun(self, itask):
         """Check for future triggers extending beyond the final cycle."""
-        if not self.stop_point:
+        if not self.suite_params.stop_point:
             return False
         for pct in itask.state.prerequisites_get_target_points():
-            if pct > self.stop_point:
+            if pct > self.suite_params.stop_point:
                 return True
         return False
 
@@ -692,12 +691,12 @@ class TaskPool(object):
     def set_do_reload(self, config, stop_point):
         """Set the task pool to reload mode."""
         self.config = config
-        self.reloading = True
+        self.suite_params.reloading = True
 
         self.custom_runahead_limit = self.config.get_custom_runahead_limit()
         self.max_num_active_cycle_points = (
             self.config.get_max_num_active_cycle_points())
-        self.stop_point = stop_point
+        self.suite_params.stop_point = stop_point
 
         # reassign live tasks from the old queues to the new.
         # self.queues[queue][id_] = task
@@ -759,19 +758,19 @@ class TaskPool(object):
                         itask.submit_num,
                         itask=itask)
         LOG.info("Reload completed.")
-        self.reloading = False
+        self.suite_params.reloading = False
 
     def set_stop_point(self, stop_point):
         """Set the global suite stop point."""
-        self.stop_point = stop_point
+        self.suite_params.stop_point = stop_point
         for itask in self.get_tasks():
             # check cycle stop or hold conditions
-            if (self.stop_point and itask.point > self.stop_point and
+            if (self.suite_params.stop_point and itask.point > self.suite_params.stop_point and
                     itask.state.status in [TASK_STATUS_WAITING,
                                            TASK_STATUS_QUEUED]):
                 LOG.warning(
                     "not running (beyond suite stop cycle) %s" %
-                    self.stop_point,
+                    self.suite_params.stop_point,
                     itask=itask)
                 itask.state.set_held()
 
@@ -818,11 +817,11 @@ class TaskPool(object):
         * It has waiting tasks with unmet prerequisites
           (ignoring clock triggers).
         """
-        if self.is_held:
+        if self.suite_params.is_held:
             return False
         can_be_stalled = False
         for itask in self.get_tasks():
-            if (self.stop_point and itask.point > self.stop_point or
+            if (self.suite_params.stop_point and itask.point > self.suite_params.stop_point or
                     itask.state.status in [
                         TASK_STATUS_SUCCEEDED, TASK_STATUS_EXPIRED]):
                 # Ignore: Task beyond stop point.
@@ -904,13 +903,13 @@ class TaskPool(object):
     def hold_all_tasks(self):
         """Hold all tasks."""
         LOG.info("Holding all waiting or queued tasks now")
-        self.is_held = True
+        self.suite_params.is_held = True
         for itask in self.get_all_tasks():
             itask.state.set_held()
 
     def release_all_tasks(self):
         """Release all held tasks."""
-        self.is_held = False
+        self.suite_params.is_held = False
         self.release_tasks(None)
 
     def get_failed_tasks(self):
@@ -1148,13 +1147,13 @@ class TaskPool(object):
         """Check if we should do a normal automatic shutdown."""
         shutdown = True
         for itask in self.get_all_tasks():
-            if self.stop_point is None:
+            if self.suite_params.stop_point is None:
                 # Don't if any unsucceeded task exists.
                 if itask.state.status not in [
                         TASK_STATUS_SUCCEEDED, TASK_STATUS_EXPIRED]:
                     shutdown = False
                     break
-            elif (itask.point <= self.stop_point and
+            elif (itask.point <= self.suite_params.stop_point and
                     itask.state.status not in [TASK_STATUS_SUCCEEDED,
                                                TASK_STATUS_EXPIRED]):
                 # Don't if any unsucceeded task exists < stop point...

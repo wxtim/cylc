@@ -36,7 +36,7 @@ SUITE_STATE_PARAMS = [
     ('pool_hold_point', str),
     ('run_mode', str),
     ('start_point', str),
-    ('stop_clock_time_string', str),
+    ('stop_clock_time', str),
     ('stop_mode', str),  # ?
     ('stop_point', str),
     ('stop_task', str),
@@ -124,7 +124,10 @@ class StateSummaryMgr(object):
         all_states.sort()
 
         # get suite parameters
-        global_summary.update(schd.get_suite_parameters())
+        global_summary.update(dict(
+            (key, schd.suite_params.stringify(value)) for
+            key, value in schd.suite_params.items()))
+        global_summary['ns_defn_order'] = schd.config.ns_defn_order
 
         # get misc information
         for key, value in (
@@ -150,25 +153,25 @@ class StateSummaryMgr(object):
         global_summary['suite_urls']['suite'] = schd.config.cfg['meta']['URL']
 
         # Construct a suite status string for use by monitoring clients.
-        if schd.pool.is_held:
+        if schd.suite_params.is_held:
             global_summary['status_string'] = SUITE_STATUS_HELD
-        elif schd.stop_mode is not None:
+        elif schd.suite_params.stop_mode is not None:
             global_summary['status_string'] = SUITE_STATUS_STOPPING
         elif schd.pool.hold_point:
             global_summary['status_string'] = (
                 SUITE_STATUS_RUNNING_TO_HOLD % schd.pool.hold_point)
-        elif schd.stop_point:
+        elif schd.suite_params.stop_point:
             global_summary['status_string'] = (
-                SUITE_STATUS_RUNNING_TO_STOP % schd.stop_point)
-        elif schd.stop_clock_time is not None:
+                SUITE_STATUS_RUNNING_TO_STOP % schd.suite_params.stop_point)
+        elif schd.suite_params.stop_clock_time is not None:
             global_summary['status_string'] = (
                 SUITE_STATUS_RUNNING_TO_STOP % schd.stop_clock_time_string)
-        elif schd.stop_task:
+        elif schd.suite_params.stop_task:
             global_summary['status_string'] = (
-                SUITE_STATUS_RUNNING_TO_STOP % schd.stop_task)
-        elif schd.final_point:
+                SUITE_STATUS_RUNNING_TO_STOP % schd.suite_params.stop_task)
+        elif schd.suite_params.final_point:
             global_summary['status_string'] = (
-                SUITE_STATUS_RUNNING_TO_STOP % schd.final_point)
+                SUITE_STATUS_RUNNING_TO_STOP % schd.suite_params.final_point)
         else:
             global_summary['status_string'] = SUITE_STATUS_RUNNING
 

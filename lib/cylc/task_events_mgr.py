@@ -249,7 +249,7 @@ class TaskEventsManager(object):
                 # Group together as many notifications as possible within a
                 # given interval.
                 timer.ctx.ctx_type == self.HANDLER_MAIL and
-                not schd_ctx.stop_mode and
+                not schd_ctx.suite_params.stop_mode and
                 self.next_mail_time is not None and
                 self.next_mail_time > now
             ):

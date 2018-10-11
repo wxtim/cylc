@@ -326,8 +326,6 @@ class SuiteConfig(object):
 
         # Running in UTC time? (else just use the system clock)
         cylc.flags.utc = self.cfg['cylc']['UTC mode']
-        # Capture cycling mode
-        cylc.flags.cycling_mode = self.cfg['scheduling']['cycling mode']
 
         # Initial point from suite definition (or CLI override above).
         icp = self.cfg['scheduling']['initial cycle point']
