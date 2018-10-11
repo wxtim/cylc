@@ -29,6 +29,20 @@ from cylc.suite_status import (
 from cylc.task_state import TASK_STATUS_RUNAHEAD
 from cylc.task_state_prop import extract_group_state
 
+SUITE_STATE_PARAMS = [
+    ('can_auto_stop', bool),
+    ('final_point', str),
+    ('initial_point', str),  # ?
+    ('pool_hold_point', str),
+    ('run_mode', str),
+    ('start_point', str),
+    ('stop_clock_time_string', str),
+    ('stop_mode', str),  # ?
+    ('stop_point', str),
+    ('stop_task', str),
+    ('template_vars', dict)
+]
+
 
 class StateSummaryMgr(object):
     """Manage suite state summary for client, e.g. GUI."""
@@ -109,6 +123,10 @@ class StateSummaryMgr(object):
 
         all_states.sort()
 
+        # get suite parameters
+        global_summary.update(schd.get_suite_parameters())
+
+        # get misc information
         for key, value in (
                 ('oldest cycle point string', schd.pool.get_min_point()),
                 ('newest cycle point string', schd.pool.get_max_point()),
@@ -123,11 +141,7 @@ class StateSummaryMgr(object):
         else:
             global_summary['time zone info'] = TIME_ZONE_LOCAL_INFO
         global_summary['last_updated'] = self.update_time
-        global_summary['run_mode'] = schd.run_mode
         global_summary['states'] = all_states
-        global_summary['namespace definition order'] = (
-            schd.config.ns_defn_order)
-        global_summary['reloading'] = schd.pool.do_reload
         global_summary['state totals'] = state_count_totals
         # Extract suite and task URLs from config.
         global_summary['suite_urls'] = dict(

@@ -327,7 +327,7 @@ class Updater(threading.Thread):
         self.mode = glbl['run_mode']
 
         if self.cfg.use_defn_order:
-            nsdo = glbl['namespace definition order']
+            nsdo = glbl['ns_defn_order']
             if self.ns_defn_order != nsdo:
                 self.ns_defn_order = nsdo
                 self.dict_ns_defn_order = dict(zip(nsdo, range(0, len(nsdo))))

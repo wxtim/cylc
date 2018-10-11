@@ -1386,7 +1386,7 @@ conditions; see `cylc conditions`.
         while True:  # MAIN LOOP
             tinit = time()
 
-            if self.pool.do_reload:
+            if self.pool.reloading:
                 self.pool.reload_taskdefs()
                 self.suite_db_mgr.checkpoint("reload-done")
                 cylc.flags.iflag = True
@@ -1800,3 +1800,40 @@ conditions; see `cylc conditions`.
         """Return a named [cylc][[events]] configuration."""
         return self.suite_event_handler.get_events_conf(
             self.config, key, default)
+
+    SUITE_PARAMETERS = [
+        (None, 'can_auto_stop', bool),
+        (None, 'final_point', str),
+        (None, 'initial_point', str),  # ?
+        (None, 'pool_hold_point', str),
+        (None, 'run_mode', str),
+        (None, 'start_point', str),
+        (None, 'stop_clock_time_string', str),
+        (None, 'stop_mode', str),  # ?
+        (None, 'stop_point', str),
+        (None, 'stop_task', str),
+        (None, 'template_vars', dict),
+        ('pool', 'is_held', bool),
+        ('pool', 'reloading', bool),
+        ('config', 'ns_defn_order', list),
+        ('task_job_mgr.task_remote_mgr', 'uuid_str', str)
+    ]
+
+    def get_suite_parameters(self):
+        parameters = {
+            'cylc_version': CYLC_VERSION,
+            'UTC_mode': cylc.flags.utc,
+            'cycle_point_format': self.config.cfg['cylc']['cycle point format']
+        }
+
+        for obj, attr, typ in self.SUITE_PARAMETERS:
+            ele = self
+            if obj is not None:
+                for part in obj.split('.'):
+                    ele = getattr(ele, part)  # TODO - or this
+            value = getattr(ele, attr)  # TODO - nor this
+            if value is not None:
+                value = typ(value)  # TODO - shouldn't be able to kill the suite
+            parameters[attr] = value
+
+        return parameters

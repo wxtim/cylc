@@ -253,11 +253,17 @@ s_marker = '\"<FLOAT_REPLACED>\"'
 if float_repl(output, u_marker) == float_repl(expected_output, u_marker):
     sys.exit(0)
 else:
-    sys.exit('LOADED:\n%s\n!=\n%s\n OR DUMPED:\n%s\n!=\n%s' % (
-        float_repl(output, u_marker), float_repl(expected_output, u_marker),
-        float_repl(json.dumps(output, indent=4), s_marker),
-        float_repl(json.dumps(expected_output, indent=4),
-                   s_marker)))" "$2" "${3:-}"
+    import difflib
+    for line in difflib.context_diff(
+        ['%s\n' % x for x in float_repl(
+            json.dumps(output, indent=4), s_marker).split('\n')],
+        ['%s\n' % x for x in float_repl(
+            json.dumps(expected_output, indent=4), s_marker).split('\n')],
+        fromfile='output', tofile='expected_output'
+    ):
+        sys.stderr.write(line)
+    sys.exit(1)
+" "$2" "${3:-}"
 }
 
 contains_ok() {

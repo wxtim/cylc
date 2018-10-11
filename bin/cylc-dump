@@ -39,6 +39,8 @@ if '--use-ssh' in sys.argv[1:]:
     if remrun():
         sys.exit(0)
 
+import json
+
 import cylc.flags
 from cylc.option_parsers import CylcOptionParser as COP
 from cylc.network.httpclient import SuiteRuntimeServiceClient
@@ -49,14 +51,18 @@ def main():
     parser = COP(__doc__, comms=True, noforce=True)
     parser.add_option(
         "-g", "--global", help="Global information only.",
-        action="store_const", const="global", dest="disp_form")
+        action="store_const", const="global", dest="sections")
     parser.add_option(
         "-t", "--tasks", help="Task states only.",
-        action="store_const", const="tasks", dest="disp_form")
+        action="store_const", const="tasks", dest="sections")
     parser.add_option(
         "-r", "--raw", "--raw-format",
         help='Display raw format.',
-        action="store_const", const="raw", dest="disp_form")
+        action="store_const", const="raw", dest="format")
+    parser.add_option(
+        "--json",
+        help='Display JSON format.',
+        action="store_const", const="json", dest="format")
     parser.add_option(
         "-s", "--sort",
         help="Task states only; sort by cycle point instead of name.",
@@ -70,13 +76,21 @@ def main():
         options.comms_timeout, my_uuid=options.set_uuid,
         print_uuid=options.print_uuid).get_suite_state_summary()
 
-    if options.disp_form == "raw":
+    if options.format == "raw":
         print summary
+    elif options.format == "json":
+        if options.sections == "global":
+            data = summary[0]
+        elif options.sections == "tasks":
+            data = summary[1]
+        else:
+            data = {"global": summary[0], "tasks": summary[1]}
+        print json.dumps(data, indent=4, sort_keys=True)
     else:
-        if options.disp_form != "tasks":
+        if options.sections != "tasks":
             for key, value in sorted(summary[0].items()):
                 print "%s=%s" % (key, value)
-        if options.disp_form != "global":
+        if options.sections != "global":
             dump_to_stdout(summary[1], options.sort_by_cycle)
 
 

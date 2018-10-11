@@ -78,7 +78,7 @@ class TaskPool(object):
         self.proc_pool = proc_pool
         self.xtrigger_mgr = xtrigger_mgr
 
-        self.do_reload = False
+        self.reloading = False
         self.custom_runahead_limit = self.config.get_custom_runahead_limit()
         self.max_future_offset = None
         self._prev_runahead_base_point = None
@@ -692,7 +692,7 @@ class TaskPool(object):
     def set_do_reload(self, config, stop_point):
         """Set the task pool to reload mode."""
         self.config = config
-        self.do_reload = True
+        self.reloading = True
 
         self.custom_runahead_limit = self.config.get_custom_runahead_limit()
         self.max_num_active_cycle_points = (
@@ -759,7 +759,7 @@ class TaskPool(object):
                         itask.submit_num,
                         itask=itask)
         LOG.info("Reload completed.")
-        self.do_reload = False
+        self.reloading = False
 
     def set_stop_point(self, stop_point):
         """Set the global suite stop point."""

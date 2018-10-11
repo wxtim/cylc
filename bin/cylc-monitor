@@ -172,7 +172,7 @@ The USER_AT_HOST argument allows suite selection by 'cylc scan' output:
                     updated_at = glbl['last_updated'].isoformat()
 
                 run_mode = glbl['run_mode']
-                ns_defn_order = glbl['namespace definition order']
+                ns_defn_order = glbl['ns_defn_order']
                 status_string = glbl['status_string']
 
                 task_info = {}
