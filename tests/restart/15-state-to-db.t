@@ -28,11 +28,11 @@ sqlite3 "${SUITE_RUN_DIR}/state/cylc-suite.db" <"cylc-suite-db.dump"
 cp -p 'state/state' "${SUITE_RUN_DIR}/state/"
 run_ok "${TEST_NAME_BASE}-validate" cylc validate "${SUITE_NAME}"
 suite_run_ok "${TEST_NAME_BASE}-restart" cylc restart --debug --no-detach "${SUITE_NAME}"
-sed 's/^.* INFO - //' "${SUITE_RUN_DIR}/log/suite/log" >'edited.log'
+sed 's/^.* \(INFO\|DEBUG\) - //' "${SUITE_RUN_DIR}/log/suite/log" >'edited.log'
 contains_ok 'edited.log' <<'__OUT__'
-LOADING suite parameters
-+ initial cycle point = 20000101T0000Z
-+ final cycle point = 20030101T0000Z
+Applying restart parameters
+Updating suite parameter initial_point = 20000101T0000Z
+Updating suite parameter final_point = 20030101T0000Z
 LOADING broadcast states
 + [root.*] [environment]CYLC_TEST_VAR=hello
 LOADING task run times
@@ -57,15 +57,27 @@ run_ok "${TEST_NAME_BASE}-suite_params" \
     'SELECT key,value FROM suite_params WHERE key != "uuid_str" ORDER BY key'
 cmp_ok "${TEST_NAME_BASE}-suite_params.stdout" <<__OUT__
 UTC_mode|1
+can_auto_stop|1
+cycling_mode|gregorian
 cylc_version|$(cylc version)
 final_point|20050101T0000Z
 initial_point|20000101T0000Z
+is_held|0
+pool_hold_point|
+reloading|0
 run_mode|live
+start_point|20000101T0000Z
+stop_clock_time|
+stop_mode|AUTOMATIC
+stop_point|
+stop_task|
+template_vars|
 __OUT__
 run_ok "${TEST_NAME_BASE}-suite_params_checkpoints" \
     sqlite3 "${SUITE_RUN_DIR}/log/db" \
     'SELECT key,value FROM suite_params_checkpoints WHERE id==1 ORDER BY key'
 cmp_ok "${TEST_NAME_BASE}-suite_params_checkpoints.stdout" <<__OUT__
+cycling_mode|gregorian
 final_point|20030101T0000Z
 initial_point|20000101T0000Z
 run_mode|live

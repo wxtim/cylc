@@ -65,4 +65,6 @@ CREATE TABLE broadcast_states(point TEXT, namespace TEXT, key TEXT, value TEXT, 
 INSERT INTO "broadcast_states" VALUES('*','root','[environment]CYLC_TEST_VAR','hello');
 CREATE TABLE broadcast_events(time TEXT, change TEXT, point TEXT, namespace TEXT, key TEXT, value TEXT);
 INSERT INTO "broadcast_events" VALUES('2016-06-30T11:24:34.777258Z','+','*','root','[environment]CYLC_TEST_VAR','hello');
+CREATE TABLE suite_params(key TEXT, value TEXT, PRIMARY KEY(key));
+INSERT INTO "suite_params" VALUES('cycling_mode','gregorian');
 COMMIT;

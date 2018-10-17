@@ -176,7 +176,7 @@ def parse_commandline(is_restart):
     parser.add_option(
         "-m", "--mode",
         help="Run mode: live, dummy, dummy-local, simulation (default live).",
-        metavar="STRING", action="store", default='live', dest="run_mode",
+        metavar="STRING", action="store", default=None, dest="run_mode",
         choices=["live", "dummy", "dummy-local", "simulation"])
 
     parser.add_option(

@@ -341,7 +341,9 @@ conditions; see `cylc conditions`.
                     self.restart_params['cycling_mode'])
             except KeyError:
                 # back compat for 7.7.2
+                raise
                 self.back_compat_restart = True
+                LOG.debug('Falling back to old restart method')
                 pri_dao.select_suite_params(self._load_suite_params_1)
             else:
                 # new restart logic: preserve suite parameters
@@ -360,7 +362,11 @@ conditions; see `cylc conditions`.
                         #               - allow Cylc to re-detect this on
                         #                 restart.
                         continue
-                    self.suite_params.__setattr__(key, value)
+                    setattr(self.suite_params, key, value)
+                    if key == 'initial_point':
+                        self.cli_initial_point_string = value
+                    elif key == 'start_point':
+                        self.cli_start_point_string = value
                 del self.restart_params
 
             # Configure contact data only after loading UUID string
@@ -374,26 +380,34 @@ conditions; see `cylc conditions`.
         else:
             self.configure_contact()
 
+        LOG.debug('Applying pre-load CLI parameters')
+        if self.options.run_mode:
+            self.suite_params.run_mode = self.options.run_mode
+
         LOG.debug('Applying suite definition parameters')
         self.profiler.log_memory("scheduler.py: before load_suiterc")
-        self.suite_params.run_mode = self.options.run_mode
         self.load_suiterc()
         self.profiler.log_memory("scheduler.py: after load_suiterc")
         self.httpserver.connect(self)
+        self.suite_params.UTC_mode = self.config.cfg['cylc']['UTC mode']
 
-        #LOG.debug('Applying CLI parmeters')
-
-        self.suite_db_mgr.on_suite_start(self.is_restart)
+        LOG.debug('Applying CLI parmeters')
+        if self.options.start_held is True:
+            self.suite_params.is_held = True
+        if (self.config.cfg['cylc']['disable automatic shutdown'] or
+                self.options.no_auto_shutdown):
+            self.suite_params.can_auto_stop = False
         if self.config.cfg['scheduling']['hold after point']:
             self.suite_params.pool_hold_point = get_point(
                 self.config.cfg['scheduling']['hold after point'])
-
         if self.options.hold_point_string:
             self.suite_params.pool_hold_point = get_point(
                 self.options.hold_point_string)
-
         if self.suite_params.pool_hold_point:
             LOG.info("Suite will hold after %s" % self.suite_params.pool_hold_point)
+
+
+        self.suite_db_mgr.on_suite_start(self.is_restart)
 
         reqmode = self.config.cfg['cylc']['required run mode']
         if reqmode:
@@ -544,7 +558,7 @@ conditions; see `cylc conditions`.
             # the suite_params table prescribes a start/stop cycle
             # (else we take whatever the suite.rc file gives us)
             point = get_point(value)
-            my_point = getattr(self, self_attr)
+            my_point = getattr(self.suite_params, self_attr)
             if getattr(self.options, option_ignore_attr):
                 # ignore it and take whatever the suite.rc file gives us
                 if my_point is not None:
@@ -1090,12 +1104,17 @@ conditions; see `cylc conditions`.
         # self.config already alters the 'initial cycle point' for CLI.
         self.suite_params.cycling_mode = self.config.cfg['scheduling'][
             'cycling mode']
-        self.suite_params.initial_point = self.config.initial_point
-        self.suite_params.start_point = self.config.start_point
-        self.suite_params.final_point = get_point(
+        if self.config.initial_point:
+            self.suite_params.initial_point = self.config.initial_point
+        if self.config.start_point:
+            self.suite_params.start_point = self.config.start_point
+        final_point = get_point(
             self.options.final_point_string or
             self.config.cfg['scheduling']['final cycle point']
         )
+        if not (self.suite_params.final_point and
+                self.suite_params.final_point < final_point):
+            self.suite_params.final_point = final_point
         if self.suite_params.final_point is not None:
             self.suite_params.final_point.standardise()
 
@@ -1242,7 +1261,7 @@ conditions; see `cylc conditions`.
         """
         if self.suite_params.pool_hold_point is not None:
             self.hold_suite(self.suite_params.pool_hold_point)
-        if self.options.start_held:
+        if self.suite_params.is_held:
             LOG.info("Held on start-up (no tasks will be submitted)")
             self.hold_suite()
         self.run_event_handlers(self.EVENT_STARTUP, 'suite starting')
@@ -1252,9 +1271,6 @@ conditions; see `cylc conditions`.
         if self.options.profile_mode:
             self.previous_profile_point = 0
             self.count = 0
-        self.suite_params.can_auto_stop = (
-            not self.config.cfg['cylc']['disable automatic shutdown'] and
-            not self.options.no_auto_shutdown)
 
     def process_task_pool(self):
         """Process ALL TASKS whenever something has changed that might
@@ -1915,6 +1931,7 @@ class SuiteParameters(dict):
     KEYS = {
         'can_auto_stop': bool,
         'cycling_mode': str,
+        'cylc_version': str,
         'final_point': PointBase,
         'initial_point': PointBase,
         'pool_hold_point': PointBase,
@@ -1924,18 +1941,20 @@ class SuiteParameters(dict):
         'stop_mode': str,
         'stop_point': PointBase,
         'stop_task': str,
-        'template_vars': dict,
         'is_held': bool,
         'reloading': bool,
+        'UTC_mode': bool,
         'uuid_str': str
     }
     DEFAULTS = {
         'can_auto_stop': True,
+        'cylc_version': CYLC_VERSION,
         'is_held': False,
         'reloading': False
     }
     IMMUTABLE = [
-        'cycling_mode'
+        'cycling_mode',
+        'UTC_mode'  # needs be be updated in cylc.flags
     ]
 
     class Reason(object):
@@ -1984,8 +2003,13 @@ class SuiteParameters(dict):
     def __setattr__(self, attr, value):
         if attr in self.KEYS:
             current = self._values[attr]
-            if current == value:
-                return
+            try:
+                if current == value:
+                    return
+            except AttributeError:
+                # isodatetime objects will raise Attribute error when compared
+                # to strings.
+                pass
             if current is not None and attr in self.IMMUTABLE:
                 raise ValueError('?')
             typ = self.KEYS[attr]

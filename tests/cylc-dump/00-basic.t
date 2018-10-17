@@ -59,7 +59,6 @@ stop_mode=None
 stop_point=None
 stop_task=None
 suite_urls={'suite': '', 'foo': '', 'root': ''}
-template_vars={}
 time zone info={'hours': 1, 'string_basic': '+01', 'string_extended': '+01', 'minutes': 0}
 foo, 1, held, unspawned
 __HERE__
