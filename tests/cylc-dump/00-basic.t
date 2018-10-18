@@ -36,25 +36,25 @@ TEST_NAME="${TEST_NAME_BASE}-dump"
 run_ok "${TEST_NAME}" cylc dump "${SUITE_NAME}"
 sed -i '/\(last_updated\|uuid_str\)/d' "${TEST_NAME}.stdout"
 cmp_ok "${TEST_NAME}.stdout" <<__HERE__
-UTC_mode=False
-can_auto_stop=True
-cycle_point_format=None
+UTC_mode=0
+can_auto_stop=1
+cycling_mode=integer
 cylc_version=$(cylc version)
 final_point=None
 initial_point=1
-is_held=True
+is_held=1
 newest cycle point string=1
 newest runahead cycle point string=None
 ns_defn_order=['root', 'foo']
 oldest cycle point string=1
 pool_hold_point=None
-reloading=False
-run_mode=live
+reloading=0
+run_mode="live"
 start_point=1
 state totals={'held': 1}
 states=['held']
 status_string=held
-stop_clock_time_string=None
+stop_clock_time=None
 stop_mode=None
 stop_point=None
 stop_task=None
@@ -74,25 +74,24 @@ TEST_NAME="${TEST_NAME_BASE}-dump-global"
 run_ok "${TEST_NAME}" cylc dump "${SUITE_NAME}" --global
 sed -i '/\(last_updated\|uuid_str\)/d' "${TEST_NAME}.stdout"
 cmp_ok "${TEST_NAME}.stdout" <<__HERE__
-UTC_mode=False
-can_auto_stop=True
-cycle_point_format=None
+UTC_mode=0
+can_auto_stop=1
 cylc_version=$(cylc version)
 final_point=None
 initial_point=1
-is_held=True
+is_held=1
 newest cycle point string=1
 newest runahead cycle point string=None
 ns_defn_order=['root', 'foo']
 oldest cycle point string=1
 pool_hold_point=None
-reloading=False
-run_mode=live
+reloading=0
+run_mode="live"
 start_point=1
 state totals={'held': 1}
 states=['held']
 status_string=held
-stop_clock_time_string=None
+stop_clock_time=None
 stop_mode=None
 stop_point=None
 stop_task=None
@@ -107,13 +106,12 @@ sed -i '/\(last_updated\|uuid_str\)/d' "${TEST_NAME}.stdout"
 cmp_ok "${TEST_NAME}.stdout" <<'__HERE__'
 {
     "global": {
-        "UTC_mode": false, 
-        "can_auto_stop": true, 
-        "cycle_point_format": null, 
+        "UTC_mode": 0, 
+        "can_auto_stop": 1, 
         "cylc_version": "7.7.1-152-g242ad-dirty", 
         "final_point": null, 
         "initial_point": "1", 
-        "is_held": true, 
+        "is_held": 1, 
         "newest cycle point string": "1", 
         "newest runahead cycle point string": null, 
         "ns_defn_order": [
@@ -122,7 +120,7 @@ cmp_ok "${TEST_NAME}.stdout" <<'__HERE__'
         ], 
         "oldest cycle point string": "1", 
         "pool_hold_point": null, 
-        "reloading": false, 
+        "reloading": 0, 
         "run_mode": "live", 
         "start_point": "1", 
         "state totals": {
@@ -132,7 +130,7 @@ cmp_ok "${TEST_NAME}.stdout" <<'__HERE__'
             "held"
         ], 
         "status_string": "held", 
-        "stop_clock_time_string": null, 
+        "stop_clock_time": null, 
         "stop_mode": null, 
         "stop_point": null, 
         "stop_task": null, 
@@ -162,7 +160,7 @@ cmp_ok "${TEST_NAME}.stdout" <<'__HERE__'
             "logfiles": [], 
             "mean_elapsed_time": null, 
             "name": "foo", 
-            "spawned": "False", 
+            "spawned": "0", 
             "started_time": null, 
             "started_time_string": null, 
             "state": "held", 
@@ -193,7 +191,7 @@ cmp_ok "${TEST_NAME}.stdout" <<'__HERE__'
         "logfiles": [], 
         "mean_elapsed_time": null, 
         "name": "foo", 
-        "spawned": "False", 
+        "spawned": "0", 
         "started_time": null, 
         "started_time_string": null, 
         "state": "held", 
@@ -211,13 +209,12 @@ run_ok "${TEST_NAME}" cylc dump "${SUITE_NAME}" --json --global
 sed -i '/\(last_updated\|uuid_str\)/d' "${TEST_NAME}.stdout"
 cmp_ok "${TEST_NAME}.stdout" <<'__HERE__'
 {
-    "UTC_mode": false, 
-    "can_auto_stop": true, 
-    "cycle_point_format": null, 
+    "UTC_mode": 0, 
+    "can_auto_stop": 1, 
     "cylc_version": "7.7.1-152-g242ad-dirty", 
     "final_point": null, 
     "initial_point": "1", 
-    "is_held": true, 
+    "is_held": 1, 
     "newest cycle point string": "1", 
     "newest runahead cycle point string": null, 
     "ns_defn_order": [
@@ -226,7 +223,7 @@ cmp_ok "${TEST_NAME}.stdout" <<'__HERE__'
     ], 
     "oldest cycle point string": "1", 
     "pool_hold_point": null, 
-    "reloading": false, 
+    "reloading": 0, 
     "run_mode": "live", 
     "start_point": "1", 
     "state totals": {
@@ -236,7 +233,7 @@ cmp_ok "${TEST_NAME}.stdout" <<'__HERE__'
         "held"
     ], 
     "status_string": "held", 
-    "stop_clock_time_string": null, 
+    "stop_clock_time": null, 
     "stop_mode": null, 
     "stop_point": null, 
     "stop_task": null, 

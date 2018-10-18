@@ -29,20 +29,6 @@ from cylc.suite_status import (
 from cylc.task_state import TASK_STATUS_RUNAHEAD
 from cylc.task_state_prop import extract_group_state
 
-SUITE_STATE_PARAMS = [
-    ('can_auto_stop', bool),
-    ('final_point', str),
-    ('initial_point', str),  # ?
-    ('pool_hold_point', str),
-    ('run_mode', str),
-    ('start_point', str),
-    ('stop_clock_time', str),
-    ('stop_mode', str),  # ?
-    ('stop_point', str),
-    ('stop_task', str),
-    ('template_vars', dict)
-]
-
 
 class StateSummaryMgr(object):
     """Manage suite state summary for client, e.g. GUI."""
