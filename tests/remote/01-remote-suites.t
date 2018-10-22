@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #-------------------------------------------------------------------------------
 # Test running of suites on set hosts, including remote hosts.
-. $(dirname $0)/test_header
+. "$(dirname "$0")/test_header"
 #-------------------------------------------------------------------------------
 set_test_remote
 REMOTE_HOST="$( \
@@ -25,11 +25,6 @@ if [[ -z "${REMOTE_HOST}" || "${REMOTE_HOST}" == 'localhost' ]]; then
     skip_all '"[test battery]remote host" not defined with remote suite hosts'
 fi
 set_test_number 25
-#-------------------------------------------------------------------------------
-# Validate generic suite to run for tests.
-install_suite $TEST_NAME_BASE 01-remote-suites
-TEST_NAME=$TEST_NAME_BASE-validate
-run_ok $TEST_NAME cylc validate $SUITE_NAME
 #-------------------------------------------------------------------------------
 # Set-up for valid command-line specification formats and host types to test.
 
@@ -55,8 +50,8 @@ do
     for USE_HOST_OPT in \
         "${HOST_OPT_NONE}" \
         "${HOST_OPT_LOCAL}" \
-        "${HOST_OPT_REMOTE}" \
-        "${HOST_OPT_INVALID}"
+        ## "${HOST_OPT_REMOTE}" \
+        ## "${HOST_OPT_INVALID}"
     do
         HOST_OPT="${USE_HOST_OPT_START}${USE_HOST_OPT}"
         for USE_RUN_CMD in \
@@ -64,20 +59,24 @@ do
             "${SUITE_NAME} --reference-test --debug --no-detach ${HOST_OPT}" \
             "--reference-test --debug ${SUITE_NAME} ${HOST_OPT} --no-detach"
         do
-        if [[ "${USE_HOST_OPT}" == "${HOST_OPT_INVALID}" ]]
-        then  # invalid host so suite should fail.
-            suite_run_fail "${TEST_NAME_BASE}-${LABEL}" \
-                "${USE_RUN_CMD_ROOT}${USE_RUN_CMD}"
-        else  # otherwise suite should run okay on correct host.
-            suite_run_ok "${TEST_NAME_BASE}-${LABEL}" \
-                "${USE_RUN_CMD_ROOT}${USE_RUN_CMD}"
-        fi
-        LABEL=$(($LABEL+1))  # increment for distinct sub-test names.
+            TEST_NAME="${TEST_NAME_BASE}-${LABEL}"
+            install_suite "${TEST_NAME}" 01-remote-suites
+
+            if [[ "${USE_HOST_OPT}" == "${HOST_OPT_INVALID}" ]]
+            then  # invalid host so suite should fail.
+                suite_run_fail "${TEST_NAME_BASE}-${LABEL}" \
+                    "${USE_RUN_CMD_ROOT}${USE_RUN_CMD}"
+            else  # otherwise suite should run okay on correct host.
+                suite_run_ok "${TEST_NAME}" "${USE_RUN_CMD_ROOT}${USE_RUN_CMD}"
+            fi
+            LABEL=$(($LABEL+1))  # increment for distinct sub-test names.
         done
     done
 done
 #-------------------------------------------------------------------------------
 # Clean up
-purge_suite_remote "${CYLC_TEST_HOST}" "${SUITE_NAME}"
-purge_suite "${SUITE_NAME}"
+for LABEL in `seq 1 24`
+do
+    ##purge_suite_remote "${REMOTE_HOST}" "${TEST_NAME_BASE}-${LABEL}"
+    purge_suite "${TEST_NAME_BASE}-${LABEL}"
 exit
