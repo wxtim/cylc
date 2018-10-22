@@ -21,7 +21,7 @@
 set_test_remote
 set_test_number 4
 #-------------------------------------------------------------------------------
-install_suite $TEST_NAME_BASE basic
+install_suite $TEST_NAME_BASE 00-remote-tasks
 #-------------------------------------------------------------------------------
 TEST_NAME=$TEST_NAME_BASE-validate
 run_ok $TEST_NAME cylc validate $SUITE_NAME
