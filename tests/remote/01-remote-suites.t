@@ -24,7 +24,7 @@ REMOTE_HOST="$( \
 if [[ -z "${REMOTE_HOST}" || "${REMOTE_HOST}" == 'localhost' ]]; then
     skip_all '"[test battery]remote host" not defined with remote suite hosts'
 fi
-set_test_number 24
+set_test_number 25
 #-------------------------------------------------------------------------------
 # Validate generic suite to run for tests.
 install_suite $TEST_NAME_BASE 01-remote-suites
@@ -44,26 +44,32 @@ HOST_OPT_START_EQUALS="--host="
 HOST_OPT_START_SPACE="--host "
 
 # Command formats varying by ordering of argument and option specification.
-HOST_OPT="TEMP"
-RUN_CMD_OPTS_THEN_ARGS=$TEST_NAME cylc run --reference-test \
-    --debug --no-detach $HOST_OPT $SUITE_NAME
-RUN_CMD_ARGS_THEN_OPTS=$TEST_NAME cylc run $SUITE_NAME \
-    --reference-test --debug --no-detach $HOST_OPT
-RUN_CMD_MIXED_OPTS_ARGS=$TEST_NAME cylc run --reference-test \
-    --debug $SUITE_NAME $HOST_OPT --no-detach
+USE_RUN_CMD_ROOT="$TEST_NAME cylc run "
+# ... For appended arguments and options, see USE_RUN_CMD in for loop below.
 #-------------------------------------------------------------------------------
 # Cover whole phase space for set-up options above to run a suite by set host.
 
-for USE_RUN_CMD in \
-    RUN_CMD_OPTS_THEN_ARGS RUN_CMD_ARGS_THEN_OPTS RUN_CMD_MIXED_OPTS_ARGS
+LABEL=1
+for USE_HOST_OPT_START in HOST_OPT_START_EQUALS HOST_OPT_START_SPACE
 do
-    for USE_HOST_OPT_START in HOST_OPT_START_EQUALS HOST_OPT_START_SPACE
+    for USE_HOST_OPT in \
+    HOST_OPT_NONE HOST_OPT_LOCAL HOST_OPT_REMOTE HOST_OPT_INVALID
     do
-        for USE_HOST_OPT in \
-        HOST_OPT_NONE HOST_OPT_LOCAL HOST_OPT_REMOTE HOST_OPT_INVALID
+        HOST_OPT=${USE_HOST_OPT_START}${USE_HOST_OPT}
+        for USE_RUN_CMD in \
+            "--reference-test --debug --no-detach ${HOST_OPT} ${SUITE_NAME}" \
+            "${SUITE_NAME} --reference-test --debug --no-detach ${HOST_OPT}" \
+            "--reference-test --debug ${SUITE_NAME} ${HOST_OPT} --no-detach"
         do
-            HOST_OPT=${USE_HOST_OPT_START}${USE_HOST_OPT}  # sets in USE_RUN_CMD
-            suite_run_okay ${USE_RUN_CMD}
+        if [[ "${USE_HOST_OPT}" == "HOST_OPT_INVALID" ]]
+        then
+            suite_run_fail "${TEST_NAME_BASE}-${LABEL}" \
+                "${USE_RUN_CMD_ROOT}${USE_RUN_CMD}"
+        else
+            suite_run_ok "${TEST_NAME_BASE}-${LABEL}" \
+                "${USE_RUN_CMD_ROOT}${USE_RUN_CMD}"
+        fi
+        LABEL=$(($LABEL+1))  # increment for distinct sub-test names.
         done
     done
 done
