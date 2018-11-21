@@ -35,6 +35,15 @@ from cylc.gui import util
 from cylc.task_id import TaskID
 
 
+def expand_hex(hexc):
+    # 3-digit hex color codes are not recognized.
+    shexc = str(hexc)
+    if len(shexc) == 4:
+        return '#' + shexc[1:2]*2 + shexc[2:3]*2 + shexc[3:4]*2
+    else:
+        return shexc
+
+
 class CylcDotViewerCommon(xdot.DotWindow):
 
     def __init__(self, suite, suiterc, template_vars, orientation="TB",
@@ -414,8 +423,8 @@ class MyDotWindow(CylcDotViewerCommon):
         # Note this is used by "cylc graph" but not gcylc.
         # self.start_ and self.stop_point_string come from CLI.
 
-        tbg_color = getattr(self.style, 'bg', None)[gtk.STATE_NORMAL]
-        tfg_color = getattr(self.style, 'fg', None)[gtk.STATE_NORMAL]
+        tbg_color = expand_hex(getattr(self.style, 'bg', None)[gtk.STATE_NORMAL])
+        tfg_color = expand_hex(getattr(self.style, 'fg', None)[gtk.STATE_NORMAL])
         graph = CGraph.get_graph(
             self.suiterc,
             group_nodes=group_nodes,

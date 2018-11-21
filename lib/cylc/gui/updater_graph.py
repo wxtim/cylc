@@ -37,6 +37,15 @@ from cylc.task_state import TASK_STATUS_RUNAHEAD
 from cylc.cfgspec.gcylc import GcylcConfig
 
 
+def expand_hex(hexc):
+    # 3-digit hex color codes are not recognized.
+    shexc = str(hexc)
+    if len(shexc) == 4:
+        return '#' + shexc[1:2]*2 + shexc[2:3]*2 + shexc[3:4]*2
+    else:
+        return shexc
+
+
 def compare_dict_of_dict(one, two):
     """Return True if one == two, else return False."""
     for key in one:
@@ -236,10 +245,13 @@ class GraphUpdater(threading.Thread):
                 self.update_gui()
             sleep(0.2)
 
+    def get_desktop_theme(self, col):
+        return expand_hex(getattr(self.xdot.widget.style, col, None)[gtk.STATE_NORMAL])
+
     def update_xdot(self, no_zoom=False):
-        bgcolor = getattr(self.xdot.widget.style, 'bg', None)[gtk.STATE_NORMAL]
-        self.fgcolor = getattr(self.xdot.widget.style, 'fg', None)[gtk.STATE_NORMAL]
-        self.graphw.set_def_style(self.fgcolor, bgcolor)
+        fgcolor = self.get_desktop_theme('fg')
+        bgcolor = self.get_desktop_theme('bg')
+        self.graphw.set_def_style(fgcolor, bgcolor)
         self.xdot.set_dotcode(self.graphw.to_string(), no_zoom=no_zoom)
         if self.first_update:
             self.xdot.widget.zoom_to_fit()
@@ -328,7 +340,8 @@ class GraphUpdater(threading.Thread):
         gr_edges = [tuple(edge) for edge in gr_edges]
 
         current_id = self.get_graph_id(gr_edges)
-        if current_id != self.prev_graph_id:
+        #if current_id != self.prev_graph_id:
+        if True:
             self.graphw = CGraphPlain(
                 self.cfg.suite, suite_polling_tasks)
             self.graphw.add_edges(
@@ -409,14 +422,15 @@ class GraphUpdater(threading.Thread):
                 elif name.startswith('@'):
                     node.attr['shape'] = 'none'
 
+            fgcolor = self.get_desktop_theme('fg')
             if self.subgraphs_on:
-                self.graphw.add_cycle_point_subgraphs(gr_edges, self.fgcolor)
+                self.graphw.add_cycle_point_subgraphs(gr_edges, fgcolor)
 
         # Set base node style defaults
         for node in self.graphw.nodes():
             node.attr['style'] = 'dotted'
-            node.attr['color'] = self.fgcolor
-            node.attr['fontcolor'] = self.fgcolor
+            node.attr['color'] = fgcolor
+            node.attr['fontcolor'] = fgcolor
             if not node.attr['URL'].startswith(self.PREFIX_BASE):
                 node.attr['URL'] = self.PREFIX_BASE + node.attr['URL']
 
