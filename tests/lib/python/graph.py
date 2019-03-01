@@ -3,7 +3,8 @@ import sys
 
 from cylc.config import SuiteConfig
 from cylc.cycling.loader import get_point, get_point_relative
-from cylc.suite_srv_files_mgr import SuiteSrvFilesManager, SuiteServiceFileError
+from cylc.suite_srv_files_mgr import (
+    SuiteSrvFilesManager, SuiteServiceFileError)
 
 
 def sort_key(item):
@@ -78,7 +79,8 @@ def main(suite, start_point=None, stop_point=None):
         edge_sort = sort_datetime_edge
 
     # get graph
-    start_point, stop_point = get_cycling_bounds(config, start_point, stop_point)
+    start_point, stop_point = get_cycling_bounds(
+        config, start_point, stop_point)
     graph = config.get_graph_raw(start_point, stop_point)
     if not graph:
         return
@@ -91,7 +93,7 @@ def main(suite, start_point=None, stop_point=None):
             print('edge "%s" "%s"' % (left, right))
 
     print('graph')
-    
+
     for node in sorted(set(x for y in graph for x in y[0:2] if x),
                        key=node_sort):
         print('node "%s" "%s"' % (node, node.replace('.', r'\n')))
