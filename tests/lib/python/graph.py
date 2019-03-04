@@ -2,7 +2,6 @@
 import sys
 
 from cylc.config import SuiteConfig
-from cylc.cycling.loader import get_point, get_point_relative
 from cylc.suite_srv_files_mgr import (
     SuiteSrvFilesManager, SuiteServiceFileError)
 
