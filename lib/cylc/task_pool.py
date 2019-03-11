@@ -38,8 +38,8 @@ from time import time
 from parsec.OrderedDict import OrderedDict
 
 from cylc import LOG
-from cylc.config import SuiteConfigError
 from cylc.cycling.loader import get_point, standardise_point_string
+from cylc.exceptions import SuiteConfigError
 from cylc.task_action_timer import TaskActionTimer
 from cylc.task_events_mgr import (
     CustomTaskEventHandlerContext, TaskEventMailContext,

@@ -315,7 +315,13 @@ grep_ok() {
         return
     fi
     mkdir -p "${TEST_LOG_DIR}"
-    echo "Can't find ${BRE} in ${FILE}" >"${TEST_LOG_DIR}/${TEST_NAME}.stderr"
+    echo "Can't find:
+===========
+${BRE}
+===========
+in:
+===========
+$(cat ${FILE})" >"${TEST_LOG_DIR}/${TEST_NAME}.stderr"
     fail "${TEST_NAME}"
 }
 

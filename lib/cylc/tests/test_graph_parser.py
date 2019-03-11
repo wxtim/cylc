@@ -18,7 +18,8 @@
 
 import unittest
 
-from cylc.graph_parser import GraphParser, GraphParseError
+from cylc.exceptions import GraphParseError
+from cylc.graph_parser import GraphParser
 
 
 class TestGraphParser(unittest.TestCase):
