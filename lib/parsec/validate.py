@@ -27,43 +27,9 @@ from collections import deque
 import re
 from textwrap import dedent
 
-from parsec import ParsecError
+from parsec.exceptions import (
+    ParsecError, ListValueError, IllegalValueError, IllegalItemError)
 from parsec.util import itemstr
-
-
-class ValidationError(ParsecError):
-    """Base class for bad setting errors."""
-    pass
-
-
-class ListValueError(ValidationError):
-    """Bad setting value, for a comma separated list."""
-    def __init__(self, keys, value, msg='', exc=None):
-        ValidationError.__init__(self)
-        self.msg = '%s\n    %s' % (
-            msg, itemstr(keys[:-1], keys[-1], value=value))
-        if exc:
-            self.msg += ": %s" % exc
-
-
-class IllegalValueError(ValidationError):
-    """Bad setting value."""
-    def __init__(self, vtype, keys, value, exc=None):
-        ValidationError.__init__(self)
-        self.msg = 'Illegal %s value: %s' % (
-            vtype, itemstr(keys[:-1], keys[-1], value=value))
-        if exc:
-            self.msg += ": %s" % exc
-
-
-class IllegalItemError(ValidationError):
-    """Bad setting section or option name."""
-    def __init__(self, keys, key, msg=None):
-        ValidationError.__init__(self)
-        if msg is not None:
-            self.msg = 'Illegal item (%s): %s' % (msg, itemstr(keys, key))
-        else:
-            self.msg = 'Illegal item: %s' % itemstr(keys, key)
 
 
 class ParsecValidator(object):

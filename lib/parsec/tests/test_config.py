@@ -20,6 +20,7 @@ import tempfile
 import unittest
 
 import parsec.config
+from parsec.exceptions import ParsecError
 import parsec.validate
 from cylc.cfgvalidate import CylcConfigValidator as VDR
 from cylc.cfgvalidate import cylc_config_validate
@@ -61,7 +62,7 @@ def get_checkspec_params():
 
     return [
         (spec1, parents1, None),
-        (spec2, parents2, parsec.config.ParsecError)
+        (spec2, parents2, ParsecError)
     ]
 
 

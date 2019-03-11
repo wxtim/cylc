@@ -38,7 +38,8 @@ import re
 import traceback
 
 from jinja2 import TemplateError, UndefinedError
-from parsec import LOG, ParsecError
+from parsec import LOG
+from parsec.exceptions import ParsecError, FileParseError
 from parsec.OrderedDict import OrderedDictWithDefaults
 from parsec.include import inline, IncludeFileNotFoundError
 from parsec.jinja2support import jinja2process
@@ -92,25 +93,6 @@ _TRIPLE_QUOTE = {
     "'''": (_SINGLE_LINE_SINGLE, _MULTI_LINE_SINGLE),
     '"""': (_SINGLE_LINE_DOUBLE, _MULTI_LINE_DOUBLE),
 }
-
-
-class FileParseError(ParsecError):
-
-    """An error raised when attempting to read in the config file(s)."""
-
-    def __init__(self, reason, index=None, line=None, lines=None,
-                 error_name="FileParseError"):
-        self.msg = error_name + ":\n" + reason
-        if index:
-            self.msg += " (line " + str(index + 1) + ")"
-        if line:
-            self.msg += ":\n   " + line.strip()
-        if lines:
-            self.msg += "\nContext lines:\n" + "\n".join(lines)
-            self.msg += "\t<-- " + error_name
-        if index:
-            # TODO - make 'view' function independent of cylc:
-            self.msg += "\n(line numbers match 'cylc view -p')"
 
 
 def _concatenate(lines):
@@ -259,11 +241,8 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
 
     # inline any cylc include-files
     if do_inline:
-        try:
-            flines = inline(
-                flines, fdir, fpath, False, viewcfg=viewcfg, for_edit=asedit)
-        except IncludeFileNotFoundError as exc:
-            raise FileParseError(str(exc))
+        flines = inline(
+            flines, fdir, fpath, False, viewcfg=viewcfg, for_edit=asedit)
 
     # process with EmPy
     if do_empy:
@@ -289,6 +268,8 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
             LOG.debug('Processing with Jinja2')
             try:
                 flines = jinja2process(flines, fdir, template_vars)
+            except ParsecError as exc:
+                raise
             except Exception as exc:
                 # Extract diagnostic info from the end of the Jinja2 traceback.
                 exc_lines = traceback.format_exc().splitlines()

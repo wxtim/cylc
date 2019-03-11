@@ -77,6 +77,7 @@ class PyModuleLoader(BaseLoader):
 
 def raise_helper(message, error_type='Error'):
     """Provides a Jinja2 function for raising exceptions."""
+    # TODO - this more nicely
     raise Exception('Jinja2 %s: %s' % (error_type, message))
 
 
