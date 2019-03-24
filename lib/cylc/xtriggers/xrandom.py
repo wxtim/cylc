@@ -74,7 +74,7 @@ def xrandom(percent, secs=0, _=None, debug=False):
     """
     sleep(float(secs))
     results = {}
-    satisfied = int(percent) != 0 and (1 == randint(1, 100 / int(percent)))
+    satisfied = int(percent) != 0 and (1 == randint(1, 100 / int(percent)))  # nosec
     if satisfied:
         results = {
             'COLOR': COLORS[randint(0, len(COLORS) - 1)],
