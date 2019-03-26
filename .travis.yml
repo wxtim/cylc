@@ -69,10 +69,23 @@ regressiontest: &regressiontest
   install:
     - .travis/install.sh functional-tests docs
   script:
-    - export PYTHONPATH="${TRAVIS_BUILD_DIR}/.travis"
-    - .travis/coverage-data.sh
-    - coverage run .travis/cover.py
-    - unset PYTHONPATH
+    - |
+      export PYTHONPATH="${TRAVIS_BUILD_DIR}/.travis"
+      .travis/coverage-data.sh
+      coverage run .travis/cover.py &
+      TEST_PID="$!"
+      minutes=0
+      limit=50
+      while ps -p "${TEST_PID}" >/dev/null 2>&1; do
+        echo -n -e " \b" # never leave evidences!
+        if ((minutes == limit)); then
+          exit 1
+        fi
+        minutes=$((minutes + 1))
+        sleep 60
+      done
+      wait "${TEST_PID}"
+      unset PYTHONPATH
   after_failure:
     - .travis/after_failure.sh
   after_success:
