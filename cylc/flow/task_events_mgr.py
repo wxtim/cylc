@@ -42,7 +42,8 @@ from cylc.flow.hostuserutil import get_host, get_user
 from cylc.flow.subprocctx import SubProcContext
 from cylc.flow.task_action_timer import TaskActionTimer
 from cylc.flow.task_job_logs import (
-    get_task_job_log, get_task_job_activity_log, JOB_LOG_OUT, JOB_LOG_ERR)
+    get_task_job_id, get_task_job_log, get_task_job_activity_log,
+    JOB_LOG_OUT, JOB_LOG_ERR)
 from cylc.flow.task_message import (
     ABORT_MESSAGE_PREFIX, FAIL_MESSAGE_PREFIX, VACATION_MESSAGE_PREFIX)
 from cylc.flow.task_state import (
@@ -130,7 +131,8 @@ class TaskEventsManager(object):
     }
     NON_UNIQUE_EVENTS = ('warning', 'critical', 'custom')
 
-    def __init__(self, suite, proc_pool, suite_db_mgr, broadcast_mgr):
+    def __init__(self, suite, proc_pool, suite_db_mgr,
+                 broadcast_mgr, job_pool):
         self.suite = suite
         self.suite_url = None
         self.suite_cfg = {}
@@ -138,6 +140,7 @@ class TaskEventsManager(object):
         self.proc_pool = proc_pool
         self.suite_db_mgr = suite_db_mgr
         self.broadcast_mgr = broadcast_mgr
+        self.job_pool = job_pool
         self.mail_interval = 0.0
         self.mail_footer = None
         self.next_mail_time = None
@@ -628,6 +631,8 @@ class TaskEventsManager(object):
         if event_time is None:
             event_time = get_current_time_string()
         itask.set_summary_time('finished', event_time)
+        job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
+        self.job_pool.set_job_time(job_d, 'finished', event_time)
         self.suite_db_mgr.put_update_task_jobs(itask, {
             "run_status": 1,
             "time_run_exit": event_time,
@@ -638,6 +643,7 @@ class TaskEventsManager(object):
             self.pflag = True
             if itask.state.reset_state(TASK_STATUS_FAILED):
                 self.setup_event_handlers(itask, "failed", message)
+                self.job_pool.set_job_state(job_d, TASK_STATUS_FAILED)
             LOG.critical(
                 "[%s] -job(%02d) %s", itask, itask.submit_num, "failed")
         elif itask.state.reset_state(
@@ -661,9 +667,12 @@ class TaskEventsManager(object):
             itask.job_vacated = False
             LOG.warning("[%s] -Vacated job restarted", itask)
         self.pflag = True
+        job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
         if itask.state.reset_state(TASK_STATUS_RUNNING):
             self.setup_event_handlers(itask, 'started', 'job started')
+            self.job_pool.set_job_state(job_d, TASK_STATUS_RUNNING)
         itask.set_summary_time('started', event_time)
+        self.job_pool.set_job_time(job_d, 'started', event_time)
         self._reset_job_timers(itask)
         self.suite_db_mgr.put_update_task_jobs(itask, {
             "time_run": itask.summary['started_time_string']})
@@ -674,6 +683,8 @@ class TaskEventsManager(object):
 
     def _process_message_succeeded(self, itask, event_time):
         """Helper for process_message, handle a succeeded message."""
+        job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
+        self.job_pool.set_job_time(job_d, 'finished', event_time)
         self.pflag = True
         itask.set_summary_time('finished', event_time)
         self.suite_db_mgr.put_update_task_jobs(itask, {
@@ -698,6 +709,7 @@ class TaskEventsManager(object):
                     itask, msg)
         if itask.state.reset_state(TASK_STATUS_SUCCEEDED):
             self.setup_event_handlers(itask, "succeeded", "job succeeded")
+            self.job_pool.set_job_state(job_d, TASK_STATUS_SUCCEEDED)
         self._reset_job_timers(itask)
 
     def _process_message_submit_failed(self, itask, event_time):
@@ -709,6 +721,8 @@ class TaskEventsManager(object):
             "time_submit_exit": event_time,
             "submit_status": 1,
         })
+        job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
+        self.job_pool.set_job_attr(job_d, 'batch_sys_job_id', None)
         itask.summary['submit_method_id'] = None
         self.pflag = True
         if (TASK_STATUS_SUBMIT_RETRYING not in itask.try_timers or
@@ -719,6 +733,7 @@ class TaskEventsManager(object):
                 self.setup_event_handlers(
                     itask, self.EVENT_SUBMIT_FAILED,
                     'job %s' % self.EVENT_SUBMIT_FAILED)
+                self.job_pool.set_job_state(job_d, TASK_STATUS_SUBMIT_FAILED)
         elif itask.state.reset_state(
             TASK_STATUS_SUBMIT_RETRYING,
             respect_hold_swap=True,
@@ -734,6 +749,7 @@ class TaskEventsManager(object):
             self.setup_event_handlers(
                 itask, self.EVENT_SUBMIT_RETRY,
                 "job %s, %s" % (self.EVENT_SUBMIT_FAILED, delay_msg))
+            self.job_pool.set_job_state(job_d, TASK_STATUS_SUBMIT_RETRYING)
         self._reset_job_timers(itask)
 
     def _process_message_submitted(self, itask, event_time):
@@ -762,6 +778,8 @@ class TaskEventsManager(object):
             return
 
         itask.set_summary_time('submitted', event_time)
+        job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
+        self.job_pool.set_job_time(job_d, 'submitted', event_time)
         # Unset started and finished times in case of resubmission.
         itask.set_summary_time('started')
         itask.set_summary_time('finished')
@@ -774,6 +792,7 @@ class TaskEventsManager(object):
             if itask.state.reset_state(TASK_STATUS_SUBMITTED):
                 self.setup_event_handlers(
                     itask, TASK_OUTPUT_SUBMITTED, 'job submitted')
+                self.job_pool.set_job_state(job_d, TASK_STATUS_SUBMITTED)
             self._reset_job_timers(itask)
 
     def _setup_job_logs_retrieval(self, itask, event):

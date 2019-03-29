@@ -71,13 +71,14 @@ class TaskPool(object):
     STOP_REQUEST_NOW_NOW = 'REQUEST(NOW-NOW)'
 
     def __init__(self, config, stop_point, suite_db_mgr, task_events_mgr,
-                 proc_pool, xtrigger_mgr):
+                 proc_pool, xtrigger_mgr, job_pool):
         self.config = config
         self.stop_point = stop_point
         self.suite_db_mgr = suite_db_mgr
         self.task_events_mgr = task_events_mgr
         self.proc_pool = proc_pool
         self.xtrigger_mgr = xtrigger_mgr
+        self.job_pool = job_pool
 
         self.do_reload = False
         self.custom_runahead_limit = self.config.get_custom_runahead_limit()
@@ -117,7 +118,7 @@ class TaskPool(object):
         task_items = {}
         select_args = []
         for item in items:
-            point_str, name_str = self._parse_task_item(item)[:2]
+            point_str, name_str = self.parse_task_item(item)[:2]
             if point_str is None:
                 LOG.warning(
                     "%s: task ID for insert must contain cycle point" % (item))
@@ -505,6 +506,7 @@ class TaskPool(object):
         else:
             if not self.runahead_pool[itask.point]:
                 del self.runahead_pool[itask.point]
+            self.job_pool.remove_task_jobs(itask.identity)
             self.rhpool_changed = True
             return
 
@@ -521,6 +523,7 @@ class TaskPool(object):
         LOG.debug("[%s] -%s", itask, msg)
         if itask.tdef.max_future_prereq_offset is not None:
             self.set_max_future_offset()
+        self.job_pool.remove_task_jobs(itask.identity)
         del itask
 
     def get_all_tasks(self):
@@ -1132,6 +1135,9 @@ class TaskPool(object):
                     del itask.summary['job_hosts'][itask.submit_num]
                 except KeyError:
                     pass
+                job_d = get_task_job_id(
+                    itask.point, itask.tdef.name, itask.submit_num)
+                self.job_pool.remove_job(job_d)
                 itask.submit_num -= 1
                 itask.summary['submit_num'] = itask.submit_num
                 itask.local_job_file_path = None
@@ -1327,7 +1333,7 @@ class TaskPool(object):
             itasks += self.get_all_tasks()
         else:
             for item in items:
-                point_str, name_str, status = self._parse_task_item(item)
+                point_str, name_str, status = self.parse_task_item(item)
                 if point_str is None:
                     point_str = "*"
                 else:
@@ -1350,8 +1356,8 @@ class TaskPool(object):
                     bad_items.append(item)
         return itasks, bad_items
 
-    @classmethod
-    def _parse_task_item(cls, item):
+    @staticmethod
+    def parse_task_item(item):
         """Parse point/name:state or name.point:state syntax."""
         if ":" in item:
             head, state_str = item.rsplit(":", 1)
