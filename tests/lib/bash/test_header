@@ -434,6 +434,9 @@ purge_suite_remote() {
 }
 
 purge_suite() {
+    if [[ -z "${TRAVIS_BUILD_DIR}" ]]; then
+        return
+    fi
     local SUITE_NAME="$1"
     cd "${TEST_DIR:-}"
     if (($FAILURES == 0)); then
