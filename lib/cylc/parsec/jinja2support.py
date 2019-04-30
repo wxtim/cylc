@@ -27,7 +27,6 @@ import re
 import sys
 import traceback
 from glob import glob
-from typing import Dict
 
 from jinja2 import (
     BaseLoader,
@@ -112,7 +111,7 @@ def _load_jinja2_filters():
     object (same object as in __import__("module_name")__).
 
     :return: jinja2 filter modules
-    :rtype: Dict[string, object]
+    :rtype: dict[string, object]
     """
     jinja2_filters_modules = pkgutil.iter_modules(
         cylc.jinja2filters.__path__, cylc.jinja2filters.__name__ + ".")
