@@ -20,11 +20,14 @@
 Importing code should catch ImportError in case Jinja2 is not installed.
 """
 
-from glob import glob
+import importlib
 import os
+import pkgutil
 import re
 import sys
 import traceback
+from glob import glob
+from typing import Dict
 
 from jinja2 import (
     BaseLoader,
@@ -35,9 +38,9 @@ from jinja2 import (
     TemplateNotFound,
     TemplateSyntaxError)
 
+import cylc.jinja2filters
 from cylc import LOG
 from cylc.parsec.exceptions import Jinja2Error
-
 
 TRACEBACK_LINENO = re.compile(r'(\s+)?File "<template>", line (\d+)')
 CONTEXT_LINES = 3
@@ -98,6 +101,28 @@ def assert_helper(logical, message):
     return ''  # Prevent None return value polluting output.
 
 
+def _load_jinja2_filters():
+    """
+    Load modules under the cylc.jinja2filters package namespace. Filters
+    provided by third-party packages (i.e. user created packages) will
+    also be included if correctly put in the cylc.jinja2filters namespace.
+
+    The dictionary returned contains the full module name (e.g.
+    cylc.jinja2filters.pad), and the second value is the module
+    object (same object as in __import__("module_name")__).
+
+    :return: jinja2 filter modules
+    :rtype: Dict[string, object]
+    """
+    jinja2_filters_modules = pkgutil.iter_modules(
+        cylc.jinja2filters.__path__, cylc.jinja2filters.__name__ + ".")
+    jinja2_filters = {
+        name: importlib.import_module(name)
+        for finder, name, ispkg in jinja2_filters_modules
+    }
+    return jinja2_filters
+
+
 def jinja2environment(dir_=None):
     """Set up and return Jinja2 environment."""
     if dir_ is None:
@@ -109,6 +134,11 @@ def jinja2environment(dir_=None):
         loader=ChoiceLoader([FileSystemLoader(dir_), PyModuleLoader()]),
         undefined=StrictUndefined,
         extensions=['jinja2.ext.do'])
+
+    # Load Jinja2 filters using setuptools
+    for name, module in _load_jinja2_filters().items():
+        fname = name.split(".")[-1]
+        env.filters[fname] = getattr(module, fname)
 
     # Load any custom Jinja2 filters, tests or globals in the suite
     # definition directory
@@ -123,8 +153,6 @@ def jinja2environment(dir_=None):
             os.path.join(dir_, nspdir),
             os.path.join(os.environ['HOME'], '.cylc', nspdir)
         ]
-        if 'CYLC_DIR' in os.environ:
-            fdirs.append(os.path.join(os.environ['CYLC_DIR'], 'lib', nspdir))
         for fdir in fdirs:
             if os.path.isdir(fdir):
                 sys.path.insert(1, os.path.abspath(fdir))
