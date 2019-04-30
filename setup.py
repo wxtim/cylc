@@ -131,7 +131,7 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     scripts=glob(join('bin', '*')),
-    packages=find_packages("lib/") + ["Jinja2Filters"],
+    packages=find_packages("lib/"),
     package_dir={"": "lib"},
     package_data={
         '': ['*.txt', '*.md', '*.sh']
