@@ -15,3 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# pkgutil style namespaces, as we already had a __init__.py in cylc
+from pkgutil import extend_path
+__path__ = extend_path(__path__, __name__)
