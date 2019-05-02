@@ -26,6 +26,8 @@ import jose.exceptions
 import zmq
 import zmq.asyncio
 
+from shutil import which
+
 from cylc import LOG
 from cylc.exceptions import ClientError, ClientTimeout
 import cylc.flags
@@ -239,11 +241,18 @@ class SuiteRuntimeClient:
     @staticmethod
     def get_header():
         """Return "header" data to attach to each request for traceability."""
-        CYLC_EXE = os.path.join(os.environ['CYLC_DIR'], 'bin', '')
         cmd = sys.argv[0]
 
-        if cmd.startswith(CYLC_EXE):
-            cmd = cmd.replace(CYLC_EXE, '')
+        cylc_executable_location = which("cylc")
+        if cylc_executable_location:
+            cylc_bin_dir = os.path.abspath(
+                os.path.join(cylc_executable_location, os.pardir)
+            )
+            if not cylc_bin_dir.endswith("/"):
+                cylc_bin_dir = f"{cylc_bin_dir}/"
+
+            if cmd.startswith(cylc_bin_dir):
+                cmd = cmd.replace(cylc_bin_dir, '')
 
         return {
             'meta': {
