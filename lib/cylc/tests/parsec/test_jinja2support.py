@@ -19,7 +19,7 @@
 import tempfile
 import unittest
 
-import jinja2
+from jinja2 import TemplateError
 
 from cylc.parsec.jinja2support import *
 
@@ -117,7 +117,7 @@ class TestJinja2support(unittest.TestCase):
             env = jinja2environment(dir_)
 
             module_loader = PyModuleLoader()
-            with self.assertRaises(jinja2.TemplateNotFound):
+            with self.assertRaises(TemplateNotFound):
                 module_loader.load(environment=env, name='no way jose')
 
 

@@ -37,7 +37,9 @@ from jinja2 import (
     TemplateNotFound,
     TemplateSyntaxError)
 
-import cylc.jinja2filters
+import cylc.jinja.filters
+import cylc.jinja.globals
+import cylc.jinja.tests
 from cylc import LOG
 from cylc.parsec.exceptions import Jinja2Error
 
@@ -100,26 +102,38 @@ def assert_helper(logical, message):
     return ''  # Prevent None return value polluting output.
 
 
-def _load_jinja2_filters():
+def _load_jinja2_extensions():
     """
-    Load modules under the cylc.jinja2filters package namespace. Filters
-    provided by third-party packages (i.e. user created packages) will
-    also be included if correctly put in the cylc.jinja2filters namespace.
+    Load modules under the cylc.jinja package namespace.
+
+    Filters provided by third-party packages (i.e. user created packages) will
+    also be included if correctly put in the cylc.jinja.filters namespace.
+
+    Global variables are expected to be found in cylc.jinja.globals,
+    and jinja tests in cylc.jinja.tests.
 
     The dictionary returned contains the full module name (e.g.
-    cylc.jinja2filters.pad), and the second value is the module
+    cylc.jinja.filters.pad), and the second value is the module
     object (same object as in __import__("module_name")__).
 
     :return: jinja2 filter modules
     :rtype: dict[string, object]
     """
-    jinja2_filters_modules = pkgutil.iter_modules(
-        cylc.jinja2filters.__path__, cylc.jinja2filters.__name__ + ".")
-    jinja2_filters = {
-        name: importlib.import_module(name)
-        for finder, name, ispkg in jinja2_filters_modules
-    }
-    return jinja2_filters
+    jinja2_extensions = {}
+    for module in [cylc.jinja.filters, cylc.jinja.globals, cylc.jinja.tests]:
+        jinja2_filters_modules = pkgutil.iter_modules(
+            module.__path__, f"{module.__name__}.")
+        if jinja2_filters_modules:
+            namespace = module.__name__.split(".")[-1]
+            jinja2_extensions[namespace] = {
+                name.split(".")[-1]: importlib.import_module(name)
+                for finder, name, ispkg in jinja2_filters_modules
+            }
+            # for finder, name, ispkg in jinja2_filters_modules:
+            #     imported_module = importlib.import_module(name)
+            #     jinja2_extensions[namespace] = imported_module
+
+    return jinja2_extensions
 
 
 def jinja2environment(dir_=None):
@@ -135,9 +149,9 @@ def jinja2environment(dir_=None):
         extensions=['jinja2.ext.do'])
 
     # Load Jinja2 filters using setuptools
-    for name, module in _load_jinja2_filters().items():
-        fname = name.split(".")[-1]
-        env.filters[fname] = getattr(module, fname)
+    for scope, extensions in _load_jinja2_extensions().items():
+        for fname, module in extensions.items():
+            getattr(env, scope)[fname] = getattr(module, fname)
 
     # Load any custom Jinja2 filters, tests or globals in the suite
     # definition directory
