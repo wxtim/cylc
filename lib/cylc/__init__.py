@@ -20,13 +20,11 @@
 import os
 import sys
 import logging
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
 
 LOG = logging.getLogger('cylc')  # Acceptable?
 LOG.addHandler(logging.NullHandler())  # Start with a null handler
-# pkgutil style namespaces, as we already had a __init__.py in cylc
-from pkgutil import extend_path
-__path__ = extend_path(__path__, __name__)
 
 
 def environ_init():
