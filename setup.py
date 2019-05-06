@@ -20,11 +20,13 @@
 import codecs
 import re
 from distutils.errors import DistutilsExecError
-from glob import glob
-from os.path import join, dirname, abspath
+from glob import glob, iglob
+from os import pardir
+from os.path import join, dirname, abspath, normpath, basename
 from shutil import move, rmtree
 
-from setuptools import setup, find_packages
+from setuptools import setup
+
 SPHINX_AVAILABLE = False
 try:
     from sphinx.setup_command import BuildDoc
@@ -47,6 +49,28 @@ def find_version(*file_paths):
     if version_match:
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
+
+
+def locate_packages(where=".", exclude=None):
+    """Custom find_packages function.
+
+    Iterates the native namespace package cylc, and locate all sub-packages
+    that do not match an exclusion filter.
+    """
+    if not exclude:
+        exclude = []
+    base_directory = join(here, where)
+    grand_parent_directory = abspath(join(base_directory, pardir, pardir))
+    packages = []
+    for directory in iglob(f"{base_directory}/**/", recursive=True):
+        directory_name = basename(normpath(directory))
+        if directory_name not in exclude:
+            package_name = directory\
+                .replace(grand_parent_directory, "")\
+                .lstrip("/").rstrip("/")\
+                .replace("/", ".")
+            packages.append(package_name)
+    return packages
 
 
 cmdclass = {}
@@ -127,14 +151,13 @@ extra_requires['all'] += extra_requires['docs']
 extra_requires['all'] += tests_require
 
 setup(
-    version=find_version("lib", "cylc", "__init__.py"),
+    version=find_version("cylc", "flow", "__init__.py"),
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     scripts=glob(join('bin', '*')),
-    packages=find_packages("lib/") + ["Jinja2Filters"],
-    package_dir={"": "lib"},
+    packages=locate_packages(where="cylc/flow", exclude=["__pycache__"]),
     package_data={
-        '': ['*.txt', '*.md', '*.sh']
+        'cylc.flow': ['*.txt', '*.md', '*.sh']
     },
     cmdclass=cmdclass,
     include_package_data=False,
