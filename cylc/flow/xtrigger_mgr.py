@@ -16,15 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from copy import deepcopy
 import json
 import re
+from copy import deepcopy
 from time import time
 
-from cylc.flow import LOG
 import cylc.flow.flags
-from cylc.flow.xtriggers.wall_clock import wall_clock
-
+from cylc.flow import LOG
+from cylc.flow.cycling.iso8601 import interval_parse
 
 # Templates for string replacement in function arg values.
 TMPL_USER_NAME = 'user_name'
@@ -41,6 +40,15 @@ ARG_VAL_TEMPLATES = [
 
 # Extract all 'foo' from string templates '%(foo)s'.
 RE_STR_TMPL = re.compile(r'%\(([\w]+)\)s')
+
+
+def wall_clock(offset=None, point_as_seconds=None):
+    """Return True if now > (point + offset) else False."""
+    if offset is None:
+        offset_as_seconds = 0
+    else:
+        offset_as_seconds = int(interval_parse(offset).get_seconds())
+    return time() > (point_as_seconds + offset_as_seconds)
 
 
 class XtriggerManager(object):
