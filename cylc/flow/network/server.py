@@ -1248,4 +1248,4 @@ class SuiteRuntimeServer(ZMQServer):
             Protobuf encoded message
 
         """
-        return self.schd.ws_data_mgr.get_entire_workflow()
+        return self.schd.get_entire_workflow()

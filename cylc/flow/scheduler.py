@@ -72,8 +72,12 @@ from cylc.flow.ws_data_mgr import WsDataMgr
 from cylc.flow.wallclock import (
     get_current_time_string, get_seconds_as_interval_string,
     get_time_string_from_unix_time as time2str, get_utc_mode)
+from cylc.flow.ws_messages_pb2 import PbWorkflow
 from cylc.flow.xtrigger_mgr import XtriggerManager
-
+from cylc.flow.suite_status import (
+    SUITE_STATUS_HELD, SUITE_STATUS_STOPPING,
+    SUITE_STATUS_RUNNING, SUITE_STATUS_RUNNING_TO_STOP,
+    SUITE_STATUS_RUNNING_TO_HOLD)
 
 class SchedulerStop(CylcError):
     """Scheduler normal stop."""
@@ -356,7 +360,7 @@ see `COPYING' in the Cylc source distribution.
         # Start up essential services
         self.proc_pool = SubProcPool()
         self.state_summary_mgr = StateSummaryMgr()
-        self.ws_data_mgr = WsDataMgr(self)
+        self.ws_data_mgr = WsDataMgr()
         self.command_queue = Queue()
         self.message_queue = Queue()
         self.ext_trigger_queue = Queue()
@@ -1578,7 +1582,7 @@ see `COPYING' in the Cylc source distribution.
             # UI Server data update
             # TODO: process the entire pool once with self.is_updated
             # and update deltas here to be published
-            self.ws_data_mgr.initiate_data_model()
+            self.ws_data_mgr.initiate_data_model(self.get_workflow())
             # TODO: deprecate state summary manager just use protobuf
             self.state_summary_mgr.update(self)
             # Database update
@@ -1921,3 +1925,58 @@ see `COPYING' in the Cylc source distribution.
         """Return a named [cylc][[events]] configuration."""
         return self.suite_event_handler.get_events_conf(
             self.config, key, default)
+
+    def get_entire_workflow(self):
+        """Return the entire workflow.
+
+        Returns:
+            PbEntireWorkflow: the entire workflow.
+        """
+        return self.ws_data_mgr.get_entire_workflow(self.get_workflow())
+
+    def get_workflow(self):
+        """Return a workflow for the current scheduler state.
+
+        Returns:
+            PbWorkflow: a workflow message
+        """
+        workflow_id = f"{self.owner}/{self.suite}"
+        workflow = PbWorkflow(id=workflow_id)
+        workflow.api_version = self.server.API
+        workflow.cylc_version = CYLC_VERSION
+        workflow.name = self.suite
+        workflow.owner = self.owner
+        workflow.host = self.host
+        workflow.port = self.port
+        workflow.workflow_log_dir = self.suite_log_dir
+        workflow.run_mode = self.run_mode
+
+        # Construct a workflow status string for use by monitoring clients.
+        if self.task_job_mgr.task_pool.is_held:
+            status_string = SUITE_STATUS_HELD
+        elif self.stop_mode is not None:
+            status_string = SUITE_STATUS_STOPPING
+        elif self.task_job_mgr.task_pool.hold_point:
+            status_string = (
+                SUITE_STATUS_RUNNING_TO_HOLD %
+                self.task_job_mgr.task_pool.hold_point)
+        elif self.stop_point:
+            status_string = (
+                SUITE_STATUS_RUNNING_TO_STOP %
+                self.stop_point)
+        elif self.stop_clock_time is not None:
+            status_string = (
+                SUITE_STATUS_RUNNING_TO_STOP %
+                self.stop_clock_time_string)
+        elif self.stop_task:
+            status_string = (
+                SUITE_STATUS_RUNNING_TO_STOP %
+                self.stop_task)
+        elif self.final_point:
+            status_string = (
+                SUITE_STATUS_RUNNING_TO_STOP %
+                self.final_point)
+        else:
+            status_string = SUITE_STATUS_RUNNING
+        workflow.status = status_string
+
