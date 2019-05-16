@@ -1239,7 +1239,7 @@ class SuiteRuntimeServer(ZMQServer):
 
     # UIServer Data Commands
     #
-    @authorise(Priv.IDENTITY)
+    @authorise(Priv.READ)
     @ZMQServer.expose
     def pb_entire_workflow(self):
         """Get data elements of entire workflow.

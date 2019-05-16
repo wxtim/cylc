@@ -1946,7 +1946,6 @@ class SuiteConfig(object):
             # Group chosen family nodes
             for node in group_nodes:
                 parent = first_parent_ancestors[node][1]
-                print(parent)
                 if parent not in closed_families and parent != 'root':
                     closed_families.append(parent)
 
