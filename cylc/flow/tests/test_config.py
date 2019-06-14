@@ -42,8 +42,7 @@ class TestSuiteConfig(object):
         [[xtriggers]]
             tree = name_a_tree()
         [[dependencies]]
-            [[[R1]]]
-                graph = '@tree => qux'
+            R1 = '@tree => qux'
                 """)
                 f.flush()
                 suite_config = SuiteConfig(suite="name_a_tree", fpath=f.name)
@@ -68,8 +67,7 @@ class TestSuiteConfig(object):
         [[xtriggers]]
             oopsie = piranha()
         [[dependencies]]
-            [[[R1]]]
-                graph = '@oopsie => qux'
+            R1 = '@oopsie => qux'
                 """)
                 f.flush()
                 with pytest.raises(SuiteConfigError) as excinfo:
@@ -94,8 +92,7 @@ class TestSuiteConfig(object):
         [[xtriggers]]
             oopsie = capybara()
         [[dependencies]]
-            [[[R1]]]
-                graph = '@oopsie => qux'
+            R1 = '@oopsie => qux'
                 """)
                 f.flush()
                 with pytest.raises(SuiteConfigError) as excinfo:
@@ -120,8 +117,7 @@ class TestSuiteConfig(object):
         [[xtriggers]]
             oopsie = not_callable()
         [[dependencies]]
-            [[[R1]]]
-                graph = '@oopsie => qux'
+            R1 = '@oopsie => qux'
                 """)
                 f.flush()
                 with pytest.raises(SuiteConfigError) as excinfo:
