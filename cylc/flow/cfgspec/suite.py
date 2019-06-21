@@ -39,20 +39,31 @@ SPEC = {
         'URL': [VDR.V_STRING, ''],
         '__MANY__': [VDR.V_STRING, ''],
     },
+    # Rename [cylc] section to [general]?
     'cylc': {
+        # TODO: Add from global.rc
+        # process pool size
+        # process pool timeout
+        # run directory rolling archive length
+        # [[suite logging]]
         'UTC mode': [VDR.V_BOOLEAN, False],
         'cycle point format': [VDR.V_CYCLE_POINT_FORMAT],
         'cycle point num expanded year digits': [VDR.V_INTEGER, 0],
         'cycle point time zone': [VDR.V_CYCLE_POINT_TIME_ZONE],
+        # TODO: Why do we need 2 run mode settings?
         'required run mode': [
             VDR.V_STRING, '', 'live', 'dummy', 'dummy-local', 'simulation'],
         'force run mode': [
             VDR.V_STRING, '', 'live', 'dummy', 'dummy-local', 'simulation'],
+        # TODO: Move to join similar settings under [[events]]?
         'abort if any task fails': [VDR.V_BOOLEAN],
         'health check interval': [VDR.V_INTERVAL],
+        # TODO: Move to [[events]]?
         'task event mail interval': [VDR.V_INTERVAL],
+        # TODO: Remove? For reference test and reference log generation.
         'log resolved dependencies': [VDR.V_BOOLEAN],
         'disable automatic shutdown': [VDR.V_BOOLEAN],
+        # TODO: Any usage?
         'simulation': {
             'disable suite event handlers': [VDR.V_BOOLEAN, True],
         },
@@ -90,6 +101,7 @@ SPEC = {
             'mail to': [VDR.V_STRING],
             'mail footer': [VDR.V_STRING],
         },
+        # TODO: Move to a separate file? (E.g. "test.rc"?)
         'reference test': {
             'suite shutdown event handler': [
                 VDR.V_STRING, 'cylc hook check-triggering'],
@@ -107,6 +119,7 @@ SPEC = {
             'simulation mode suite timeout': [
                 VDR.V_INTERVAL, DurationFloat(60)],
         },
+        # TODO: More like authorisation, but will be redone soon...
         'authentication': {
             # Allow owners to grant public shutdown rights at the most, not
             # full control.
@@ -122,6 +135,7 @@ SPEC = {
         'final cycle point': [VDR.V_STRING],
         'initial cycle point constraints': [VDR.V_STRING_LIST],
         'final cycle point constraints': [VDR.V_STRING_LIST],
+        # TODO: hold cycle point?
         'hold after point': [VDR.V_CYCLE_POINT],
         'cycling mode': (
             [VDR.V_STRING, Calendar.MODE_GREGORIAN] +
@@ -158,9 +172,11 @@ SPEC = {
             },
         },
     },
+    # TODO: New section to configure task-jobs clusters?
     'runtime': {
         '__MANY__': {
             'inherit': [VDR.V_STRING_LIST],
+            # TODO: Move "init-script" to new task-jobs clusters section?
             'init-script': [VDR.V_STRING],
             'env-script': [VDR.V_STRING],
             'err-script': [VDR.V_STRING],
@@ -168,7 +184,9 @@ SPEC = {
             'pre-script': [VDR.V_STRING],
             'script': [VDR.V_STRING],
             'post-script': [VDR.V_STRING],
+            # TODO: Is this necessary? A directory listing is more correct?
             'extra log files': [VDR.V_STRING_LIST],
+            # TODO: What's this?
             'work sub-directory': [VDR.V_STRING],
             'meta': {
                 'title': [VDR.V_STRING, ''],
@@ -176,6 +194,7 @@ SPEC = {
                 'URL': [VDR.V_STRING, ''],
                 '__MANY__': [VDR.V_STRING, ''],
             },
+            # TODO: Should we have a separate file for simulation mode stuffs?
             'simulation': {
                 'default run length': [VDR.V_INTERVAL, DurationFloat(10)],
                 'speedup factor': [VDR.V_FLOAT],
@@ -188,6 +207,7 @@ SPEC = {
                 'include': [VDR.V_STRING_LIST],
                 'exclude': [VDR.V_STRING_LIST],
             },
+            # Move batch system stuffs to new task-jobs clusters section?
             'job': {
                 'batch system': [VDR.V_STRING, 'background'],
                 'batch submit command template': [VDR.V_STRING],
@@ -197,6 +217,7 @@ SPEC = {
                 'submission polling intervals': [VDR.V_INTERVAL_LIST, None],
                 'submission retry delays': [VDR.V_INTERVAL_LIST, None],
             },
+            # Move remote stuffs to new task-jobs clusters section?
             'remote': {
                 'host': [VDR.V_STRING],
                 'owner': [VDR.V_STRING],
@@ -233,6 +254,7 @@ SPEC = {
                 'submission timeout handler': [VDR.V_STRING_LIST, None],
                 'custom handler': [VDR.V_STRING_LIST, None],
             },
+            # TODO: this sort of settings should belong to a plugin.
             'suite state polling': {
                 'user': [VDR.V_STRING],
                 'host': [VDR.V_STRING],

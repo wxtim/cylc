@@ -37,6 +37,7 @@ from cylc.flow.parsec.validate import (
 # - default: the default value (optional).
 # - allowed_2, ...: the only other allowed values of this setting (optional).
 SPEC = {
+    # TODO: move some of these to the [cylc] section?
     # suite
     'process pool size': [VDR.V_INTEGER, 4],
     'process pool timeout': [VDR.V_INTERVAL, DurationFloat(600)],
@@ -44,6 +45,8 @@ SPEC = {
     'disable interactive command prompts': [VDR.V_BOOLEAN, True],
     # suite
     'run directory rolling archive length': [VDR.V_INTEGER, -1],
+    # TODO: Who actually configure these? Is 7 too many retries?
+    #       And these days the suite will pool any way, so does it matter?
     # suite-task communication
     'task messaging': {
         'retry interval': [VDR.V_INTERVAL, DurationFloat(5)],
@@ -51,10 +54,17 @@ SPEC = {
         'connection timeout': [VDR.V_INTERVAL, DurationFloat(30)],
     },
 
+    # Rename [cylc] section to [general]?
     # suite
     'cylc': {
+        # TODO: add from top level?
+        # process pool size
+        # process pool timeout
+        # run directory rolling archive length
+        # TODO: add from suite.rc?
         'UTC mode': [VDR.V_BOOLEAN],
         'health check interval': [VDR.V_INTERVAL, DurationFloat(600)],
+        # TODO: Move to [[events]]?
         'task event mail interval': [VDR.V_INTERVAL, DurationFloat(300)],
         'events': {
             'handlers': [VDR.V_STRING_LIST],
@@ -78,12 +88,15 @@ SPEC = {
         },
     },
 
+    # TODO: move to [cylc] section?
+    # TODO: just [cylc][[logging]]?
     # suite
     'suite logging': {
         'rolling archive length': [VDR.V_INTEGER, 5],
         'maximum size in bytes': [VDR.V_INTEGER, 1000000],
     },
 
+    # TODO: remove?
     # general
     'documentation': {
         'local': [VDR.V_STRING, ''],
@@ -92,7 +105,7 @@ SPEC = {
         'cylc homepage': [VDR.V_STRING, 'http://cylc.github.io/'],
     },
 
-    # general
+    # client
     'document viewers': {
         'html': [VDR.V_STRING, 'firefox'],
     },
@@ -108,6 +121,46 @@ SPEC = {
         'sort order': [VDR.V_STRING, 'definition', 'alphanumeric'],
     },
 
+    # TODO: task platform
+    'task platforms': {
+        'DEFAULT': {
+            'batch system': {
+                'submit command': [VDR.V_STRING],
+                'poll command': [VDR.V_STRING],
+                'kill command': [VDR.V_STRING],
+                'err tailer': [VDR.V_STRING],
+                'out tailer': [VDR.V_STRING],
+                'err viewer': [VDR.V_STRING],
+                'out viewer': [VDR.V_STRING],
+            },
+            'directories': {  # mapping of directories
+                '__MANY__': [VDR.V_STRING],
+                # TODO: run directory, work directory
+            },
+            'communication method': [VDR.V_STRING, 'default', 'ssh', 'poll'],
+            # login hosts of clusters
+            'hosts': [VDR.V_STRING_LIST],
+            # One set of polling intervals OK?
+            'polling intervals':` [VDR.V_INTERVAL_LIST],
+            # Replace SSH and SCP commands with extra options?
+            'ssh options': [VDR.V_STRING, '-oConnectTimeout=10'],
+            # SSH use login shell?
+            'ssh use login shell': [VDR.V_BOOLEAN, True],
+            'cylc executable': [VDR.V_STRING, 'cylc'],
+            # Still need init-script?
+            'global init-script': [VDR.V_STRING],
+            'copyable environment variables': [VDR.V_STRING_LIST],
+            'retrieve job logs': [VDR.V_BOOLEAN],
+            'retrieve job logs command': [VDR.V_STRING, 'rsync -a'],
+            'retrieve job logs max size': [VDR.V_STRING],
+            'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST],
+        },
+        '__MANY__': {
+        },
+    },
+
+    # TODO: Replace [hosts] section with new section to configure task-jobs
+    #       clusters?
     # task
     'hosts': {
         'localhost': {
@@ -177,6 +230,7 @@ SPEC = {
         },
     },
 
+    # TODO: Move to [runtime][[root]][[[events]]]?
     # task
     'task events': {
         'execution timeout': [VDR.V_INTERVAL],
@@ -191,6 +245,7 @@ SPEC = {
         'submission timeout': [VDR.V_INTERVAL],
     },
 
+    # TODO: move to separate file?
     # client
     'test battery': {
         'remote host with shared fs': [VDR.V_STRING],
@@ -208,6 +263,7 @@ SPEC = {
         },
     },
 
+    # TODO: move to [suite servers]?
     # suite
     'suite host self-identification': {
         'method': [VDR.V_STRING, 'name', 'address', 'hardwired'],
@@ -215,6 +271,8 @@ SPEC = {
         'host': [VDR.V_STRING],
     },
 
+    # TODO: Move to live under [cylc]
+    # TODO: More like authorisation, but will be redone soon...
     # suite
     'authentication': {
         # Allow owners to grant public shutdown rights at the most, not full
@@ -226,6 +284,7 @@ SPEC = {
                 Priv.STATE_TOTALS, Priv.READ, Priv.SHUTDOWN]])
     },
 
+    # TODO: rename [suite platform] or [controller platform]?
     # suite
     'suite servers': {
         'run hosts': [VDR.V_SPACELESS_STRING_LIST],
