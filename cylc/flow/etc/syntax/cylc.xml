@@ -70,7 +70,6 @@
         <RegExpr attribute='Keyword' String=' mail retry delays '/>
         <RegExpr attribute='Keyword' String=' mail from '/>
         <RegExpr attribute='Keyword' String=' mail events '/>
-        <RegExpr attribute='Keyword' String=' log resolved dependencies '/>
         <RegExpr attribute='Keyword' String=' live mode suite timeout '/>
         <RegExpr attribute='Keyword' String=' limit '/>
         <RegExpr attribute='Keyword' String=' interval '/>

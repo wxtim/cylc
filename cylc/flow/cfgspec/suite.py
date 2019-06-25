@@ -39,29 +39,24 @@ SPEC = {
         'URL': [VDR.V_STRING, ''],
         '__MANY__': [VDR.V_STRING, ''],
     },
-    # Rename [cylc] section to [general]?
-    'cylc': {
-        # TODO: Add from global.rc
-        # process pool size
-        # process pool timeout
-        # run directory rolling archive length
-        # [[suite logging]]
+    'general': {  # was [cylc]
+        'process pool size': [VDR.V_INTEGER],
+        'process pool timeout': [VDR.V_INTEGER],
         'UTC mode': [VDR.V_BOOLEAN, False],
         'cycle point format': [VDR.V_CYCLE_POINT_FORMAT],
         'cycle point num expanded year digits': [VDR.V_INTEGER, 0],
         'cycle point time zone': [VDR.V_CYCLE_POINT_TIME_ZONE],
+        'run directory rolling archive length': [VDR.V_INTEGER],
+        'health check interval': [VDR.V_INTERVAL],
+        'logging': {
+            'rolling archive length': [VDR.V_INTEGER5],
+            'maximum size in bytes': [VDR.V_INTEGER],
+        },
         # TODO: Why do we need 2 run mode settings?
         'required run mode': [
             VDR.V_STRING, '', 'live', 'dummy', 'dummy-local', 'simulation'],
         'force run mode': [
             VDR.V_STRING, '', 'live', 'dummy', 'dummy-local', 'simulation'],
-        # TODO: Move to join similar settings under [[events]]?
-        'abort if any task fails': [VDR.V_BOOLEAN],
-        'health check interval': [VDR.V_INTERVAL],
-        # TODO: Move to [[events]]?
-        'task event mail interval': [VDR.V_INTERVAL],
-        # TODO: Remove? For reference test and reference log generation.
-        'log resolved dependencies': [VDR.V_BOOLEAN],
         'disable automatic shutdown': [VDR.V_BOOLEAN],
         # TODO: Any usage?
         'simulation': {
@@ -85,6 +80,7 @@ SPEC = {
             'shutdown handler': [VDR.V_STRING_LIST, None],
             'aborted handler': [VDR.V_STRING_LIST, None],
             'stalled handler': [VDR.V_STRING_LIST, None],
+            'task event mail interval': [VDR.V_INTERVAL],
             'timeout': [VDR.V_INTERVAL],
             'inactivity': [VDR.V_INTERVAL],
             'abort if startup handler fails': [VDR.V_BOOLEAN],
@@ -92,6 +88,7 @@ SPEC = {
             'abort if timeout handler fails': [VDR.V_BOOLEAN],
             'abort if inactivity handler fails': [VDR.V_BOOLEAN],
             'abort if stalled handler fails': [VDR.V_BOOLEAN],
+            'abort if any task fails': [VDR.V_BOOLEAN],
             'abort on stalled': [VDR.V_BOOLEAN],
             'abort on timeout': [VDR.V_BOOLEAN],
             'abort on inactivity': [VDR.V_BOOLEAN],
@@ -135,8 +132,7 @@ SPEC = {
         'final cycle point': [VDR.V_STRING],
         'initial cycle point constraints': [VDR.V_STRING_LIST],
         'final cycle point constraints': [VDR.V_STRING_LIST],
-        # TODO: hold cycle point?
-        'hold after point': [VDR.V_CYCLE_POINT],
+        'hold cycle point': [VDR.V_CYCLE_POINT],
         'cycling mode': (
             [VDR.V_STRING, Calendar.MODE_GREGORIAN] +
             list(Calendar.MODES) + ["integer"]),
@@ -172,22 +168,55 @@ SPEC = {
             },
         },
     },
+
+    # TODO: task platform
+    'task platforms': {
+        'DEFAULT': {
+            'batch system': {
+                'submit command': [VDR.V_STRING],
+                'poll command': [VDR.V_STRING],
+                'kill command': [VDR.V_STRING],
+                'err tailer': [VDR.V_STRING],
+                'out tailer': [VDR.V_STRING],
+                'err viewer': [VDR.V_STRING],
+                'out viewer': [VDR.V_STRING],
+            },
+            'directories': {  # mapping of directories
+                '__MANY__': [VDR.V_STRING],
+                # TODO: run directory, work directory
+            },
+            'communication method': [VDR.V_STRING, 'default', 'ssh', 'poll'],
+            # login hosts of clusters
+            'hosts': [VDR.V_STRING_LIST],
+            # One set of polling intervals OK?
+            'polling intervals':` [VDR.V_INTERVAL_LIST],
+            # Replace SSH and SCP commands with extra options?
+            'ssh options': [VDR.V_STRING, '-oConnectTimeout=10'],
+            # SSH use login shell?
+            'ssh use login shell': [VDR.V_BOOLEAN, True],
+            'cylc executable': [VDR.V_STRING, 'cylc'],
+            # TODO: Still need init-script?
+            'init-script': [VDR.V_STRING],
+            'copyable environment variables': [VDR.V_STRING_LIST],
+            'retrieve job logs': [VDR.V_BOOLEAN],
+            'retrieve job logs command': [VDR.V_STRING, 'rsync -a'],
+            'retrieve job logs max size': [VDR.V_STRING],
+            'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST],
+        },
+        '__MANY__': {
+        },
+    },
+
     # TODO: New section to configure task-jobs clusters?
     'runtime': {
         '__MANY__': {
             'inherit': [VDR.V_STRING_LIST],
-            # TODO: Move "init-script" to new task-jobs clusters section?
-            'init-script': [VDR.V_STRING],
             'env-script': [VDR.V_STRING],
             'err-script': [VDR.V_STRING],
             'exit-script': [VDR.V_STRING],
             'pre-script': [VDR.V_STRING],
             'script': [VDR.V_STRING],
             'post-script': [VDR.V_STRING],
-            # TODO: Is this necessary? A directory listing is more correct?
-            'extra log files': [VDR.V_STRING_LIST],
-            # TODO: What's this?
-            'work sub-directory': [VDR.V_STRING],
             'meta': {
                 'title': [VDR.V_STRING, ''],
                 'description': [VDR.V_STRING, ''],
@@ -209,22 +238,12 @@ SPEC = {
             },
             # Move batch system stuffs to new task-jobs clusters section?
             'job': {
-                'batch system': [VDR.V_STRING, 'background'],
-                'batch submit command template': [VDR.V_STRING],
+                'task platform': [VDR.V_STRING_LIST],
                 'execution polling intervals': [VDR.V_INTERVAL_LIST, None],
                 'execution retry delays': [VDR.V_INTERVAL_LIST, None],
                 'execution time limit': [VDR.V_INTERVAL],
                 'submission polling intervals': [VDR.V_INTERVAL_LIST, None],
                 'submission retry delays': [VDR.V_INTERVAL_LIST, None],
-            },
-            # Move remote stuffs to new task-jobs clusters section?
-            'remote': {
-                'host': [VDR.V_STRING],
-                'owner': [VDR.V_STRING],
-                'suite definition directory': [VDR.V_STRING],
-                'retrieve job logs': [VDR.V_BOOLEAN],
-                'retrieve job logs max size': [VDR.V_STRING],
-                'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST, None],
             },
             'events': {
                 'execution timeout': [VDR.V_INTERVAL],

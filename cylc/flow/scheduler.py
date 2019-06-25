@@ -1059,7 +1059,6 @@ see `COPYING' in the Cylc source distribution.
     def configure_reftest(self, recon=False):
         """Configure the reference test."""
         if self.options.genref:
-            self.config.cfg['cylc']['log resolved dependencies'] = True
             reference_log = os.path.join(self.config.fdir, 'reference.log')
             LOG.addHandler(ReferenceLogFileHandler(reference_log))
         elif self.options.reftest:
@@ -1073,7 +1072,6 @@ see `COPYING' in the Cylc source distribution.
                 LOG.warning('shutdown handlers replaced by reference test')
             self.config.cfg['cylc']['events']['shutdown handler'] = [
                 rtc['suite shutdown event handler']]
-            self.config.cfg['cylc']['log resolved dependencies'] = True
             self.config.cfg['cylc']['events'][
                 'abort if shutdown handler fails'] = True
             if not recon:
@@ -1167,7 +1165,7 @@ see `COPYING' in the Cylc source distribution.
                 self.is_updated = True
             done_tasks = self.task_job_mgr.submit_task_jobs(
                 self.suite, itasks, self.config.run_mode('simulation'))
-            if self.config.cfg['cylc']['log resolved dependencies']:
+            if self.options.genref or self.options.reftest:
                 for itask in done_tasks:
                     deps = itask.state.get_resolved_dependencies()
                     LOG.info('[%s] -triggered off %s', itask, deps)

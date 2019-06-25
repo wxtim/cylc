@@ -37,14 +37,9 @@ from cylc.flow.parsec.validate import (
 # - default: the default value (optional).
 # - allowed_2, ...: the only other allowed values of this setting (optional).
 SPEC = {
-    # TODO: move some of these to the [cylc] section?
-    # suite
-    'process pool size': [VDR.V_INTEGER, 4],
-    'process pool timeout': [VDR.V_INTERVAL, DurationFloat(600)],
     # client
     'disable interactive command prompts': [VDR.V_BOOLEAN, True],
     # suite
-    'run directory rolling archive length': [VDR.V_INTEGER, -1],
     # TODO: Who actually configure these? Is 7 too many retries?
     #       And these days the suite will pool any way, so does it matter?
     # suite-task communication
@@ -56,16 +51,17 @@ SPEC = {
 
     # Rename [cylc] section to [general]?
     # suite
-    'cylc': {
-        # TODO: add from top level?
-        # process pool size
-        # process pool timeout
-        # run directory rolling archive length
-        # TODO: add from suite.rc?
+    'general': {
+        'process pool size': [VDR.V_INTEGER, 4],
+        'process pool timeout': [VDR.V_INTERVAL, DurationFloat(600)],
         'UTC mode': [VDR.V_BOOLEAN],
+        'cycle point time zone': [VDR.V_CYCLE_POINT_TIME_ZONE],
+        'run directory rolling archive length': [VDR.V_INTEGER, -1],
         'health check interval': [VDR.V_INTERVAL, DurationFloat(600)],
-        # TODO: Move to [[events]]?
-        'task event mail interval': [VDR.V_INTERVAL, DurationFloat(300)],
+        'logging': {
+            'rolling archive length': [VDR.V_INTEGER, 5],
+            'maximum size in bytes': [VDR.V_INTEGER, 1000000],
+        },
         'events': {
             'handlers': [VDR.V_STRING_LIST],
             'handler events': [VDR.V_STRING_LIST],
@@ -80,20 +76,13 @@ SPEC = {
             'shutdown handler': [VDR.V_STRING_LIST],
             'aborted handler': [VDR.V_STRING_LIST],
             'stalled handler': [VDR.V_STRING_LIST],
+            'task event mail interval': [VDR.V_INTERVAL, DurationFloat(300)],
             'timeout': [VDR.V_INTERVAL],
             'inactivity': [VDR.V_INTERVAL],
             'abort on timeout': [VDR.V_BOOLEAN],
             'abort on inactivity': [VDR.V_BOOLEAN],
             'abort on stalled': [VDR.V_BOOLEAN],
         },
-    },
-
-    # TODO: move to [cylc] section?
-    # TODO: just [cylc][[logging]]?
-    # suite
-    'suite logging': {
-        'rolling archive length': [VDR.V_INTEGER, 5],
-        'maximum size in bytes': [VDR.V_INTEGER, 1000000],
     },
 
     # TODO: remove?
@@ -125,6 +114,7 @@ SPEC = {
     'task platforms': {
         'DEFAULT': {
             'batch system': {
+                'class': [VDR.V_STRING],
                 'submit command': [VDR.V_STRING],
                 'poll command': [VDR.V_STRING],
                 'kill command': [VDR.V_STRING],
@@ -136,6 +126,7 @@ SPEC = {
             'directories': {  # mapping of directories
                 '__MANY__': [VDR.V_STRING],
                 # TODO: run directory, work directory
+                # TODO: need to configure what's shared between suite platforms
             },
             'communication method': [VDR.V_STRING, 'default', 'ssh', 'poll'],
             # login hosts of clusters
@@ -147,8 +138,10 @@ SPEC = {
             # SSH use login shell?
             'ssh use login shell': [VDR.V_BOOLEAN, True],
             'cylc executable': [VDR.V_STRING, 'cylc'],
-            # Still need init-script?
-            'global init-script': [VDR.V_STRING],
+            # TODO: Assuming a conda environment
+            # TODO: Still need init-script?
+            # TODO: Still need copyable environment variables?
+            'init-script': [VDR.V_STRING],
             'copyable environment variables': [VDR.V_STRING_LIST],
             'retrieve job logs': [VDR.V_BOOLEAN],
             'retrieve job logs command': [VDR.V_STRING, 'rsync -a'],
@@ -159,90 +152,22 @@ SPEC = {
         },
     },
 
-    # TODO: Replace [hosts] section with new section to configure task-jobs
-    #       clusters?
     # task
-    'hosts': {
-        'localhost': {
-            'run directory': [VDR.V_STRING, '$HOME/cylc-run'],
-            'work directory': [VDR.V_STRING, '$HOME/cylc-run'],
-            'task communication method': [
-                VDR.V_STRING, 'default', 'ssh', 'poll'],
-            'submission polling intervals': [VDR.V_INTERVAL_LIST],
-            'execution polling intervals': [VDR.V_INTERVAL_LIST],
-            'scp command': [
-                VDR.V_STRING, 'scp -oBatchMode=yes -oConnectTimeout=10'],
-            'ssh command': [
-                VDR.V_STRING, 'ssh -oBatchMode=yes -oConnectTimeout=10'],
-            'use login shell': [VDR.V_BOOLEAN, True],
-            'cylc executable': [VDR.V_STRING, 'cylc'],
-            'global init-script': [VDR.V_STRING],
-            'copyable environment variables': [VDR.V_STRING_LIST],
-            'retrieve job logs': [VDR.V_BOOLEAN],
-            'retrieve job logs command': [VDR.V_STRING, 'rsync -a'],
-            'retrieve job logs max size': [VDR.V_STRING],
-            'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST],
-            'task event handler retry delays': [VDR.V_INTERVAL_LIST],
-            'tail command template': [
-                VDR.V_STRING, 'tail -n +1 -F %(filename)s'],
-            'batch systems': {
-                '__MANY__': {
-                    'err tailer': [VDR.V_STRING],
-                    'out tailer': [VDR.V_STRING],
-                    'err viewer': [VDR.V_STRING],
-                    'out viewer': [VDR.V_STRING],
-                    'job name length maximum': [VDR.V_INTEGER],
-                    'execution time limit polling intervals': [
-                        VDR.V_INTERVAL_LIST],
-                },
+    'runtime': {
+        'root': {
+            'events': {
+                'execution timeout': [VDR.V_INTERVAL],
+                'handlers': [VDR.V_STRING_LIST],
+                'handler events': [VDR.V_STRING_LIST],
+                'handler retry delays': [VDR.V_INTERVAL_LIST, None],
+                'mail events': [VDR.V_STRING_LIST],
+                'mail from': [VDR.V_STRING],
+                'mail retry delays': [VDR.V_INTERVAL_LIST],
+                'mail smtp': [VDR.V_STRING],
+                'mail to': [VDR.V_STRING],
+                'submission timeout': [VDR.V_INTERVAL],
             },
         },
-        '__MANY__': {
-            'run directory': [VDR.V_STRING],
-            'work directory': [VDR.V_STRING],
-            'task communication method': [
-                VDR.V_STRING, 'default', 'ssh', 'poll'],
-            'submission polling intervals': [VDR.V_INTERVAL_LIST],
-            'execution polling intervals': [VDR.V_INTERVAL_LIST],
-            'scp command': [VDR.V_STRING],
-            'ssh command': [VDR.V_STRING],
-            'use login shell': [VDR.V_BOOLEAN],
-            'cylc executable': [VDR.V_STRING],
-            'global init-script': [VDR.V_STRING],
-            'copyable environment variables': [VDR.V_STRING_LIST],
-            'retrieve job logs': [VDR.V_BOOLEAN],
-            'retrieve job logs command': [VDR.V_STRING],
-            'retrieve job logs max size': [VDR.V_STRING],
-            'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST],
-            'task event handler retry delays': [VDR.V_INTERVAL_LIST],
-            'tail command template': [VDR.V_STRING],
-            'batch systems': {
-                '__MANY__': {
-                    'err tailer': [VDR.V_STRING],
-                    'out tailer': [VDR.V_STRING],
-                    'out viewer': [VDR.V_STRING],
-                    'err viewer': [VDR.V_STRING],
-                    'job name length maximum': [VDR.V_INTEGER],
-                    'execution time limit polling intervals': [
-                        VDR.V_INTERVAL_LIST],
-                },
-            },
-        },
-    },
-
-    # TODO: Move to [runtime][[root]][[[events]]]?
-    # task
-    'task events': {
-        'execution timeout': [VDR.V_INTERVAL],
-        'handlers': [VDR.V_STRING_LIST],
-        'handler events': [VDR.V_STRING_LIST],
-        'handler retry delays': [VDR.V_INTERVAL_LIST, None],
-        'mail events': [VDR.V_STRING_LIST],
-        'mail from': [VDR.V_STRING],
-        'mail retry delays': [VDR.V_INTERVAL_LIST],
-        'mail smtp': [VDR.V_STRING],
-        'mail to': [VDR.V_STRING],
-        'submission timeout': [VDR.V_INTERVAL],
     },
 
     # TODO: move to separate file?
@@ -261,14 +186,6 @@ SPEC = {
                 },
             },
         },
-    },
-
-    # TODO: move to [suite servers]?
-    # suite
-    'suite host self-identification': {
-        'method': [VDR.V_STRING, 'name', 'address', 'hardwired'],
-        'target': [VDR.V_STRING, 'google.com'],
-        'host': [VDR.V_STRING],
     },
 
     # TODO: Move to live under [cylc]
@@ -296,6 +213,14 @@ SPEC = {
                      'memory', 'disk-space'],
             'thresholds': [VDR.V_STRING],
         },
+    },
+
+    # TODO: move to [suite servers]?
+    # suite
+    'suite host self-identification': {
+        'method': [VDR.V_STRING, 'name', 'address', 'hardwired'],
+        'target': [VDR.V_STRING, 'google.com'],
+        'host': [VDR.V_STRING],
     },
 }
 
