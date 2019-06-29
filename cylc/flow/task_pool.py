@@ -500,7 +500,6 @@ class TaskPool(object):
         else:
             if not self.runahead_pool[itask.point]:
                 del self.runahead_pool[itask.point]
-            self.job_pool.remove_task_jobs(itask.identity)
             self.rhpool_changed = True
             return
 
@@ -517,7 +516,6 @@ class TaskPool(object):
         LOG.debug("[%s] -%s", itask, msg)
         if itask.tdef.max_future_prereq_offset is not None:
             self.set_max_future_offset()
-        self.job_pool.remove_task_jobs(itask.identity)
         del itask
 
     def get_all_tasks(self):

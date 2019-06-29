@@ -15,12 +15,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""Manage the data feed for the User Interface Server."""
+"""Manage the data store for the User Interface Server."""
 
 from time import time
-from copy import copy, deepcopy
+from copy import copy
 import ast
 
+from cylc.flow.cycling.loader import get_point
 from cylc.flow.task_id import TaskID
 from cylc.flow.suite_status import (
     SUITE_STATUS_HELD, SUITE_STATUS_STOPPING,
@@ -37,7 +38,7 @@ from cylc.flow.ws_messages_pb2 import (
 
 
 class WsDataMgr(object):
-    """Manage the data feed for the User Interface Server."""
+    """Manage the data store for the User Interface Server."""
 
     TIME_FIELDS = ['submitted_time', 'started_time', 'finished_time']
 
@@ -46,10 +47,12 @@ class WsDataMgr(object):
         self.ancestors = {}
         self.descendants = {}
         self.parents = {}
-        self.cycle_states = {}
+        self.pool_points = None
+        self.edge_points = {}
         self.all_states = []
+        self.cycle_states = {}
         self.state_count_cycles = {}
-        # managed data
+        # Managed data types
         self.tasks = {}
         self.task_proxies = {}
         self.families = {}
@@ -59,17 +62,74 @@ class WsDataMgr(object):
         self.workflow_id = f"{self.schd.owner}/{self.schd.suite}"
         self.workflow = PbWorkflow()
 
-    # The following method is inefficiently run on any change
-    # TODO: Add more update methods:
-    # - incremental graph generation and pruning (using cycle points)
-    # - incremental state updates using itask.state.is_updated
     def initiate_data_model(self):
-        """Initiate or Update data model on start/reload."""
+        """Initiate or Update data model on start/restart/reload."""
+        # Static elements
         self.generate_definition_elements()
         self.generate_graph_elements()
+        # Update of the static elements with dynamic field content
         self.update_task_proxies()
         self.update_family_proxies()
         self.update_workflow()
+
+    def increment_graph_elements(self):
+        """Update graph elements if needed."""
+        has_updated = False
+        # Gather pool cycles.
+        old_pool_points = set([])
+        if self.pool_points:
+            old_pool_points = self.pool_points.copy()
+        self.pool_points = set(list(self.schd.pool.pool))
+        # No action if pool is not yet initiated.
+        if not self.pool_points:
+            return
+        # Increment egdes:
+        # - Initially for each cycle point in the pool.
+        # - For each new cycle point thereafter.
+        # Using difference and pointwise allows for historical
+        # task insertion (in gaps).
+        for point in self.pool_points.difference(old_pool_points):
+            # All family & task cycle instances are generated and
+            # populated with static data as "ghost nodes".
+            self.generate_graph_elements(
+                self.edges, self.task_proxies, self.family_proxies,
+                point, point)
+            has_updated = True
+        # Prune data store by cycle point for:
+        # - Edge target cycle points are not in the pool
+        #   and source cycle points are not greater than pool max.
+        # - Edge source cycle points where niether itself and
+        #   all it's corresponding target cycle points are not in the pool.
+        # This ensures a buffer of sources and targets infront and behind the
+        # task pool, while accomodating exceptions such as ICP dependencies.
+        # TODO: Turn nodes back to ghost if not in pool? (for suicide)
+        prune_points = set([])
+        max_point = max(self.pool_points)
+        for s_point, t_points in list(self.edge_points.items()):
+            if s_point <= max_point:
+                if (s_point not in self.pool_points and
+                        t_points.isdisjoint(self.pool_points)):
+                    prune_points.add(str(s_point))
+                    prune_points.union((str(t_p) for t_p in t_points))
+                    del self.edge_points[s_point]
+                    continue
+                t_diffs = t_points.difference(self.pool_points)
+                if t_diffs:
+                    prune_points.union((str(t_p) for t_p in t_diffs))
+                    self.edge_points[s_point].difference_update(t_diffs)
+        # Action pruning if any eligible cycle points are found.
+        if prune_points:
+            self.prune_points(prune_points)
+            has_updated = True
+        if has_updated:
+            self.update_workflow()
+
+    def update_dynamic_elements(self, itasks=None):
+        """Update/populate proxy task and family dynamic fields."""
+        if itasks:
+            self.update_task_proxies([t.identity for t in itasks])
+            self.update_family_proxies([str(t.point) for t in itasks])
+            self.update_workflow()
 
     def generate_definition_elements(self):
         """Generate static definition data elements"""
@@ -86,7 +146,7 @@ class WsDataMgr(object):
         descendants = config.get_first_parent_descendants()
         parents = config.get_parent_lists()
 
-        # create task definition data objects
+        # create task definition data elements
         for name, tdef in config.taskdefs.items():
             t_id = f"{self.workflow_id}/{name}"
             t_check = f"{name}@{update_time}"
@@ -110,7 +170,7 @@ class WsDataMgr(object):
                     tdef.rtconfig['job']['execution time limit']
             tasks[name] = task
 
-        # family definition data objects creation
+        # Family definition data element creation.
         for name in ancestors.keys():
             if name in config.taskdefs.keys():
                 continue
@@ -141,6 +201,7 @@ class WsDataMgr(object):
                 else:
                     families[parent_list[0]].child_families.append(ch_id)
 
+        # Populate static fields of workflow
         workflow.api_version = self.schd.server.API
         workflow.cylc_version = CYLC_VERSION
         workflow.name = self.schd.suite
@@ -257,25 +318,27 @@ class WsDataMgr(object):
         for fam, ids in fam_proxy_ids.items():
             self.families[fam].proxies[:] = ids
 
-    def generate_graph_elements(self, edges=None, graph=None,
+    def generate_graph_elements(self, edges=None,
                                 task_proxies=None, family_proxies=None,
                                 start_point=None, stop_point=None):
         """Generate edges and ghost nodes (proxy elements)."""
+        if not self.pool_points:
+            return
         config = self.schd.config
+        graph = PbEdges()
         if edges is None:
             edges = {}
-        if graph is None:
-            graph = PbEdges()
         if task_proxies is None:
             task_proxies = {}
         if family_proxies is None:
             family_proxies = {}
         if start_point is None:
-            start_point = str(self.schd.pool.get_min_point() or '')
+            start_point = min(self.pool_points)
         if stop_point is None:
-            stop_point = str(self.schd.pool.get_max_point() or '')
+            stop_point = max(self.pool_points)
 
-        cycle_points = set([])
+        # Used for generating family [ghost] nodes
+        new_points = set([])
 
         # Generate ungrouped edges
         try:
@@ -283,51 +346,81 @@ class WsDataMgr(object):
         except TypeError:
             graph_edges = []
 
-        if graph_edges:
-            for e_list in graph_edges:
-                # Reference or create edge source & target nodes/proxies
-                s_node = e_list[0]
-                t_node = e_list[1]
-                if s_node is None:
-                    continue
-                else:
-                    name, point = TaskID.split(s_node)
-                    if name not in self.tasks:
-                        continue
-                    cycle_points.add(point)
-                    if s_node not in task_proxies:
-                        task_proxies[s_node] = (
-                            self._generate_ghost_task(s_node))
-                    source_id = task_proxies[s_node].id
-                    if source_id not in self.tasks[name].proxies:
-                        self.tasks[name].proxies.append(source_id)
-                if t_node:
-                    if t_node not in task_proxies:
-                        task_proxies[t_node] = (
-                            self._generate_ghost_task(t_node))
-                    target_id = task_proxies[t_node].id
-                e_id = s_node + '/' + (t_node or 'NoTargetNode')
-                edges[e_id] = PbEdge(
-                    id=f"{self.workflow_id}/{e_id}",
-                    source=source_id,
-                    suicide=e_list[3],
-                    cond=e_list[4],
-                )
-                if t_node:
-                    edges[e_id].target = target_id
-            graph.edges.extend([e.id for e in edges.values()])
-            graph.leaves.extend(config.leaves)
-            graph.feet.extend(config.feet)
-            for key, info in config.suite_polling_tasks.items():
-                graph.workflow_polling_tasks.add(
-                    local_proxy=key,
-                    workflow=info[0],
-                    remote_proxy=info[1],
-                    req_state=info[2],
-                    graph_string=info[3],
-                )
+        for e_list in graph_edges:
+            # Reference or create edge source & target nodes/proxies
+            s_node = e_list[0]
+            t_node = e_list[1]
+            if s_node is None:
+                continue
+            # Is the source cycle point in the task pool?
+            s_name, s_point = TaskID.split(s_node)
+            s_point_cls = get_point(s_point)
+            s_pool_point = False
+            s_valid = TaskID.is_valid_id(s_node)
+            if s_valid:
+                s_pool_point = s_point_cls in self.pool_points
+            # Is the target cycle point in the task pool?
+            t_pool_point = False
+            t_valid = t_node and TaskID.is_valid_id(t_node)
+            if t_valid:
+                t_name, t_point = TaskID.split(t_node)
+                t_point_cls = get_point(t_point)
+                t_pool_point = get_point(t_point) in self.pool_points
+            # Proceed if either source or target cycle points
+            # are in the task pool.
+            if not s_pool_point and not t_pool_point:
+                continue
+            # Initiate edge element.
+            e_id = s_node + '/' + (t_node or 'NoTargetNode')
+            edges[e_id] = PbEdge(
+                id=f'{self.workflow_id}/{e_id}',
+                suicide=e_list[3],
+                cond=e_list[4],
+            )
+            # Evaluate whether source/target is a task or xtrigger
+            # then add/create the corresponding id and items.
+            # TODO: if xtrigger is suite_state create remote ID
+            if s_valid:
+                new_points.add(s_point)
+                # Add source points for pruning.
+                self.edge_points.setdefault(s_point_cls, set([]))
+                if s_node not in task_proxies:
+                    task_proxies[s_node] = self._generate_ghost_task(s_node)
+                source_id = task_proxies[s_node].id
+                if source_id not in self.tasks[s_name].proxies:
+                    self.tasks[s_name].proxies.append(source_id)
+                edges[e_id].source = source_id
+            else:
+                edges[e_id].source = f'{self.workflow_id}/{s_point}/{s_name}'
+            # At present targets can't be xtriggers.
+            if t_valid:
+                new_points.add(t_point)
+                # Add target points to associated source points for pruning.
+                self.edge_points.setdefault(s_point_cls, set([]))
+                self.edge_points[s_point_cls].add(t_point_cls)
+                if t_node not in task_proxies:
+                    task_proxies[t_node] = self._generate_ghost_task(t_node)
+                target_id = task_proxies[t_node].id
+                if target_id not in self.tasks[t_name].proxies:
+                    self.tasks[t_name].proxies.append(target_id)
+                edges[e_id].target = target_id
 
-        self._generate_ghost_families(family_proxies, cycle_points)
+        # If no edges were created (i.e. no source/target met criteria).
+        if not edges:
+            return
+        graph.edges.extend([e.id for e in edges.values()])
+        graph.leaves.extend(config.leaves)
+        graph.feet.extend(config.feet)
+        for key, info in config.suite_polling_tasks.items():
+            graph.workflow_polling_tasks.add(
+                local_proxy=key,
+                workflow=info[0],
+                remote_proxy=info[1],
+                req_state=info[2],
+                graph_string=info[3],
+            )
+
+        self._generate_ghost_families(family_proxies, new_points)
         self.workflow.edges.CopyFrom(graph)
         # Replace the originals (atomic update, for access from other threads).
         self.task_proxies = task_proxies
@@ -346,7 +439,9 @@ class WsDataMgr(object):
                 continue
             ts = itask.get_state_summary()
             self.cycle_states.setdefault(point_string, {})[name] = ts['state']
-            tproxy = self.task_proxies[itask.identity]
+            # Create new message and copy existing message content
+            tproxy = PbTaskProxy()
+            tproxy.CopyFrom(self.task_proxies[itask.identity])
             tproxy.checksum = f"{itask.identity}@{update_time}"
             tproxy.state = ts['state']
             tproxy.job_submits = ts['submit_num']
@@ -364,9 +459,15 @@ class WsDataMgr(object):
                 prereq_obj = prereq.api_dump(self.workflow_id)
                 if prereq_obj:
                     prereq_list.append(prereq_obj)
+            del tproxy.prerequisites[:]
             tproxy.prerequisites.extend(prereq_list)
-            for _, msg, is_completed in itask.state.outputs.get_all():
-                tproxy.outputs.append(f"{msg}={is_completed}")
+            tproxy.outputs[:] = [
+                f"{msg}={is_completed}"
+                for _, msg, is_completed in itask.state.outputs.get_all()
+            ]
+            # Replace the original
+            # (atomic update, for access from other threads).
+            self.task_proxies[itask.identity] = tproxy
 
     def update_family_proxies(self, cycle_points=None):
         """Update state of family proxies"""
@@ -407,6 +508,8 @@ class WsDataMgr(object):
                 int_id = TaskID.get(fam, point_string)
                 if state is None or int_id not in self.family_proxies:
                     continue
+                # Since two fields strings are reassigned,
+                # it should be safe without copy.
                 fproxy = self.family_proxies[int_id]
                 fproxy.checksum = f"{int_id}@{update_time}"
                 fproxy.state = state
@@ -415,9 +518,11 @@ class WsDataMgr(object):
         self.state_count_cycles = state_count_cycles
 
     def update_workflow(self):
-        """Update dynamic content of workflow."""
+        """Update/populate dynamic content of workflow."""
         update_time = time()
-        workflow = deepcopy(self.workflow)
+        # Create new message and copy existing message content
+        workflow = PbWorkflow()
+        workflow.CopyFrom(self.workflow)
         workflow.checksum = f"{self.workflow_id}@{update_time}"
         state_count_totals = {}
         for _, count in list(self.state_count_cycles.items()):
@@ -476,8 +581,65 @@ class WsDataMgr(object):
         workflow.family_proxies[:] = [
             f.id for f in self.family_proxies.values()]
 
-        # Replace the originals (atomic update, for access from other threads).
+        # Replace the original (atomic update, for access from other threads).
         self.workflow = workflow
+
+    def prune_points(self, point_strings):
+        """Remove old proxies and edges by cycle point."""
+        if not point_strings:
+            return
+        node_ids = []
+        tasks_proxies = {}
+        for t_id, tproxy in list(self.task_proxies.items()):
+            if tproxy.cycle_point in point_strings:
+                node_ids.append(tproxy.id)
+                name, _ = TaskID.split(t_id)
+                tasks_proxies.setdefault(name, []).append(tproxy.id)
+                del self.task_proxies[t_id]
+                self.schd.job_pool.remove_task_jobs(t_id)
+        for name, id_list in tasks_proxies.items():
+            self.tasks[name].proxies[:] = [
+                tp for tp in self.tasks[name].proxies
+                if tp not in id_list]
+
+        families_proxies = {}
+        for f_id, fproxy in list(self.family_proxies.items()):
+            if fproxy.cycle_point in point_strings:
+                name, _ = TaskID.split(f_id)
+                families_proxies.setdefault(name, []).append(fproxy.id)
+                del self.family_proxies[f_id]
+        for name, id_list in families_proxies.items():
+            self.families[name].proxies[:] = [
+                fp for fp in self.families[name].proxies
+                if fp not in id_list]
+
+        g_eids = []
+        for e_id, edge in list(self.edges.items()):
+            if edge.source in node_ids or edge.target in node_ids:
+                del self.edges[e_id]
+                continue
+            g_eids.append(edge.id)
+        self.graph.edges[:] = g_eids
+
+        for point_string in point_strings:
+            self.cycle_states.pop(point_string, None)
+            self.state_count_cycles.pop(point_string, None)
+        # Re-Compute state_counts (total, and per cycle).
+        all_states = []
+        state_count_cycles = {}
+        for point_string, c_task_states in self.cycle_states.items():
+            count = {}
+            for state in c_task_states.values():
+                if state is None:
+                    continue
+                try:
+                    count[state] += 1
+                except KeyError:
+                    count[state] = 1
+                all_states.append(state)
+            state_count_cycles[point_string] = count
+        self.all_states = all_states
+        self.state_count_cycles = state_count_cycles
 
     def get_entire_workflow(self):
         workflow_msg = PbEntireWorkflow()

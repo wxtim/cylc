@@ -854,6 +854,8 @@ see `COPYING' in the Cylc source distribution.
         self.suite_db_mgr.put_suite_template_vars(self.template_vars)
         self.suite_db_mgr.put_runtime_inheritance(self.config)
         self.suite_db_mgr.put_suite_params(self)
+        # Re-initiate data model
+        self.ws_data_mgr.initiate_data_model()
         self.is_updated = True
 
     def set_suite_timer(self):
@@ -1512,6 +1514,7 @@ see `COPYING' in the Cylc source distribution.
     def run(self):
         """Main loop."""
         self.initialise_scheduler()
+        self.ws_data_mgr.initiate_data_model()
         while True:  # MAIN LOOP
             tinit = time()
 
@@ -1582,10 +1585,9 @@ see `COPYING' in the Cylc source distribution.
             t for t in self.pool.get_all_tasks() if t.state.is_updated]
         has_updated = self.is_updated or updated_tasks
         if has_updated:
-            # UI Server data update
-            # TODO: process the entire pool once with self.is_updated
-            # and update deltas here to be published
-            self.ws_data_mgr.initiate_data_model()
+            # WServer incemental data store update
+            self.ws_data_mgr.increment_graph_elements()
+            self.ws_data_mgr.update_dynamic_elements(updated_tasks)
             # TODO: deprecate state summary manager just use protobuf
             self.state_summary_mgr.update(self)
             # Database update

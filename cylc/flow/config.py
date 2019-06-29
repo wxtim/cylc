@@ -1938,31 +1938,31 @@ class SuiteConfig(object):
         self._last_graph_raw_edges = graph_raw_edges
         return graph_raw_edges
 
-    def get_graph_edges(self, start_point_string, stop_point_string):
+    def get_graph_edges(self, start_point, stop_point):
         """Convert the abstract graph edges (self.edges, etc) to actual edges
 
-        (This method differs from the get_graph_raw; class attributes are not
-        used to hold information from previous method calls.)
+        This method differs from the get_graph_raw; class attributes are not
+        used to hold information from previous method calls, and only ungrouped
+        edges are returned.
 
         Actual edges have concrete ranges of cycle points.
 
         """
 
-        # Now define the concrete graph edges (pairs of nodes) for plotting.
-        if start_point_string in [None, '']:
+        # Now define the concrete graph edges (pairs of nodes).
+        if isinstance(start_point, str):
+            start_point = get_point(start_point)
+        if not start_point:
             return []
-        start_point = get_point(start_point_string)
-        actual_first_point = self.get_actual_first_point(start_point)
+
+        # Require a stop point determined by the data manager
+        if isinstance(stop_point, str):
+            stop_point = get_point(stop_point)
+        if not stop_point:
+            return []
 
         suite_final_point = get_point(
             self.cfg['scheduling']['final cycle point'])
-
-        # Require a stop point determined by the data manager
-        if stop_point_string in [None, '']:
-            return []
-        stop_point = get_point(stop_point_string)
-        if not stop_point:
-            return []
 
         gr_edges = {}
         start_point_offset_cache = {}
@@ -1994,7 +1994,7 @@ class SuiteConfig(object):
                     if offset:
                         if offset_is_from_icp:
                             cache = start_point_offset_cache
-                            rel_point = start_point
+                            rel_point = self.start_point
                         else:
                             cache = point_offset_cache
                             rel_point = point
@@ -2009,11 +2009,9 @@ class SuiteConfig(object):
 
                     if l_id is None and r_id is None:
                         continue
-                    if l_id is not None and actual_first_point > l_id[1]:
+                    if l_id is not None and self.start_point > l_id[1]:
                         # Check that l_id is not earlier than start time.
-                        # NOTE BUG GITHUB #919
-                        # sct = start_point
-                        if r_id is None or r_id[1] < actual_first_point:
+                        if r_id is None or r_id[1] < self.start_point:
                             continue
                         # Pre-initial dependency;
                         # keep right hand node.

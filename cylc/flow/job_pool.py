@@ -107,10 +107,10 @@ class JobPool(object):
             pass
 
     def remove_task_jobs(self, task_id):
-        """removed all jobs associated with a task from the pool."""
+        """Removed all jobs associated with task from it's given ID."""
         name, point_string = TaskID.split(task_id)
-        t_id = f"/{point_string}/{name}/"
-        for job_d in self.pool.keys():
+        t_id = f'{point_string}/{name}/'
+        for job_d in list(self.pool):
             if t_id in job_d:
                 del self.pool[job_d]
 
