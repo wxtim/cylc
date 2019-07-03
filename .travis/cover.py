@@ -26,8 +26,15 @@ def main():
     pdir = dirname(dirname(abspath(__file__)))
     fn_tests = join(pdir, 'etc', 'bin', 'run-functional-tests.sh')
     # shell=True is no threat here: this is test code, not production.
-    if call('xvfb-run -a ' + fn_tests + ' --chunk $CHUNK --state=save -j 5',
-            shell=True) != 0:  # nosec
+    cmd = (
+        'xvfb-run -a '
+        + fn_tests
+        + ' --chunk $CHUNK'
+        + ' --state=save'
+        + ' -j $NTESTS'
+    )
+    print('$$$ ' + cmd, file=sys.stderr)
+    if call(cmd, shell=True) != 0:  # nosec
         sys.stderr.write('\n\nRerunning Failed Tests...\n\n')
         sys.exit(
             call(fn_tests + ' --state=failed -j 5', shell=True)  # nosec

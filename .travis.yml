@@ -48,20 +48,6 @@ env:
     # This coverage RC file is created under the script task
     - COVERAGE_PROCESS_START="/tmp/.coveragerc"
 
-unittest: &unittest
-  stage: unit-test
-  install:
-    - .travis/install.sh unit-tests
-  script:
-    - pycodestyle
-    - .travis/shellchecker
-    - pytest --cov-append --cov=cylc/flow
-  after_success:
-    # Report metrics, such as coverage
-    - coverage combine --append
-    - coverage xml --ignore-errors
-    - bash <(curl -s https://codecov.io/bash)
-
 regressiontest: &regressiontest
   stage: functional-test
   python:
@@ -83,25 +69,59 @@ regressiontest: &regressiontest
 
 jobs:
   include:
-
-  # run unittests at each supported Python version
-  - <<: *unittest
-    python: "3.7"
-
   # run regression tests in chunks with the most contemporary
   # supported Python version
   - <<: *regressiontest
     python: "3.7"
-    env: CHUNK="1/4"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=1
   - <<: *regressiontest
     python: "3.7"
-    env: CHUNK="2/4"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=2
   - <<: *regressiontest
     python: "3.7"
-    env: CHUNK="3/4"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=3
   - <<: *regressiontest
     python: "3.7"
-    env: CHUNK="4/4"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=4
+  - <<: *regressiontest
+    python: "3.7"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=5
+  - <<: *regressiontest
+    python: "3.7"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=6
+  - <<: *regressiontest
+    python: "3.7"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=7
+  - <<: *regressiontest
+    python: "3.7"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=8
+  - <<: *regressiontest
+    python: "3.7"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=9
+  - <<: *regressiontest
+    python: "3.7"
+    env:
+      - CHUNK="1/8"
+      - NTESTS=10
 
   # TODO: run shortlist of regression tests with the
   #       least contemporary Python version
+  #
