@@ -9,6 +9,8 @@ from subprocess import PIPE, Popen  # nosec
 
 from ansimarkup import parse as cparse
 from colorama import init as color_init
+from colorama import reinit as color_reinit
+from colorama import deinit as color_deinit
 
 import cylc.flow.flags
 
@@ -20,6 +22,42 @@ from cylc.flow.parsec.exceptions import ParsecError
 
 # CLI exception message format
 EXC_EXIT = cparse('<red><bold>{name}: </bold>{exc}</red>')
+
+
+def colour_safe(function):
+    """Suspends colorama for the duration of a function."""
+    def wrapper(*args, **kwargs):
+        color_deinit()
+        function(*args, **kwargs)
+        color_reinit()
+    return wrapper
+
+
+def patch_pudb():
+    try:
+        import pudb.debugger
+    except ModuleNotFoundError:
+        pass
+    else:
+        pudb.debugger.Debugger.set_step = colour_safe(
+            pudb.debugger.Debugger.set_step
+        )
+
+
+def colour_patch(module_name, function_name):
+    module = __import__(module_name)
+    import pdb; pdb.set_trace()
+    function = getattr(module, function_name)
+    setattr(module, function_name, colour_safe(function))
+
+
+COLOUR_PATCHES = [
+    ('pudb.debugger', 'Debugger.set_step')
+]
+
+
+for module_name, function_name in COLOUR_PATCHES:
+    colour_patch(module_name, function_name)
 
 
 def is_terminal():
@@ -128,7 +166,9 @@ def cli_function(parser_function=None, **parser_kwargs):
                 wrapped_kwargs['color'] = use_color
 
             # configure Cylc to use colour
+
             color_init(autoreset=True, strip=not use_color)
+            import pudb; pudb.set_trace()
             if use_color:
                 ansi_log()
 
