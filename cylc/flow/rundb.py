@@ -23,7 +23,15 @@ import traceback
 
 from cylc.flow import LOG
 import cylc.flow.flags
+from cylc.flow.task_state import TaskStatus
 from cylc.flow.wallclock import get_current_time_string
+
+
+# convert from and to the TaskState enumeration
+# NOTE: auto conversion back from Sqlite requires the connection to be opened
+#       with the argument `detect_types=sqlite3.PARSE_DECLTYPES`
+sqlite3.register_adapter(TaskStatus, lambda x: x.value)
+sqlite3.register_converter('taskstatus', lambda x: TaskStatus(x.decode()))
 
 
 class CylcSuiteDAOTableColumn(object):
@@ -284,7 +292,7 @@ class CylcSuiteDAO(object):
             ["cycle", {"is_primary_key": True}],
             ["name", {"is_primary_key": True}],
             ["spawned", {"datatype": "INTEGER"}],
-            ["status"],
+            ["status", {"datatype": "taskstatus"}],
             ["is_held", {"datatype": "INTEGER"}],
         ],
         TABLE_XTRIGGERS: [
@@ -296,7 +304,7 @@ class CylcSuiteDAO(object):
             ["cycle", {"is_primary_key": True}],
             ["name", {"is_primary_key": True}],
             ["spawned", {"datatype": "INTEGER"}],
-            ["status"],
+            ["status", {"datatype": "taskstatus"}],
             ["is_held", {"datatype": "INTEGER"}],
         ],
         TABLE_TASK_STATES: [
@@ -305,7 +313,7 @@ class CylcSuiteDAO(object):
             ["time_created"],
             ["time_updated"],
             ["submit_num", {"datatype": "INTEGER"}],
-            ["status"],
+            ["status", {"datatype": "taskstatus"}]
         ],
         TABLE_TASK_TIMEOUT_TIMERS: [
             ["cycle", {"is_primary_key": True}],
@@ -377,7 +385,11 @@ class CylcSuiteDAO(object):
     def connect(self):
         """Connect to the database."""
         if self.conn is None:
-            self.conn = sqlite3.connect(self.db_file_name, self.CONN_TIMEOUT)
+            self.conn = sqlite3.connect(
+                self.db_file_name,
+                self.CONN_TIMEOUT,
+                detect_types=sqlite3.PARSE_DECLTYPES
+            )
         return self.conn
 
     def create_tables(self):

@@ -55,6 +55,7 @@ from cylc.flow.task_state_prop import extract_group_state
 from cylc.flow.wallclock import (
     TIME_ZONE_LOCAL_INFO, TIME_ZONE_UTC_INFO, get_utc_mode)
 from cylc.flow.task_job_logs import JOB_LOG_OPTS
+from cylc.flow.task_state import TaskStatus
 from cylc.flow import __version__ as CYLC_VERSION
 from cylc.flow.ws_messages_pb2 import (
     PbFamily, PbFamilyProxy, PbTask, PbTaskProxy, PbWorkflow,
@@ -641,7 +642,9 @@ class WsDataMgr(object):
             if tp_id not in self.task_proxies:
                 continue
             self.cycle_states.setdefault(point_string, {})[name] = (
-                itask.state.status, itask.state.is_held)
+                itask.state.status.value,
+                itask.state.is_held
+            )
             # Gather task definitions for elapsed time recalculation.
             if name not in task_defs:
                 task_defs[name] = itask.tdef
@@ -725,7 +728,8 @@ class WsDataMgr(object):
                         c_fam_task_is_held[parent] = is_held
 
             for fam, child_states in c_fam_task_states.items():
-                state = extract_group_state(child_states)
+                state = extract_group_state([
+                    TaskStatus(status) for status in child_states])
                 fp_id = (
                     f'{self.workflow_id}{ID_DELIM}'
                     f'{point_string}{ID_DELIM}{fam}')

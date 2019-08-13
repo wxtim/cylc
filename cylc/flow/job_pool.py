@@ -64,7 +64,7 @@ class JobPool(object):
             stamp=f"{j_id}@{update_time}",
             id=j_id,
             submit_num=sub_num,
-            state=JOB_STATUSES_ALL[0],
+            state=JOB_STATUSES_ALL[0].value,
             task_proxy=t_id,
             batch_sys_name=job_conf['batch_system_name'],
             env_script=job_conf['env-script'],
