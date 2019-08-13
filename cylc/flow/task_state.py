@@ -29,89 +29,107 @@ from cylc.flow.task_outputs import (
 from cylc.flow.wallclock import get_current_time_string
 
 
-# Task status names and meanings.
-# Held back from dependency matching, in the runahead pool:
-TASK_STATUS_RUNAHEAD = "runahead"
-# Held back from job submission due to un-met prerequisites:
-TASK_STATUS_WAITING = "waiting"
-# Prerequisites met, but held back in a limited internal queue:
-TASK_STATUS_QUEUED = "queued"
-# Ready (prerequisites met) to be passed to job submission system:
-TASK_STATUS_READY = "ready"
-# Prerequisites unmet for too long - will never be submitted now:
-TASK_STATUS_EXPIRED = "expired"
-# Job submitted to run:
-TASK_STATUS_SUBMITTED = "submitted"
-# Job submission failed:
-TASK_STATUS_SUBMIT_FAILED = "submit-failed"
-# Job submission failed but will try again soon:
-TASK_STATUS_SUBMIT_RETRYING = "submit-retrying"
-# Job execution started, but not completed yet:
-TASK_STATUS_RUNNING = "running"
-# Job execution completed successfully:
-TASK_STATUS_SUCCEEDED = "succeeded"
-# Job execution failed:
-TASK_STATUS_FAILED = "failed"
-# Job execution failed, but will try again soon:
-TASK_STATUS_RETRYING = "retrying"
+from enum import Enum
 
-# Tasks statuses ordered according to task runtime progression.
-TASK_STATUSES_ORDERED = [
-    TASK_STATUS_RUNAHEAD,
-    TASK_STATUS_WAITING,
-    TASK_STATUS_QUEUED,
-    TASK_STATUS_EXPIRED,
-    TASK_STATUS_READY,
-    TASK_STATUS_SUBMIT_FAILED,
-    TASK_STATUS_SUBMIT_RETRYING,
-    TASK_STATUS_SUBMITTED,
-    TASK_STATUS_RETRYING,
-    TASK_STATUS_RUNNING,
-    TASK_STATUS_FAILED,
-    TASK_STATUS_SUCCEEDED
-]
 
-TASK_STATUSES_ALL = set(TASK_STATUSES_ORDERED)
+class TaskStatus(Enum):
+    """Task status names and meanings.
+
+    Tasks statuses are ordered according to task runtime progression.
+    """
+
+    RUNAHEAD = "runahead"
+    """Held back from dependency matching, in the runahead pool."""
+
+    WAITING = "waiting"
+    """Held back from job submission due to un-met prerequisites."""
+
+    QUEUED = "queued"
+    """Prerequisites met, but held back in a limited internal queue."""
+
+    READY = "ready"
+    """Ready (prerequisites met) to be passed to job submission system."""
+
+    EXPIRED = "expired"
+    """Prerequisites unmet for too long - will never be submitted now."""
+
+    SUBMITTED = "submitted"
+    """Job submitted to run."""
+
+    SUBMIT_FAILED = "submit-failed"
+    """Job submission failed."""
+
+    SUBMIT_RETRYING = "submit-retrying"
+    """Job submission failed but will try again soon."""
+
+    RUNNING = "running"
+    """Job execution started, but not completed yet."""
+
+    SUCCEEDED = "succeeded"
+    """Job execution completed successfully."""
+
+    FAILED = "failed"
+    """Job execution failed."""
+
+    RETRYING = "retrying"
+    """Job execution failed, but will try again soon."""
+
+    def __ge__(self, other):
+        order = list(self.__class__.__members__.values())
+        return order.index(self) >= order.index(other)
+
+    def __gt__(self, other):
+        order = list(self.__class__.__members__.values())
+        return order.index(self) > order.index(other)
+
+    def __le__(self, other):
+        order = list(self.__class__.__members__.values())
+        return order.index(self) <= order.index(other)
+
+    def __lt__(self, other):
+        order = list(self.__class__.__members__.values())
+        return order.index(self) < order.index(other)
+
 
 # Tasks statuses to show in restricted monitoring mode.
 TASK_STATUSES_RESTRICTED = {
-    TASK_STATUS_EXPIRED,
-    TASK_STATUS_SUBMITTED,
-    TASK_STATUS_SUBMIT_FAILED,
-    TASK_STATUS_SUBMIT_RETRYING,
-    TASK_STATUS_RUNNING,
-    TASK_STATUS_FAILED,
-    TASK_STATUS_RETRYING
+    TaskStatus.EXPIRED,
+    TaskStatus.SUBMITTED,
+    TaskStatus.SUBMIT_FAILED,
+    TaskStatus.SUBMIT_RETRYING,
+    TaskStatus.RUNNING,
+    TaskStatus.FAILED,
+    TaskStatus.RETRYING
 }
 
 # Tasks statuses to show in restricted monitoring mode.
 TASK_STATUSES_NO_JOB_FILE = {
-    TASK_STATUS_RUNAHEAD,
-    TASK_STATUS_WAITING,
-    TASK_STATUS_READY,
-    TASK_STATUS_EXPIRED,
-    TASK_STATUS_QUEUED
+    TaskStatus.RUNAHEAD,
+    TaskStatus.WAITING,
+    TaskStatus.READY,
+    TaskStatus.EXPIRED,
+    TaskStatus.QUEUED
 }
 
 # Task statuses we can manually reset a task TO.
 TASK_STATUSES_CAN_RESET_TO = {
-    TASK_STATUS_SUBMITTED,
-    TASK_STATUS_SUBMIT_FAILED,
-    TASK_STATUS_RUNNING,
-    TASK_STATUS_WAITING,
-    TASK_STATUS_EXPIRED,
-    TASK_STATUS_SUCCEEDED,
-    TASK_STATUS_FAILED
+    TaskStatus.SUBMITTED,
+    TaskStatus.SUBMIT_FAILED,
+    TaskStatus.RUNNING,
+    TaskStatus.WAITING,
+    TaskStatus.EXPIRED,
+    TaskStatus.SUCCEEDED,
+    TaskStatus.FAILED
 }
 
 # Task statuses that are final.
 TASK_STATUSES_SUCCESS = {
-    TASK_STATUS_EXPIRED,
-    TASK_STATUS_SUCCEEDED
+    TaskStatus.EXPIRED,
+    TaskStatus.SUCCEEDED
 }
 TASK_STATUSES_FAILURE = {
-    TASK_STATUS_FAILED,
-    TASK_STATUS_SUBMIT_FAILED
+    TaskStatus.FAILED,
+    TaskStatus.SUBMIT_FAILED
 }
 TASK_STATUSES_FINAL = TASK_STATUSES_SUCCESS | TASK_STATUSES_FAILURE
 
@@ -120,24 +138,24 @@ TASK_STATUSES_FINAL = TASK_STATUSES_SUCCESS | TASK_STATUSES_FAILURE
 # - expired: which is effectively the "succeeded" final state.
 # - held: which is placeholder state, not a real state.
 TASK_STATUSES_NEVER_ACTIVE = {
-    TASK_STATUS_RUNAHEAD,
-    TASK_STATUS_WAITING,
-    TASK_STATUS_QUEUED,
-    TASK_STATUS_READY,
+    TaskStatus.RUNAHEAD,
+    TaskStatus.WAITING,
+    TaskStatus.QUEUED,
+    TaskStatus.READY,
 }
 
 # Task statuses that are to be externally active
 TASK_STATUSES_TO_BE_ACTIVE = {
-    TASK_STATUS_QUEUED,
-    TASK_STATUS_READY,
-    TASK_STATUS_SUBMIT_RETRYING,
-    TASK_STATUS_RETRYING,
+    TaskStatus.QUEUED,
+    TaskStatus.READY,
+    TaskStatus.SUBMIT_RETRYING,
+    TaskStatus.RETRYING,
 }
 
 # Task statuses that are externally active
 TASK_STATUSES_ACTIVE = {
-    TASK_STATUS_SUBMITTED,
-    TASK_STATUS_RUNNING,
+    TaskStatus.SUBMITTED,
+    TaskStatus.RUNNING,
 }
 
 # Task statuses in which tasks cannot be considered stalled
@@ -145,27 +163,15 @@ TASK_STATUSES_NOT_STALLED = TASK_STATUSES_ACTIVE | TASK_STATUSES_TO_BE_ACTIVE
 
 # Task statuses that can be manually triggered.
 TASK_STATUSES_TRIGGERABLE = {
-    TASK_STATUS_WAITING,
-    TASK_STATUS_QUEUED,
-    TASK_STATUS_EXPIRED,
-    TASK_STATUS_SUBMIT_FAILED,
-    TASK_STATUS_SUBMIT_RETRYING,
-    TASK_STATUS_SUCCEEDED,
-    TASK_STATUS_FAILED,
-    TASK_STATUS_RETRYING
+    TaskStatus.WAITING,
+    TaskStatus.QUEUED,
+    TaskStatus.EXPIRED,
+    TaskStatus.SUBMIT_FAILED,
+    TaskStatus.SUBMIT_RETRYING,
+    TaskStatus.SUCCEEDED,
+    TaskStatus.FAILED,
+    TaskStatus.RETRYING
 }
-
-
-def status_leq(status_a, status_b):
-    """"Return True if status_a <= status_b"""
-    return (TASK_STATUSES_ORDERED.index(status_a) <=
-            TASK_STATUSES_ORDERED.index(status_b))
-
-
-def status_geq(status_a, status_b):
-    """"Return True if status_a >= status_b"""
-    return (TASK_STATUSES_ORDERED.index(status_a) >=
-            TASK_STATUSES_ORDERED.index(status_b))
 
 
 class TaskState(object):
@@ -186,7 +192,7 @@ class TaskState(object):
             Known outputs of the task.
         .prerequisites (list<cylc.flow.prerequisite.Prerequisite>):
             List of prerequisites of the task.
-        .status (str):
+        .status (TaskStatus):
             The current status of the task.
         .suicide_prerequisites (list<cylc.flow.prerequisite.Prerequisite>):
             List of prerequisites that will cause the task to suicide.
@@ -251,7 +257,7 @@ class TaskState(object):
 
     def __str__(self):
         """Print status (is_held)."""
-        ret = self.status
+        ret = self.status.value
         if self.is_held:
             ret += ' (held)'
         return ret
@@ -260,7 +266,7 @@ class TaskState(object):
         """Compare task state attributes.
 
         Args:
-            status (str/list/None):
+            status (TaskStatus/list/None):
                 ``str``
                     Check if the task status is the same as the one provided
                 ``list``
@@ -374,7 +380,7 @@ class TaskState(object):
         internal and manually forced state changes, if needed.
 
         Args:
-            status (str):
+            status (TaskStatus):
                 Task status to reset to or None to leave the status unchanged.
             is_held (bool):
                 Set the task to be held or not, or None to leave this property
@@ -416,30 +422,25 @@ class TaskState(object):
         if status is None:
             # NOTE: status is None if the task is being released
             status = self.status
-        if status_leq(status, TASK_STATUS_SUBMITTED):
+        if status <= TaskStatus.SUBMITTED:
             self.outputs.set_all_incomplete()
         self.outputs.set_completion(
-            TASK_OUTPUT_EXPIRED, status == TASK_STATUS_EXPIRED)
+            TASK_OUTPUT_EXPIRED, status == TaskStatus.EXPIRED)
         self.outputs.set_completion(
-            TASK_OUTPUT_SUBMITTED, status_geq(status, TASK_STATUS_SUBMITTED))
+            TASK_OUTPUT_SUBMITTED, status >= TaskStatus.SUBMITTED)
         self.outputs.set_completion(
-            TASK_OUTPUT_STARTED, status_geq(status, TASK_STATUS_RUNNING))
+            TASK_OUTPUT_STARTED, status >= TaskStatus.RUNNING)
         self.outputs.set_completion(
-            TASK_OUTPUT_SUBMIT_FAILED, status == TASK_STATUS_SUBMIT_FAILED)
+            TASK_OUTPUT_SUBMIT_FAILED, status == TaskStatus.SUBMIT_FAILED)
         self.outputs.set_completion(
-            TASK_OUTPUT_SUCCEEDED, status == TASK_STATUS_SUCCEEDED)
+            TASK_OUTPUT_SUCCEEDED, status == TaskStatus.SUCCEEDED)
         self.outputs.set_completion(
-            TASK_OUTPUT_FAILED, status == TASK_STATUS_FAILED)
+            TASK_OUTPUT_FAILED, status == TaskStatus.FAILED)
 
         # Unset prerequisites on reset to waiting (see docstring).
-        if status == TASK_STATUS_WAITING:
+        if status == TaskStatus.WAITING:
             self.set_prerequisites_not_satisfied()
         return True
-
-    def is_gt(self, status):
-        """"Return True if self.status > status."""
-        return (TASK_STATUSES_ORDERED.index(self.status) >
-                TASK_STATUSES_ORDERED.index(status))
 
     def _add_prerequisites(self, point, tdef):
         """Add task prerequisites."""
@@ -470,7 +471,7 @@ class TaskState(object):
             if adjusted:
                 p_prev = max(adjusted)
                 cpre = Prerequisite(point, tdef.start_point)
-                cpre.add(tdef.name, p_prev, TASK_STATUS_SUCCEEDED,
+                cpre.add(tdef.name, p_prev, TaskStatus.SUCCEEDED,
                          p_prev < tdef.start_point)
                 cpre.set_condition(tdef.name)
                 self.prerequisites.append(cpre)

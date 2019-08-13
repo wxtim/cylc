@@ -79,7 +79,7 @@ from cylc.flow.task_state import (
     TASK_STATUSES_ACTIVE,
     TASK_STATUSES_NEVER_ACTIVE,
     TASK_STATUSES_SUCCESS,
-    TASK_STATUS_FAILED)
+    TaskStatus)
 from cylc.flow.templatevars import load_template_vars
 from cylc.flow import __version__ as CYLC_VERSION
 from cylc.flow.ws_data_mgr import WsDataMgr
@@ -837,7 +837,7 @@ see `COPYING' in the Cylc source distribution.
         if self.config.run_mode('simulation'):
             for itask in itasks:
                 if itask.state(*TASK_STATUSES_ACTIVE):
-                    itask.state.reset(TASK_STATUS_FAILED)
+                    itask.state.reset(TaskStatus.FAILED)
             return len(bad_items)
         self.task_job_mgr.kill_task_jobs(self.suite, itasks)
         return len(bad_items)

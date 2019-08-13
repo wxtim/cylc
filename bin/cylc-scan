@@ -47,7 +47,7 @@ from cylc.flow.network.scan import (
     get_scan_items_from_fs, re_compile_filters, scan_many)
 from cylc.flow.option_parsers import CylcOptionParser as COP
 from cylc.flow.suite_status import KEY_META, KEY_NAME, KEY_OWNER, KEY_STATES
-from cylc.flow.task_state import TASK_STATUSES_ORDERED
+from cylc.flow.task_state import TaskStatus
 from cylc.flow.task_state_prop import get_status_prop
 from cylc.flow import terminal
 
@@ -180,8 +180,8 @@ def main(parser, options):
     # output state legend if necessary
     state_legend = ""
     if options.color and options.state_totals:
-        n_states = len(TASK_STATUSES_ORDERED)
-        for index, state in enumerate(TASK_STATUSES_ORDERED):
+        n_states = len(TaskStatus)
+        for index, state in enumerate(TaskStatus):
             state_legend += get_status_prop(state, 'ascii_ctrl')
             if index == n_states / 2:
                 state_legend += "\n"

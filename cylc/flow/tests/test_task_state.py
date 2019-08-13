@@ -21,17 +21,41 @@ import pytest
 from cylc.flow.taskdef import TaskDef
 from cylc.flow.task_state import (
     TaskState,
-    TASK_STATUS_SUCCEEDED,
-    TASK_STATUS_FAILED,
-    TASK_STATUS_WAITING,
+    TaskStatus
 )
+
+
+def test_task_status_ordered():
+    a = TaskStatus.WAITING
+    b = TaskStatus.QUEUED
+
+    assert a == a
+    assert not a != a
+    assert a <= a
+    assert a >= a
+    assert not a < a
+    assert not a > a
+
+    assert not a == b
+    assert a != b
+    assert a <= b
+    assert not a >= b
+    assert a < b
+    assert not a > b
+
+    assert not b == a
+    assert b != a
+    assert not b <= a
+    assert b >= a
+    assert not b < a
+    assert b > a
 
 
 @pytest.mark.parametrize(
     'state,is_held',
     [
-        (TASK_STATUS_WAITING, True),
-        (TASK_STATUS_SUCCEEDED, False)
+        (TaskStatus.WAITING, True),
+        (TaskStatus.SUCCEEDED, False)
     ]
 )
 def test_state_comparison(state, is_held):
@@ -39,30 +63,32 @@ def test_state_comparison(state, is_held):
     tdef = TaskDef('foo', {}, 'live', '123', True)
     tstate = TaskState(tdef, '123', state, is_held)
 
+    other = TaskStatus.FAILED
+
     assert tstate(state, is_held=is_held)
     assert tstate(state)
     assert tstate(is_held=is_held)
-    assert tstate(state, 'of', 'flux')
-    assert tstate(state, 'of', 'flux', is_held=is_held)
+    assert tstate(state, other)
+    assert tstate(state, other, is_held=is_held)
 
-    assert not tstate(state + 'x', is_held=not is_held)
+    assert not tstate(other, is_held=not is_held)
     assert not tstate(state, is_held=not is_held)
-    assert not tstate(state + 'x', is_held=is_held)
-    assert not tstate(state + 'x')
+    assert not tstate(other, is_held=is_held)
+    assert not tstate(other)
     assert not tstate(is_held=not is_held)
-    assert not tstate(state + 'x', 'of', 'flux')
+    assert not tstate(other, other)
 
 
 @pytest.mark.parametrize(
     'state,is_held,should_reset',
     [
         (None, None, False),
-        (TASK_STATUS_WAITING, None, False),
+        (TaskStatus.WAITING, None, False),
         (None, True, False),
-        (TASK_STATUS_WAITING, True, False),
-        (TASK_STATUS_SUCCEEDED, None, True),
+        (TaskStatus.WAITING, True, False),
+        (TaskStatus.SUCCEEDED, None, True),
         (None, False, True),
-        (TASK_STATUS_WAITING, False, True),
+        (TaskStatus.WAITING, False, True),
     ]
 )
 def test_reset(state, is_held, should_reset):
@@ -71,7 +97,7 @@ def test_reset(state, is_held, should_reset):
     # create task state:
     #   * status: waiting
     #   * is_held: true
-    tstate = TaskState(tdef, '123', TASK_STATUS_WAITING, True)
+    tstate = TaskState(tdef, '123', TaskStatus.WAITING, True)
     assert tstate.reset(state, is_held) == should_reset
     if is_held is not None:
         assert tstate.is_held == is_held
@@ -83,37 +109,37 @@ def test_reset(state, is_held, should_reset):
     'before,after,outputs',
     [
         (
-            (TASK_STATUS_WAITING, False),
-            (TASK_STATUS_SUCCEEDED, False),
+            (TaskStatus.WAITING, False),
+            (TaskStatus.SUCCEEDED, False),
             ['submitted', 'started', 'succeeded']
         ),
         (
-            (TASK_STATUS_WAITING, False),
-            (TASK_STATUS_FAILED, False),
+            (TaskStatus.WAITING, False),
+            (TaskStatus.FAILED, False),
             ['submitted', 'started', 'failed']
         ),
         (
-            (TASK_STATUS_WAITING, False),
-            (TASK_STATUS_FAILED, None),  # no change to is_held
+            (TaskStatus.WAITING, False),
+            (TaskStatus.FAILED, None),  # no change to is_held
             ['submitted', 'started', 'failed']
         ),
         (
-            (TASK_STATUS_WAITING, False),
+            (TaskStatus.WAITING, False),
             (None, False),  # no change to status
             []
         ),
         # only reset task outputs if not setting task to held
         # https://github.com/cylc/cylc-flow/pull/2116
         (
-            (TASK_STATUS_WAITING, False),
-            (TASK_STATUS_FAILED, True),
+            (TaskStatus.WAITING, False),
+            (TaskStatus.FAILED, True),
             []
         ),
         # only reset task outputs if not setting task to held
         # https://github.com/cylc/cylc-flow/pull/2116
         (
-            (TASK_STATUS_WAITING, False),
-            (TASK_STATUS_SUCCEEDED, True),
+            (TaskStatus.WAITING, False),
+            (TaskStatus.SUCCEEDED, True),
             []
         )
     ]

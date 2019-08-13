@@ -24,20 +24,17 @@ their jobs, and is feed-to/used-by the UI Server in resolving queries.
 from time import time
 
 from cylc.flow.task_id import TaskID
-from cylc.flow.task_state import (
-    TASK_STATUS_READY, TASK_STATUS_SUBMITTED, TASK_STATUS_SUBMIT_FAILED,
-    TASK_STATUS_RUNNING, TASK_STATUS_SUCCEEDED,
-    TASK_STATUS_FAILED)
+from cylc.flow.task_state import TaskStatus
 from cylc.flow.ws_messages_pb2 import PbJob
 from cylc.flow.ws_data_mgr import ID_DELIM
 
 JOB_STATUSES_ALL = [
-    TASK_STATUS_READY,
-    TASK_STATUS_SUBMITTED,
-    TASK_STATUS_SUBMIT_FAILED,
-    TASK_STATUS_RUNNING,
-    TASK_STATUS_SUCCEEDED,
-    TASK_STATUS_FAILED,
+    TaskStatus.READY,
+    TaskStatus.SUBMITTED,
+    TaskStatus.SUBMIT_FAILED,
+    TaskStatus.RUNNING,
+    TaskStatus.SUCCEEDED,
+    TaskStatus.FAILED,
 ]
 
 

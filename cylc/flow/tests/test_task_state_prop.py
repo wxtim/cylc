@@ -24,24 +24,24 @@ from cylc.flow.task_state_prop import *
 def get_test_extract_group_state_order():
     return [
         (
-            [TASK_STATUS_SUBMIT_FAILED, TASK_STATUS_FAILED],
+            [TaskStatus.SUBMIT_FAILED, TaskStatus.FAILED],
             False,
-            TASK_STATUS_SUBMIT_FAILED
+            TaskStatus.SUBMIT_FAILED
         ),
         (
-            ["Who?", TASK_STATUS_FAILED],
+            ["Who?", TaskStatus.FAILED],
             False,
-            TASK_STATUS_FAILED
+            TaskStatus.FAILED
         ),
         (
-            [TASK_STATUS_RETRYING, TASK_STATUS_RUNNING],
+            [TaskStatus.RETRYING, TaskStatus.RUNNING],
             False,
-            TASK_STATUS_RETRYING
+            TaskStatus.RETRYING
         ),
         (
-            [TASK_STATUS_RETRYING, TASK_STATUS_RUNNING],
+            [TaskStatus.RETRYING, TaskStatus.RUNNING],
             True,
-            TASK_STATUS_RUNNING
+            TaskStatus.RUNNING
         ),
     ]
 
@@ -49,16 +49,16 @@ def get_test_extract_group_state_order():
 def get_test_get_status_prop():
     return [
         (
-            TASK_STATUS_WAITING,
+            TaskStatus.WAITING,
             "ascii_ctrl",
             "ace",
             "ace"
         ),
         (
-            TASK_STATUS_WAITING,
+            TaskStatus.WAITING,
             "ascii_ctrl",
             None,
-            TASK_STATUS_WAITING
+            TaskStatus.WAITING.value
         )
     ]
 

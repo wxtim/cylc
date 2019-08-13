@@ -21,7 +21,7 @@ from time import time
 
 from cylc.flow.task_id import TaskID
 from cylc.flow.suite_status import get_suite_status
-from cylc.flow.task_state import TASK_STATUS_RUNAHEAD
+from cylc.flow.task_state import TaskStatus
 from cylc.flow.task_state_prop import extract_group_state
 from cylc.flow.wallclock import (
     TIME_ZONE_LOCAL_INFO,
@@ -163,7 +163,7 @@ class StateSummaryMgr(object):
 
         for task in schd.pool.get_rh_tasks():
             ts = task.get_state_summary()
-            ts['state'] = TASK_STATUS_RUNAHEAD
+            ts['state'] = TaskStatus.RUNAHEAD
             task_summary[task.identity] = ts
             name, point_string = TaskID.split(task.identity)
             task_states.setdefault(point_string, {})

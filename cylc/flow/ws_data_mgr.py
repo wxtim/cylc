@@ -650,7 +650,7 @@ class WsDataMgr(object):
             # to avoid modification while being read.
             tproxy.CopyFrom(self.task_proxies[tp_id])
             tproxy.stamp = f'{tp_id}@{update_time}'
-            tproxy.state = itask.state.status
+            tproxy.state = itask.state.status.value
             tproxy.is_held = itask.state.is_held
             tproxy.job_submits = itask.submit_num
             tproxy.spawned = itask.has_spawned
@@ -735,7 +735,7 @@ class WsDataMgr(object):
                 # it should be safe without copy.
                 fproxy = self.family_proxies[fp_id]
                 fproxy.stamp = f'{fp_id}@{update_time}'
-                fproxy.state = state
+                fproxy.state = state.value
                 fproxy.is_held = c_fam_task_is_held[fam]
 
     def update_workflow_statuses(self):

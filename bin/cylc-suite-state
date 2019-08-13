@@ -61,7 +61,7 @@ from cylc.flow.option_parsers import CylcOptionParser as COP
 from cylc.flow.dbstatecheck import CylcSuiteDBChecker
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.command_polling import Poller
-from cylc.flow.task_state import TASK_STATUSES_ORDERED
+from cylc.flow.task_state import TaskStatus
 from cylc.flow.terminal import cli_function
 from cylc.flow.cycling.util import add_offset
 
@@ -162,9 +162,9 @@ def get_option_parser():
                  sorted(CylcSuiteDBChecker.STATE_ALIASES.keys())[:-1]) +
              "' and '" + sorted(
                  CylcSuiteDBChecker.STATE_ALIASES.keys())[-1] + "'. ")
-    states = ("Valid states to check for include: '" +
-              ("', '").join(TASK_STATUSES_ORDERED[:-1]) +
-              "' and '" + TASK_STATUSES_ORDERED[-1] + "'.")
+    states = ("Valid states to check for include: '"
+              + "', '".join(TaskStatus)
+              + '.')
 
     parser.add_option(
         "-S", "--status",
@@ -214,7 +214,7 @@ def main(parser, options, suite):
 
     # Exit if an invalid status is requested
     if (options.status and
-            options.status not in TASK_STATUSES_ORDERED and
+            options.status not in TaskStatus and
             options.status not in CylcSuiteDBChecker.STATE_ALIASES):
         raise UserInputError("invalid status '" + options.status + "'")
 

@@ -55,9 +55,7 @@ from cylc.flow.task_outputs import (
 from cylc.flow.task_remote_mgr import (
     REMOTE_INIT_FAILED, TaskRemoteMgmtError, TaskRemoteMgr)
 from cylc.flow.task_state import (
-    TASK_STATUSES_ACTIVE, TASK_STATUS_READY, TASK_STATUS_SUBMITTED,
-    TASK_STATUS_RUNNING, TASK_STATUS_SUCCEEDED, TASK_STATUS_FAILED,
-    TASK_STATUS_SUBMIT_RETRYING, TASK_STATUS_RETRYING)
+    TASK_STATUSES_ACTIVE, TaskStatus)
 from cylc.flow.wallclock import get_current_time_string, get_utc_mode
 
 
@@ -142,10 +140,10 @@ class TaskJobManager(object):
         """
         to_poll_tasks = []
         pollable_statuses = {
-            TASK_STATUS_SUBMITTED, TASK_STATUS_RUNNING, TASK_STATUS_FAILED
+            TaskStatus.SUBMITTED, TaskStatus.RUNNING, TaskStatus.FAILED
         }
         if poll_succ:
-            pollable_statuses.add(TASK_STATUS_SUCCEEDED)
+            pollable_statuses.add(TaskStatus.SUCCEEDED)
         for itask in itasks:
             if itask.state(*pollable_statuses):
                 to_poll_tasks.append(itask)
@@ -312,7 +310,7 @@ class TaskJobManager(object):
                     # write flag so that subsequent manual retrigger will
                     # generate a new job file.
                     itask.local_job_file_path = None
-                    itask.state.reset(TASK_STATUS_READY)
+                    itask.state.reset(TaskStatus.READY)
                     if itask.state.outputs.has_custom_triggers():
                         self.suite_db_mgr.put_update_task_outputs(itask)
                 self.proc_pool.put_command(
@@ -459,11 +457,11 @@ class TaskJobManager(object):
             log_lvl = WARNING
             log_msg = 'kill failed'
             itask.state.kill_failed = True
-        elif itask.state(TASK_STATUS_SUBMITTED):
+        elif itask.state(TaskStatus.SUBMITTED):
             self.task_events_mgr.process_message(
                 itask, CRITICAL, self.task_events_mgr.EVENT_SUBMIT_FAILED,
                 ctx.timestamp)
-        elif itask.state(TASK_STATUS_RUNNING):
+        elif itask.state(TaskStatus.RUNNING):
             self.task_events_mgr.process_message(
                 itask, CRITICAL, TASK_OUTPUT_FAILED)
         else:
@@ -491,7 +489,7 @@ class TaskJobManager(object):
         #
         # Note for "kill": It is possible for a job to trigger its trap and
         # report back to the suite back this logic is called. If so, the task
-        # will no longer be TASK_STATUS_SUBMITTED or TASK_STATUS_RUNNING, and
+        # will no longer be TaskStatus.SUBMITTED or TaskStatus.RUNNING, and
         # its output line will be ignored here.
         tasks = {}
         for itask in itasks:
@@ -611,7 +609,7 @@ class TaskJobManager(object):
         else:
             # The job never ran, and is in batch system
             self.task_events_mgr.process_message(
-                itask, INFO, TASK_STATUS_SUBMITTED, jp_ctx.time_submit_exit,
+                itask, INFO, TaskStatus.SUBMITTED, jp_ctx.time_submit_exit,
                 flag)
 
     def _poll_task_job_message_callback(self, suite, itask, cmd_ctx, line):
@@ -674,8 +672,8 @@ class TaskJobManager(object):
             no_retry = False
         if not no_retry:
             for key, cfg_key in [
-                    (TASK_STATUS_SUBMIT_RETRYING, 'submission retry delays'),
-                    (TASK_STATUS_RETRYING, 'execution retry delays')]:
+                    (TaskStatus.SUBMIT_RETRYING, 'submission retry delays'),
+                    (TaskStatus.RETRYING, 'execution retry delays')]:
                 delays = rtconfig['job'][cfg_key]
                 if delays is None:
                     delays = []
