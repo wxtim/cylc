@@ -74,7 +74,7 @@ TASK_STATUSES_ORDERED = [
 TASK_STATUSES_ALL = set(TASK_STATUSES_ORDERED)
 
 # Tasks statuses to show in restricted monitoring mode.
-TASK_STATUSES_RESTRICTED = set([
+TASK_STATUSES_RESTRICTED = {
     TASK_STATUS_EXPIRED,
     TASK_STATUS_SUBMITTED,
     TASK_STATUS_SUBMIT_FAILED,
@@ -82,19 +82,19 @@ TASK_STATUSES_RESTRICTED = set([
     TASK_STATUS_RUNNING,
     TASK_STATUS_FAILED,
     TASK_STATUS_RETRYING
-])
+}
 
 # Tasks statuses to show in restricted monitoring mode.
-TASK_STATUSES_NO_JOB_FILE = set([
+TASK_STATUSES_NO_JOB_FILE = {
     TASK_STATUS_RUNAHEAD,
     TASK_STATUS_WAITING,
     TASK_STATUS_READY,
     TASK_STATUS_EXPIRED,
     TASK_STATUS_QUEUED
-])
+}
 
 # Task statuses we can manually reset a task TO.
-TASK_STATUSES_CAN_RESET_TO = set([
+TASK_STATUSES_CAN_RESET_TO = {
     TASK_STATUS_SUBMITTED,
     TASK_STATUS_SUBMIT_FAILED,
     TASK_STATUS_RUNNING,
@@ -102,49 +102,49 @@ TASK_STATUSES_CAN_RESET_TO = set([
     TASK_STATUS_EXPIRED,
     TASK_STATUS_SUCCEEDED,
     TASK_STATUS_FAILED
-])
+}
 
 # Task statuses that are final.
-TASK_STATUSES_SUCCESS = set([
+TASK_STATUSES_SUCCESS = {
     TASK_STATUS_EXPIRED,
     TASK_STATUS_SUCCEEDED
-])
-TASK_STATUSES_FAILURE = set([
+}
+TASK_STATUSES_FAILURE = {
     TASK_STATUS_FAILED,
     TASK_STATUS_SUBMIT_FAILED
-])
+}
 TASK_STATUSES_FINAL = TASK_STATUSES_SUCCESS | TASK_STATUSES_FAILURE
 
 # Task statuses that are never active.
 # For tasks that have never been submitted, but excluding:
 # - expired: which is effectively the "succeeded" final state.
 # - held: which is placeholder state, not a real state.
-TASK_STATUSES_NEVER_ACTIVE = set([
+TASK_STATUSES_NEVER_ACTIVE = {
     TASK_STATUS_RUNAHEAD,
     TASK_STATUS_WAITING,
     TASK_STATUS_QUEUED,
     TASK_STATUS_READY,
-])
+}
 
 # Task statuses that are to be externally active
-TASK_STATUSES_TO_BE_ACTIVE = set([
+TASK_STATUSES_TO_BE_ACTIVE = {
     TASK_STATUS_QUEUED,
     TASK_STATUS_READY,
     TASK_STATUS_SUBMIT_RETRYING,
     TASK_STATUS_RETRYING,
-])
+}
 
 # Task statuses that are externally active
-TASK_STATUSES_ACTIVE = set([
+TASK_STATUSES_ACTIVE = {
     TASK_STATUS_SUBMITTED,
     TASK_STATUS_RUNNING,
-])
+}
 
 # Task statuses in which tasks cannot be considered stalled
 TASK_STATUSES_NOT_STALLED = TASK_STATUSES_ACTIVE | TASK_STATUSES_TO_BE_ACTIVE
 
 # Task statuses that can be manually triggered.
-TASK_STATUSES_TRIGGERABLE = set([
+TASK_STATUSES_TRIGGERABLE = {
     TASK_STATUS_WAITING,
     TASK_STATUS_QUEUED,
     TASK_STATUS_EXPIRED,
@@ -153,7 +153,7 @@ TASK_STATUSES_TRIGGERABLE = set([
     TASK_STATUS_SUCCEEDED,
     TASK_STATUS_FAILED,
     TASK_STATUS_RETRYING
-])
+}
 
 
 def status_leq(status_a, status_b):
