@@ -50,7 +50,7 @@ from cylc.flow.suite_db_mgr import SuiteDatabaseManager
 from cylc.flow.broadcast_mgr import BroadcastMgr
 from cylc.flow.hostuserutil import get_user
 from cylc.flow.job_pool import JobPool
-from cylc.flow.suite_srv_files_mgr import SuiteSrvFilesManager
+from cylc.flow import suite_srv_files_mgr
 from cylc.flow.task_id import TaskID
 from cylc.flow.task_job_mgr import TaskJobManager
 from cylc.flow.task_events_mgr import TaskEventsManager
@@ -89,8 +89,7 @@ def main(parser, options, suite, *task_ids):
     for task_id in task_ids:
         if not TaskID.is_valid_id(task_id):
             raise UserInputError("Invalid task ID %s" % task_id)
-    suite_srv_mgr = SuiteSrvFilesManager()
-    suiterc = suite_srv_mgr.get_suite_rc(suite)
+    suiterc = suite_srv_files_mgr.get_suite_rc(suite)
     suite_dir = os.path.dirname(suiterc)
     # For user-defined batch system handlers
     sys.path.append(os.path.join(suite_dir, 'python'))
@@ -118,7 +117,7 @@ def main(parser, options, suite, *task_ids):
     job_pool = JobPool(suite, owner)
     db_mgr = SuiteDatabaseManager()
     task_job_mgr = TaskJobManager(
-        suite, pool, db_mgr, suite_srv_mgr,
+        suite, pool, db_mgr,
         TaskEventsManager(suite, pool, db_mgr, BroadcastMgr(db_mgr),
             job_pool), job_pool)
     task_job_mgr.task_remote_mgr.single_task_mode = True
