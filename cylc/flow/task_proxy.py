@@ -376,7 +376,7 @@ class TaskProxy(object):
         if self.state.status in self.try_timers:
             return self.try_timers[self.state.status].is_delay_done(now)
         return (
-            self.state(TASK_STATUS_WAITING)
+            self.state(TaskStatus.WAITING)
             and self.is_waiting_clock_done(now)
             and self.is_waiting_prereqs_done())
 

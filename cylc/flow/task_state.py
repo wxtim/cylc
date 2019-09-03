@@ -90,6 +90,9 @@ class TaskStatus(Enum):
         order = list(self.__class__.__members__.values())
         return order.index(self) < order.index(other)
 
+    def __str__(self):
+        return self.value
+
 
 # Tasks statuses to show in restricted monitoring mode.
 TASK_STATUSES_RESTRICTED = {

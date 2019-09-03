@@ -140,7 +140,7 @@ class JobPool(object):
             f'{ID_DELIM}{name}{ID_DELIM}{sub_num}')
         if status in JOB_STATUSES_ALL:
             try:
-                self.pool[j_id].state = status
+                self.pool[j_id].state = status.value
             except KeyError:
                 pass
 

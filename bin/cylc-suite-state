@@ -163,7 +163,7 @@ def get_option_parser():
              "' and '" + sorted(
                  CylcSuiteDBChecker.STATE_ALIASES.keys())[-1] + "'. ")
     states = ("Valid states to check for include: '"
-              + "', '".join(TaskStatus)
+              + "', '".join((state.value for state in TaskStatus))
               + '.')
 
     parser.add_option(
@@ -213,10 +213,14 @@ def main(parser, options, suite):
         raise UserInputError("need a taskname and cyclepoint")
 
     # Exit if an invalid status is requested
-    if (options.status and
-            options.status not in TaskStatus and
-            options.status not in CylcSuiteDBChecker.STATE_ALIASES):
-        raise UserInputError("invalid status '" + options.status + "'")
+    if options.status:
+        err = False
+        try:
+            status = TaskStatus(options.status)
+        except ValueError:
+            err = True
+        if err or status not in CylcSuiteDBChecker.STATE_ALIASES:
+            raise UserInputError("invalid status '" + options.status + "'")
 
     # this only runs locally (use of --host or --user results in remote
     # re-invocation).

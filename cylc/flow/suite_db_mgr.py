@@ -414,18 +414,18 @@ class SuiteDatabaseManager(object):
                     "name": itask.tdef.name,
                     "cycle": str(itask.point),
                     "ctx_key": json.dumps("poll_timer"),
-                    "ctx": self._namedtuple2json(itask.poll_timer.ctx),
+                    "ctx": self._namedtuple2json(itask.poll_timer.ctx.value),
                     "delays": json.dumps(itask.poll_timer.delays),
                     "num": itask.poll_timer.num,
                     "delay": itask.poll_timer.delay,
                     "timeout": itask.poll_timer.timeout})
-            for ctx_key_1, timer in itask.try_timers.items():
+            for status, timer in itask.try_timers.items():
                 if timer is None:
                     continue
                 self.db_inserts_map[self.TABLE_TASK_ACTION_TIMERS].append({
                     "name": itask.tdef.name,
                     "cycle": str(itask.point),
-                    "ctx_key": json.dumps(("try_timers", ctx_key_1)),
+                    "ctx_key": json.dumps(("try_timers", status.value)),
                     "ctx": self._namedtuple2json(timer.ctx),
                     "delays": json.dumps(timer.delays),
                     "num": timer.num,

@@ -474,8 +474,8 @@ class TaskEventsManager():
                 itask, itask.state, self.FLAG_RECEIVED_IGNORED, message,
                 event_time, submit_num, itask.submit_num)
             return False
-        if itask.state.status in (
-            TASK_STATUS_SUBMIT_RETRYING, TASK_STATUS_RETRYING
+        if itask.state(
+            TaskStatus.SUBMIT_RETRYING, TaskStatus.RETRYING
         ):
             # Ignore polled messages if task is already in retrying statuses
             LOG.warning(
@@ -679,7 +679,7 @@ class TaskEventsManager():
         itask.set_summary_time('finished', event_time)
         job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
         self.job_pool.set_job_time(job_d, 'finished', event_time)
-        self.job_pool.set_job_state(job_d, TASK_STATUS_FAILED)
+        self.job_pool.set_job_state(job_d, TaskStatus.FAILED)
         self.suite_db_mgr.put_update_task_jobs(itask, {
             "run_status": 1,
             "time_run_exit": event_time,
@@ -712,11 +712,11 @@ class TaskEventsManager():
         self.pflag = True
         job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
         self.job_pool.set_job_time(job_d, 'started', event_time)
-        self.job_pool.set_job_state(job_d, TASK_STATUS_RUNNING)
+        self.job_pool.set_job_state(job_d, TaskStatus.RUNNING)
         itask.set_summary_time('started', event_time)
         self.suite_db_mgr.put_update_task_jobs(itask, {
             "time_run": itask.summary['started_time_string']})
-        if itask.state.reset(TASK_STATUS_RUNNING):
+        if itask.state.reset(TaskStatus.RUNNING):
             self.setup_event_handlers(itask, 'started', 'job started')
         self._reset_job_timers(itask)
 
@@ -728,7 +728,7 @@ class TaskEventsManager():
         """Helper for process_message, handle a succeeded message."""
         job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
         self.job_pool.set_job_time(job_d, 'finished', event_time)
-        self.job_pool.set_job_state(job_d, TASK_STATUS_SUCCEEDED)
+        self.job_pool.set_job_state(job_d, TaskStatus.SUCCEEDED)
         self.pflag = True
         itask.set_summary_time('finished', event_time)
         self.suite_db_mgr.put_update_task_jobs(itask, {
@@ -765,7 +765,7 @@ class TaskEventsManager():
         })
         job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
         self.job_pool.set_job_attr(job_d, 'batch_sys_job_id', None)
-        self.job_pool.set_job_state(job_d, TASK_STATUS_SUBMIT_FAILED)
+        self.job_pool.set_job_state(job_d, TaskStatus.SUBMIT_FAILED)
         itask.summary['submit_method_id'] = None
         self.pflag = True
         if (TaskStatus.SUBMIT_RETRYING not in itask.try_timers or
@@ -820,7 +820,7 @@ class TaskEventsManager():
         itask.set_summary_time('submitted', event_time)
         job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
         self.job_pool.set_job_time(job_d, 'submitted', event_time)
-        self.job_pool.set_job_state(job_d, TASK_STATUS_SUBMITTED)
+        self.job_pool.set_job_state(job_d, TaskStatus.SUBMITTED)
         # Unset started and finished times in case of resubmission.
         itask.set_summary_time('started')
         itask.set_summary_time('finished')

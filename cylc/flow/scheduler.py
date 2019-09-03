@@ -564,6 +564,11 @@ see `COPYING' in the Cylc source distribution.
                     self.message_queue.get(block=False))
             except Empty:
                 break
+            import pdb; pdb.set_trace()
+            try:
+                message = TaskStatus(message)
+            except ValueError:
+                pass
             self.message_queue.task_done()
             if '/' in task_job:  # cycle/task-name/submit-num
                 cycle, task_name, submit_num, _ = (
