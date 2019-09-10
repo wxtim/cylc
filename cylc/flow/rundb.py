@@ -835,3 +835,26 @@ class CylcSuiteDAO(object):
             self.remove_columns(table, ['hold_swap'])
             conn.commit()
         return True
+
+
+__all__ = [
+    "CylcSuiteDAO",
+    "broadcast_events",
+    "broadcast_states",
+    "broadcast_states_checkpoints",
+    "inheritance",
+    "suite_params",
+    "suite_params_checkpoints",
+    "suite_template_vars",
+    "task_jobs",
+    "task_events",
+    "task_action_timers",
+    "checkpoint_id",
+    "task_late_flags",
+    "task_outputs",
+    "task_pool",
+    "task_pool_checkpoints",
+    "task_states",
+    "task_timeout_timers",
+    "xtriggers"
+]
