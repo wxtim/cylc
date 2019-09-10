@@ -18,11 +18,174 @@
 import sqlite3
 import traceback
 
+from sqlalchemy import Column, INTEGER, REAL, Table, TEXT, MetaData
 
 from cylc.flow import LOG
 import cylc.flow.flags
 from cylc.flow.wallclock import get_current_time_string
 
+meta = MetaData()
+
+
+# --- tables
+
+broadcast_events = Table(
+    'broadcast_events', meta,
+    Column('time', TEXT),
+    Column('change', TEXT),
+    Column('point', TEXT),
+    Column('namespace', TEXT),
+    Column('key', TEXT),
+    Column('value', TEXT)
+)
+
+broadcast_states = Table(
+    'broadcast_states', meta,
+    Column('point', TEXT, primary_key=True),
+    Column('namespace', TEXT, primary_key=True),
+    Column('key', TEXT, primary_key=True),
+    Column('value', TEXT)
+)
+
+broadcast_states_checkpoints = Table(
+    'broadcast_states_checkpoints', meta,
+    Column('id', INTEGER, primary_key=True),
+    Column('point', TEXT, primary_key=True),
+    Column('namespace', TEXT, primary_key=True),
+    Column('key', TEXT, primary_key=True),
+    Column('value', TEXT)
+)
+
+inheritance = Table(
+    'inheritance', meta,
+    Column('namespace', TEXT, primary_key=True),
+    Column('inheritance', TEXT)
+)
+
+suite_params = Table(
+    'suite_params', meta,
+    Column('key', TEXT, primary_key=True),
+    Column('value', TEXT)
+)
+
+suite_params_checkpoints = Table(
+    'suite_params_checkpoints', meta,
+    Column('id', INTEGER, primary_key=True),
+    Column('key', TEXT, primary_key=True),
+    Column('value', TEXT)
+)
+
+suite_template_vars = Table(
+    'suite_template_vars', meta,
+    Column('key', TEXT, primary_key=True),
+    Column('value', TEXT)
+)
+
+task_jobs = Table(
+    'task_jobs', meta,
+    Column('cycle', TEXT, primary_key=True),
+    Column('name', TEXT, primary_key=True),
+    Column('submit_num', INTEGER, primary_key=True),
+    Column('is_manual_submit', INTEGER),
+    Column('try_num', INTEGER),
+    Column('time_submit', TEXT),
+    Column('time_submit_exit', TEXT),
+    Column('submit_status', INTEGER),
+    Column('time_run', TEXT),
+    Column('time_run_exit', TEXT),
+    Column('run_signal', TEXT),
+    Column('run_status', INTEGER),
+    Column('user_at_host', TEXT),
+    Column('batch_sys_name', TEXT),
+    Column('batch_sys_job_id', TEXT)
+)
+
+task_events = Table(
+    'task_events', meta,
+    Column('name', TEXT),
+    Column('cycle', TEXT),
+    Column('time', TEXT),
+    Column('submit_num', INTEGER),
+    Column('event', TEXT),
+    Column('message', TEXT)
+)
+
+task_action_timers = Table(
+    'task_action_timers', meta,
+    Column('cycle', TEXT, primary_key=True),
+    Column('name', TEXT, primary_key=True),
+    Column('ctx_key', TEXT, primary_key=True),
+    Column('ctx', TEXT),
+    Column('delays', TEXT),
+    Column('num', INTEGER),
+    Column('delay', TEXT),
+    Column('timeout', TEXT)
+)
+
+checkpoint_id = Table(
+    'checkpoint_id', meta,
+    Column('id', INTEGER, primary_key=True),
+    Column('time', TEXT),
+    Column('event', TEXT)
+)
+
+task_late_flags = Table(
+    'task_late_flags', meta,
+    Column('cycle', TEXT, primary_key=True),
+    Column('name', TEXT, primary_key=True),
+    Column('value', INTEGER)
+)
+
+task_outputs = Table(
+    'task_outputs', meta,
+    Column('cycle', TEXT, primary_key=True),
+    Column('name', TEXT, primary_key=True),
+    Column('outputs', INTEGER)
+)
+
+task_pool = Table(
+    'task_pool', meta,
+    Column('cycle', TEXT, primary_key=True),
+    Column('name', TEXT, primary_key=True),
+    Column('spawned', INTEGER),
+    Column('status', TEXT),
+    Column('is_held', INTEGER)
+)
+
+task_pool_checkpoints = Table(
+    'task_pool_checkpoints', meta,
+    Column('id', INTEGER, primary_key=True),
+    Column('cycle', TEXT, primary_key=True),
+    Column('name', TEXT, primary_key=True),
+    Column('spawned', INTEGER),
+    Column('status', TEXT),
+    Column('is_held', INTEGER)
+)
+
+task_states = Table(
+    'task_states', meta,
+    Column('name', TEXT, primary_key=True),
+    Column('cycle', TEXT, primary_key=True),
+    Column('time_created', TEXT),
+    Column('time_updated', TEXT),
+    Column('submit_num', INTEGER),
+    Column('status', TEXT)
+)
+
+task_timeout_timers = Table(
+    'task_timeout_timers', meta,
+    Column('cycle', TEXT, primary_key=True),
+    Column('name', TEXT, primary_key=True),
+    Column('timeout', REAL)
+)
+
+xtriggers = Table(
+    'xtriggers', meta,
+    Column('signature', TEXT, primary_key=True),
+    Column('results', REAL)
+)
+
+# ---
 
 class CylcSuiteDAOTableColumn(object):
     """Represent a column in a table."""
@@ -169,148 +332,6 @@ class CylcSuiteDAO(object):
     DB_FILE_BASE_NAME = "db"
     MAX_TRIES = 100
     CHECKPOINT_LATEST_ID = 0
-    CHECKPOINT_LATEST_EVENT = "latest"
-    TABLE_BROADCAST_EVENTS = "broadcast_events"
-    TABLE_BROADCAST_STATES = "broadcast_states"
-    TABLE_BROADCAST_STATES_CHECKPOINTS = "broadcast_states_checkpoints"
-    TABLE_INHERITANCE = "inheritance"
-    TABLE_SUITE_PARAMS = "suite_params"
-    TABLE_SUITE_PARAMS_CHECKPOINTS = "suite_params_checkpoints"
-    TABLE_SUITE_TEMPLATE_VARS = "suite_template_vars"
-    TABLE_TASK_JOBS = "task_jobs"
-    TABLE_TASK_EVENTS = "task_events"
-    TABLE_TASK_ACTION_TIMERS = "task_action_timers"
-    TABLE_CHECKPOINT_ID = "checkpoint_id"
-    TABLE_TASK_LATE_FLAGS = "task_late_flags"
-    TABLE_TASK_OUTPUTS = "task_outputs"
-    TABLE_TASK_POOL = "task_pool"
-    TABLE_TASK_POOL_CHECKPOINTS = "task_pool_checkpoints"
-    TABLE_TASK_STATES = "task_states"
-    TABLE_TASK_TIMEOUT_TIMERS = "task_timeout_timers"
-    TABLE_XTRIGGERS = "xtriggers"
-
-    TABLES_ATTRS = {
-        TABLE_BROADCAST_EVENTS: [
-            ["time"],
-            ["change"],
-            ["point"],
-            ["namespace"],
-            ["key"],
-            ["value"],
-        ],
-        TABLE_BROADCAST_STATES: [
-            ["point", {"is_primary_key": True}],
-            ["namespace", {"is_primary_key": True}],
-            ["key", {"is_primary_key": True}],
-            ["value"],
-        ],
-        TABLE_BROADCAST_STATES_CHECKPOINTS: [
-            ["id", {"datatype": "INTEGER", "is_primary_key": True}],
-            ["point", {"is_primary_key": True}],
-            ["namespace", {"is_primary_key": True}],
-            ["key", {"is_primary_key": True}],
-            ["value"],
-        ],
-        TABLE_CHECKPOINT_ID: [
-            ["id", {"datatype": "INTEGER", "is_primary_key": True}],
-            ["time"],
-            ["event"],
-        ],
-        TABLE_INHERITANCE: [
-            ["namespace", {"is_primary_key": True}],
-            ["inheritance"],
-        ],
-        TABLE_SUITE_PARAMS: [
-            ["key", {"is_primary_key": True}],
-            ["value"],
-        ],
-        TABLE_SUITE_PARAMS_CHECKPOINTS: [
-            ["id", {"datatype": "INTEGER", "is_primary_key": True}],
-            ["key", {"is_primary_key": True}],
-            ["value"],
-        ],
-        TABLE_SUITE_TEMPLATE_VARS: [
-            ["key", {"is_primary_key": True}],
-            ["value"],
-        ],
-        TABLE_TASK_ACTION_TIMERS: [
-            ["cycle", {"is_primary_key": True}],
-            ["name", {"is_primary_key": True}],
-            ["ctx_key", {"is_primary_key": True}],
-            ["ctx"],
-            ["delays"],
-            ["num", {"datatype": "INTEGER"}],
-            ["delay"],
-            ["timeout"],
-        ],
-        TABLE_TASK_JOBS: [
-            ["cycle", {"is_primary_key": True}],
-            ["name", {"is_primary_key": True}],
-            ["submit_num", {"datatype": "INTEGER", "is_primary_key": True}],
-            ["is_manual_submit", {"datatype": "INTEGER"}],
-            ["try_num", {"datatype": "INTEGER"}],
-            ["time_submit"],
-            ["time_submit_exit"],
-            ["submit_status", {"datatype": "INTEGER"}],
-            ["time_run"],
-            ["time_run_exit"],
-            ["run_signal"],
-            ["run_status", {"datatype": "INTEGER"}],
-            ["user_at_host"],
-            ["batch_sys_name"],
-            ["batch_sys_job_id"],
-        ],
-        TABLE_TASK_EVENTS: [
-            ["name"],
-            ["cycle"],
-            ["time"],
-            ["submit_num", {"datatype": "INTEGER"}],
-            ["event"],
-            ["message"],
-        ],
-        TABLE_TASK_LATE_FLAGS: [
-            ["cycle", {"is_primary_key": True}],
-            ["name", {"is_primary_key": True}],
-            ["value", {"datatype": "INTEGER"}],
-        ],
-        TABLE_TASK_OUTPUTS: [
-            ["cycle", {"is_primary_key": True}],
-            ["name", {"is_primary_key": True}],
-            ["outputs"],
-        ],
-        TABLE_TASK_POOL: [
-            ["cycle", {"is_primary_key": True}],
-            ["name", {"is_primary_key": True}],
-            ["spawned", {"datatype": "INTEGER"}],
-            ["status"],
-            ["is_held", {"datatype": "INTEGER"}],
-        ],
-        TABLE_XTRIGGERS: [
-            ["signature", {"is_primary_key": True}],
-            ["results"],
-        ],
-        TABLE_TASK_POOL_CHECKPOINTS: [
-            ["id", {"datatype": "INTEGER", "is_primary_key": True}],
-            ["cycle", {"is_primary_key": True}],
-            ["name", {"is_primary_key": True}],
-            ["spawned", {"datatype": "INTEGER"}],
-            ["status"],
-            ["is_held", {"datatype": "INTEGER"}],
-        ],
-        TABLE_TASK_STATES: [
-            ["name", {"is_primary_key": True}],
-            ["cycle", {"is_primary_key": True}],
-            ["time_created"],
-            ["time_updated"],
-            ["submit_num", {"datatype": "INTEGER"}],
-            ["status"],
-        ],
-        TABLE_TASK_TIMEOUT_TIMERS: [
-            ["cycle", {"is_primary_key": True}],
-            ["name", {"is_primary_key": True}],
-            ["timeout", {"datatype": "REAL"}],
-        ],
-    }
 
     def __init__(self, db_file_name=None, is_public=False):
         """Initialise object.
