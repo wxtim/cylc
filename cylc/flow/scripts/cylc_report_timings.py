@@ -154,7 +154,7 @@ def format_rows(header, rows):
     formatter = ' '.join('%%-%ds' % l for l in max_lengths) + '\n'
     sio.write(formatter % header)
     for r in rows:
-        sio.write(formatter % r)
+        sio.write(formatter % tuple(r))
     sio.seek(0)
     return sio
 

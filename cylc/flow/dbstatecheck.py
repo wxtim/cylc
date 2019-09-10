@@ -19,7 +19,7 @@ import json
 import os
 import sqlite3
 import sys
-from cylc.flow.rundb import CylcSuiteDAO
+from cylc.flow.rundb import *
 from cylc.flow.task_state import (
     TASK_STATUS_SUBMITTED, TASK_STATUS_SUBMIT_RETRYING,
     TASK_STATUS_RUNNING, TASK_STATUS_SUCCEEDED, TASK_STATUS_FAILED,
@@ -47,6 +47,7 @@ class CylcSuiteDBChecker(object):
             CylcSuiteDAO.DB_FILE_BASE_NAME)
         if not os.path.exists(db_path):
             raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), db_path)
+        # FIXME: sqlalchemy-core here too?
         self.conn = sqlite3.connect(db_path, timeout=10.0)
 
     @staticmethod
@@ -60,7 +61,7 @@ class CylcSuiteDBChecker(object):
     def get_remote_point_format(self):
         """Query a remote suite database for a 'cycle point format' entry"""
         for row in self.conn.execute(
-                r"SELECT value FROM " + CylcSuiteDAO.TABLE_SUITE_PARAMS +
+                r"SELECT value FROM " + suite_params.name +
                 r" WHERE key==?",
                 ['cycle_point_format']):
             return row[0]
@@ -82,10 +83,10 @@ class CylcSuiteDBChecker(object):
             mask = "name, cycle, status"
 
         if message:
-            target_table = CylcSuiteDAO.TABLE_TASK_OUTPUTS
+            target_table = task_outputs.name
             mask = "outputs"
         else:
-            target_table = CylcSuiteDAO.TABLE_TASK_STATES
+            target_table = task_states.name
 
         stmt = "select {0} from {1}".format(mask, target_table)
         if task is not None:
@@ -100,9 +101,9 @@ class CylcSuiteDBChecker(object):
             for state in self.state_lookup(status):
                 stmt_args.append(state)
                 stmt_frags.append("status==?")
-            stmt_wheres.append("(" + (" OR ").join(stmt_frags) + ")")
+            stmt_wheres.append("(" + " OR ".join(stmt_frags) + ")")
         if stmt_wheres:
-            stmt += " where " + (" AND ").join(stmt_wheres)
+            stmt += " where " + " AND ".join(stmt_wheres)
 
         res = []
         for row in self.conn.execute(stmt, stmt_args):
