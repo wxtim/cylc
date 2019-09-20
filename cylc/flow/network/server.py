@@ -35,7 +35,7 @@ from cylc.flow.exceptions import CylcError
 from cylc.flow.network.authorisation import Priv, authorise
 from cylc.flow.network.authentication import (
     generate_key_store, key_store_exists,
-    SERVER_KEYS_PARENT_DIR, STORE_DIR_NAME, PRIVATE_KEY_DIR_NAME)
+    SERVER_KEYS_PARENT_DIR, PRIVATE_KEY_LOC)
 from cylc.flow.network.resolvers import Resolvers
 from cylc.flow.network.schema import schema
 from cylc.flow.suite_status import (
@@ -110,8 +110,8 @@ class ZMQServer(object):
         if not key_store_exists:
             raise CylcError("Unable to generate Cylc ZMQ server keys.")
         server_public_key, server_private_key = zmq.auth.load_certificate(
-            os.path.join(SERVER_KEYS_PARENT_DIR, STORE_DIR_NAME,
-                         PRIVATE_KEY_DIR_NAME, "server.key_secret"))
+            os.path.join(
+                SERVER_KEYS_PARENT_DIR, PRIVATE_KEY_LOC, "server.key_secret"))
         self.socket.curve_publickey = server_public_key
         self.socket.curve_secretkey = server_private_key
         self.socket.curve_server = True
