@@ -25,18 +25,27 @@
 # More information for Travis can be found at http://docs.travis-ci.com/user/getting-started/
 
 ---
+os: osx
 cache: pip
-dist: xenial
+language: generic
 addons:
-  apt:
-    update: true  # instruct travis-ci to always run apt before each build
-
-language: python
+  homebrew:
+    update: true
+    packages:
+      - python@3  # homebrew only supports one version of py3 - latest stable
+      # also consider installing via Conda
+      - coreutils
 
 stages:
-- unit-test
-- functional-test
-- sensitive-test
+  - unit-test
+  - functional-test
+  - sensitive-test
+
+before-install:
+  - pip3 install virtualenv
+  - virtualenv -p python3 ~/venv
+  - source ~/venv/bin/activate
+  - echo ';export PATH="$(brew --prefix)/opt/coreutils/libexec/gnubin:$PATH"' >> ~/.bashrc
 
 env:
   global:
@@ -64,8 +73,6 @@ unittest: &unittest
 
 regressiontest: &regressiontest
   stage: functional-test
-  python:
-    - "3.7"
   install:
     - .travis/install.sh functional-tests
   script:
@@ -83,8 +90,6 @@ regressiontest: &regressiontest
 
 flakytest: &flakytest
   stage: sensitive-test
-  python:
-    - "3.7"
   install:
     - .travis/install.sh functional-tests
   script:
@@ -105,25 +110,19 @@ jobs:
 
   # run unittests at each supported Python version
   - <<: *unittest
-    python: "3.7"
 
   # run regression tests in chunks with the most contemporary
   # supported Python version
   - <<: *regressiontest
-    python: "3.7"
     env: CHUNK="1/4"
   - <<: *regressiontest
-    python: "3.7"
     env: CHUNK="2/4"
   - <<: *regressiontest
-    python: "3.7"
     env: CHUNK="3/4"
   - <<: *regressiontest
-    python: "3.7"
     env: CHUNK="4/4"
 
   - <<: *flakytest
-    python: "3.7"
     env: FLAKYTESTS="./flakytests"
 
   # TODO: run shortlist of regression tests with the

@@ -25,17 +25,17 @@ shopt -s extglob
 args=("$@")
 
 if grep -E '(unit-tests|functional-tests)' <<< "${args[@]}"; then
-    sudo apt-get install heirloom-mailx
+    brew install s-nail
 fi
 
 if grep 'unit-tests' <<< "${args[@]}"; then
-    sudo apt-get install shellcheck
+    brew install shellcheck
 fi
 
 # TODO: remove when Travis env comes with a version of six >=1.12 (graphene)
-pip install "six>=1.12"
+pip3 install "six>=1.12"
 
-pip install -e ."[all]"
+pip3 install -e ."[all]"
 
 # configure local SSH for Cylc jobs
 ssh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
