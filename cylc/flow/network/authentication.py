@@ -16,6 +16,7 @@
 """Network authentication layer."""
 
 import getpass
+import json
 import os
 import shutil
 import stat
@@ -31,6 +32,13 @@ PUBLIC_KEY_LOC_TAIL = os.path.join(
 PRIVATE_KEY_LOC_TAIL = os.path.join(
         UserFiles.Auth.DIRNAME, UserFiles.get_certificate_name(private=True))
 
+
+def return_key_locations(store_dir):
+    """ Return a tuple w/ paths to a dir's public and private key files. """
+    return (
+        os.path.join(store_dir, SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY),
+        os.path.join(store_dir, SuiteSrvFilesManager.FILE_BASE_PRIVATE_KEY)
+    )
 
 def generate_key_store(store_parent_dir, keys_tag):
     """ Generate two sub-directories, each holding a file with a CURVE key. """
@@ -49,8 +57,7 @@ def generate_key_store(store_parent_dir, keys_tag):
         os.mkdir(directory)
 
     # Make a new public-private CURVE key pair
-    private_key_file, public_key_file = zmq.auth.create_certificates(
-        store_dir, keys_tag)
+    zmq.auth.create_certificates(store_dir, keys_tag)
 
     # Move the pair of keys to appropriate directories, & lock private key file
     for key_file in os.listdir(store_dir):
@@ -87,3 +94,16 @@ def lockdown_private_keys(private_key_file_path):
         raise FileNotFoundError(
             "Private key not found at location '%s'." % private_key_file_path)
     os.chmod(private_key_file_path, stat.S_IRUSR | stat.S_IWUSR)
+
+
+def decode_(message):
+    """ Decode a message from a string to JSON, with an added 'user' field. """
+    msg = json.loads(message)
+    # if able to decode assume this is the user
+    msg['user'] = getpass.getuser()
+    return msg
+
+
+def encode_(message):
+    """ Encode a message from JSON format to a string. """
+    return json.dumps(message)
