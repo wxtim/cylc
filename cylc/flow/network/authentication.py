@@ -24,22 +24,29 @@ import stat
 
 import zmq.auth
 
+from cylc.flow.suite_srv_files_mgr import SuiteSrvFilesManager
 
-# Names for directories (topmost holding the following two) to store auth keys:
-STORE_DIR_NAME = ".curve"
-PUBLIC_KEY_DIR_NAME = "public_key"  # dirname <root>/STORE_DIR_NAME/
-PRIVATE_KEY_DIR_NAME = "private_key"  # dirname <root>/STORE_DIR_NAME/
 
 # Directory to contain the sub-directories holding server authentication keys:
 SERVER_KEYS_PARENT_DIR = os.path.join(os.path.expanduser("~"), ".cylc")
+# Tails of paths (file name with parent directory) to keys:
+PUBLIC_KEY_LOC = os.path.join(
+    SuiteSrvFilesManager.DIR_BASE_AUTH_KEYS,
+    SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY)
+PRIVATE_KEY_LOC = os.path.join(
+    SuiteSrvFilesManager.DIR_BASE_AUTH_KEYS,
+    SuiteSrvFilesManager.FILE_BASE_PRIVATE_KEY)
 
 
 def generate_key_store(store_parent_dir, keys_tag):
     """ Generate two sub-directories, each holding a file with a CURVE key. """
     # Define the directory structure to store the CURVE keys in
-    store_dir = os.path.join(store_parent_dir, STORE_DIR_NAME)
-    public_key_location = os.path.join(store_dir, PUBLIC_KEY_DIR_NAME)
-    private_key_location = os.path.join(store_dir, PRIVATE_KEY_DIR_NAME)
+    store_dir = os.path.join(
+        store_parent_dir, SuiteSrvFilesManager.DIR_BASE_AUTH_KEYS)
+    public_key_location = os.path.join(
+        store_dir, SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY)
+    private_key_location = os.path.join(
+        store_dir, SuiteSrvFilesManager.FILE_BASE_PRIVATE_KEY)
 
     # Create, or wipe, that directory structure
     for directory in [store_dir, public_key_location, private_key_location]:
@@ -70,8 +77,10 @@ def generate_key_store(store_parent_dir, keys_tag):
 
 def key_store_exists(store_dir_path):
     """ Check a valid key store directory exists at the given location. """
-    public_key_location = os.path.join(store_dir_path, PUBLIC_KEY_DIR_NAME)
-    private_key_location = os.path.join(store_dir_path, PRIVATE_KEY_DIR_NAME)
+    public_key_location = os.path.join(
+        store_dir_path, SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY)
+    private_key_location = os.path.join(
+        store_dir_path, SuiteSrvFilesManager.FILE_BASE_PRIVATE_KEY)
     return (os.path.exists(public_key_location) and
             os.path.exists(private_key_location))
 
@@ -84,3 +93,11 @@ def lockdown_private_keys(private_key_file_path):
         raise FileNotFoundError(
             "Private key not found at location '%s'." % private_key_file_path)
     os.chmod(private_key_file_path, stat.S_IRUSR | stat.S_IWUSR)
+
+
+#def get_suite_client_public_key(suite):
+#    """ Return the public key file for a suite client. """
+#    return SuiteSrvFilesManager().get_auth_item(
+#        SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY,
+#        suite, content=True
+#    )

@@ -36,7 +36,7 @@ from cylc.flow.exceptions import ClientError, ClientTimeout
 from cylc.flow.hostuserutil import get_fqdn_by_host
 from cylc.flow.network.authentication import (
     generate_key_store, key_store_exists,
-    SERVER_KEYS_PARENT_DIR, STORE_DIR_NAME, PRIVATE_KEY_DIR_NAME)
+    SERVER_KEYS_PARENT_DIR, PRIVATE_KEY_LOC)
 from cylc.flow.network.server import PB_METHOD_MAP
 from cylc.flow.suite_srv_files_mgr import (
     SuiteSrvFilesManager, SuiteServiceFileError)
@@ -100,8 +100,8 @@ class ZMQClient(object):
 
         # register client keys for authentication
         client_public_key, client_private_key = zmq.auth.load_certificate(
-            os.path.join(client_keystore, STORE_DIR_NAME, PRIVATE_KEY_DIR_NAME,
-                         "client.key_secret"))
+            os.path.join(
+                client_keystore, PRIVATE_KEY_LOC, "client.key_secret"))
         self.socket.curve_publickey = client_public_key
         self.socket.curve_secretkey = client_private_key
 
@@ -109,15 +109,14 @@ class ZMQClient(object):
         # so we grab this from the location it was created on the filesystem:
         try:
             server_public_keyfile = os.path.join(
-                SERVER_KEYS_PARENT_DIR, STORE_DIR_NAME, PRIVATE_KEY_DIR_NAME,
-                "server.key_secret")
+                SERVER_KEYS_PARENT_DIR, PRIVATE_KEY_LOC, "server.key_secret")
             # 'load_certificate' will try to load both public & private keys
             # from a provided file but will return None, not throw an error,
             # for the latter item if not there (as for all public key files) so
             # it is OK to use; there is no method to load only the public key.
-            server_public_keyfile = zmq.auth.load_certificate(
+            server_public_key = zmq.auth.load_certificate(
                 server_public_keyfile)[0]
-            self.socket.curve_serverkey = server_public_keyfile
+            self.socket.curve_serverkey = server_public_key
         except:  # temp, make more relevant & less shouty.
             raise Exception("CAN'T LOCATE OR READ THE SERVER KEYS")
 
