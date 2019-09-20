@@ -24,18 +24,16 @@ import sys
 from functools import partial
 from typing import Union
 
-import json
 import zmq
 import zmq.asyncio
 
 from shutil import which
 
-import cylc.flow.flags
 from cylc.flow import LOG
 from cylc.flow.exceptions import ClientError, ClientTimeout
 from cylc.flow.hostuserutil import get_fqdn_by_host
 from cylc.flow.network.authentication import (
-    generate_key_store, key_store_exists,
+    generate_key_store, key_store_exists, encode_, decode_,
     SERVER_KEYS_PARENT_DIR, PRIVATE_KEY_LOC)
 from cylc.flow.network.server import PB_METHOD_MAP
 from cylc.flow.suite_srv_files_mgr import (
@@ -56,6 +54,12 @@ class ZMQClient(object):
             The host to connect to.
         port (int):
             The port on the aforementioned host to connect to.
+        encode_method (function):
+            Translates outgoing messages into strings to be sent over the
+            network. ``encode_method(json) -> str``
+        decode_method (function):
+            Translates incoming message strings into digestible data.
+            ``decode_method(str) -> json``
         client_keystore (path):
             The path to the directory to house the auth keys (sub-directory).
         timeout (float):
@@ -81,8 +85,9 @@ class ZMQClient(object):
 
     DEFAULT_TIMEOUT = 5.  # 5 seconds
 
-    def __init__(self, host, port, client_keystore,
-                 timeout=None, timeout_handler=None, header=None):
+    def __init__(
+            self, host, port, encode_method, decode_method, client_keystore,
+            timeout=None, timeout_handler=None, header=None):
         if timeout is None:
             timeout = self.DEFAULT_TIMEOUT
         else:
@@ -115,10 +120,11 @@ class ZMQClient(object):
             # for the latter item if not there (as for all public key files) so
             # it is OK to use; there is no method to load only the public key.
             server_public_key = zmq.auth.load_certificate(
-                server_public_keyfile)[0]
+                server_public_keyfile)[0]  # ValueError raised w/ no public key
             self.socket.curve_serverkey = server_public_key
-        except:  # temp, make more relevant & less shouty.
-            raise Exception("CAN'T LOCATE OR READ THE SERVER KEYS")
+        except (OSError, ValueError):
+            raise ClientError(
+                "Failed to load server public key, so cannot connect.")
 
         self.socket.connect('tcp://%s:%d' % (host, port))
         # if there is no server don't keep the client hanging around
@@ -154,7 +160,8 @@ class ZMQClient(object):
         msg = {'command': command, 'args': args}
         msg.update(self.header)
         LOG.debug('zmq:send %s' % msg)
-        self.socket.send_string(json.dumps(msg))
+        message = encode_(msg)
+        self.socket.send_string(message)
 
         # receive response
         if self.poller.poll(timeout):
@@ -167,7 +174,7 @@ class ZMQClient(object):
         if msg['command'] in PB_METHOD_MAP:
             response = {'data': res}
         else:
-            response = res.decode()
+            response = decode_(res.decode())
         LOG.debug('zmq:recv %s' % response)
 
         try:
@@ -264,6 +271,8 @@ class SuiteRuntimeClient(ZMQClient):
         super().__init__(
             host=host,
             port=port,
+            encode_method=encode_,
+            decode_method=decode_,
             client_keystore=suite_srv_dir,
             timeout=timeout,
             header=self.get_header(),

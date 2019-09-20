@@ -17,7 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Server for suite runtime API."""
 
-from functools import partial
 import getpass
 import os
 from queue import Queue
@@ -27,7 +26,6 @@ from threading import Thread
 import asyncio
 from graphql.execution.executors.asyncio import AsyncioExecutor
 
-import json
 import zmq
 from zmq.auth.thread import ThreadAuthenticator
 
@@ -36,7 +34,7 @@ from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.exceptions import CylcError
 from cylc.flow.network.authorisation import Priv, authorise
 from cylc.flow.network.authentication import (
-    generate_key_store, key_store_exists,
+    generate_key_store, key_store_exists, encode_, decode_,
     SERVER_KEYS_PARENT_DIR, PRIVATE_KEY_LOC)
 from cylc.flow.network.resolvers import Resolvers
 from cylc.flow.network.schema import schema
@@ -80,13 +78,15 @@ class ZMQServer(object):
 
     """
 
-    def __init__(self):
+    def __init__(self, encode_method, decode_method):
         self.port = None
         self.context = zmq.Context()
         self.socket = None
         self.endpoints = None
         self.thread = None
         self.queue = None
+        self.encode = encode_method
+        self.decode = decode_method
 
     def start(self, min_port, max_port):
         """Start the server running.
@@ -172,19 +172,28 @@ class ZMQServer(object):
                 # thread to stop
                 continue
 
+            # attempt to decode the message, authenticating the user in the
+            # process
+            try:
+                message = self.decode(msg)
+            except Exception as exc:  # purposefully catch generic exception
+                # failed to decode message, possibly resulting from failed
+                # authentication
+                LOG.exception(f'failed to decode message: {str(exc)}')
+            else:
+                # success case - serve the request
+                res = self._receiver(message)
+                if message['command'] in PB_METHOD_MAP:
+                    response = res['data']
+                else:
+                    response = self.encode(res).encode()
+                # send back the string to bytes response
+            self.socket.send(response)
+
             # Note: we are using CurveZMQ to secure the messages (see
             # self.curve_auth, self.socket.curve_...key etc.). We have set up
             # public-key cryptography on the ZMQ messaging and sockets, so
             # there is no need to encrypt messages ourselves before sending.
-
-            # success case - serve the request
-            res = self._receiver(json.load(msg))
-            if msg['command'] in PB_METHOD_MAP:
-                response = res['data']
-            else:
-                response = res.encode()
-            # send back the string to bytes response
-            self.socket.send(response)
 
             sleep(0)  # yield control to other threads
 
@@ -264,7 +273,11 @@ class SuiteRuntimeServer(ZMQServer):
     API = 4  # cylc API version
 
     def __init__(self, schd):
-        ZMQServer.__init__(self)
+        ZMQServer.__init__(
+            self,
+            encode_,
+            decode_,
+        )
         self.schd = schd
         self.public_priv = None  # update in get_public_priv()
         self.resolvers = Resolvers(
@@ -1261,6 +1274,4 @@ class SuiteRuntimeServer(ZMQServer):
         """
         pb_msg = self.schd.ws_data_mgr.get_entire_workflow()
         # Use google.protobuf.json_format.MessageToJson
-        # to send response through JWT authorisation
-        # (Request still requires/uses JWT anyway).
         return pb_msg.SerializeToString()

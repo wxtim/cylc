@@ -18,6 +18,7 @@
 """Network authentication layer."""
 
 import getpass
+import json
 import os
 import shutil
 import stat
@@ -38,15 +39,19 @@ PRIVATE_KEY_LOC = os.path.join(
     SuiteSrvFilesManager.FILE_BASE_PRIVATE_KEY)
 
 
+def return_key_locations(store_dir):
+    """ Return a tuple w/ paths to a dir's public and private key files. """
+    return (
+        os.path.join(store_dir, SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY),
+        os.path.join(store_dir, SuiteSrvFilesManager.FILE_BASE_PRIVATE_KEY)
+    )
+
 def generate_key_store(store_parent_dir, keys_tag):
     """ Generate two sub-directories, each holding a file with a CURVE key. """
     # Define the directory structure to store the CURVE keys in
     store_dir = os.path.join(
         store_parent_dir, SuiteSrvFilesManager.DIR_BASE_AUTH_KEYS)
-    public_key_location = os.path.join(
-        store_dir, SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY)
-    private_key_location = os.path.join(
-        store_dir, SuiteSrvFilesManager.FILE_BASE_PRIVATE_KEY)
+    public_key_location, private_key_location = return_key_locations(store_dir)
 
     # Create, or wipe, that directory structure
     for directory in [store_dir, public_key_location, private_key_location]:
@@ -55,8 +60,7 @@ def generate_key_store(store_parent_dir, keys_tag):
         os.mkdir(directory)
 
     # Make a new public-private CURVE key pair
-    private_key_file, public_key_file = zmq.auth.create_certificates(
-        store_dir, keys_tag)
+    zmq.auth.create_certificates(store_dir, keys_tag)
 
     # Move the pair of keys to appropriate directories, & lock private key file
     for key_file in os.listdir(store_dir):
@@ -77,10 +81,8 @@ def generate_key_store(store_parent_dir, keys_tag):
 
 def key_store_exists(store_dir_path):
     """ Check a valid key store directory exists at the given location. """
-    public_key_location = os.path.join(
-        store_dir_path, SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY)
-    private_key_location = os.path.join(
-        store_dir_path, SuiteSrvFilesManager.FILE_BASE_PRIVATE_KEY)
+    public_key_location, private_key_location = return_key_locations(
+        store_dir_path)
     return (os.path.exists(public_key_location) and
             os.path.exists(private_key_location))
 
@@ -95,9 +97,14 @@ def lockdown_private_keys(private_key_file_path):
     os.chmod(private_key_file_path, stat.S_IRUSR | stat.S_IWUSR)
 
 
-#def get_suite_client_public_key(suite):
-#    """ Return the public key file for a suite client. """
-#    return SuiteSrvFilesManager().get_auth_item(
-#        SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY,
-#        suite, content=True
-#    )
+def decode_(message):
+    """ Decode a message from a string to JSON, with an added 'user' field. """
+    msg = json.loads(message)
+    # if able to decode assume this is the user
+    msg['user'] = getpass.getuser()
+    return msg
+
+
+def encode_(message):
+    """ Encode a message from JSON format to a string. """
+    return json.dumps(message)
