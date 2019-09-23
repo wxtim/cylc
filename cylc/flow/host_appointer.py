@@ -117,7 +117,8 @@ class HostAppointer(object):
                 raise ValueError(error_msg % threshold)
         return valid_thresholds
 
-    def selection_complete(self, host_list):
+    @staticmethod
+    def selection_complete(host_list):
         """Check for and address a list (of hosts) with length zero or one.
 
         Check length of a list (of hosts); for zero items raise an error,

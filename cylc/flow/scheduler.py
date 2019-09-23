@@ -1391,7 +1391,8 @@ see `COPYING' in the Cylc source distribution.
 
         return True
 
-    def can_auto_restart(self):
+    @staticmethod
+    def can_auto_restart():
         """Determine whether this suite can safely auto stop-restart."""
         # Check whether there is currently an available host to restart on.
         try:

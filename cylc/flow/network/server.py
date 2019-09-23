@@ -452,7 +452,8 @@ class SuiteRuntimeServer(ZMQServer):
 
     @authorise(Priv.IDENTITY)
     @ZMQServer.expose
-    def get_cylc_version(self):
+    @staticmethod
+    def get_cylc_version():
         """Return the cylc version running this suite."""
         return CYLC_VERSION
 
@@ -787,7 +788,8 @@ class SuiteRuntimeServer(ZMQServer):
 
     @authorise(Priv.IDENTITY)
     @ZMQServer.expose
-    def ping_suite(self):
+    @staticmethod
+    def ping_suite():
         """Return True.
 
         This serves as a basic network comms tests.
