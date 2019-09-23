@@ -260,7 +260,7 @@ def remrun(dry_run=False, forward_x11=False, abort_if=None,
         dry_run, forward_x11, abort_if, set_rel_local)
 
 
-class RemoteRunner(object):
+class RemoteRunner:
     """Run current command on a remote host.
 
     If user/owner or host differ from username and localhost, strip the

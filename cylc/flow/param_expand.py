@@ -90,7 +90,7 @@ def item_in_iterable(item, itt):
     return int(item) in (int(i) for i in itt)
 
 
-class NameExpander(object):
+class NameExpander:
     """Handle parameter expansion in runtime namespace headings."""
 
     def __init__(self, parameters):
@@ -258,7 +258,7 @@ class NameExpander(object):
         return tmpl % used
 
 
-class GraphExpander(object):
+class GraphExpander:
     """Handle parameter expansion of graph string lines."""
 
     _REMOVE = -32768

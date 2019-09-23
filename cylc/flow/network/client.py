@@ -43,7 +43,7 @@ from cylc.flow.suite_srv_files_mgr import (
 CONTEXT = zmq.asyncio.Context()
 
 
-class ZMQClient(object):
+class ZMQClient:
     """Initiate the REQ part of a ZMQ REQ-REP pair.
 
     This class contains the logic for the ZMQ message interface and client -

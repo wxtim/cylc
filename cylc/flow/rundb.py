@@ -26,7 +26,7 @@ import cylc.flow.flags
 from cylc.flow.wallclock import get_current_time_string
 
 
-class CylcSuiteDAOTableColumn(object):
+class CylcSuiteDAOTableColumn:
     """Represent a column in a table."""
 
     __slots__ = ('name', 'datatype', 'is_primary_key')
@@ -37,7 +37,7 @@ class CylcSuiteDAOTableColumn(object):
         self.is_primary_key = is_primary_key
 
 
-class CylcSuiteDAOTable(object):
+class CylcSuiteDAOTable:
     """Represent a table in the suite runtime database."""
 
     FMT_CREATE = "CREATE TABLE %(name)s(%(columns_str)s%(primary_keys_str)s)"
@@ -164,7 +164,7 @@ class CylcSuiteDAOTable(object):
         self.update_queues[stmt].append(stmt_args)
 
 
-class CylcSuiteDAO(object):
+class CylcSuiteDAO:
     """Data access object for the suite runtime database."""
 
     CONN_TIMEOUT = 0.2

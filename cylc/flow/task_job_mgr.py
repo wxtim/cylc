@@ -61,7 +61,7 @@ from cylc.flow.task_state import (
 from cylc.flow.wallclock import get_current_time_string, get_utc_mode
 
 
-class TaskJobManager(object):
+class TaskJobManager:
     """Manage task job submit, poll and kill.
 
     This class provides logic to:

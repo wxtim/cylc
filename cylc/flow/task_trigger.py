@@ -45,7 +45,7 @@ class TaskTriggerError(ValueError):
         return repr(self.msg)
 
 
-class TaskTrigger(object):
+class TaskTrigger:
     """Class representing an upstream dependency.
 
     Args:
@@ -111,7 +111,7 @@ class TaskTrigger(object):
         raise TaskTriggerError("Illegal task trigger name: %s" % trigger_name)
 
 
-class Dependency(object):
+class Dependency:
     """A graph dependency in its abstract form.
 
     Used to generate cylc.flow.prerequisite.Prerequisite objects.

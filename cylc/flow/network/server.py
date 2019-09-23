@@ -47,7 +47,7 @@ PB_METHOD_MAP = {
 }
 
 
-class ZMQServer(object):
+class ZMQServer:
     """Initiate the REP part of a ZMQ REQ-REP pair.
 
     This class contains the logic for the ZMQ message interface and client -

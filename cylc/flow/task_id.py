@@ -21,7 +21,7 @@
 import re
 
 
-class TaskID(object):
+class TaskID:
     """Task ID utilities."""
 
     DELIM = '.'

@@ -101,7 +101,7 @@ class SchedulerError(CylcError):
     pass
 
 
-class SchedulerUUID(object):
+class SchedulerUUID:
     """Scheduler identifier - which persists on restart."""
     __slots__ = ('value')
 
@@ -112,7 +112,7 @@ class SchedulerUUID(object):
         return self.value
 
 
-class Scheduler(object):
+class Scheduler:
     """Cylc scheduler server."""
 
     EVENT_STARTUP = SuiteEventHandler.EVENT_STARTUP

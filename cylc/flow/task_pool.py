@@ -57,7 +57,7 @@ from cylc.flow.task_state import (
 from cylc.flow.wallclock import get_current_time_string
 
 
-class TaskPool(object):
+class TaskPool:
     """Task pool of a suite."""
 
     ERR_PREFIX_TASKID_MATCH = "No matching tasks found: "

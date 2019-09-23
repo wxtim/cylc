@@ -50,7 +50,7 @@ SUITE_STATUS_SPLIT_REC = re.compile('^([a-z ]+ at )(.*)$')
 # NOTE: would use unicode here but terminal rendering has a lot to be desired
 HELD_SYMBOL = '(held)'
 
-class SuiteMonitor(object):
+class SuiteMonitor:
 
     def reset(self, suite, owner, host, port, timeout):
         self.pclient = SuiteRuntimeClient(

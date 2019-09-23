@@ -25,7 +25,7 @@ from cylc.flow import LOG
 from cylc.flow.scheduler import Scheduler
 
 
-class Options(object):
+class Options:
     """To mimic the command line parsed options"""
 
     def __init__(self):

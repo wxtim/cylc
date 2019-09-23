@@ -28,7 +28,7 @@ from cylc.flow.task_state import (
     TASK_STATUS_RETRYING)
 
 
-class CylcSuiteDBChecker(object):
+class CylcSuiteDBChecker:
     """Object for querying a suite database"""
     STATE_ALIASES = {
         'finish': [TASK_STATUS_FAILED, TASK_STATUS_SUCCEEDED],

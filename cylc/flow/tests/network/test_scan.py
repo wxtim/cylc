@@ -28,7 +28,7 @@ from cylc.flow.exceptions import SuiteServiceFileError
 from cylc.flow.network.scan import get_scan_items_from_fs, re_compile_filters
 
 
-class CaptureStderr(object):
+class CaptureStderr:
     """Used to mock sys.stderr"""
     lines = []
 

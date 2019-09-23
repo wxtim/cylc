@@ -31,7 +31,7 @@ from cylc.flow.pathutil import (
     get_remote_suite_work_dir)
 
 
-class JobFileWriter(object):
+class JobFileWriter:
 
     """Write task job files."""
 

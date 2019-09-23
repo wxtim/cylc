@@ -21,7 +21,7 @@ import sys
 from time import sleep
 
 
-class Poller(object):
+class Poller:
     """Encapsulates polling activity for cylc commands. Derived classes
     must override the check() method to test the polling condition."""
 

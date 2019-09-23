@@ -20,7 +20,7 @@
 import re
 
 
-class MoabHandler(object):
+class MoabHandler:
 
     """Moab batch system job submission and manipulation."""
 

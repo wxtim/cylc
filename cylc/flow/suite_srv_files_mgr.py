@@ -33,7 +33,7 @@ from cylc.flow.hostuserutil import (
 from cylc.flow.unicode_rules import SuiteNameValidator
 
 
-class SuiteSrvFilesManager(object):
+class SuiteSrvFilesManager:
     """Suite service files management."""
 
     DELIM = "/"

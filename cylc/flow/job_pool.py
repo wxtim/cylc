@@ -41,7 +41,7 @@ JOB_STATUSES_ALL = [
 ]
 
 
-class JobPool(object):
+class JobPool:
     """Pool of protobuf job messages."""
     # TODO: description, args, and types
 

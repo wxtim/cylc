@@ -53,7 +53,7 @@ INIT_FUNCTIONS = {INTEGER_CYCLING_TYPE: integer.init_from_cfg,
                   ISO8601_CYCLING_TYPE: iso8601.init_from_cfg}
 
 
-class DefaultCycler(object):
+class DefaultCycler:
 
     """Store the default TYPE for Cyclers."""
 

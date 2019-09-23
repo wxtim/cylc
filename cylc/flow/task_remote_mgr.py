@@ -46,7 +46,7 @@ REC_COMMAND = re.compile(r'(`|\$\()\s*(.*)\s*([`)])$')
 REMOTE_INIT_FAILED = 'REMOTE INIT FAILED'
 
 
-class TaskRemoteMgr(object):
+class TaskRemoteMgr:
     """Manage task job remote initialisation, tidy, selection."""
 
     def __init__(self, suite, proc_pool, suite_srv_files_mgr):

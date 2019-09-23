@@ -54,7 +54,7 @@ class EmptyHostList(CylcError):
         return msg
 
 
-class HostAppointer(object):
+class HostAppointer:
     """Appoint the most suitable host to run a suite on.
 
     Determine the one host most suitable to (re-)run a suite on from all

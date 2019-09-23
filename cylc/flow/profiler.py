@@ -24,7 +24,7 @@ import pstats
 from subprocess import Popen, PIPE, DEVNULL
 
 
-class Profiler(object):
+class Profiler:
     """Wrap cProfile, pstats, and memory logging, for performance profiling."""
 
     def __init__(self, enabled=False):

@@ -26,7 +26,7 @@ from cylc.flow.exceptions import TaskDefError
 from cylc.flow.task_id import TaskID
 
 
-class TaskDef(object):
+class TaskDef:
     """Task definition."""
 
     # Memory optimization - constrain possible attributes to this list.
