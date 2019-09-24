@@ -26,6 +26,9 @@ import zmq.auth
 from cylc.flow.suite_files import UserFiles
 
 
+# Directory to contain the sub-directories holding server authentication keys:
+SERVER_KEYS_PARENT_DIR = os.path.join(
+    os.path.expanduser("~"), UserFiles.DIRNAME)
 # Tails of paths (file name with parent directory) to keys:
 PUBLIC_KEY_LOC_TAIL = os.path.join(
         UserFiles.Auth.DIRNAME, UserFiles.get_certificate_name())
@@ -39,6 +42,7 @@ def return_key_locations(store_dir):
         os.path.join(store_dir, SuiteSrvFilesManager.FILE_BASE_PUBLIC_KEY),
         os.path.join(store_dir, SuiteSrvFilesManager.FILE_BASE_PRIVATE_KEY)
     )
+
 
 def generate_key_store(store_parent_dir, keys_tag):
     """ Generate two sub-directories, each holding a file with a CURVE key. """
