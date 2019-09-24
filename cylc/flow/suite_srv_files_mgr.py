@@ -40,6 +40,7 @@ class SuiteSrvFilesManager(object):
     DIR_BASE_AUTH = "auth"
     DIR_BASE_SRV = ".service"
     DIR_BASE_AUTH_KEYS = ".curve"
+    DIR_BASE_ETC = ".cylc"
     FILE_BASE_CONTACT = "contact"
     FILE_BASE_CONTACT2 = "contact2"
     FILE_BASE_PASSPHRASE = "passphrase"
