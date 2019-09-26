@@ -157,7 +157,9 @@ async def scan_one(reg, host, port, timeout=None, methods=None):
     #       SuiteRuntimeClient will not attempt to check the contact file
     #       which would be unnecessary as we have already done so.
     # NOTE: This part of the scan *is* IO blocking.
-    client = SuiteRuntimeClient(reg, host=host, port=port, timeout=timeout)
+    client = SuiteRuntimeClient(
+        reg, host=host, port=port,
+        timeout=timeout)
 
     result = {}
     for method in methods:
