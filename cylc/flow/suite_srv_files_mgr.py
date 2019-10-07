@@ -291,6 +291,15 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
        of the located file will be dumped under:
        $HOME/.cylc/auth/SUITE_OWNER@SUITE_HOST/SUITE_NAME/
 
+    NOTE: Usage 3 and 4 above should disappear under Cylc 8; both should be
+    handled by the Hub-UIS-WFS interaction. In Cylc 8 I believe we are making
+    the assumption that only the main users on the shared file system will
+    connect a client to the WFS directly. You will go through the Hub+UIS if:
+      - You are not the user running the WFS.
+      - You are not on a host that shares FS with the host running the WFS.
+    TODO: leave this logic in for now and have a more comprehensive purge in
+    the PRs which implement tunnelling via the UIS.
+
     """
     if item not in [
             SuiteFiles.Service.PASSPHRASE, SuiteFiles.Service.CONTACT,
