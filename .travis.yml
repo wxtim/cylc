@@ -46,6 +46,9 @@ before-install:
   - virtualenv -p python3 ~/venv
   - source ~/venv/bin/activate
   - echo ';export PATH="$(brew --prefix)/opt/coreutils/libexec/gnubin:$PATH"' >> ~/.bashrc
+  # fix socket.getfqdn
+  # https://bugs.python.org/issue35164
+  - sudo scutil --set HostName `hostname`
 
 env:
   global:
