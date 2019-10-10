@@ -43,10 +43,8 @@ class TestHostUserUtil(unittest.TestCase):
         try:  # Future: Replace with assertRaises context manager syntax
             get_fqdn_by_host(bad_host)
         except IOError as exc:
+            self.assertEqual(exc.errno, -2)
             self.assertEqual(exc.filename, bad_host)
-            self.assertEqual(
-                "[Errno -2] Name or service not known: '%s'" % bad_host,
-                str(exc))
 
     def test_get_user(self):
         """get_user."""
