@@ -50,7 +50,8 @@ install_requires = [
     'markupsafe==1.1.*',
     'protobuf==3.9.*',
     'python-jose==3.0.*',
-    'pyzmq==18.0.*'
+    'pyzmq==18.0.*',
+    'click',
 ]
 tests_require = [
     'codecov==2.0.*',
