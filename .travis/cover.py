@@ -22,8 +22,6 @@ import sys
 def main():
     """Run tests with virtual frame buffer for X support."""
     command = [
-        'xvfb-run',
-        '-a',
         os.path.join(
             os.path.dirname(__file__),
             '..',
