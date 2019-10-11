@@ -15,11 +15,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import socket
 import unittest
 
 from cylc.flow.hostuserutil import (
     get_fqdn_by_host, get_host, get_user, get_user_home, is_remote_host,
-    is_remote_user)
+    is_remote_user, HostUtil)
 
 
 class TestHostUserUtil(unittest.TestCase):
@@ -53,6 +54,18 @@ class TestHostUserUtil(unittest.TestCase):
     def test_get_user_home(self):
         """get_user_home."""
         self.assertEqual(os.getenv('HOME'), get_user_home())
+
+
+def test_ipv6():
+    host = socket.getfqdn()
+    try:
+        info = socket.gethostbyname_ex(host)
+    except IOError:
+        # IPv6
+        pass
+    else:
+        # IPv4
+        assert HostUtil._gethostbyname_ex_ipv6(host) == info
 
 
 if __name__ == '__main__':

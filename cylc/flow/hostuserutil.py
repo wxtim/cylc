@@ -109,13 +109,35 @@ class HostUtil(object):
         """Return internal IP address of target."""
         return socket.gethostbyname(target)
 
+    @staticmethod
+    def _gethostbyname_ex_ipv6(target):
+        """Replicate socket.gethostname_ex interface with IPv6 support.
+
+        https://docs.python.org/3.7/library/socket.html#socket.gethostbyname_ex
+        """
+        fqdn = None
+        addresses = set()
+        aliases = set()
+        for *_, canonname, (address, _) in socket.getaddrinfo(
+            target,
+            None,
+            proto=socket.IPPROTO_TCP,
+            flags=socket.AI_CANONNAME
+        ):
+            if canonname:
+                fqdn = canonname
+                aliases.add(canonname)
+            addresses.add(address)
+        return (fqdn, list(aliases - set([fqdn])), list(addresses))
+
     def _get_host_info(self, target=None):
         """Return the extended info of the current host."""
         if target not in self._host_exs:
             if target is None:
                 target = socket.getfqdn()
             try:
-                self._host_exs[target] = socket.gethostbyname_ex(target)
+                # self._host_exs[target] = socket.gethostbyname_ex(target)
+                self._host_exs[target] = self._gethostbyname_ex_ipv6(target)
             except IOError as exc:
                 if exc.filename is None:
                     exc.filename = target
