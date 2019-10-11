@@ -20,6 +20,7 @@ Importing code should catch ImportError in case Jinja2 is not installed.
 
 import importlib
 import os
+from pathlib import Path
 import pkgutil
 import re
 import sys
@@ -170,8 +171,8 @@ def jinja2environment(dir_=None):
         for fdir in fdirs:
             if os.path.isdir(fdir):
                 sys.path.insert(1, os.path.abspath(fdir))
-                for name in glob(os.path.join(fdir, '*.py')):
-                    fname = os.path.splitext(os.path.basename(name))[0]
+                for name in Path(fdir).glob('*.py'):
+                    fname = name.stem
                     # TODO - EXCEPTION HANDLING FOR LOADING CUSTOM FILTERS
                     module = __import__(fname)
                     envnsp = getattr(env, namespace)
