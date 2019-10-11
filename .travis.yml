@@ -86,6 +86,10 @@ regressiontest: &regressiontest
     - unset PYTHONPATH
   after_failure:
     - .travis/after_failure.sh
+    - bash -c 'echo $BASH_VERSION'
+    - python3 -c 'import socket; print(socket.getfqdn())'
+    - cat /etc/hosts
+    - ping `hostname`
   after_success:
     # Report metrics, such as coverage
     - coverage combine --append
