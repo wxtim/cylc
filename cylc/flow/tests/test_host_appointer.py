@@ -14,11 +14,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import unittest
 import json
 from random import shuffle
+import sys
+import unittest
+
 from cylc.flow.host_appointer import HostAppointer, EmptyHostList
 from cylc.flow.hostuserutil import get_host
+
+
+if sys.platform != 'linux':
+    raise unittest.SkipTest('cylc get-host-metrics is not POSIX compliant')
 
 
 class TestHostAppointer(unittest.TestCase):
