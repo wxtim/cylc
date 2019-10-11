@@ -27,7 +27,7 @@ class TestDiff(unittest.TestCase):
     @staticmethod
     def call_cli(this, that, *args):
         cmd = (
-            ['python', SCRIPT, json.dumps(this), json.dumps(that)]
+            ['python3', SCRIPT, json.dumps(this), json.dumps(that)]
             + list(args)
         )
         proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
