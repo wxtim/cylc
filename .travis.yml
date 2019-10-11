@@ -32,6 +32,7 @@ addons:
   homebrew:
     update: true
     packages:
+      - bash  # bash >=4 required for full functionality
       - python@3  # homebrew only supports one version of py3 - latest stable
       # also consider installing via Conda
       - coreutils
