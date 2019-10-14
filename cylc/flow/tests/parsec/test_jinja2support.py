@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from pathlib import Path
 import tempfile
 import unittest
 
@@ -48,14 +49,14 @@ class TestJinja2support(unittest.TestCase):
     def test_jinja2environment(self):
         # create a temp directory, in the temp directory, to prevent
         # issues running multiple test suites in parallel
-        temp_directory = tempfile.mkdtemp(prefix='cylc', suffix='test_jinja2')
-        filters_dir = os.path.join(temp_directory, 'Jinja2Filters')
-        os.mkdir(filters_dir)
-        with open(os.path.join(filters_dir, "min.py"), "w") as tf:
-            tf.write("def min():\n    raise ArithmeticError('UP!')")
-            tf.seek(0)
-            dir_ = temp_directory
-            env = jinja2environment(dir_)
+        with tempfile.TemporaryDirectory(
+            prefix='cylc', suffix='test_jinja2'
+        ) as temp_directory:
+            filter_dir = Path(temp_directory, 'Jinja2Filters')
+            filter_dir.mkdir()
+            with open(Path(filter_dir, 'min.py'), 'w+') as ffile:
+                ffile.write('def min():\n    raise ArithmeticError("UP!")')
+            env = jinja2environment(temp_directory)
             # our jinja env contains the following keys in the global namespace
             self.assertTrue('environ' in env.globals)
             self.assertTrue('raise' in env.globals)
@@ -84,38 +85,37 @@ class TestJinja2support(unittest.TestCase):
             self.assertIn('jinja2.UndefinedError', str(exc))
 
     def test_pymoduleloader(self):
-        temp_directory = tempfile.mkdtemp(prefix='cylc', suffix='test_jinja2')
-        filters_dir = os.path.join(temp_directory, 'Jinja2filters')
-        os.mkdir(filters_dir)
-        with tempfile.NamedTemporaryFile(dir=filters_dir, suffix=".py") as tf:
-            tf.write(
-                "def jinja2jinja():\n"
-                "    raise Exception('It works!')".encode())
-            tf.seek(0)
-            dir_ = temp_directory
-            env = jinja2environment(dir_)
-
+        with tempfile.TemporaryDirectory(
+            prefix='cylc', suffix='test_jinja2'
+        ) as temp_directory:
+            filter_dir = Path(temp_directory, 'Jinja2filters')
+            filter_dir.mkdir()
+            filter_file = Path(filter_dir, 'jinja2jinja2.py')
+            with open(filter_file, 'w+') as ffile:
+                ffile.write(
+                    'def jinja2jinja2():\n'
+                    '    raise Exception("It worls!")'
+                )
+            env = jinja2environment(temp_directory)
             module_loader = PyModuleLoader()
             template = module_loader.load(environment=env, name='sys')
             self.assertEqual(sys.path, template.module.path)
-
             template2 = module_loader.load(
                 environment=env, name='__python__.sys')
-
             self.assertEqual(template.module.path, template2.module.path)
 
     def test_pymoduleloader_invalid_module(self):
-        temp_directory = tempfile.mkdtemp(prefix='cylc', suffix='test_jinja2')
-        filters_dir = os.path.join(temp_directory, 'Jinja2filters')
-        os.mkdir(filters_dir)
-        with tempfile.NamedTemporaryFile(dir=filters_dir, suffix=".py") as tf:
-            tf.write(
-                "def jinja2jinja():\n"
-                "    raise Exception('It works!')".encode())
-            tf.seek(0)
-            dir_ = temp_directory
-            env = jinja2environment(dir_)
-
+        with tempfile.TemporaryDirectory(
+            prefix='cylc', suffix='test_jinja2'
+        ) as temp_directory:
+            filter_dir = Path(temp_directory, 'Jinja2filters')
+            filter_dir.mkdir()
+            filter_file = Path(filter_dir, 'jinja2jinja2.py')
+            with open(filter_file, 'w+') as ffile:
+                ffile.write(
+                    'def jinja2jinja():\n'
+                    '    raise Exception("It works!")')
+            env = jinja2environment(temp_directory)
             module_loader = PyModuleLoader()
             with self.assertRaises(jinja2.TemplateNotFound):
                 module_loader.load(environment=env, name='no way jose')
