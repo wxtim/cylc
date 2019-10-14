@@ -61,6 +61,19 @@ env:
     # This coverage RC file is created under the script task
     - COVERAGE_PROCESS_START="/tmp/.coveragerc"
 
+after_success:
+  # Report metrics, such as coverage
+  - coverage combine --append
+  - coverage xml --ignore-errors
+  - bash <(curl -s https://codecov.io/bash)
+
+after_failure:
+  - .travis/after_failure.sh
+  - bash -c 'echo $BASH_VERSION'
+  - python3 -c 'import socket; print(socket.getfqdn())'
+  - cat /etc/hosts
+  - ping `hostname`
+
 unittest: &unittest
   stage: unit-test
   install:
@@ -69,11 +82,7 @@ unittest: &unittest
     - pycodestyle
     - .travis/shellchecker
     - pytest --cov-append --cov=cylc/flow
-  after_success:
-    # Report metrics, such as coverage
-    - coverage combine --append
-    - coverage xml --ignore-errors
-    - bash <(curl -s https://codecov.io/bash)
+
 
 regressiontest: &regressiontest
   stage: functional-test
@@ -84,17 +93,6 @@ regressiontest: &regressiontest
     - .travis/coverage-data.sh
     - coverage run .travis/cover.py
     - unset PYTHONPATH
-  after_failure:
-    - .travis/after_failure.sh
-    - bash -c 'echo $BASH_VERSION'
-    - python3 -c 'import socket; print(socket.getfqdn())'
-    - cat /etc/hosts
-    - ping `hostname`
-  after_success:
-    # Report metrics, such as coverage
-    - coverage combine --append
-    - coverage xml --ignore-errors
-    - bash <(curl -s https://codecov.io/bash)
 
 flakytest: &flakytest
   stage: sensitive-test
@@ -105,13 +103,6 @@ flakytest: &flakytest
     - .travis/coverage-data.sh
     - coverage run .travis/cover.py
     - unset PYTHONPATH
-  after_failure:
-    - .travis/after_failure.sh
-  after_success:
-    # Report metrics, such as coverage
-    - coverage combine --append
-    - coverage xml --ignore-errors
-    - bash <(curl -s https://codecov.io/bash)
 
 jobs:
   include:
