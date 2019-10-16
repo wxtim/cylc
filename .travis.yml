@@ -70,9 +70,13 @@ after_success:
 after_failure:
   - .travis/after_failure.sh
   - bash -c 'echo $BASH_VERSION'
-  - python3 -c 'import socket; print(socket.getfqdn())'
+  - python3 -c 'import socket; fqdn=socket.getfqdn(); print(fqdn); print(socket.gethostbyname_ex(fqdn));'
+  - python3 -c 'import socket; fqdn=socket.getfqdn(); print(fqdn); print(socket.addrinfo(fqdn));'
+  - hostname
+  - hostname -f
+  - hostname -A
   - cat /etc/hosts
-  - ping `hostname`
+  - ping `hostname` -c 1
 
 unittest: &unittest
   stage: unit-test
