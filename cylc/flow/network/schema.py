@@ -18,6 +18,7 @@
 
 import asyncio
 from functools import partial
+import logging
 from textwrap import dedent
 from typing import Callable, AsyncGenerator, Any
 
@@ -35,6 +36,11 @@ from graphene import (
 )
 from graphene.types.generic import GenericScalar
 from graphene.utils.str_converters import to_snake_case
+
+
+def sstrip(text):
+    return dedent(text).strip()
+
 
 PROXY_NODES = 'proxy_nodes'
 
@@ -901,8 +907,8 @@ TaskStatus = Enum(
     [
         (status, status)
         for status in TASK_STATUSES_ALL
-    ],
-    description='The status of ac task e.g. waiting, running, succeeded.'
+    ]
+    #description='The status of ac task e.g. waiting, running, succeeded.'
 )
 
 
@@ -910,9 +916,9 @@ class TaskState(InputObjectType):
     """The state of a task, a combination of status and other field."""
 
     status = TaskStatus()
-    is_held = Boolean(description=dedent('''
+    is_held = Boolean(description=sstrip('''
         If a task is held no new job submissions will be made
-    ''').strip())
+    '''))
 
 
 class TaskName(String):
@@ -992,17 +998,15 @@ or for listed namespaces and/or points."""
 
 class HoldWorkflow(Mutation):
     class Meta:
-        description = """Hold workflow.
-- hold on workflow. (default)
-- hold point of workflow."""
-        resolver = partial(mutator, command='hold_suite')
-        # TODO: consolidate the hold_suite and hold_after_point_string
-        #       methods, hold_after_point_string is implicit if point_string
-        # is provided
+        description = 'Hold workflow.'
+        resolver = partial(mutator, command='hold_workflow')
 
     class Arguments:
-        point_string = TimePoint()
         workflows = List(WorkflowID, required=True)
+        time = TimePoint(description=sstrip('''
+            Get the workflow to hold after the specified wallclock time
+            has passed.
+        '''))
 
     result = GenericScalar()
 
@@ -1043,8 +1047,9 @@ settings: `[{environment: {ENVKEY: "env_val"}}, ...]`""",)
 
 class PutMessages(Mutation):
     class Meta:
-        description = """Put task messages in queue for processing
-later by the main loop."""
+        description = sstrip('''
+            Put task messages in queue for processing later by the main loop.
+        ''')
         resolver = partial(nodes_mutator, command='put_messages')
 
     class Arguments:
@@ -1081,6 +1086,13 @@ class ReloadWorkflow(Mutation):
     result = GenericScalar()
 
 
+LogLevels = Enum(
+    'LogLevels',
+    list(logging._nameToLevel.items())
+    #description='Logging severity level.'
+)
+
+
 class SetVerbosity(Mutation):
     class Meta:
         description = """Set workflow verbosity to new level."""
@@ -1088,11 +1100,7 @@ class SetVerbosity(Mutation):
 
     class Arguments:
         workflows = List(WorkflowID, required=True)
-        # TODO: convert to enumeration
-        level = String(
-            description="""levels:
-`INFO`, `WARNING`, `NORMAL`, `CRITICAL`, `ERROR`, `DEBUG`""",
-            required=True)
+        level = LogLevels(required=True)
 
     result = GenericScalar()
 
@@ -1104,8 +1112,11 @@ class StopWorkflow(Mutation):
 
     class Arguments:
         workflows = List(WorkflowID, required=True)
-        #mode = Enum(StopMode)  #, default_value=StopMode.REQUEST_CLEAN)
-        Enum.from_enum(StopMode)
+        mode = Enum.from_enum(
+            StopMode,
+            # TODO: this isn't working
+            # description=StopMode.description
+        )()
         cycle_point = CyclePoint()
         clock_time = TimePoint()
         task = TaskID()
@@ -1138,10 +1149,6 @@ class ExternalTrigger(Mutation):
         event_id = String(required=True)
 
     result = GenericScalar()
-
-
-# TODO: Rename to something like namespace id
-
 
 
 class TaskMutation:
@@ -1177,7 +1184,8 @@ class InsertTasks(Mutation, TaskMutation):
         resolver = partial(mutator, command='insert_tasks')
 
 
-class KillJobs(Mutation, TaskMutation):
+class KillTaskJobs(Mutation, TaskMutation):
+    # TODO: This should be a job mutation?
     class Meta:
         description = ''
         # TODO: rename tasks=>jobs ???
@@ -1265,13 +1273,16 @@ class Mutations(ObjectType):
     dry_run_tasks = DryRunTasks.Field()
     hold_tasks = HoldTasks.Field()
     insert_tasks = InsertTasks.Field()
-    kill_jobs = KillJobs.Field()
+    kill_task_jobs = KillTaskJobs.Field()
     poll_tasks = PollTasks.Field()
     release_tasks = ReleaseTasks.Field()
     remove_tasks = RemoveTasks.Field()
     reset_task_states = ResetTaskStates.Field()
     spawn_tasks = SpawnTasks.Field()
     trigger_tasks = TriggerTasks.Field()
+
+    # job actions
+    # TODO
 
 
 # ** Subscription Related ** #
