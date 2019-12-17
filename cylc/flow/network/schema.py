@@ -27,6 +27,7 @@ from cylc.flow.data_store_mgr import (
     JOBS, TASKS, TASK_PROXIES
 )
 from cylc.flow.suite_status import StopMode
+from cylc.flow.task_state import TASK_STATUSES_ALL
 
 from graphene import (
     Boolean, Field, Float, ID, InputObjectType, Int,
@@ -872,47 +873,19 @@ async def nodes_mutator(root, info, command, ids, workflows=None,
     return GenericResponse(result=res)
 
 
+class WorkflowName(String):
+    """a"""
+
+
+class User(String):
+    """a"""
+
+
 # Mutations defined:
-class WorkflowID(String):
+class WorkflowID(InputObjectType):
     """A workflow identifier of the form `user|workflow_name`."""
-
-
-class NamespaceGlob(String):
-    """An identifier (family%glob%id) for matching cylc namespaces.
-
-    TODO: Is this right? The old documentation says this:
-          A string of the format `name[.cycle_point][:task_state]`.
-
-    TODO: Document examples.
-
-    E.G:
-    ```
-    [
-        "owner%workflow%201905*%foo",  # TODO: what the hell is this!
-        "foo.201901*:failed",
-        "201901*%baa:failed",
-        "FAM.20190101T0000Z",
-        "FAM2",
-        "*.20190101T0000Z"
-    ]
-    ```
-    (where % is the delimiter)
-
-    * Splits argument into components.
-    * Creates workflows argument if non-existent.
-    """
-
-
-class TaskID(String):
-    """A task idendifier in the form name.cycle_point."""
-
-
-class JobID(String):
-    """A job in the form `CYCLE%TASK_NAME%SUBMIT_NUM`"""
-
-
-class Namespace(String):
-    """A task or family name."""
+    name = WorkflowName(required=True)
+    user = User()
 
 
 class CyclePoint(String):
@@ -921,6 +894,60 @@ class CyclePoint(String):
 
 class CyclePointGlob(String):
     """An integer or date-time cyclepoint."""
+
+
+TaskStatus = Enum(
+    'TaskStatus',
+    [
+        (status, status)
+        for status in TASK_STATUSES_ALL
+    ],
+    description='The status of ac task e.g. waiting, running, succeeded.'
+)
+
+
+class TaskState(InputObjectType):
+    """The state of a task, a combination of status and other field."""
+
+    status = TaskStatus()
+    is_held = Boolean(description=dedent('''
+        If a task is held no new job submissions will be made
+    ''').strip())
+
+
+class TaskName(String):
+    """The name a task.
+
+    * Must be a task not a family.
+    * Does not include the cycle point.
+    * Any parameters must be expanded (e.g. can't be `foo<bar>`).
+    """
+
+
+class NamespaceName(String):
+    """The name of a task or family."""
+
+
+class NamespaceIDGlob(String):
+    """A glob search for an active task or family."""
+
+    cycle = CyclePointGlob()
+    namespace = NamespaceName()
+    status = TaskState()
+
+
+class TaskID(InputObjectType):
+    """The name of an active task."""
+
+    cycle = CyclePoint(required=True)
+    name = TaskName(required=True)
+
+
+class JobID(InputObjectType):
+    """A job submission from an active task."""
+
+    task = TaskID(required=None)
+    submission_number = Int(default=-1)
 
 
 class TimePoint(String):
@@ -940,7 +967,7 @@ earlier than cutoff."""
             description="""`["*"]`""",
             default_value=['*'])
         namespaces = List(
-            Namespace,
+            NamespaceName,
             description="""namespaces: `["foo", "BAZ"]`""",)
         cancel_settings = List(
             GenericScalar,
@@ -1004,7 +1031,7 @@ class PutBroadcast(Mutation):
             description="""`["*"]`""",
             default_value=['*'])
         namespaces = List(
-            Namespace,
+            NamespaceName,
             description="""namespaces: `["foo", "BAZ"]`""",)
         settings = List(
             GenericScalar,
@@ -1120,7 +1147,7 @@ class ExternalTrigger(Mutation):
 class TaskMutation:
     class Arguments:
         workflows = List(WorkflowID)
-        ids = List(NamespaceGlob, required=True)
+        ids = List(NamespaceIDGlob, required=True)
 
     result = GenericScalar()
 
