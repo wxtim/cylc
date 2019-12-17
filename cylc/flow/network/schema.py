@@ -17,6 +17,8 @@
 """GraphQL API schema via Graphene implementation."""
 
 import asyncio
+from functools import partial
+from textwrap import dedent
 from typing import Callable, AsyncGenerator, Any
 
 from cylc.flow.task_state import TASK_STATUSES_ORDERED
@@ -24,9 +26,11 @@ from cylc.flow.data_store_mgr import (
     ID_DELIM, FAMILIES, FAMILY_PROXIES,
     JOBS, TASKS, TASK_PROXIES
 )
+from cylc.flow.suite_status import StopMode
+
 from graphene import (
     Boolean, Field, Float, ID, InputObjectType, Int,
-    List, Mutation, ObjectType, Schema, String, Union
+    List, Mutation, ObjectType, Schema, String, Union, Enum
 )
 from graphene.types.generic import GenericScalar
 from graphene.utils.str_converters import to_snake_case
@@ -817,7 +821,7 @@ class GenericResponse(ObjectType):
 
 # Mutators:
 
-async def mutator(root, info, command, workflows=None,
+async def mutator(root, info, command=None, workflows=None,
                   exworkflows=None, **args):
     """Call the resolver method that act on the workflow service
     via the internal command queue."""
@@ -869,21 +873,74 @@ async def nodes_mutator(root, info, command, ids, workflows=None,
 
 
 # Mutations defined:
+class WorkflowID(String):
+    """A workflow identifier of the form `user|workflow_name`."""
+
+
+class NamespaceGlob(String):
+    """An identifier (family%glob%id) for matching cylc namespaces.
+
+    TODO: Is this right? The old documentation says this:
+          A string of the format `name[.cycle_point][:task_state]`.
+
+    TODO: Document examples.
+
+    E.G:
+    ```
+    [
+        "owner%workflow%201905*%foo",  # TODO: what the hell is this!
+        "foo.201901*:failed",
+        "201901*%baa:failed",
+        "FAM.20190101T0000Z",
+        "FAM2",
+        "*.20190101T0000Z"
+    ]
+    ```
+    (where % is the delimiter)
+
+    * Splits argument into components.
+    * Creates workflows argument if non-existent.
+    """
+
+
+class TaskID(String):
+    """A task idendifier in the form name.cycle_point."""
+
+
+class JobID(String):
+    """A job in the form `CYCLE%TASK_NAME%SUBMIT_NUM`"""
+
+
+class Namespace(String):
+    """A task or family name."""
+
+
+class CyclePoint(String):
+    """An integer or date-time cyclepoint."""
+
+
+class CyclePointGlob(String):
+    """An integer or date-time cyclepoint."""
+
+
+class TimePoint(String):
+    """A date-time in the ISO8601 format."""
+
+
 class ClearBroadcast(Mutation):
     class Meta:
         description = """Expire all settings targeting cycle points
 earlier than cutoff."""
-        resolver = mutator
+        resolver = partial(mutator, command='clear_broadcast')
 
     class Arguments:
-        workflows = List(String, required=True)
-        command = String(default_value='clear_broadcast')
+        workflows = List(WorkflowID, required=True)
         point_strings = List(
-            String,
+            CyclePoint,
             description="""`["*"]`""",
             default_value=['*'])
         namespaces = List(
-            String,
+            Namespace,
             description="""namespaces: `["foo", "BAZ"]`""",)
         cancel_settings = List(
             GenericScalar,
@@ -897,11 +954,10 @@ class ExpireBroadcast(Mutation):
     class Meta:
         description = """Clear settings globally,
 or for listed namespaces and/or points."""
-        resolver = mutator
+        resolver = partial(mutator, command='expire_broadcast')
 
     class Arguments:
-        workflows = List(String, required=True)
-        command = String(default_value='expire_broadcast')
+        workflows = List(WorkflowID, required=True)
         cutoff = String(description="""String""")
 
     result = GenericScalar()
@@ -912,16 +968,14 @@ class HoldWorkflow(Mutation):
         description = """Hold workflow.
 - hold on workflow. (default)
 - hold point of workflow."""
-        resolver = mutator
+        resolver = partial(mutator, command='hold_suite')
+        # TODO: consolidate the hold_suite and hold_after_point_string
+        #       methods, hold_after_point_string is implicit if point_string
+        # is provided
 
     class Arguments:
-        command = String(
-            description="""options:
-- `hold_suite` (default)
-- `hold_after_point_string`""",
-            default_value='hold_suite')
-        point_string = String()
-        workflows = List(String, required=True)
+        point_string = TimePoint()
+        workflows = List(WorkflowID, required=True)
 
     result = GenericScalar()
 
@@ -929,11 +983,10 @@ class HoldWorkflow(Mutation):
 class NudgeWorkflow(Mutation):
     class Meta:
         description = """Tell workflow to try task processing."""
-        resolver = mutator
+        resolver = partial(mutator, command='nudge')
 
     class Arguments:
-        command = String(default_value='nudge')
-        workflows = List(String, required=True)
+        workflows = List(WorkflowID, required=True)
 
     result = GenericScalar()
 
@@ -942,17 +995,16 @@ class PutBroadcast(Mutation):
     class Meta:
         description = """Put up new broadcast settings
 (server side interface)."""
-        resolver = mutator
+        resolver = partial(mutator, command='put_broadcast')
 
     class Arguments:
-        command = String(default_value='put_broadcast')
-        workflows = List(String, required=True)
+        workflows = List(WorkflowID, required=True)
         point_strings = List(
-            String,
+            CyclePointGlob,
             description="""`["*"]`""",
             default_value=['*'])
         namespaces = List(
-            String,
+            Namespace,
             description="""namespaces: `["foo", "BAZ"]`""",)
         settings = List(
             GenericScalar,
@@ -966,16 +1018,11 @@ class PutMessages(Mutation):
     class Meta:
         description = """Put task messages in queue for processing
 later by the main loop."""
-        resolver = nodes_mutator
+        resolver = partial(nodes_mutator, command='put_messages')
 
     class Arguments:
-        workflows = List(String, required=True)
-        command = String(default_value='put_messages')
-        ids = List(
-            String,
-            description="""Task job in the form
-`"CYCLE%TASK_NAME%SUBMIT_NUM"`""",
-            required=True)
+        workflows = List(WorkflowID, required=True)
+        ids = List(JobID, required=True)
         event_time = String(default_value=None)
         messages = List(
             List(String),
@@ -988,11 +1035,10 @@ later by the main loop."""
 class ReleaseWorkflow(Mutation):
     class Meta:
         description = """Reload workflow definitions."""
-        resolver = mutator
+        resolver = partial(mutator, command='release_suite')
 
     class Arguments:
-        command = String(default_value='release_suite')
-        workflows = List(String, required=True)
+        workflows = List(WorkflowID, required=True)
 
     result = GenericScalar()
 
@@ -1000,11 +1046,10 @@ class ReleaseWorkflow(Mutation):
 class ReloadWorkflow(Mutation):
     class Meta:
         description = """Tell workflow to reload the workflow definition."""
-        resolver = mutator
+        resolver = partial(mutator, command='reload_suite')
 
     class Arguments:
-        workflows = List(String, required=True)
-        command = String(default_value='reload_suite')
+        workflows = List(WorkflowID, required=True)
 
     result = GenericScalar()
 
@@ -1012,11 +1057,11 @@ class ReloadWorkflow(Mutation):
 class SetVerbosity(Mutation):
     class Meta:
         description = """Set workflow verbosity to new level."""
-        resolver = mutator
+        resolver = partial(mutator, command='set_verbosity')
 
     class Arguments:
-        workflows = List(String, required=True)
-        command = String(default_value='set_verbosity')
+        workflows = List(WorkflowID, required=True)
+        # TODO: convert to enumeration
         level = String(
             description="""levels:
 `INFO`, `WARNING`, `NORMAL`, `CRITICAL`, `ERROR`, `DEBUG`""",
@@ -1025,111 +1070,18 @@ class SetVerbosity(Mutation):
     result = GenericScalar()
 
 
-class StopWorkflowArgs(InputObjectType):
-    datetime_string = String(description="""ISO 8601 compatible or
-`YYYY/MM/DD-HH:mm` of wallclock/real-world date-time""")
-    point_string = String(description="""Workflow formatted point string""")
-    task_id = String()
-    kill_active_tasks = Boolean(description="""Use with: set_stop_cleanly""")
-    terminate = Boolean(description="""Use with: `stop_now`""")
-
-
 class StopWorkflow(Mutation):
     class Meta:
-        description = """Workflow stop actions:
-- Cleanly or after kill active tasks. (default)
-- After cycle point.
-- After wallclock time.
-- On event handler completion, or terminate right away.
-- After an instance of a task."""
-        resolver = mutator
+        description = 'Stop a running workflow'
+        resolver = partial(mutator, command='stop_workflow')
 
     class Arguments:
-        workflows = List(String, required=True)
-        command = String(
-            description="""String options:
-- `set_stop_cleanly`  (default)
-- `set_stop_after_clock_time`
-- `set_stop_after_point`
-- `set_stop_after_task`
-- `stop_now`""",
-            default_value='set_stop_cleanly',)
-        args = StopWorkflowArgs()
-
-    result = GenericScalar()
-
-
-class TaskArgs(InputObjectType):
-    check_syntax = Boolean(description="""Use with actions:
-- `dry_run_tasks`""")
-    no_check = Boolean(description="""Use with actions:
-- `insert_tasks`""")
-    stop_point_string = String(description="""Use with actions:
-- `insert_tasks`""")
-    poll_succ = Boolean(description="""Use with actions:
-- `poll_tasks`""")
-    spawn = Boolean(description="""Use with actions:
-- `remove_tasks`""")
-    state = String(description="""Use with actions:
-- `reset_task_states`""")
-    outputs = List(String, description="""Use with actions:
-- `reset_task_states`""")
-    back_out = Boolean(description="""Use with actions:
-- `trigger_tasks`""")
-
-
-class TaskActions(Mutation):
-    class Meta:
-        description = """Task actions:
-- Prepare job file for task(s).
-- Hold tasks.
-- Insert task proxies.
-- Kill task jobs.
-- Return True if task_id exists (and running).
-- Unhold tasks.
-- Remove tasks from task pool.
-- Reset statuses tasks.
-- Spawn tasks.
-- Trigger submission of task jobs where possible."""
-        resolver = nodes_mutator
-
-    class Arguments:
-        workflows = List(String)
-        command = String(
-            description="""Task actions:
-- `dry_run_tasks`
-- `hold_tasks`
-- `insert_tasks`
-- `kill_tasks`
-- `poll_tasks`
-- `release_tasks`
-- `remove_tasks`
-- `reset_task_states`
-- `spawn_tasks`
-- `trigger_tasks`""",
-            required=True,)
-        ids = List(
-            String,
-            description="""Used with:
-- All Commands
-
-A list of identifiers (family%glob%id) for matching task proxies, i.e.
-```
-[
-    "owner%workflow%201905*%foo",
-    "foo.201901*:failed",
-    "201901*%baa:failed",
-    "FAM.20190101T0000Z",
-    "FAM2",
-    "*.20190101T0000Z"
-]
-```
-(where % is the delimiter)
-
-Splits argument into components, creates workflows argument if non-existent.
-""",
-            required=True)
-        args = TaskArgs()
+        workflows = List(WorkflowID, required=True)
+        #mode = Enum(StopMode)  #, default_value=StopMode.REQUEST_CLEAN)
+        Enum.from_enum(StopMode)
+        cycle_point = CyclePoint()
+        clock_time = TimePoint()
+        task = TaskID()
 
     result = GenericScalar()
 
@@ -1137,14 +1089,13 @@ Splits argument into components, creates workflows argument if non-existent.
 class TakeCheckpoint(Mutation):
     class Meta:
         description = """Checkpoint current task pool."""
-        resolver = mutator
+        resolver = partial(mutator, command='take_checkpoints')
 
     class Arguments:
-        workflows = List(String, required=True)
-        command = String(default_value='take_checkpoints')
+        workflows = List(WorkflowID, required=True)
         name = String(
             description="""The checkpoint name""",
-            required=True,)
+            required=True)
 
     result = GenericScalar()
 
@@ -1152,19 +1103,112 @@ class TakeCheckpoint(Mutation):
 class ExternalTrigger(Mutation):
     class Meta:
         description = """Server-side external event trigger interface."""
-        resolver = mutator
+        resolver = partial(mutator, command='put_external_trigger')
 
     class Arguments:
-        workflows = List(String, required=True)
-        command = String(default_value='put_external_trigger')
+        workflows = List(WorkflowID, required=True)
         event_message = String(required=True)
         event_id = String(required=True)
 
     result = GenericScalar()
 
 
+# TODO: Rename to something like namespace id
+
+
+
+class TaskMutation:
+    class Arguments:
+        workflows = List(WorkflowID)
+        ids = List(NamespaceGlob, required=True)
+
+    result = GenericScalar()
+
+
+class DryRunTasks(Mutation, TaskMutation):
+    class Arguments(TaskMutation.Arguments):
+        check_syntax = Boolean()
+
+    class Meta:
+        description = ''
+        resolver = partial(mutator, command='dry_run_tasks')
+
+
+class HoldTasks(Mutation, TaskMutation):
+    class Meta:
+        description = ''
+        resolver = partial(mutator, command='hold_tasks')
+
+
+class InsertTasks(Mutation, TaskMutation):
+    class Arguments(TaskMutation.Arguments):
+        no_check = Boolean()
+        stop_point_string = String()
+
+    class Meta:
+        description = ''
+        resolver = partial(mutator, command='insert_tasks')
+
+
+class KillJobs(Mutation, TaskMutation):
+    class Meta:
+        description = ''
+        # TODO: rename tasks=>jobs ???
+        resolver = partial(mutator, command='kill_tasks')
+
+
+class PollTasks(Mutation, TaskMutation):
+    class Arguments(TaskMutation.Arguments):
+        poll_succ = Boolean()
+
+    class Meta:
+        description = ''
+        resolver = partial(mutator, command='poll_tasks')
+
+
+class ReleaseTasks(Mutation, TaskMutation):
+    class Meta:
+        description = ''
+        resolver = partial(mutator, command='release_tasks')
+
+
+class RemoveTasks(Mutation, TaskMutation):
+    class Arguments(TaskMutation.Arguments):
+        spawn = Boolean()
+
+    class Meta:
+        description = ''
+        resolver = partial(mutator, command='remove_tasks')
+
+
+class ResetTaskStates(Mutation, TaskMutation):
+    class Arguments(TaskMutation.Arguments):
+        state = String()
+        outputs = List(String)
+
+    class Meta:
+        description = ''
+        resolver = partial(mutator, command='reset_task_states')
+
+
+class SpawnTasks(Mutation, TaskMutation):
+    class Meta:
+        description = ''
+        resolver = partial(mutator, command='spawn_tasks')
+
+
+class TriggerTasks(Mutation, TaskMutation):
+    class Arguments(TaskMutation.Arguments):
+        back_out = Boolean()
+
+    class Meta:
+        description = ''
+        resolver = partial(mutator, command='trigger_tasks')
+
+
 # Mutation declarations
 class Mutations(ObjectType):
+    # workflow actions
     clear_broadcast = ClearBroadcast.Field(
         description=ClearBroadcast._meta.description)
     expire_broadcast = ExpireBroadcast.Field(
@@ -1189,8 +1233,18 @@ class Mutations(ObjectType):
         description=StopWorkflow._meta.description)
     take_checkpoint = TakeCheckpoint.Field(
         description=TakeCheckpoint._meta.description)
-    task_actions = TaskActions.Field(
-        description=TaskActions._meta.description)
+
+    # task actions
+    dry_run_tasks = DryRunTasks.Field()
+    hold_tasks = HoldTasks.Field()
+    insert_tasks = InsertTasks.Field()
+    kill_jobs = KillJobs.Field()
+    poll_tasks = PollTasks.Field()
+    release_tasks = ReleaseTasks.Field()
+    remove_tasks = RemoveTasks.Field()
+    reset_task_states = ResetTaskStates.Field()
+    spawn_tasks = SpawnTasks.Field()
+    trigger_tasks = TriggerTasks.Field()
 
 
 # ** Subscription Related ** #
