@@ -49,10 +49,12 @@ class InterfaceGenerator():
             except AttributeError:
                 continue
         else:
+            #if argument['name'] == None and argument['kind'] == 'SCALAR':
+            #    raise ValueError
             print(f'Unsupported type "{type_["kind"]}", falling back to SCALAR.')
             new_argument = dict(argument)
-            new_argument['name'] = None
-            new_argument['kind'] = 'SCALAR'
+            new_argument['type']['name'] = None
+            new_argument['type']['kind'] = 'SCALAR'
             return cls.get_route(new_argument)
 
     @classmethod
@@ -79,14 +81,23 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
         if state['usage']:
             usage += ' ' + (' '.join(state['usage']))
 
-        description = mutation['description']
+        description = mutation['description'] or ''
+        max_width = max((len(sig) for sig in state['usage']))
+        lead = 2
+        pad = 4
         if state['usage']:
-            description += '\n\nArguments:'
-            description += '\n' + ('\n'.join(
-                f'  {name}{" " * (20 - len(name))}{desc}'
-                for name, desc in state['usage'].items()
+            description += '\n\nArguments:\n'
+            description += '\n'.join((
+                # leading whitespace
+                ' ' * lead
+                # name of argument
+                + sig
+                # space between argument and description
+                + ' ' * ((max_width - len(sig)) + pad)
+                # desciption
+                + ('\n' + (' ' * (lead + max_width + pad))).join(usage_lines)
+                for sig, usage_lines in state['usage'].items()
             ))
-        #interface.description = description
 
         interface.usage = usage + '\n\n' + description
 
@@ -95,33 +106,27 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
         if depth > 0:
             print('    skipped')
             return
-        print('    ', state['args'], state['kwargs'])
         interface.add_option(
             *state['args'],
             **state['kwargs']
         )
-        #state['args'] = tuple()
-        #state['kwargs'] = dict()
 
     @classmethod
     def visit_non_null(cls, argument, interface, state, depth):
-        #state['usage'][argument['name']] = argument['description']
         pass
 
     @classmethod
     def depart_non_null(cls, argument, interface, state, depth):
         usage_sig = argument['name'].upper()
-        usage_item = argument['description']
+        usage_lines = (argument['description'] or '').splitlines()
 
         kwargs = state['kwargs']
         if kwargs.get('callback') == cls.list_callback:
             usage_sig += '...'
             list_type = kwargs.get('callback_kwargs', {}).get('type_')
-            usage_item += f'\ntype: {list_type.__name__}...'
+            usage_lines.extend([f'type: {list_type.__name__}...'])
 
-        usage_item = usage_item.replace('\n', '\n' + (' ' * (2 + 20)))
-
-        state['usage'][usage_sig] = usage_item
+        state['usage'][usage_sig] = usage_lines
 
     @classmethod
     def visit_scalar(cls, argument, interface, state, depth):
@@ -133,8 +138,6 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
             'type': cls.TYPE_MAP.get(argument['type']['name'], str),
             'metavar': (
                 argument['type']['name']
-                #if argument['type']['name'] not in cls.TYPE_MAP
-                #else None
             )
         }
 
@@ -256,16 +259,16 @@ mutation = {
     ]
 }
 
-parser = OptParseInterfaceGenerator.generate(mutation)
-parser.print_help()
-args, opts = parser.parse_args([
-    'foo',
-    '2', '3', '4',
-    '--bar', 'bar',
-    '--baz', '1',
-    '--qux', '2', '3', '4',
-    '--oxx', 'c'
-
-])
-print(args)
-print(opts)
+def test():
+    parser = OptParseInterfaceGenerator.generate(mutation)
+    parser.print_help()
+    args, opts = parser.parse_args([
+        'foo',
+        '2', '3', '4',
+        '--bar', 'bar',
+        '--baz', '1',
+        '--qux', '2', '3', '4',
+        '--oxx', 'c'
+    ])
+    print(args)
+    print(opts)
