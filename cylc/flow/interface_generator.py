@@ -216,7 +216,8 @@ class ArgParseInterfaceGenerator(InterfaceGenerator):
     @classmethod
     def visit(cls, mutation, state):
         parser = argparse.ArgumentParser(
-            prog=f'cylc flow <suite> {mutation["name"]}'
+            #prog=f'cylc flow <suite> {mutation["name"]}'
+            mutation['name']
         )
         cls.reset_state(state)
         return parser
@@ -252,9 +253,6 @@ class ArgParseInterfaceGenerator(InterfaceGenerator):
             name = name[1:]
         state['args'][0] = name
 
-        # metavar gets used as the argument name if set
-        state['kwargs']['metavar'] = None
-
         if depth == 0:
             cls.default_depart(argument, interface, state, depth)
 
@@ -273,7 +271,15 @@ class ArgParseInterfaceGenerator(InterfaceGenerator):
 
     @classmethod
     def visit_list(cls, argument, interface, state, level):
-        state['kwargs']['nargs'] = '+'
+        pass
+
+    @classmethod
+    def depart_list(cls, argument, interface, state, level):
+        state['kwargs'].update({
+            'nargs': '+',
+            'metavar': f"{state['kwargs']['metavar']} ..."
+        })
+        cls.default_depart(argument, interface, state, level)
 
     @classmethod
     def visit_enum(cls, argument, interface, state, level):
