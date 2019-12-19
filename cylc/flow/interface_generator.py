@@ -1,3 +1,4 @@
+import argparse
 from copy import deepcopy
 import optparse
 
@@ -18,14 +19,12 @@ class InterfaceGenerator():
     @classmethod
     def generate_node(cls, argument, interface, state, depth=0):
         visit, depart = cls.get_route(argument)
-        print(f'# {visit.__name__}')
         visit(argument, interface, state, depth)
         if 'ofType' in argument['type'] and argument['type']['ofType']:
             new_argument = deepcopy(argument)
             new_argument['type'] = argument['type']['ofType']
             cls.generate_node(new_argument, interface, state, depth=depth + 1)
         if depart:
-            print(f'# {depart.__name__}')
             depart(argument, interface, state, depth)
 
     @classmethod
@@ -49,8 +48,6 @@ class InterfaceGenerator():
             except AttributeError:
                 continue
         else:
-            #if argument['name'] == None and argument['kind'] == 'SCALAR':
-            #    raise ValueError
             print(f'Unsupported type "{type_["kind"]}", falling back to SCALAR.')
             new_argument = dict(argument)
             new_argument['type']['name'] = None
@@ -71,7 +68,9 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
 
     @classmethod
     def visit(cls, mutation, state):
-        parser = optparse.OptionParser()
+        parser = optparse.OptionParser(
+            prog=f'cylc flow <suite> {mutation["name"]}'
+        )
         state['usage'] = {}
         return parser
 
@@ -104,7 +103,6 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
     @classmethod
     def default_depart(cls, argument, interface, state, depth):
         if depth > 0:
-            print('    skipped')
             return
         interface.add_option(
             *state['args'],
@@ -181,6 +179,82 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
             'choices': [
                 option['name'] for option in argument['type']['enumValues']
             ]
+        })
+
+
+class ArgParseInterfaceGenerator(InterfaceGenerator):
+
+    TYPE_MAP = {
+        'String': str,
+        'Int': int
+    }
+
+    @classmethod
+    def visit(cls, mutation, state):
+        parser = argparse.ArgumentParser(
+            prog=f'cylc flow <suite> {mutation["name"]}'
+        )
+        cls.reset_state(state)
+        return parser
+
+    @staticmethod
+    def reset_state(state):
+        state['args'] = []
+        state['kwargs'] = {}
+
+    @classmethod
+    def default_depart(cls, argument, interface, state, depth):
+        if depth > 0:
+            return
+        interface.add_argument(
+            *state['args'],
+            **state['kwargs']
+        )
+        cls.reset_state(state)
+
+    @classmethod
+    def visit_non_null(cls, argument, interface, state, depth):
+        pass
+
+    @classmethod
+    def depart_non_null(cls, argument, interface, state, depth):
+        # strip '--' from arg
+        name = state['args'][0]
+        if name.startswith('--'):
+            name = name[2:]
+        elif name.startswith('-'):
+            name = name[1:]
+        state['args'][0] = name
+
+        state['kwargs']['metavar'] = None
+
+        cls.default_depart(argument, interface, state, depth)
+
+    @classmethod
+    def visit_scalar(cls, argument, interface, state, depth):
+        state['args'].extend([
+            f'--{argument["name"]}'
+        ])
+        state['kwargs'].update({
+            'help': argument['description'],
+            'type': cls.TYPE_MAP.get(argument['type']['name'], str),
+            'metavar': (
+                argument['type']['name']
+            )
+        })
+
+    @classmethod
+    def visit_list(cls, argument, interface, state, level):
+        state['kwargs']['nargs'] = '+'
+
+    @classmethod
+    def visit_enum(cls, argument, interface, state, level):
+        cls.visit_scalar(argument, interface, state, level)
+        state['kwargs'].update({
+            'choices': [
+                option['name'] for option in argument['type']['enumValues']
+            ],
+            'type': None
         })
 
 mutation = {
@@ -260,9 +334,9 @@ mutation = {
 }
 
 def test():
-    parser = OptParseInterfaceGenerator.generate(mutation)
+    parser = ArgParseInterfaceGenerator.generate(mutation)
     parser.print_help()
-    args, opts = parser.parse_args([
+    args = parser.parse_args([
         'foo',
         '2', '3', '4',
         '--bar', 'bar',
@@ -271,4 +345,5 @@ def test():
         '--oxx', 'c'
     ])
     print(args)
-    print(opts)
+
+#test()
