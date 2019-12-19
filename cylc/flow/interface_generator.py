@@ -2,12 +2,20 @@ import argparse
 from copy import deepcopy
 import optparse
 
+from cylc.flow.task_pool import TaskPool
+
+
+class DropArg(Exception): pass
+
 
 class InterfaceGenerator():
 
     @classmethod
-    def generate(cls, mutation):
-        state = {}
+    def generate(cls, mutation, types=None, drop_types=None):
+        state = {
+            'types': types or {},
+            'drop types': drop_types or []
+        }  # TODO: types some other way?
         interface = cls.visit(mutation, state)
         for argument in mutation['args']:
             cls.generate_node(argument, interface, state)
@@ -18,21 +26,37 @@ class InterfaceGenerator():
 
     @classmethod
     def generate_node(cls, argument, interface, state, depth=0):
-        visit, depart = cls.get_route(argument)
+        try:
+            cls._generate_node(argument, interface, state, depth=depth)
+        except DropArg:
+            # if a type matches the drop argument criterion we raise DropArg
+            # and let it float to the top of the generate_node call stack
+            if depth == 0:
+                # then return to skip the node
+                return
+            raise
+
+    @classmethod
+    def _generate_node(cls, argument, interface, state, depth=0):
+        visit, depart = cls.get_route(argument, state)
+        print(('    ' * depth) + visit.__name__)
         visit(argument, interface, state, depth)
         if 'ofType' in argument['type'] and argument['type']['ofType']:
             new_argument = deepcopy(argument)
             new_argument['type'] = argument['type']['ofType']
             cls.generate_node(new_argument, interface, state, depth=depth + 1)
         if depart:
+            print(('    ' * depth) + depart.__name__)
             depart(argument, interface, state, depth)
 
     @classmethod
-    def get_route(cls, argument):
+    def get_route(cls, argument, state):
         if 'type' in argument:
             type_ = argument['type']
         else:
             type_ = argument['ofType']
+        if type_['name'] in state['drop types']:
+            raise DropArg
         #name = (type_['name'] or type_['kind']).lower()
         for attr in ('name', 'kind'):
             type_id = type_[attr]
@@ -52,7 +76,7 @@ class InterfaceGenerator():
             new_argument = dict(argument)
             new_argument['type']['name'] = None
             new_argument['type']['kind'] = 'SCALAR'
-            return cls.get_route(new_argument)
+            return cls.get_route(new_argument, state)
 
     @classmethod
     def visit(cls, mutation, state):
@@ -219,6 +243,8 @@ class ArgParseInterfaceGenerator(InterfaceGenerator):
     @classmethod
     def depart_non_null(cls, argument, interface, state, depth):
         # strip '--' from arg
+        if not state['args']:
+            breakpoint()
         name = state['args'][0]
         if name.startswith('--'):
             name = name[2:]
@@ -226,9 +252,11 @@ class ArgParseInterfaceGenerator(InterfaceGenerator):
             name = name[1:]
         state['args'][0] = name
 
+        # metavar gets used as the argument name if set
         state['kwargs']['metavar'] = None
 
-        cls.default_depart(argument, interface, state, depth)
+        if depth == 0:
+            cls.default_depart(argument, interface, state, depth)
 
     @classmethod
     def visit_scalar(cls, argument, interface, state, depth):
@@ -256,6 +284,61 @@ class ArgParseInterfaceGenerator(InterfaceGenerator):
             ],
             'type': None
         })
+
+    # TODO: don't provide special handling for input_object
+    #       but do add some documentation support?
+    #@classmethod
+    #def visit_input_object(cls, argument, interface, state, level):
+    #    name = argument['type']['name']
+    #    for typ in state['types']:
+    #        if typ['name'] == name:
+    #            break
+    #    else:
+    #        breakpoint()
+    #        raise ValueError  # TODO!!!
+
+    #    for input_field in typ['inputFields']:
+    #        child_state = deepcopy(state)
+    #        cls.reset_state(child_state)
+    #        input_argument = deepcopy(argument)
+    #        input_argument['type'] = input_field['type']
+    #        print(input_argument)
+    #        cls.generate_node(input_argument, interface, child_state, 0)
+
+    @classmethod
+    def visit_namespaceidglob(cls, argument, interface, state, level):
+        # namespace.cycle:status
+        cls.visit_scalar(argument, interface, state, level)
+
+    @classmethod
+    def depart_namespaceidglob(cls, argument, interface, state, level):
+        for typ in state['types']:
+            if typ['name'] == 'NamespaceIDGlob':
+                break
+        else:
+            raise ValueError
+        state['kwargs'].update({
+            'action': cls.NameSpaceIDGlobAction,
+            #'const': argument
+            'const': typ
+        })
+        cls.default_depart(argument, interface, state, level)
+
+    class NameSpaceIDGlobAction(argparse.Action):
+        def __init__(self, *args, const=None, **kwargs):
+            argparse.Action.__init__(self, *args, **kwargs)
+            self._type = const
+
+        def __call__(self, parser, namespace, values, _, **kwargs):
+            value = dict(zip(
+                #[
+                #    field['name']
+                #    for field in self._type['inputFields']
+                #],
+                ['cycle', 'namespace', 'status'],
+                TaskPool.parse_namespace_glob(values[0])
+            ))
+            setattr(namespace, self.dest, value)
 
 mutation = {
     'name': 'mymutation',
@@ -346,4 +429,5 @@ def test():
     ])
     print(args)
 
+from cylc.flow.task_pool import TaskPool
 #test()
