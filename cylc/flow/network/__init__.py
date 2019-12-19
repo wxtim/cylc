@@ -30,9 +30,10 @@ from cylc.flow.exceptions import ClientError, CylcError, SuiteServiceFileError
 from cylc.flow.hostuserutil import get_fqdn_by_host
 from cylc.flow.suite_files import (
     ContactFileFields,
-    ensure_user_keys_exist,
+    create_auth_files
     get_auth_item,
     load_contact_file,
+    SuiteFiles,
     UserFiles
 )
 
@@ -167,13 +168,12 @@ class ZMQSocketBase:
         """
         if private_key_location is None:
             private_key_location = get_auth_item(
-                UserFiles.Auth.SERVER_PRIVATE_KEY_CERTIFICATE,
+                SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
                 self.suite
             )
         # create socket
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
-
         server_public_key, server_private_key = zmq.auth.load_certificate(
             private_key_location)
         self.socket.curve_publickey = server_public_key
@@ -183,12 +183,12 @@ class ZMQSocketBase:
         try:
             if min_port == max_port:
                 self.port = min_port
-                self.socket.bind('tcp://*:%d' % min_port)
+                self.socket.bind(f'tcp://*:{min_port}')
             else:
                 self.port = self.socket.bind_to_random_port(
                     'tcp://*', min_port, max_port)
         except (zmq.error.ZMQError, zmq.error.ZMQBindError) as exc:
-            raise CylcError('could not start Cylc ZMQ server: %s', exc)
+            raise CylcError(f'could not start Cylc ZMQ server: {exc}')
 
         if self.barrier is not None:
             self.barrier.wait()
@@ -197,7 +197,7 @@ class ZMQSocketBase:
         """Connect socket to stub."""
         if srv_public_key_loc is None:
             srv_public_key_loc = get_auth_item(
-                UserFiles.Auth.SERVER_PUBLIC_KEY_CERTIFICATE,
+                SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE,
                 self.suite,
                 content=False)
 
@@ -207,12 +207,12 @@ class ZMQSocketBase:
         self._socket_options()
 
         # check for, & create if nonexistent, user keys in the right location
-        if not ensure_user_keys_exist():
-            raise ClientError("Unable to generate user authentication keys.")
+        # if not ensure_user_keys_exist():
+        #     raise ClientError("Unable to generate user authentication keys.")
 
         client_priv_keyfile = os.path.join(
-            UserFiles.get_user_certificate_full_path(private=True),
-            UserFiles.Auth.CLIENT_PRIVATE_KEY_CERTIFICATE)
+            SuiteFiles.get_user_certificate_full_path(private=True),
+            SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE)
         error_msg = "Failed to find user's private key, so cannot connect."
         try:
             client_public_key, client_priv_key = zmq.auth.load_certificate(

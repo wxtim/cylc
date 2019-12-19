@@ -62,6 +62,42 @@ class SuiteFiles:
         SOURCE = 'source'
         """Symlink to the suite definition (suite dir)."""
 
+        PUBLIC_KEY_DIRNAME = 'public_keys'
+        """The name of the directory holding the public key certificates."""
+
+        PRIVATE_KEY_DIRNAME = 'private_keys'
+        """The name of the directory holding the private key certificates."""
+               
+        SERVER_TAG = 'server'  # for server, i.e. suite, keys
+        CLIENT_TAG = 'client'  # for client, i.e. user, keys
+        PUBLIC_TAG = '.key'  # for public keys
+        PRIVATE_TAG = '.key_secret'  # for private ('secret') keys
+        """Keyword identifiers used to form the certificate names, as below.
+
+        Note: the public & private identifiers are set by CurveZMQ, so cannot
+        be renamed, but we hard-code them since they can't be extracted easily.
+        """
+
+        SERVER_PUBLIC_KEY_CERTIFICATE = SERVER_TAG + PUBLIC_TAG
+        CLIENT_PUBLIC_KEY_CERTIFICATE = CLIENT_TAG + PUBLIC_TAG
+        SERVER_PRIVATE_KEY_CERTIFICATE = SERVER_TAG + PRIVATE_TAG
+        CLIENT_PRIVATE_KEY_CERTIFICATE = CLIENT_TAG + PRIVATE_TAG
+        """The name of the authentication certificates."""
+
+        @classmethod
+        def get_client_certificate_full_path(cls, private=False, client=False):
+            """Return the directory path of a certificate for the client."""
+            if private and client:
+                # return client private key path
+                certificate_dirname = cls.Service.PRIVATE_KEY_DIRNAME
+            if not private and client:
+                #return client pubkic key path
+            if not 
+            else:
+                certificate_dirname = cls.Service.PUBLIC_KEY_DIRNAME
+            return certificate_dirname
+        os.path.join(os.path.expanduser("~"), cls.DIRNAME/suite_name/certificate_dirname/CLIENT_PUBLIC_KEY_CERTIFICATE)
+
 
 class ContactFileFields:
     """Field names present in ``SuiteFiles.Service.CONTACT``.
@@ -120,6 +156,7 @@ class ContactFileFields:
     VERSION = 'CYLC_VERSION'
     """The Cylc version under which the suite is running."""
 
+# TODO: THIS CLASS (UserFiles) IS PROBABLY NOW REDUNDANT. Delete in future (?)
 
 class UserFiles:
     """Directory containing config and auth files for a user."""
@@ -133,28 +170,6 @@ class UserFiles:
         DIRNAME = 'auth'
         """The name of this directory."""
 
-        PUBLIC_KEY_DIRNAME = 'public_key'
-        """The name of the directory holding the public key certificate."""
-
-        PRIVATE_KEY_DIRNAME = 'private_key'
-        """The name of the directory holding the private key certificate."""
-
-        SERVER_TAG = 'server'  # for server, i.e. suite, keys
-        CLIENT_TAG = 'client'  # for client, i.e. user, keys
-        PUBLIC_TAG = '.key'  # for public keys
-        PRIVATE_TAG = '.key_secret'  # for private ('secret') keys
-        """Keyword identifiers used to form the certificate names, as below.
-
-        Note: the public & private identifiers are set by CurveZMQ, so cannot
-        be renamed, but we hard-code them since they can't be extracted easily.
-        """
-
-        SERVER_PUBLIC_KEY_CERTIFICATE = SERVER_TAG + PUBLIC_TAG
-        CLIENT_PUBLIC_KEY_CERTIFICATE = CLIENT_TAG + PUBLIC_TAG
-        SERVER_PRIVATE_KEY_CERTIFICATE = SERVER_TAG + PRIVATE_TAG
-        CLIENT_PRIVATE_KEY_CERTIFICATE = CLIENT_TAG + PRIVATE_TAG
-        """The name of the authentication certificates."""
-
     @classmethod
     def get_path(cls, include_auth_dirname=True):
         """Return the path to this directory for the current user."""
@@ -163,17 +178,7 @@ class UserFiles:
             path_components.append(cls.Auth.DIRNAME)
         return os.path.join(*path_components)
 
-    @classmethod
-    def get_user_certificate_full_path(cls, private=False):
-        """Return the directory path of a certificate for the current user."""
-        if private:
-            certificate_dirname = cls.Auth.PRIVATE_KEY_DIRNAME
-        else:
-            certificate_dirname = cls.Auth.PUBLIC_KEY_DIRNAME
-        return os.path.join(
-            cls.get_path(),
-            certificate_dirname
-        )
+
 
 
 REG_DELIM = "/"
@@ -331,14 +336,13 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
     """
     if item not in [
             SuiteFiles.Service.PASSPHRASE, SuiteFiles.Service.CONTACT,
-            SuiteFiles.Service.CONTACT2,
-            UserFiles.Auth.SERVER_PRIVATE_KEY_CERTIFICATE,
-            UserFiles.Auth.SERVER_PUBLIC_KEY_CERTIFICATE]:
-        raise ValueError("%s: item not recognised" % item)
+            SuiteFiles.Service.CONTACT
+       ]
+        raise ValueError(f"{item}: item not recognised")
 
     # For a UserFiles.Auth.SERVER_..._KEY_CERTIFICATE, only need to check Case
     # '3/' (always ignore content i.e. content=False), so check these first:
-    if item in (UserFiles.Auth.SERVER_PRIVATE_KEY_CERTIFICATE,
+    if item in (SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
                 UserFiles.Auth.SERVER_PUBLIC_KEY_CERTIFICATE):
         auth_path = os.path.join(
             get_suite_srv_dir(reg), UserFiles.Auth.DIRNAME)
@@ -350,6 +354,7 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
         value = _locate_item(item, path)
         if value:
             return value
+
 
     if reg == os.getenv('CYLC_SUITE_NAME'):
         env_keys = []
@@ -447,6 +452,24 @@ def get_suite_srv_dir(reg, suite_owner=None):
         run_d = get_suite_run_dir(reg)
     return os.path.join(run_d, SuiteFiles.Service.DIRNAME)
 
+def get_key_file_path(reg, key_path):
+    """Returns key paths requested,"""
+
+    public_key_path, private_key_path = return_key_locations(get_suite_srv_dir(reg)
+
+    # Change this to a set of if statements 
+    if key_path = 'public_server':
+        public_server_location = os.path.join(public_key_path + SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE)
+        return public_server_location
+    if key_path = 'private_server':
+        private_server_location = os.path.join(private_key_path + SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE)
+        return private_server_location    
+    if key_path = 'public_client':
+        public_client_location = os.path.join(public_key_path + SuiteFiles.Service.CLIENT_PUBLIC_KEY_CERTIFICATE)
+        return public_client_location
+    if key_path = 'private_client':
+        private_client_location = os.path.join(private_key_path + SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE)
+        return private_client_location
 
 def load_contact_file(reg, owner=None, host=None, file_base=None):
     """Load contact file. Return data as key=value dict."""
@@ -595,20 +618,82 @@ def register(reg=None, source=None, redirect=False, rundir=None):
 
 
 def create_auth_files(reg):
-    """Create or renew passphrase and SSL files for suite 'reg'."""
-    # Suite service directory.
-    srv_d = get_suite_srv_dir(reg)
-    os.makedirs(srv_d, exist_ok=True)
+    """Create or renew authentication keys for suite 'reg' in the .service
+     directory."""
+    
+    suite_service_directory = get_suite_srv_dir(reg)
+    os.makedirs(suite_service_directory, exist_ok=True)
+    # Create directories in cylc-run/<SUITE_NAME>/.service for certificates
+    
+    keys_dir = os.path.join(suite_service_directory, 'certificates')
+    public_keys_dir = os.path.join(suite_service_directory, 'public_keys')
+    secret_keys_dir = os.path.join(suite_service_directory, 'private_keys')
+
+    # Remove old certificates if necessary
+    
+    for d in [keys_dir, public_keys_dir, secret_keys_dir]:
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+
+
+    # Create new public/private keys in certificates directory
+
+    _SERVER_PUBLIC_KEY_CERTIFICATE, _SERVER_PRIVATE_KEY_CERTIFICATE = zmq.auth.create_certificates(keys_dir, "server")
+    _CLIENT_PUBLIC_KEY_CERTIFICATE, _CLIENT_PRIVATE_KEY_CERTIFICATE = zmq.auth.create_certificates(keys_dir, "client")
+
+
+    # Move public keys to appropriate directory
+
+    for key_file in os.listdir(keys_dir):
+        if key_file.endswith(".key"):
+            shutil.move(os.path.join(keys_dir, key_file), os.path.join(public_keys_dir, '.'))
+            public_key_file_path = os.path.join(public_keys_dir, key_file)
+            os.chmod(
+                public_key_file_path,
+                stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
+                )
+
+
+
+    # Move secret/private keys to appropriate directory
+
+    for key_file in os.listdir(keys_dir):
+        if key_file.endswith(".key_secret"):
+            shutil.move(os.path.join(keys_dir, key_file), os.path.join(secret_keys_dir, '.'))
+            secret_key_file_path = os.path.join(secret_keys_dir, key_file)
+            os.chmod(
+                secret_key_file_path,
+                stat.S_IRUSR | stat.S_IWUSR
+                )
+
+    # Delete temporary directory where keys were generated.
+
+    shutil.rmtree(keys_dir)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
 
     # If necessary, generate directory holding (in separate sub-dirs) the
     # server (suite) public and private keys for authentication:
-    ensure_suite_keys_exist(srv_d)
+    # ensure_suite_keys_exist(srv_d)
+    # generate_certificates(srv_d)
 
     # Create a new passphrase for the suite if necessary.
-    if not _locate_item(SuiteFiles.Service.PASSPHRASE, srv_d):
-        import random
-        _dump_item(srv_d, SuiteFiles.Service.PASSPHRASE, ''.join(
-            random.sample(PASSPHRASE_CHARSET, PASSPHRASE_LEN)))
+    # if not _locate_item(SuiteFiles.Service.PASSPHRASE, srv_d):
+    #     import random
+    #     _dump_item(srv_d, SuiteFiles.Service.PASSPHRASE, ''.join(
+    #         random.sample(PASSPHRASE_CHARSET, PASSPHRASE_LEN)))
 
 
 def _dump_item(path, item, value):
@@ -784,103 +869,160 @@ def _locate_item(item, path):
         return fname
 
 
-def return_key_locations(store_dir):
+def return_key_locations(suite_service_directory):
     """Return the paths to a directory's key files: (public, private)."""
     return (
-        os.path.join(store_dir, UserFiles.Auth.PUBLIC_KEY_DIRNAME),
-        os.path.join(store_dir, UserFiles.Auth.PRIVATE_KEY_DIRNAME)
+        os.path.join(suite_service_directory, 'public_keys'),
+        os.path.join(suite_service_directory, 'private_keys')
     )
 
 
-def generate_key_store(store_parent_dir, keys_tag):
-    """Generate two sub-directories, each having a file with a CURVE key.
+# def generate_key_store(store_parent_dir, keys_tag):
+#     """Generate two sub-directories, each having a file with a CURVE key.
 
-    WARNING: be careful testing this. It uses 'shutil.rmtree' which will
-    wipe the whole 'store_dir/UserFiles.Auth.DIRNAME' directory if it exists.
+#     WARNING: be careful testing this. It uses 'shutil.rmtree' which will
+#     wipe the whole 'store_dir/UserFiles.Auth.DIRNAME' directory if it exists.
 
-    Note: store_parent_dir must already exist as a valid directory.
-    """
+#     Note: store_parent_dir must already exist as a valid directory.
+#     """
 
-    # Define the directory structure to store the CURVE keys in
-    store_dir = os.path.join(store_parent_dir, UserFiles.Auth.DIRNAME)
-    public_key_loc, private_key_loc = return_key_locations(store_dir)
+#     # Define the directory structure to store the CURVE keys in
+#     store_dir = os.path.join(store_parent_dir, UserFiles.Auth.DIRNAME)
+#     public_key_loc, private_key_loc = return_key_locations(store_dir)
 
-    # Create, or wipe, that directory structure
-    for directory in [store_dir, public_key_loc, private_key_loc]:
-        if os.path.exists(directory):
-            shutil.rmtree(directory)  # WARNING: destructive, so take care
-        os.mkdir(directory)
+#     # Create, or wipe, that directory structure
+#     for directory in [store_dir, public_key_loc, private_key_loc]:
+#         if os.path.exists(directory):
+#             shutil.rmtree(directory)  # WARNING: destructive, so take care
+#         os.mkdir(directory)
 
-    # lock the parent auth directory
-    try:
-        # Set Linux file permission 0700 ('drwx------.')
-        # This means that the owner can read & write.
-        # All others cannot do anything to the key-store and it's contents.
-        os.chmod(store_dir, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
-    except Exception:
-        # Catch any and all errors here, since key store must be
-        # locked for the security (asymmetric cryptography) to work.
-        raise OSError("Unable to lock permissions of auth " +
-                      "key store directory for authentication. Abort.")
+#     # lock the parent auth directory
+#     try:
+#         # Set Linux file permission 0700 ('drwx------.')
+#         # This means that the owner can read & write.
+#         # All others cannot do anything to the key-store and it's contents.
+#         os.chmod(store_dir, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+#     except Exception:
+#         # Catch any and all errors here, since key store must be
+#         # locked for the security (asymmetric cryptography) to work.
+#         raise OSError("Unable to lock permissions of auth " +
+#                       "key store directory for authentication. Abort.")
 
-    # Make a new public-private CURVE key pair
-    zmq.auth.create_certificates(store_dir, keys_tag)
+#     # Make a new public-private CURVE key pair
+#     zmq.auth.create_certificates(store_dir, keys_tag)
 
-    # Move key pair to appropriate directories & lock private key file
-    for key_file in os.listdir(store_dir):
-        if key_file.endswith(UserFiles.Auth.PUBLIC_TAG):
-            shutil.move(os.path.join(store_dir, key_file),
-                        os.path.join(public_key_loc, '.'))
-        elif key_file.endswith(UserFiles.Auth.PRIVATE_TAG):
-            shutil.move(os.path.join(store_dir, key_file),
-                        os.path.join(private_key_loc, '.'))
-
-
-def ensure_keypair_exists(auth_parent_dir, auth_child_dir, tag):
-    """Check if a set of public/private keys exist and if not, create them.
-
-    Args:
-        auth_parent_dir (str):
-            Parent containing public/private key directories (auth_child_dir).
-        auth_child_dir (str):
-            Child containing public/private keys.
-        tag (str): Filename/Basename of key.
-
-    Returns:
-        bool: True if the keypair (now) exists.
-
-    """
-    public_key_location, private_key_location = return_key_locations(
-        auth_child_dir)  # where the keys should be, else where to create them
-    if (os.path.exists(public_key_location) and
-            os.path.exists(private_key_location)):
-        return True
-
-    # Ensure parent dir exists (child dir will be created if it does not)
-    if not os.path.exists(auth_parent_dir):
-        os.mkdir(auth_parent_dir)
-    try:
-        generate_key_store(auth_parent_dir, tag)
-        return True
-    except Exception:
-        # Catch anything so we can otherwise be sure the key store exists.
-        LOG.exception("Failed to create %s authentication keys." % tag)
-        return False
+#     # Move key pair to appropriate directories & lock private key file
+#     for key_file in os.listdir(store_dir):
+#         if key_file.endswith(UserFiles.Auth.PUBLIC_TAG):
+#             shutil.move(os.path.join(store_dir, key_file),
+#                         os.path.join(public_key_loc, '.'))
+#         elif key_file.endswith(UserFiles.Auth.PRIVATE_TAG):
+#             shutil.move(os.path.join(store_dir, key_file),
+#                         os.path.join(private_key_loc, '.'))
 
 
-def ensure_user_keys_exist():
-    """Make sure the user (client) public/private keys exist."""
-    return ensure_keypair_exists(
-        UserFiles.get_path(include_auth_dirname=False),
-        UserFiles.get_path(),
-        UserFiles.Auth.CLIENT_TAG
-    )
+# def ensure_keypair_exists(auth_parent_dir, auth_child_dir, tag):
+#     """Check if a set of public/private keys exist and if not, create them.
+
+#     Args:
+#         auth_parent_dir (str):
+#             Parent containing public/private key directories (auth_child_dir).
+#         auth_child_dir (str):
+#             Child containing public/private keys.
+#         tag (str): Filename/Basename of key.
+
+#     Returns:
+#         bool: True if the keypair (now) exists.
+
+#     """
+#     public_key_location, private_key_location = return_key_locations(
+#         auth_child_dir)  # where the keys should be, else where to create them
+#     if (os.path.exists(public_key_location) and
+#             os.path.exists(private_key_location)):
+#         return True
+
+#     # Ensure parent dir exists (child dir will be created if it does not)
+#     if not os.path.exists(auth_parent_dir):
+#         os.mkdir(auth_parent_dir)
+#     try:
+#         generate_key_store(auth_parent_dir, tag)
+#         return True
+#     except Exception:
+#         # Catch anything so we can otherwise be sure the key store exists.
+#         LOG.exception("Failed to create %s authentication keys." % tag)
+#         return False
 
 
-def ensure_suite_keys_exist(suite_service_directory):
-    """Make sure the suite (server) public/private keys exist."""
-    return ensure_keypair_exists(
-        suite_service_directory,
-        os.path.join(suite_service_directory, UserFiles.Auth.DIRNAME),
-        UserFiles.Auth.SERVER_TAG
-    )
+# def ensure_user_keys_exist():
+#     """Make sure the user (client) public/private keys exist."""
+#     return ensure_keypair_exists(
+#         UserFiles.get_path(include_auth_dirname=False),
+#         UserFiles.get_path(),
+#         UserFiles.Auth.CLIENT_TAG
+#     )
+
+
+# def ensure_suite_keys_exist(suite_service_directory):
+#     """Make sure the suite (server) public/private keys exist."""
+#     return ensure_keypair_exists(
+#         suite_service_directory,
+#         os.path.join(suite_service_directory, UserFiles.Auth.DIRNAME),
+#         UserFiles.Auth.SERVER_TAG
+#     )
+
+import os
+import zmq.auth
+import shutil
+import stat
+
+def generate_certificates(suite_service_directory):
+    """Generate server and client CURVE certificate files"""
+    
+    # Create directories in cylc-run/<SUITE_NAME>/.service for certificates
+    
+    keys_dir = os.path.join(suite_service_directory, 'certificates')
+    public_keys_dir = os.path.join(suite_service_directory, 'public_keys')
+    secret_keys_dir = os.path.join(suite_service_directory, 'private_keys')
+
+    # Remove old certificates if necessary
+    
+    for d in [keys_dir, public_keys_dir, secret_keys_dir]:
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+
+
+    # Create new public/private keys in certificates directory
+
+    _SERVER_PUBLIC_KEY_CERTIFICATE, _SERVER_PRIVATE_KEY_CERTIFICATE = zmq.auth.create_certificates(keys_dir, "server")
+    _CLIENT_PUBLIC_KEY_CERTIFICATE, _CLIENT_PRIVATE_KEY_CERTIFICATE = zmq.auth.create_certificates(keys_dir, "client")
+
+
+    # Move public keys to appropriate directory
+
+    for key_file in os.listdir(keys_dir):
+        if key_file.endswith(".key"):
+            shutil.move(os.path.join(keys_dir, key_file), os.path.join(public_keys_dir, '.'))
+            public_key_file_path = os.path.join(public_keys_dir, key_file)
+            os.chmod(
+                public_key_file_path,
+                stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
+                )
+
+
+
+    # Move secret/private keys to appropriate directory
+
+    for key_file in os.listdir(keys_dir):
+        if key_file.endswith(".key_secret"):
+            shutil.move(os.path.join(keys_dir, key_file), os.path.join(secret_keys_dir, '.'))
+            secret_key_file_path = os.path.join(secret_keys_dir, key_file)
+            os.chmod(
+                secret_key_file_path,
+                stat.S_IRUSR | stat.S_IWUSR
+                )
+
+    # Delete temporary directory where keys were generated.
+
+    shutil.rmtree(keys_dir)
