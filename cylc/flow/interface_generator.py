@@ -16,13 +16,17 @@ class InterfaceGenerator():
         return interface
 
     @classmethod
-    def generate_node(cls, argument, interface, state, depart=True):
-        visit, depart_ = cls.get_route(argument)
-        vis = visit(argument, interface, state)
-        dep = None
-        if depart and depart_:
-            dep = depart_(argument, interface, state)
-        return (vis, dep)
+    def generate_node(cls, argument, interface, state, depth=0):
+        visit, depart = cls.get_route(argument)
+        print(f'# {visit.__name__}')
+        visit(argument, interface, state, depth)
+        if 'ofType' in argument['type'] and argument['type']['ofType']:
+            new_argument = deepcopy(argument)
+            new_argument['type'] = argument['type']['ofType']
+            cls.generate_node(new_argument, interface, state, depth=depth + 1)
+        if depart:
+            print(f'# {depart.__name__}')
+            depart(argument, interface, state, depth)
 
     @classmethod
     def get_route(cls, argument):
@@ -39,7 +43,8 @@ class InterfaceGenerator():
             try:
                 return (
                     getattr(cls, f'visit_{type_id}'),
-                    getattr(cls, f'depart_{type_id}', None)
+                    getattr(cls, f'depart_{type_id}', getattr(
+                        cls, 'default_depart', print))
                 )
             except AttributeError:
                 continue
@@ -86,8 +91,11 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
         interface.usage = usage + '\n\n' + description
 
     @classmethod
-    def make_option(cls, argument, interface, state):
-        print('%', state)
+    def default_depart(cls, argument, interface, state, depth):
+        if depth > 0:
+            print('    skipped')
+            return
+        print('    ', state['args'], state['kwargs'])
         interface.add_option(
             *state['args'],
             **state['kwargs']
@@ -96,24 +104,27 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
         #state['kwargs'] = dict()
 
     @classmethod
-    def visit_non_null(cls, argument, interface, state):
-        state['usage'][argument['name']] = argument['description']
-
-    #@classmethod
-    #def visit_string(cls, argument, interface, state):
-    #    return cls.visit_scalar(argument, interface, state)
+    def visit_non_null(cls, argument, interface, state, depth):
+        #state['usage'][argument['name']] = argument['description']
+        pass
 
     @classmethod
-    def visit_scalar(cls, argument, interface, state):
-        name = f'--{argument["name"]}'
-        return interface.add_option(
-            name,
-            help=argument['description'],
-            type=cls.TYPE_MAP.get(argument['type']['name'], str)
-        )
+    def depart_non_null(cls, argument, interface, state, depth):
+        usage_sig = argument['name'].upper()
+        usage_item = argument['description']
+
+        kwargs = state['kwargs']
+        if kwargs.get('callback') == cls.list_callback:
+            usage_sig += '...'
+            list_type = kwargs.get('callback_kwargs', {}).get('type_')
+            usage_item += f'\ntype: {list_type.__name__}...'
+
+        usage_item = usage_item.replace('\n', '\n' + (' ' * (2 + 20)))
+
+        state['usage'][usage_sig] = usage_item
 
     @classmethod
-    def visit_scalar(cls, argument, interface, state):
+    def visit_scalar(cls, argument, interface, state, depth):
         state['args'] = (
             f'--{argument["name"]}',
         )
@@ -122,25 +133,14 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
             'type': cls.TYPE_MAP.get(argument['type']['name'], str)
         }
 
-    depart_scalar = make_option
+    @classmethod
+    def visit_list(cls, argument, interface, state, level):
+        pass
 
     @classmethod
-    def visit_list(cls, argument, interface, state):
+    def depart_list(cls, argument, interface, state, level):
         new_argument = deepcopy(argument)
         new_argument['type'] = argument['type']['ofType']
-
-        option, _ = cls.generate_node(new_argument, interface, state)
-        #option.nargs = '?'
-        option.type=None,
-        option.action = 'callback'
-        option.callback = cls.list_callback
-        return option
-
-    @classmethod
-    def visit_list(cls, argument, interface, state):
-        new_argument = deepcopy(argument)
-        new_argument['type'] = argument['type']['ofType']
-        cls.generate_node(new_argument, interface, state, depart=False)
         kwargs = state['kwargs']
         kwargs['action'] = 'callback'
         kwargs['callback'] = cls.list_callback
@@ -149,8 +149,8 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
         kwargs['type'] = None
         # NOTE: the dest must be manually set for a list
         kwargs['dest'] = argument['name']
-
-    depart_list = make_option
+        if level == 0:
+            cls.default_depart(argument, interface, state, level)
 
     @staticmethod
     def list_callback(option, _, value, parser, type_):
@@ -162,7 +162,6 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
                 ret.append(type_(arg))
             except (ValueError, TypeError): 
                 raise  # TODO: better error capture
-            print('#', arg)
         del parser.rargs[:len(ret)]
         setattr(parser.values, option.dest, ret)
 
@@ -214,6 +213,18 @@ mutation = {
                     }
                 }
             }
+        },
+        {
+            'name': 'qux',
+            'description': 'Qux',
+            'type': {
+                'name': None,
+                'kind': 'LIST',
+                'ofType': {
+                    'name': 'Int',
+                    'kind': 'SCALAR'
+                }
+            }
         }
     ]
 }
@@ -225,6 +236,7 @@ args, opts = parser.parse_args([
     '2', '3', '4',
     '--bar', 'bar',
     '--baz', '1',
+    '--qux', '2', '3', '4',
 
 ])
 print(args)
