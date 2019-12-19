@@ -130,7 +130,12 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
         )
         state['kwargs'] = {
             'help': argument['description'],
-            'type': cls.TYPE_MAP.get(argument['type']['name'], str)
+            'type': cls.TYPE_MAP.get(argument['type']['name'], str),
+            'metavar': (
+                argument['type']['name']
+                #if argument['type']['name'] not in cls.TYPE_MAP
+                #else None
+            )
         }
 
     @classmethod
@@ -165,6 +170,15 @@ class OptParseInterfaceGenerator(InterfaceGenerator):
         del parser.rargs[:len(ret)]
         setattr(parser.values, option.dest, ret)
 
+    @classmethod
+    def visit_enum(cls, argument, interface, state, level):
+        cls.visit_scalar(argument, interface, state, level)
+        state['kwargs'].update({
+            'type': 'choice',
+            'choices': [
+                option['name'] for option in argument['type']['enumValues']
+            ]
+        })
 
 mutation = {
     'name': 'mymutation',
@@ -225,6 +239,19 @@ mutation = {
                     'kind': 'SCALAR'
                 }
             }
+        },
+        {
+            'name': 'oxx',
+            'description': 'Oxx',
+            'type': {
+                'name': 'MyEnum',
+                'kind': 'ENUM',
+                'enumValues': [
+                    {'name': 'a'},
+                    {'name': 'b'},
+                    {'name': 'c'}
+                ]
+            }
         }
     ]
 }
@@ -237,6 +264,7 @@ args, opts = parser.parse_args([
     '--bar', 'bar',
     '--baz', '1',
     '--qux', '2', '3', '4',
+    '--oxx', 'c'
 
 ])
 print(args)
