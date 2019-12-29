@@ -34,6 +34,14 @@ from cylc.flow.hostuserutil import (
     get_host, get_user, is_remote, is_remote_host, is_remote_user)
 from cylc.flow.unicode_rules import SuiteNameValidator
 
+from enum import Enum
+class KeyType(Enum):
+    PRIVATE = "private"
+    PUBLIC = "public"
+
+class KeyOwner(Enum):
+    CLIENT = "client"
+    SERVER = "server"
 
 class SuiteFiles:
     """Files and directories located in the suite directory."""
@@ -85,19 +93,13 @@ class SuiteFiles:
         """The name of the authentication certificates."""
 
         @classmethod
-        def get_client_certificate_full_path(cls, private=False, client=False):
-            """Return the directory path of a certificate for the client."""
-            if private and client:
-                # return client private key path
-                certificate_dirname = cls.Service.PRIVATE_KEY_DIRNAME
-            if not private and client:
-                #return client pubkic key path
-            if not 
-            else:
-                certificate_dirname = cls.Service.PUBLIC_KEY_DIRNAME
-            return certificate_dirname
-        os.path.join(os.path.expanduser("~"), cls.DIRNAME/suite_name/certificate_dirname/CLIENT_PUBLIC_KEY_CERTIFICATE)
-
+        def get_certificate_dir_path(cls, suite, key_type):
+            """Return the directory path of a certificate."""
+            suite_dir = os.path.join(os.path.expanduser("~"), get_suite_srv_dir(suite))
+            if key_type == KeyType.PRIVATE:
+                return os.path.join(suite_dir, cls.PRIVATE_KEY_DIRNAME)
+            if key_type == KeyType.PUBLIC: 
+                return os.path.join(suite_dir, cls.PUBLIC_KEY_DIRNAME)
 
 class ContactFileFields:
     """Field names present in ``SuiteFiles.Service.CONTACT``.
@@ -336,25 +338,26 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
     """
     if item not in [
             SuiteFiles.Service.PASSPHRASE, SuiteFiles.Service.CONTACT,
-            SuiteFiles.Service.CONTACT
-       ]
+            SuiteFiles.Service.CONTACT2, 
+            SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
+            SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE, 
+            SuiteFiles.Service.CLIENT_PUBLIC_KEY_CERTIFICATE,
+            SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE]:
         raise ValueError(f"{item}: item not recognised")
 
     # For a UserFiles.Auth.SERVER_..._KEY_CERTIFICATE, only need to check Case
     # '3/' (always ignore content i.e. content=False), so check these first:
-    if item in (SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
-                UserFiles.Auth.SERVER_PUBLIC_KEY_CERTIFICATE):
-        auth_path = os.path.join(
-            get_suite_srv_dir(reg), UserFiles.Auth.DIRNAME)
-        public_key_dir, private_key_dir = return_key_locations(auth_path)
-        if item == UserFiles.Auth.SERVER_PRIVATE_KEY_CERTIFICATE:
-            path = private_key_dir
-        else:
-            path = public_key_dir
-        value = _locate_item(item, path)
-        if value:
-            return value
+    path = ""
+    if ((item == SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE) or 
+    (item == SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE)):
+        path = SuiteFiles.Service.get_certificate_dir_path(reg, KeyType.PRIVATE)
+    elif ((item == SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE) or 
+    (item == SuiteFiles.Service.CLIENT_PUBLIC_KEY_CERTIFICATE)):
+        path = SuiteFiles.Service.get_certificate_dir_path(reg, KeyType.PUBLIC)
 
+    value = _locate_item(item, path)
+    if value:
+        return value
 
     if reg == os.getenv('CYLC_SUITE_NAME'):
         env_keys = []
@@ -452,24 +455,24 @@ def get_suite_srv_dir(reg, suite_owner=None):
         run_d = get_suite_run_dir(reg)
     return os.path.join(run_d, SuiteFiles.Service.DIRNAME)
 
-def get_key_file_path(reg, key_path):
-    """Returns key paths requested,"""
+# def get_key_file_path(reg, key_path):
+#     """Returns key paths requested,"""
 
-    public_key_path, private_key_path = return_key_locations(get_suite_srv_dir(reg)
+#     public_key_path, private_key_path = return_key_locations(get_suite_srv_dir(reg)
 
-    # Change this to a set of if statements 
-    if key_path = 'public_server':
-        public_server_location = os.path.join(public_key_path + SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE)
-        return public_server_location
-    if key_path = 'private_server':
-        private_server_location = os.path.join(private_key_path + SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE)
-        return private_server_location    
-    if key_path = 'public_client':
-        public_client_location = os.path.join(public_key_path + SuiteFiles.Service.CLIENT_PUBLIC_KEY_CERTIFICATE)
-        return public_client_location
-    if key_path = 'private_client':
-        private_client_location = os.path.join(private_key_path + SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE)
-        return private_client_location
+#     # Change this to a set of if statements 
+#     if key_path = 'public_server':
+#         public_server_location = os.path.join(public_key_path + SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE)
+#         return public_server_location
+#     if key_path = 'private_server':
+#         private_server_location = os.path.join(private_key_path + SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE)
+#         return private_server_location    
+#     if key_path = 'public_client':
+#         public_client_location = os.path.join(public_key_path + SuiteFiles.Service.CLIENT_PUBLIC_KEY_CERTIFICATE)
+#         return public_client_location
+#     if key_path = 'private_client':
+#         private_client_location = os.path.join(private_key_path + SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE)
+#         return private_client_location
 
 def load_contact_file(reg, owner=None, host=None, file_base=None):
     """Load contact file. Return data as key=value dict."""
@@ -626,8 +629,8 @@ def create_auth_files(reg):
     # Create directories in cylc-run/<SUITE_NAME>/.service for certificates
     
     keys_dir = os.path.join(suite_service_directory, 'certificates')
-    public_keys_dir = os.path.join(suite_service_directory, 'public_keys')
-    secret_keys_dir = os.path.join(suite_service_directory, 'private_keys')
+    public_keys_dir = SuiteFiles.Service.get_certificate_dir_path(reg, KeyType.PUBLIC)
+    secret_keys_dir = SuiteFiles.Service.get_certificate_dir_path(reg, KeyType.PRIVATE)
 
     # Remove old certificates if necessary
     
@@ -637,12 +640,10 @@ def create_auth_files(reg):
         os.mkdir(d)
         os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
-
     # Create new public/private keys in certificates directory
 
     _SERVER_PUBLIC_KEY_CERTIFICATE, _SERVER_PRIVATE_KEY_CERTIFICATE = zmq.auth.create_certificates(keys_dir, "server")
     _CLIENT_PUBLIC_KEY_CERTIFICATE, _CLIENT_PRIVATE_KEY_CERTIFICATE = zmq.auth.create_certificates(keys_dir, "client")
-
 
     # Move public keys to appropriate directory
 
@@ -654,8 +655,6 @@ def create_auth_files(reg):
                 public_key_file_path,
                 stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
                 )
-
-
 
     # Move secret/private keys to appropriate directory
 
@@ -672,22 +671,9 @@ def create_auth_files(reg):
 
     shutil.rmtree(keys_dir)
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-
     # If necessary, generate directory holding (in separate sub-dirs) the
     # server (suite) public and private keys for authentication:
     # ensure_suite_keys_exist(srv_d)
-    # generate_certificates(srv_d)
 
     # Create a new passphrase for the suite if necessary.
     # if not _locate_item(SuiteFiles.Service.PASSPHRASE, srv_d):
@@ -969,60 +955,3 @@ def return_key_locations(suite_service_directory):
 #         os.path.join(suite_service_directory, UserFiles.Auth.DIRNAME),
 #         UserFiles.Auth.SERVER_TAG
 #     )
-
-import os
-import zmq.auth
-import shutil
-import stat
-
-def generate_certificates(suite_service_directory):
-    """Generate server and client CURVE certificate files"""
-    
-    # Create directories in cylc-run/<SUITE_NAME>/.service for certificates
-    
-    keys_dir = os.path.join(suite_service_directory, 'certificates')
-    public_keys_dir = os.path.join(suite_service_directory, 'public_keys')
-    secret_keys_dir = os.path.join(suite_service_directory, 'private_keys')
-
-    # Remove old certificates if necessary
-    
-    for d in [keys_dir, public_keys_dir, secret_keys_dir]:
-        if os.path.exists(d):
-            shutil.rmtree(d)
-        os.mkdir(d)
-        os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
-
-
-    # Create new public/private keys in certificates directory
-
-    _SERVER_PUBLIC_KEY_CERTIFICATE, _SERVER_PRIVATE_KEY_CERTIFICATE = zmq.auth.create_certificates(keys_dir, "server")
-    _CLIENT_PUBLIC_KEY_CERTIFICATE, _CLIENT_PRIVATE_KEY_CERTIFICATE = zmq.auth.create_certificates(keys_dir, "client")
-
-
-    # Move public keys to appropriate directory
-
-    for key_file in os.listdir(keys_dir):
-        if key_file.endswith(".key"):
-            shutil.move(os.path.join(keys_dir, key_file), os.path.join(public_keys_dir, '.'))
-            public_key_file_path = os.path.join(public_keys_dir, key_file)
-            os.chmod(
-                public_key_file_path,
-                stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
-                )
-
-
-
-    # Move secret/private keys to appropriate directory
-
-    for key_file in os.listdir(keys_dir):
-        if key_file.endswith(".key_secret"):
-            shutil.move(os.path.join(keys_dir, key_file), os.path.join(secret_keys_dir, '.'))
-            secret_key_file_path = os.path.join(secret_keys_dir, key_file)
-            os.chmod(
-                secret_key_file_path,
-                stat.S_IRUSR | stat.S_IWUSR
-                )
-
-    # Delete temporary directory where keys were generated.
-
-    shutil.rmtree(keys_dir)

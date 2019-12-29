@@ -282,7 +282,7 @@ class Scheduler(object):
             self.curve_auth.configure_curve(
                 domain='*',
                 location=(
-                    suite_files.SuiteFiles.get_user_certificate_full_path())
+                    suite_files.SuiteFiles.Service.get_certificate_dir_path(self.suite, suite_files.KeyType.PUBLIC))
             )
             # create thread sync barrier for setup
             barrier = Barrier(3, timeout=10)

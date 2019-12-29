@@ -30,8 +30,10 @@ from cylc.flow.exceptions import ClientError, CylcError, SuiteServiceFileError
 from cylc.flow.hostuserutil import get_fqdn_by_host
 from cylc.flow.suite_files import (
     ContactFileFields,
-    create_auth_files
+    create_auth_files,
     get_auth_item,
+    KeyType,
+    KeyOwner,
     load_contact_file,
     SuiteFiles,
     UserFiles
@@ -211,7 +213,7 @@ class ZMQSocketBase:
         #     raise ClientError("Unable to generate user authentication keys.")
 
         client_priv_keyfile = os.path.join(
-            SuiteFiles.get_user_certificate_full_path(private=True),
+            SuiteFiles.Service.get_certificate_dir_path(self.suite, KeyType.PRIVATE),
             SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE)
         error_msg = "Failed to find user's private key, so cannot connect."
         try:
