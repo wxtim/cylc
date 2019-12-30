@@ -520,7 +520,7 @@ class CylcSuiteDAO(object):
 
         Invoke callback(row_idx, row) on each row.
         """
-        s = select()
+        s = select([column for column in task_action_timers.c])
         with self.connect() as conn:
             for row_idx, row in enumerate(conn.execute(s).fetchall()):
                 callback(row_idx, list(row))
