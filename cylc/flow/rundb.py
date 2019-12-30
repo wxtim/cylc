@@ -684,45 +684,38 @@ class CylcSuiteDAO(object):
             s.where(task_pool.c.id == id_key)
 
         s.append_from(
-            task_pool_table.join(
+            task_pool_table
+                .join(
                 task_states,
                 onclause=and_(
                     task_pool_table.c.cycle == task_states.c.cycle,
                     task_pool_table.c.name == task_states.c.name
                 ))
-        )
-        s.append_from(
-            task_late_flags.join(
-                task_pool_table,
+                .join(
+                task_late_flags,
                 onclause=and_(
                     task_pool_table.c.cycle == task_late_flags.c.cycle,
                     task_pool_table.c.name == task_late_flags.c.name
-                ), isouter=True),
-        )
-        s.append_from(
-            task_jobs.join(
-                task_pool_table,
+                ), isouter=True)
+                .join(
+                task_jobs,
                 onclause=and_(
                     task_pool_table.c.cycle == task_jobs.c.cycle,
                     task_pool_table.c.name == task_jobs.c.name,
                     task_states.c.submit_num == task_jobs.c.submit_num
-                ), isouter=True),
-        )
-        s.append_from(
-            task_timeout_timers.join(
-                task_pool_table,
+                ), isouter=True)
+                .join(
+                task_timeout_timers,
                 onclause=and_(
                     task_pool_table.c.cycle == task_timeout_timers.c.cycle,
                     task_pool_table.c.name == task_timeout_timers.c.name
-                ), isouter=True),
-        )
-        s.append_from(
-            task_outputs.join(
-                task_pool_table,
+                ), isouter=True)
+                .join(
+                task_outputs,
                 onclause=and_(
                     task_pool_table.c.cycle == task_outputs.c.cycle,
                     task_pool_table.c.name == task_outputs.c.name
-                ), isouter=True),
+                ), isouter=True)
         )
         with self.connect() as conn:
             for row_idx, row in enumerate(conn.execute(s).fetchall()):
@@ -767,7 +760,7 @@ class CylcSuiteDAO(object):
         daos = [self, *other_daos]
 
         s = select(
-            func.max(checkpoint_id.c.id)
+            [func.max(checkpoint_id.c.id)]
         )
         id_ = 1
         with self.connect() as conn:
@@ -786,7 +779,7 @@ class CylcSuiteDAO(object):
                 (broadcast_states, broadcast_states_checkpoints),
                 (task_pool, task_pool_checkpoints)
             ]:
-                for row in conn.execute(select(table)):
+                for row in conn.execute(table.select()):
                     for dao in daos:
                         insert_values = {
                             'id': id_
