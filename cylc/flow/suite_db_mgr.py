@@ -485,8 +485,10 @@ class SuiteDatabaseManager(object):
         items = {}
         for trigger, message in itask.state.outputs.get_completed_customs():
             items[trigger] = message
-        self._put_update_task_x(task_outputs,
-            itask, {"outputs": json.dumps(items)})
+        self._put_update_task_x(
+            task_outputs,
+            itask,
+            {"outputs": json.dumps(items)})
 
     def _put_update_task_x(self, table, itask, set_args):
         """Put UPDATE statement for a task_* table."""

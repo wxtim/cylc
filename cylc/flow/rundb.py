@@ -310,11 +310,14 @@ class CylcSuiteDAO(object):
                 try:
                     for table in meta.tables:
                         if table in self.to_delete:
-                            self._execute_stmt(table, self.to_delete[table], conn=conn)
+                            self._execute_stmt(
+                                table, self.to_delete[table], conn=conn)
                         elif table in self.to_insert:
-                            self._execute_stmt(table, self.to_insert[table], conn=conn)
+                            self._execute_stmt(
+                                table, self.to_insert[table], conn=conn)
                         elif table in self.to_update:
-                            self._execute_stmt(table, self.to_update[table], conn=conn)
+                            self._execute_stmt(
+                                table, self.to_update[table], conn=conn)
                 except SQLAlchemyError:
                     if not self.is_public:
                         raise
@@ -870,7 +873,8 @@ class CylcSuiteDAO(object):
         #         return False
         #
         # # perform upgrade
-        # for table in [self.TABLE_TASK_POOL, self.TABLE_TASK_POOL_CHECKPOINTS]:
+        # for table in [self.TABLE_TASK_POOL,
+        #     self.TABLE_TASK_POOL_CHECKPOINTS]:
         #     LOG.info('Upgrade hold_swap => is_held in %s', table)
         #     conn.execute(
         #         rf'''
