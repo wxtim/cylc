@@ -216,13 +216,14 @@ class CylcSuiteDAO(object):
         is_public (bool) - If True, allow retries, etc
         """
         # FIXME: add connection timeout!
-        self.conn_url = f"sqlite:///{file_name}"
+        self.conn_url = "sqlite://" if file_name == '' \
+            else f"sqlite:///{file_name}"
         LOG.info(f"Connection URL: {self.conn_url}")
         self.engine = create_engine(
             self.conn_url,
             echo=False
         )
-        if self.is_sqlite():
+        if self.is_sqlite() and file_name != '':
             # create if file does not exist
             self.db_file_name = self.get_db_file_name()
             os.makedirs(os.path.dirname(self.db_file_name), exist_ok=True)

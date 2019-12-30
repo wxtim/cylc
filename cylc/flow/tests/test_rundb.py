@@ -30,7 +30,7 @@ class TestRunDb(unittest.TestCase):
         self.mocked_connection_cmgr.__enter__ = mock.Mock(return_value=(
             self.mocked_connection))
         self.mocked_connection_cmgr.__exit__ = mock.Mock(return_value=None)
-        self.dao = CylcSuiteDAO(':memory:')
+        self.dao = CylcSuiteDAO('')
         self.dao.connect = mock.Mock()
         self.dao.connect.return_value = self.mocked_connection_cmgr
 
@@ -53,8 +53,9 @@ class TestRunDb(unittest.TestCase):
         for cycle, name, submit_num in self.get_select_task_job:
             returned_values = self.dao.select_task_job(cycle, name, submit_num)
 
-            for column in columns:
-                self.assertEqual(2, returned_values[column.name])
+            for index, column in enumerate(columns):
+                row = returned_values[0]
+                self.assertEqual(2, row[index])
 
     def test_select_task_job_sqlite_error(self):
         """Test that when the rundb CylcSuiteDAO select_task_job method raises
