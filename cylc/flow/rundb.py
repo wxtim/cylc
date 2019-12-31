@@ -251,7 +251,7 @@ class CylcSuiteDAO(object):
         all these items.
 
         """
-        self.to_delete[table.delete()].append(where_args)
+        self.to_delete[table.name].append([table.delete(), where_args])
 
     def add_insert_item(self, table: Table, args: dict):
         """Queue an INSERT args for a given table.
@@ -264,7 +264,7 @@ class CylcSuiteDAO(object):
         Empty elements are padded with None.
 
         """
-        self.to_insert[table.insert()].append(args)
+        self.to_insert[table.name].append([table.insert(), args])
 
     def add_update_item(self, table: Table, set_args: dict,
                         where_args=None):
@@ -279,7 +279,7 @@ class CylcSuiteDAO(object):
         if where_args:
             for left, right in where_args.items():
                 s.where(table.c[left] == right)
-        self.to_update[s].append(set_args)
+        self.to_update[table.name].append([s, set_args])
 
     # TODO: make it a context manager
     def close(self):
@@ -308,16 +308,17 @@ class CylcSuiteDAO(object):
         with self.connect() as conn:
             with conn.begin() as trans:
                 try:
-                    for table in meta.tables:
-                        if table in self.to_delete:
-                            self._execute_stmt(
-                                table, self.to_delete[table], conn=conn)
-                        elif table in self.to_insert:
-                            self._execute_stmt(
-                                table, self.to_insert[table], conn=conn)
-                        elif table in self.to_update:
-                            self._execute_stmt(
-                                table, self.to_update[table], conn=conn)
+                    for table_name in meta.tables:
+                        if table_name in self.to_delete:
+                            for stmt, args in self.to_delete[table_name]:
+                                self._execute_stmt(stmt, args, conn)
+                        if table_name in self.to_insert:
+                            # TODO: old code computed executemany for inserts
+                            for stmt, args in self.to_insert.get(table_name):
+                                self._execute_stmt(stmt, args, conn)
+                        if table_name in self.to_update:
+                            for stmt, args in self.to_update[table_name]:
+                                self._execute_stmt(stmt, args, conn)
                 except SQLAlchemyError:
                     if not self.is_public:
                         raise
@@ -773,7 +774,8 @@ class CylcSuiteDAO(object):
                     'time': get_current_time_string(),
                     'event': event
                 }
-                dao.to_insert[checkpoint_id].append([checkpoint])
+                dao.to_insert[checkpoint_id].append(
+                    [checkpoint_id.insert(), checkpoint])
             for table, checkpoint_table in [
                 (suite_params, suite_params_checkpoints),
                 (broadcast_states, broadcast_states_checkpoints),
@@ -785,7 +787,8 @@ class CylcSuiteDAO(object):
                             'id': id_
                         }
                         insert_values.update(row)
-                        dao.to_insert[checkpoint_table].append(insert_values)
+                        dao.to_insert[checkpoint_table].append(
+                            [checkpoint_table.insert(), insert_values])
 
     def is_sqlite(self) -> bool:
         return self.engine.dialect.name == 'sqlite'
