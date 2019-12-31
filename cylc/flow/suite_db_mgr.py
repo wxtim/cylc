@@ -69,8 +69,8 @@ class SuiteDatabaseManager(object):
     TABLE_TASK_POOL: Table = task_pool
     TABLE_TASK_OUTPUTS: Table = task_outputs
     TABLE_TASK_STATES: Table = task_states
-    TABLE_TASK_TIMEOUT_TIMERS = task_timeout_timers
-    TABLE_XTRIGGERS = xtriggers
+    TABLE_TASK_TIMEOUT_TIMERS: Table = task_timeout_timers
+    TABLE_XTRIGGERS: Table = xtriggers
 
     def __init__(self, pri_d=None, pub_d=None):
         self.pri_path = None
