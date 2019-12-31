@@ -202,7 +202,7 @@ xtriggers = Table(
 class CylcSuiteDAO(object):
     """Data access object for the suite runtime database."""
 
-    CONN_TIMEOUT = 2
+    CONN_TIMEOUT = 0.2
     DB_FILE_BASE_NAME = "db"
     MAX_TRIES = 100
     CHECKPOINT_LATEST_ID = 0
