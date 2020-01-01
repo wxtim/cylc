@@ -19,14 +19,16 @@ import random
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from threading import Barrier
 from time import sleep
+from unittest.mock import MagicMock
+import os
 
 import pytest
 import zmq
 
-from cylc.flow.exceptions import ClientError, CylcError
+from cylc.flow.exceptions import ClientError, CylcError, SuiteServiceFileError
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.network import ZMQSocketBase
-from cylc.flow.suite_files import create_auth_files
+from cylc.flow.suite_files import create_auth_files, SuiteFiles
 
 
 def get_port_range():
@@ -38,32 +40,70 @@ def get_port_range():
 PORT_RANGE = get_port_range()
 HOST = "127.0.0.1"
 
+def test_server_cannot_start_when_server_private_key_cannot_be_loaded():
+    """Server should not be able to start when its private key file cannot be opened."""
 
-def test_server_requires_valid_keys():
-    """Server should not be able to connect to host/port without valid keys."""
+    server = ZMQSocketBase(zmq.REQ, bind=True, daemon=True)
 
-    with TemporaryDirectory() as keys, NamedTemporaryFile(dir=keys) as fake:
-        # Assign a blank file masquerading as a CurveZMQ certificate
+    with pytest.raises(SuiteServiceFileError, match=r"IO error opening server's private key from "):
+        server.start(*PORT_RANGE, private_key_location="fake_location")
+
+    server.stop()
+
+def test_server_cannot_start_when_certificate_file_only_contains_public_key():
+    """Server should not be able to start when its certificate file does not contain the private key."""
+
+    with TemporaryDirectory() as keys:
+        pub, _priv = zmq.auth.create_certificates(keys, "server")
+
         server = ZMQSocketBase(zmq.REQ, bind=True, daemon=True)
 
-        with pytest.raises(ValueError, match=r"No public key found in "):
-            server.start(*PORT_RANGE, private_key_location=fake.name)
+        with pytest.raises(SuiteServiceFileError, match=r"Failed to find server's private key in "):
+            server.start(*PORT_RANGE, private_key_location=pub)
+
+        server.stop()    
+
+def test_server_cannot_start_when_public_key_not_found_in_certificate_file():
+    """Server should not be able to start when its private key file does not contain the public key."""
+
+    with TemporaryDirectory() as keys:
+        priv_key_loc = os.path.join(keys, "server.key_secret")
+        open(priv_key_loc, 'a').close()
+
+        server = ZMQSocketBase(zmq.REQ, bind=True, daemon=True)
+
+        with pytest.raises(SuiteServiceFileError, match=r"Failed to find server's public key in "):
+            server.start(*PORT_RANGE, private_key_location=priv_key_loc )
 
         server.stop()
 
+def test_client_requires_valid_server_public_key():
+    """Client should not be able to connect to host/port without server public key."""
+   
+    with TemporaryDirectory() as keys:
+        _pub, _priv = zmq.auth.create_certificates(keys, "client")
+        SuiteFiles.Service.get_certificate_dir_path = MagicMock(return_value=keys)
 
-def test_client_requires_valid_keys():
-    """Client should not be able to connect to host/port without valid keys."""
-    with TemporaryDirectory() as keys, NamedTemporaryFile(dir=keys) as fake:
         port = random.choice(PORT_RANGE)
-        client = ZMQSocketBase(zmq.REP)
+        client = ZMQSocketBase(zmq.REP, suite="fake_suite")
 
         with pytest.raises(
                 ClientError, match=r"Failed to load the suite's public "
                 "key, so cannot connect."):
-            # Assign a blank file masquerading as a CurveZMQ certificate
-            client.start(HOST, port, srv_public_key_loc=fake.name)
+            client.start(HOST, port, srv_public_key_loc="fake_location")
 
+def test_client_requires_valid_client_private_key():
+    """Client should not be able to connect to host/port without client private key."""
+
+    SuiteFiles.Service.get_certificate_dir_path = MagicMock(return_value="invalid_filepath")
+
+    port = random.choice(PORT_RANGE)
+    client = ZMQSocketBase(zmq.REP, suite="fake_suite")
+
+    with pytest.raises(
+            ClientError, match=r"Failed to find user's private "
+            "key, so cannot connect."):
+        client.start(HOST, port, srv_public_key_loc="fake_location")
 
 def test_single_port():
     """Test server on a single port and port in use exception."""

@@ -103,7 +103,7 @@ class ZMQSocketBase:
         daemon (bool, optional): daemonise socket thread.
 
     This class is designed to be inherited by REP Server (REQ/REP)
-    and by PUB Publisher (PUB/SUB), as the start-up logic is similair.
+    and by PUB Publisher (PUB/SUB), as the start-up logic is similar.
 
 
     To tailor this class overwrite it's method on inheritance.
@@ -173,11 +173,22 @@ class ZMQSocketBase:
                 SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
                 self.suite
             )
+        
         # create socket
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
-        server_public_key, server_private_key = zmq.auth.load_certificate(
-            private_key_location)
+        
+        try:
+            server_public_key, server_private_key = zmq.auth.load_certificate(
+                private_key_location)
+        except (ValueError):
+            raise SuiteServiceFileError(f"Failed to find server's public key in {private_key_location}.")
+        except(OSError):
+            raise SuiteServiceFileError(f"IO error opening server's private key from {private_key_location}.")
+
+        if server_private_key is None:  # this can't be caught by exception
+            raise SuiteServiceFileError(f"Failed to find server's private key in {private_key_location}.")
+
         self.socket.curve_publickey = server_public_key
         self.socket.curve_secretkey = server_private_key
         self.socket.curve_server = True
