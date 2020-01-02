@@ -391,13 +391,13 @@ class CylcSuiteDAO(object):
             broadcast_states.c.value
         ])
         if order == "ASC":
-            s.order_by(
+            s = s.order_by(
                 broadcast_states.c.point.asc(),
                 broadcast_states.c.namespace.asc(),
                 broadcast_states.c.key.asc()
             )
         if id_key is not None and id_key != self.CHECKPOINT_LATEST_ID:
-            s.where(broadcast_states.c.id == id_key)
+            s = s.where(broadcast_states.c.id == id_key)
         with self.connect() as conn:
             return conn.execute(s).fetchall()
 
@@ -427,7 +427,7 @@ class CylcSuiteDAO(object):
             broadcast_events.c.value
         ])
         if order == "DESC":
-            s.order_by(
+            s = s.order_by(
                 broadcast_events.c.time.dec(),
                 broadcast_events.c.point.desc(),
                 broadcast_events.c.namespace.desc(),
@@ -461,8 +461,8 @@ class CylcSuiteDAO(object):
             checkpoint_id.c.event
         ])
         if id_key is not None:
-            s.where(checkpoint_id.c.id == id_key)
-        s.order_by(checkpoint_id.c.time.asc())
+            s = s.where(checkpoint_id.c.id == id_key)
+        s = s.order_by(checkpoint_id.c.time.asc())
         with self.connect() as conn:
             for row_idx, row in enumerate(conn.execute(s).fetchall()):
                 callback(row_idx, list(row))
@@ -496,8 +496,7 @@ class CylcSuiteDAO(object):
             s = select([
                 suite_params_checkpoints.c.key,
                 suite_params_checkpoints.c.value
-            ])
-            s.where(suite_params_checkpoints.c.id == id_key)
+            ]).where(suite_params_checkpoints.c.id == id_key)
         with self.connect() as conn:
             for row_idx, row in enumerate(conn.execute(s).fetchall()):
                 callback(row_idx, list(row))
@@ -682,9 +681,9 @@ class CylcSuiteDAO(object):
             task_pool_table = task_pool
         else:
             task_pool_table = task_pool_checkpoints
-            s.where(task_pool.c.id == id_key)
+            s = s.where(task_pool.c.id == id_key)
 
-        s.append_from(
+        s = s.append_from(
             task_pool_table.join(
                 task_states,
                 onclause=and_(
