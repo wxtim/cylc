@@ -221,11 +221,11 @@ class CylcSuiteDAO(object):
         LOG.info(f"Connection URL: {self.conn_url}")
         self.engine = create_engine(
             self.conn_url,
-            echo=False
+            echo=not is_public
         )
         if self.is_sqlite() and file_name != '':
             # create if file does not exist
-            self.db_file_name = self.get_db_file_name()
+            self.db_file_name = self._get_db_file_name()
             os.makedirs(os.path.dirname(self.db_file_name), exist_ok=True)
         else:
             self.db_file_name = None
@@ -241,7 +241,7 @@ class CylcSuiteDAO(object):
         self.to_insert = defaultdict(list)  # type: Dict[Table, List]
         self.to_update = defaultdict(list)  # type: Dict[Table, List]
 
-    def get_db_file_name(self) -> str:
+    def _get_db_file_name(self) -> str:
         return re.sub("sqlite.*:///", "", self.conn_url)
 
     def add_delete_item(self, table: Table, where_args: dict = None):
@@ -278,7 +278,7 @@ class CylcSuiteDAO(object):
         s = table.update()
         if where_args:
             for left, right in where_args.items():
-                s.where(table.c[left] == right)
+                s = s.where(table.c[left] == right)
         self.to_update[table.name].append([s, set_args])
 
     # TODO: make it a context manager
