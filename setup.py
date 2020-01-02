@@ -50,7 +50,7 @@ install_requires = [
     'markupsafe==1.1.*',
     'protobuf==3.11.*',
     'pyzmq==18.0.*',
-    'click>=7.0'
+    'click>=7.0',
     'sqlalchemy==1.3.*'
 ]
 tests_require = [
