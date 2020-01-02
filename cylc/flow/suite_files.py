@@ -640,8 +640,10 @@ def create_auth_files(reg):
 
     # Create new public/private keys in certificates directory
 
-    _, _ = zmq.auth.create_certificates(keys_dir, "server")
-    _, _ = zmq.auth.create_certificates(keys_dir, "client")
+    _, _ = zmq.auth.create_certificates(
+        keys_dir, SuiteFiles.Service.SERVER_TAG)
+    _, _ = zmq.auth.create_certificates(
+        keys_dir, SuiteFiles.Service.CLIENT_TAG)
 
     # Move public keys to appropriate directory
 
