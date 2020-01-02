@@ -120,7 +120,7 @@ def test_client_requires_valid_client_private_key():
     port = random.choice(PORT_RANGE)
     client = ZMQSocketBase(zmq.REP, suite="fake_suite")
 
-    with pytest.raises(ClientError, match=r"Failed to find user's private"
+    with pytest.raises(ClientError, match=r"Failed to find user's private "
                                           r"key, so cannot connect."
                        ):
         client.start(HOST, port, srv_public_key_loc="fake_location")

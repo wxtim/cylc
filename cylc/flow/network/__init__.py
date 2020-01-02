@@ -33,7 +33,6 @@ from cylc.flow.suite_files import (
     create_auth_files,
     get_auth_item,
     KeyType,
-    KeyOwner,
     load_contact_file,
     SuiteFiles,
     UserFiles
@@ -221,10 +220,6 @@ class ZMQSocketBase:
         self.port = port
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
-
-        # check for, & create if nonexistent, user keys in the right location
-        # if not ensure_user_keys_exist():
-        #     raise ClientError("Unable to generate user authentication keys.")
 
         client_priv_keyfile = os.path.join(
             SuiteFiles.Service.get_certificate_dir_path(

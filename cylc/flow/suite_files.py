@@ -42,11 +42,6 @@ class KeyType(Enum):
     PUBLIC = "public"
 
 
-class KeyOwner(Enum):
-    CLIENT = "client"
-    SERVER = "server"
-
-
 class SuiteFiles:
     """Files and directories located in the suite directory."""
 
@@ -318,24 +313,29 @@ def get_contact_file(reg):
 
 
 def get_auth_item(item, reg, owner=None, host=None, content=False):
-    """Locate/load passphrase, Curve private-key/certificate ...etc.
+    """Locate/load Curve private-key/certificate ...etc.
 
     Return file name, or content of file if content=True is set.
     Files are searched from these locations in order:
 
-    1/ For running task jobs, service directory under:
+    1/  a/ Private Curve ZMQ certificates located in:
+            suite service directory/private_keys
+        b/ Public Curve ZMQ certificates located in:
+            suite service directory/public_keys
+
+    2/ For running task jobs, service directory under:
        a/ $CYLC_SUITE_RUN_DIR for remote jobs.
        b/ $CYLC_SUITE_RUN_DIR_ON_SUITE_HOST for local jobs or remote jobs
           with SSH messaging.
 
-    2/ For suite on local user@host. The suite service directory.
+    3/ For suite on local user@host. The suite service directory.
 
-    3/ Location under $HOME/.cylc/ for remote suite control from accounts
+    4/ Location under $HOME/.cylc/ for remote suite control from accounts
        that do not actually need the suite definition directory to be
        installed:
        $HOME/.cylc/auth/SUITE_OWNER@SUITE_HOST/SUITE_NAME/
 
-    4/ For remote suites, try locating the file from the suite service
+    5/ For remote suites, try locating the file from the suite service
        directory on remote owner@host via SSH. If content=False, the value
        of the located file will be dumped under:
        $HOME/.cylc/auth/SUITE_OWNER@SUITE_HOST/SUITE_NAME/
@@ -350,8 +350,6 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
             SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE]:
         raise ValueError(f"{item}: item not recognised")
 
-    # For a UserFiles.Auth.SERVER_..._KEY_CERTIFICATE, only need to check Case
-    # '3/' (always ignore content i.e. content=False), so check these first:
     if item in [
             SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
             SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE,
@@ -359,11 +357,12 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
             SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE]:
 
         path = ""
-
+        # 1 (a)
         if ((item == SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE) or
            (item == SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE)):
             path = SuiteFiles.Service.get_certificate_dir_path(
                 reg, KeyType.PRIVATE)
+        # 1(b)
         elif ((item == SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE) or
               (item == SuiteFiles.Service.CLIENT_PUBLIC_KEY_CERTIFICATE)):
             path = SuiteFiles.Service.get_certificate_dir_path(
@@ -376,10 +375,10 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
     if reg == os.getenv('CYLC_SUITE_NAME'):
         env_keys = []
         if 'CYLC_SUITE_RUN_DIR' in os.environ:
-            # 1(a)/ Task messaging call.
+            # 2(a)/ Task messaging call.
             env_keys.append('CYLC_SUITE_RUN_DIR')
         elif ContactFileFields.SUITE_RUN_DIR_ON_SUITE_HOST in os.environ:
-            # 1(b)/ Task messaging call via ssh messaging.
+            # 2(b)/ Task messaging call via ssh messaging.
             env_keys.append(ContactFileFields.SUITE_RUN_DIR_ON_SUITE_HOST)
         for key in env_keys:
             path = os.path.join(os.environ[key], SuiteFiles.Service.DIRNAME)
@@ -389,7 +388,7 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
                 value = _locate_item(item, path)
             if value:
                 return value
-    # 2/ Local suite service directory
+    # 3/ Local suite service directory
     if _is_local_auth_ok(reg, owner, host):
         path = get_suite_srv_dir(reg)
         if content:
@@ -398,7 +397,7 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
             value = _locate_item(item, path)
         if value:
             return value
-    # 3/ Disk cache for remote suites
+    # 4/ Disk cache for remote suites
     if owner is not None and host is not None:
         paths = [_get_cache_dir(reg, owner, host)]
         short_host = host.split('.', 1)[0]
@@ -412,7 +411,7 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
             if value:
                 return value
 
-    # 4/ Use SSH to load content from remote owner@host
+    # 5/ Use SSH to load content from remote owner@host
     # Note: It is not possible to find ".service/contact2" on the suite
     # host, because it is installed on task host by "cylc remote-init" on
     # demand.
@@ -633,7 +632,11 @@ def create_auth_files(reg):
 
     # Remove old certificates if necessary
 
-    create_cert_directories(keys_dir, public_keys_dir, secret_keys_dir)
+    for d in [keys_dir, public_keys_dir, secret_keys_dir]:
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
     # Create new public/private keys in certificates directory
 
@@ -667,24 +670,6 @@ def create_auth_files(reg):
     # Delete temporary directory where keys were generated.
 
     shutil.rmtree(keys_dir)
-
-
-def create_cert_directories(keys_dir, public_keys_dir, secret_keys_dir):
-    for d in [keys_dir, public_keys_dir, secret_keys_dir]:
-        if os.path.exists(d):
-            shutil.rmtree(d)
-        os.mkdir(d)
-        os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
-
-    # If necessary, generate directory holding (in separate sub-dirs) the
-    # server (suite) public and private keys for authentication:
-    # ensure_suite_keys_exist(srv_d)
-
-    # Create a new passphrase for the suite if necessary.
-    # if not _locate_item(SuiteFiles.Service.PASSPHRASE, srv_d):
-    #     import random
-    #     _dump_item(srv_d, SuiteFiles.Service.PASSPHRASE, ''.join(
-    #         random.sample(PASSPHRASE_CHARSET, PASSPHRASE_LEN)))
 
 
 def _dump_item(path, item, value):
@@ -858,11 +843,3 @@ def _locate_item(item, path):
     fname = os.path.join(path, item)
     if os.path.exists(fname):
         return fname
-
-
-def return_key_locations(suite_service_directory):
-    """Return the paths to a directory's key files: (public, private)."""
-    return (
-        os.path.join(suite_service_directory, 'public_keys'),
-        os.path.join(suite_service_directory, 'private_keys')
-    )
