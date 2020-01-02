@@ -537,11 +537,7 @@ class CylcSuiteDAO(object):
         :return: a dict for mapping keys to the column values
         :rtype: dict
         """
-        s = select([
-            task_jobs.c.cycle,
-            task_jobs.c.name,
-            task_jobs.c.submit_num
-        ])
+        s = select([column for column in task_jobs.c])
         if submit_num in [None, "NN"]:
             s = s.where(
                 and_(
@@ -559,7 +555,11 @@ class CylcSuiteDAO(object):
             )
         with suppress(Exception):
             with self.connect() as conn:
-                return conn.execute(s).fetchall()
+                return {
+                    column: value
+                    for column, value
+                    in conn.execute(s).fetchone().items()
+                }
 
     def select_task_job_run_times(self, callback):
         """Select run times of succeeded task jobs grouped by task names.
