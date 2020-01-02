@@ -267,13 +267,6 @@ class Scheduler(object):
             # create & configure an authenticator for the ZMQ context
             self.curve_auth = ThreadAuthenticator(self.zmq_context, log=LOG)
             self.curve_auth.start()  # start the authentication thread
-            # check for user keys in the right location,
-            # and create if non-existent.
-
-            # if not suite_files.ensure_user_keys_exist():
-            #     raise CylcError("Unable to generate user authentication keys.")
-
-            
 
             # Setting the location means that the CurveZMQ auth will only
             # accept public client certificates from the given directory, as
@@ -282,7 +275,8 @@ class Scheduler(object):
             self.curve_auth.configure_curve(
                 domain='*',
                 location=(
-                    suite_files.SuiteFiles.Service.get_certificate_dir_path(self.suite, suite_files.KeyType.PUBLIC))
+                    suite_files.SuiteFiles.Service.get_certificate_dir_path(
+                        self.suite, suite_files.KeyType.PUBLIC))
             )
             # create thread sync barrier for setup
             barrier = Barrier(3, timeout=10)

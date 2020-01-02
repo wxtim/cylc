@@ -633,11 +633,7 @@ def create_auth_files(reg):
 
     # Remove old certificates if necessary
 
-    for d in [keys_dir, public_keys_dir, secret_keys_dir]:
-        if os.path.exists(d):
-            shutil.rmtree(d)
-        os.mkdir(d)
-        os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+    create_cert_directories(keys_dir, public_keys_dir, secret_keys_dir)
 
     # Create new public/private keys in certificates directory
 
@@ -671,6 +667,14 @@ def create_auth_files(reg):
     # Delete temporary directory where keys were generated.
 
     shutil.rmtree(keys_dir)
+
+
+def create_cert_directories(keys_dir, public_keys_dir, secret_keys_dir):
+    for d in [keys_dir, public_keys_dir, secret_keys_dir]:
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
     # If necessary, generate directory holding (in separate sub-dirs) the
     # server (suite) public and private keys for authentication:
