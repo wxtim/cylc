@@ -221,7 +221,7 @@ class CylcSuiteDAO(object):
         LOG.info(f"Connection URL: {self.conn_url}")
         self.engine = create_engine(
             self.conn_url,
-            echo=not is_public
+            echo=False
         )
         if self.is_sqlite() and file_name != '':
             # create if file does not exist
