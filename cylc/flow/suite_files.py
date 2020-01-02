@@ -342,7 +342,7 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
 
     """
     if item not in [
-            SuiteFiles.Service.PASSPHRASE, SuiteFiles.Service.CONTACT,
+            SuiteFiles.Service.CONTACT,
             SuiteFiles.Service.CONTACT2,
             SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
             SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE,
