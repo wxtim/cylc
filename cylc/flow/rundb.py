@@ -305,6 +305,8 @@ class CylcSuiteDAO(object):
 
     def execute_queued_items(self):
         """Execute queued items for each table."""
+        if not self.to_insert and not self.to_delete and not self.to_update:
+            return
         with self.connect() as conn:
             with conn.begin() as trans:
                 try:
@@ -315,6 +317,10 @@ class CylcSuiteDAO(object):
                         if table_name in self.to_insert:
                             # TODO: old code computed executemany for inserts
                             for stmt, args in self.to_insert.get(table_name):
+                                # TODO: sqlite-specific "insert or replace"!
+                                if self.is_sqlite():
+                                    stmt = stmt.prefix_with("OR REPLACE",
+                                                            dialect="sqlite")
                                 self._execute_stmt(stmt, args, conn)
                         if table_name in self.to_update:
                             for stmt, args in self.to_update[table_name]:
