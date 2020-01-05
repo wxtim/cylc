@@ -292,6 +292,7 @@ class TaskEventsManager():
         event_time=None,
         flag=FLAG_INTERNAL,
         submit_num=None,
+        force_spawn=None,
     ):
         """Parse an task message and update task state.
 
@@ -358,14 +359,19 @@ class TaskEventsManager():
         completed_trigger = itask.state.outputs.set_msg_trg_completion(
             message=message, is_completed=True)
 
-        from cylc.flow import patch_pudb; import pudb; pudb.set_trace()
         if completed_trigger is not None:
            ds = itask.tdef.downstreams
            for seq, dout in ds.items():
               if seq.is_on_sequence(itask.point):
                  for out, downs in dout.items():
                     if out.output == message:
-                       LOG.debug('>>>>>>>>> SPAWN ' + str(downs))
+                       for down in downs:
+                           LOG.debug('>>>>>>>>> SPAWN ' + str(down))
+                           name, offset = down
+                           point = itask.point
+                           if offset is not None:
+                               point = "TODO"
+                           force_spawn(name, point)
 
         if message == TASK_OUTPUT_STARTED:
             if (

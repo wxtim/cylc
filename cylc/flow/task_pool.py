@@ -992,12 +992,15 @@ class TaskPool(object):
             if itask.state.prerequisites_are_not_all_satisfied():
                 itask.state.satisfy_me(all_task_outputs)
 
-    def force_spawn(self, name):
+    def force_spawn(self, name, point):
         """Spawn task name. TODO point offset etc."""
         LOG.debug('[%s] -forced spawning', name)
-        for itask in self.get_tasks():
-            if itask.name == name:
-               new_task = TaskProxy(itask.tdef)
+        for tname in self.config.get_task_name_list():
+            if tname == name:
+               new_task = TaskProxy(
+                   self.config.get_taskdef(tname), point)
+               break
+        # TODO new_task not initialized
         return self.add_to_runahead_pool(new_task)
 
     def spawn_all_tasks(self):

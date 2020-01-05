@@ -640,7 +640,8 @@ see `COPYING' in the Cylc source distribution.
             for submit_num, event_time, severity, message in message_items:
                 if self.task_events_mgr.process_message(
                         itask, severity, message, event_time,
-                        self.task_events_mgr.FLAG_RECEIVED, submit_num):
+                        self.task_events_mgr.FLAG_RECEIVED, submit_num,
+                        self.pool.force_spawn):
                     should_poll = True
             if should_poll:
                 to_poll_tasks.append(itask)
@@ -1638,6 +1639,12 @@ see `COPYING' in the Cylc source distribution.
 
     def run(self):
         """Main loop."""
+        #import pudb, colorama
+        #colorama.deinit()
+        #pudb.set_trace()
+        #colorama.reinit()
+        from cylc.flow import cylc_pudb
+        cylc_pudb.set_trace()
         self.initialise_scheduler()
         self.data_store_mgr.initiate_data_model()
         self.publisher.publish(self.data_store_mgr.get_publish_deltas())

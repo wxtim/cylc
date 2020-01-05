@@ -72,16 +72,17 @@ class TaskDef(object):
         self.name = name
         self.elapsed_times = deque(maxlen=self.MAX_LEN_ELAPSED_TIMES)
 
-    # SOD
     def add_downstreams(self, trigger, downstream, sequence):
         # In each sequence, map outputs to downstream tasks.
         # {
         #     seq:
         #     {
-        #        output: [a.1, a.2]
+        #        output: [(a,o1), (b,o2)]  # (name, offset)
         #     }
         # }
-        self.downstreams.setdefault(sequence, {}).setdefault(trigger, []).append(downstream)
+        name = downstream
+        offset = trigger.cycle_point_offset
+        self.downstreams.setdefault(sequence, {}).setdefault(trigger, []).append((name, offset))
 
     def add_dependency(self, dependency, sequence):
         """Add a dependency to a named sequence.
