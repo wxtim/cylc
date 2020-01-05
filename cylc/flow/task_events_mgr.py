@@ -358,6 +358,15 @@ class TaskEventsManager():
         completed_trigger = itask.state.outputs.set_msg_trg_completion(
             message=message, is_completed=True)
 
+        from cylc.flow import patch_pudb; import pudb; pudb.set_trace()
+        if completed_trigger is not None:
+           ds = itask.tdef.downstreams
+           for seq, dout in ds.items():
+              if seq.is_on_sequence(itask.point):
+                 for out, downs in dout.items():
+                    if out.output == message:
+                       LOG.debug('>>>>>>>>> SPAWN ' + str(downs))
+
         if message == TASK_OUTPUT_STARTED:
             if (
                     flag == self.FLAG_RECEIVED

@@ -34,7 +34,7 @@ class TaskDef(object):
         "used_in_offset_trigger", "max_future_prereq_offset",
         "intercycle_offsets", "sequential", "is_coldstart",
         "suite_polling_cfg", "clocktrigger_offset", "expiration_offset",
-        "namespace_hierarchy", "dependencies", "outputs", "param_var",
+        "namespace_hierarchy", "dependencies", "downstreams", "outputs", "param_var",
         "external_triggers", "xtrig_labels", "name", "elapsed_times"]
 
     # Store the elapsed times for a maximum of 10 cycles
@@ -62,13 +62,26 @@ class TaskDef(object):
         self.expiration_offset = None
         self.namespace_hierarchy = []
         self.dependencies = {}
+        # SOD
         self.outputs = set()
+        self.downstreams = {}
         self.param_var = {}
         self.external_triggers = []
         self.xtrig_labels = {}  # {sequence: [labels]}
 
         self.name = name
         self.elapsed_times = deque(maxlen=self.MAX_LEN_ELAPSED_TIMES)
+
+    # SOD
+    def add_downstreams(self, trigger, downstream, sequence):
+        # In each sequence, map outputs to downstream tasks.
+        # {
+        #     seq:
+        #     {
+        #        output: [a.1, a.2]
+        #     }
+        # }
+        self.downstreams.setdefault(sequence, {}).setdefault(trigger, []).append(downstream)
 
     def add_dependency(self, dependency, sequence):
         """Add a dependency to a named sequence.

@@ -551,13 +551,15 @@ see `COPYING' in the Cylc source distribution.
             if self.config.start_point is None:
                 # No start cycle point at which to load cycling tasks.
                 continue
-            try:
-                self.pool.add_to_runahead_pool(TaskProxy(
-                    self.config.get_taskdef(name), self.config.start_point,
-                    is_startup=True))
-            except TaskProxySequenceBoundsError as exc:
-                LOG.debug(str(exc))
-                continue
+            # Add only tasks with no prerequisites, to the task pool.
+            tdef = self.config.get_taskdef(name)
+            if not tdef.dependencies:
+                try:
+                   self.pool.add_to_runahead_pool(TaskProxy(
+                      tdef, self.config.start_point, is_startup=True))
+                except TaskProxySequenceBoundsError as exc:
+                   LOG.debug(str(exc))
+                   continue
 
     def load_tasks_for_restart(self):
         """Load tasks for restart."""
@@ -1299,8 +1301,12 @@ see `COPYING' in the Cylc source distribution.
                 LOG.info(
                     '[%s] -triggered off %s',
                     itask, itask.state.get_resolved_dependencies())
+
+        # SOD   self.pool.spawn_all_tasks,
+        # IMPLEMENTATION PLAN
+        # 1) REPLACE SOS WITH SOD BUT KEEP DEP MATCHING AND SUCCEEDED TASKS.
+        # 2) REPLACE DEP MAT. WITH DIRECT SATISFN, AND DITCH SUCCEEDED TASKS.
         for meth in [
-                self.pool.spawn_all_tasks,
                 self.pool.remove_spent_tasks,
                 self.pool.remove_suiciding_tasks]:
             if meth():

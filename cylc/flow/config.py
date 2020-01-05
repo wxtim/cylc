@@ -1661,6 +1661,18 @@ class SuiteConfig(object):
 
             triggers[left] = task_trigger
 
+            # SOD
+            # (name is left name)
+            print(name, right)
+            print('> ', task_trigger.task_name)
+            print('> ', task_trigger.abs_cycle_point)
+            print('> ', task_trigger.cycle_point_offset)
+            print('> ', task_trigger.output)
+            # Task trigger is meant to represent the upstream dep of right
+            # but here using it as the output of left, that points to right.
+            # (task_trigger.task_name is left)
+            self.taskdefs[name].add_downstreams(task_trigger, right, seq)
+
         # Walk down "expr_list" depth first, and replace any items matching a
         # key in "triggers" ("left" values) with the trigger.
         stack = [expr_list]
@@ -2062,6 +2074,7 @@ class SuiteConfig(object):
 
     def load_graph(self):
         """Parse and load dependency graph."""
+
         LOG.debug("Parsing the dependency graph")
 
         # Generate a map of *task* members of each family.
@@ -2104,6 +2117,7 @@ class SuiteConfig(object):
                 sections.append((section, value))
 
         # Parse and process each graph section.
+
         task_triggers = {}
         for section, graph in sections:
             try:
@@ -2133,6 +2147,7 @@ class SuiteConfig(object):
 
     def _proc_triggers(self, triggers, original, seq, task_triggers):
         """Define graph edges, taskdefs, and triggers, from graph sections."""
+
         for right, val in triggers.items():
             for expr, trigs in val.items():
                 lefts, suicide = trigs
@@ -2141,6 +2156,7 @@ class SuiteConfig(object):
                 self.generate_taskdefs(orig, lefts, right, seq)
                 self.generate_triggers(
                     expr, lefts, right, seq, suicide, task_triggers)
+
 
     def find_taskdefs(self, name):
         """Find TaskDef objects in family "name" or matching "name".

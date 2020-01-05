@@ -992,17 +992,12 @@ class TaskPool(object):
             if itask.state.prerequisites_are_not_all_satisfied():
                 itask.state.satisfy_me(all_task_outputs)
 
-    def force_spawn(self, itask):
-        """Spawn successor of itask."""
-        if itask.has_spawned:
-            return None
-        itask.has_spawned = True
-        LOG.debug('[%s] -forced spawning', itask)
-        next_point = itask.next_point()
-        if next_point is None:
-            return
-        new_task = TaskProxy(
-            itask.tdef, start_point=next_point, stop_point=itask.stop_point)
+    def force_spawn(self, name):
+        """Spawn task name. TODO point offset etc."""
+        LOG.debug('[%s] -forced spawning', name)
+        for itask in self.get_tasks():
+            if itask.name == name:
+               new_task = TaskProxy(itask.tdef)
         return self.add_to_runahead_pool(new_task)
 
     def spawn_all_tasks(self):
