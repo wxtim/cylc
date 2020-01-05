@@ -30,12 +30,14 @@ from cylc.flow.exceptions import ClientError, CylcError, SuiteServiceFileError
 from cylc.flow.hostuserutil import get_fqdn_by_host
 from cylc.flow.suite_files import (
     ContactFileFields,
-    create_auth_files,
     get_auth_item,
     KeyType,
+    KeyOwner,
+    KeyInfo,
     load_contact_file,
     SuiteFiles,
-    UserFiles
+    UserFiles,
+    get_suite_srv_dir
 )
 
 API = 5  # cylc API version
@@ -161,35 +163,40 @@ class ZMQSocketBase:
         # initiate bespoke items
         self._bespoke_start()
 
-    def _socket_bind(self, min_port, max_port, private_key_location=None):
+    def _socket_bind(self, min_port, max_port, srv_prv_key_loc=None):
         """Bind socket.
 
         Will use a port range provided to select random ports.
 
         """
-        if private_key_location is None:
-            private_key_location = get_auth_item(
-                SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
-                self.suite
-            )
-
+        if srv_prv_key_loc is None:
+            # Create new KeyInfo object for the server private key
+            suite_srv_dir = get_suite_srv_dir(self.suite)
+            srv_prv_key_info = KeyInfo(KeyType.PRIVATE, KeyOwner.SERVER, suite_srv_dir=suite_srv_dir)
+        else:
+            srv_prv_key_info = KeyInfo(KeyType.PRIVATE, KeyOwner.SERVER, full_key_path=srv_prv_key_loc)
+            srv_prv_key = get_auth_item(
+                srv_prv_key_info,
+                self.suite,
+                content=False)
+            
         # create socket
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
 
         try:
             server_public_key, server_private_key = zmq.auth.load_certificate(
-                private_key_location)
+                srv_prv_key.full_key_path)
         except (ValueError):
             raise SuiteServiceFileError(f"Failed to find server's public "
-                                        f"key in {private_key_location}.")
+                                        f"key in {srv_prv_key.full_key_path}.")
         except(OSError):
             raise SuiteServiceFileError(f"IO error opening server's private "
-                                        f"key from {private_key_location}.")
+                                        f"key from {srv_prv_key.full_key_path}.")
 
         if server_private_key is None:  # this can't be caught by exception
             raise SuiteServiceFileError(f"Failed to find server's private "
-                                        f"key in {private_key_location}.")
+                                        f"key in {srv_prv_key.full_key_path}.")
 
         self.socket.curve_publickey = server_public_key
         self.socket.curve_secretkey = server_private_key
@@ -211,8 +218,14 @@ class ZMQSocketBase:
     def _socket_connect(self, host, port, srv_public_key_loc=None):
         """Connect socket to stub."""
         if srv_public_key_loc is None:
-            srv_public_key_loc = get_auth_item(
-                SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE,
+            # Create new KeyInfo object for the server public key
+            suite_srv_dir = get_suite_srv_dir(self.suite)
+            srv_pub_key_info = KeyInfo(KeyType.PUBLIC, KeyOwner.SERVER, suite_srv_dir=suite_srv_dir)
+        else:
+            srv_pub_key_info = KeyInfo(KeyType.PUBLIC, KeyOwner.SERVER, full_key_path=srv_public_key_loc)
+
+            srv_public_key = get_auth_item(
+                srv_pub_key_info,
                 self.suite,
                 content=False)
 
@@ -221,14 +234,11 @@ class ZMQSocketBase:
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
 
-        client_priv_keyfile = os.path.join(
-            SuiteFiles.Service.get_certificate_dir_path(
-                self.suite, KeyType.PRIVATE),
-            SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE)
+        client_priv_key_info = KeyInfo(KeyType.PRIVATE, KeyOwner.CLIENT, suite_srv_dir=suite_srv_dir)
         error_msg = "Failed to find user's private key, so cannot connect."
         try:
             client_public_key, client_priv_key = zmq.auth.load_certificate(
-                client_priv_keyfile)
+                client_priv_key_info.full_key_path)
         except (OSError, ValueError):
             raise ClientError(error_msg)
         if client_priv_key is None:  # this can't be caught by exception
@@ -245,7 +255,7 @@ class ZMQSocketBase:
             # so it is OK to use; there is no method to load only the
             # public key.
             server_public_key = zmq.auth.load_certificate(
-                srv_public_key_loc)[0]
+                srv_public_key)[0]
             self.socket.curve_serverkey = server_public_key
         except (OSError, ValueError):  # ValueError raised w/ no public key
             raise ClientError(

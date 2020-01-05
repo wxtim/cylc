@@ -51,7 +51,7 @@ def test_server_cannot_start_when_server_private_key_cannot_be_loaded():
         SuiteServiceFileError,
         match=r"IO error opening server's private key from "
     ):
-        server.start(*PORT_RANGE, private_key_location="fake_location")
+        server.start(*PORT_RANGE, srv_prv_key_loc="fake_location")
 
     server.stop()
 
@@ -69,7 +69,7 @@ def test_server_cannot_start_when_certificate_file_only_contains_public_key():
             SuiteServiceFileError,
             match=r"Failed to find server's private key in "
         ):
-            server.start(*PORT_RANGE, private_key_location=pub)
+            server.start(*PORT_RANGE, srv_prv_key_loc=pub)
 
         server.stop()
 
@@ -88,7 +88,7 @@ def test_server_cannot_start_when_public_key_not_found_in_certificate_file():
             SuiteServiceFileError,
             match=r"Failed to find server's public key in "
         ):
-            server.start(*PORT_RANGE, private_key_location=priv_key_loc)
+            server.start(*PORT_RANGE, srv_prv_key_loc=priv_key_loc)
 
         server.stop()
 
@@ -99,7 +99,7 @@ def test_client_requires_valid_server_public_key():
 
     with TemporaryDirectory() as keys:
         _pub, _priv = zmq.auth.create_certificates(keys, "client")
-        SuiteFiles.Service.get_certificate_dir_path = MagicMock(
+        SuiteFiles.Service.get_key_path = MagicMock(
             return_value=keys)
 
         port = random.choice(PORT_RANGE)
@@ -108,7 +108,7 @@ def test_client_requires_valid_server_public_key():
         with pytest.raises(
                 ClientError, match=r"Failed to load the suite's public "
                 "key, so cannot connect."):
-            client.start(HOST, port, srv_public_key_loc="fake_location")
+            client.start(HOST, port, srv_public_key_loc="broken_path")
 
     client.stop()
 

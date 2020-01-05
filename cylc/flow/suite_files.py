@@ -42,6 +42,61 @@ class KeyType(Enum):
     PUBLIC = "public"
 
 
+class KeyOwner(Enum):
+    SERVER = "server"
+    CLIENT = "client"
+
+
+class KeyInfo():
+    """Represents a server or client key file, which can private or public.
+
+    Attributes:
+        full_key_path     The absolute path, including filename, for this key object.
+
+        TODO DOCUMENT the kwargs here??
+    """
+
+    file_name = None
+    key_type = None
+    key_owner = None
+    key_path = None
+    full_key_path = None
+
+
+    def __init__(self, key_type, key_owner, **kwargs):        
+        self.key_type = key_type
+        self.key_owner = key_owner        
+
+        if 'full_key_path' in kwargs:
+            self.key_path, self.file_name = os.path.split(kwargs.get("full_key_path"))
+        elif 'suite_srv_dir' in kwargs:
+            # Build key filename
+
+            file_name = key_owner.value
+
+            # Add optional platform name (supports future multiple client keys)
+            if key_owner is KeyOwner.CLIENT and 'platform' in kwargs.get("platform"):
+                file_name = file_name + "f_{platform}"
+
+            if key_type == KeyType.PRIVATE:
+                file_extension = SuiteFiles.Service.PRIVATE_FILE_EXTENSION
+            elif key_type == KeyType.PUBLIC:
+                file_extension = SuiteFiles.Service.PUBLIC_FILE_EXTENSION
+
+            self.file_name = f"{file_name}{file_extension}"
+
+            # Build key path (without filename)
+
+            temp = f"{key_owner.value}_keys"
+            self.key_path = os.path.join(os.path.expanduser("~"), kwargs.get("suite_srv_dir"), temp, key_type.value)
+        else:
+            raise ValueError("Cannot create KeyInfo without the suite path or full path.")
+
+        # Build full key path (including file name)
+
+        self.full_key_path = os.path.join(self.key_path, self.file_name)
+
+        
 class SuiteFiles:
     """Files and directories located in the suite directory."""
 
@@ -68,39 +123,13 @@ class SuiteFiles:
 
         SOURCE = 'source'
         """Symlink to the suite definition (suite dir)."""
-
-        PUBLIC_KEY_DIRNAME = 'public_keys'
-        """The name of the directory holding the public key certificates."""
-
-        PRIVATE_KEY_DIRNAME = 'private_keys'
-        """The name of the directory holding the private key certificates."""
-
-        SERVER_TAG = 'server'  # for server, i.e. suite, keys
-        CLIENT_TAG = 'client'  # for client, i.e. user, keys
-        PUBLIC_TAG = '.key'  # for public keys
-        PRIVATE_TAG = '.key_secret'  # for private ('secret') keys
-        """Keyword identifiers used to form the certificate names, as below.
-
+        
+        PUBLIC_FILE_EXTENSION = '.key'
+        PRIVATE_FILE_EXTENSION = '.key_secret'
+        """Keyword identifiers used to form the certificate names.
         Note: the public & private identifiers are set by CurveZMQ, so cannot
         be renamed, but we hard-code them since they can't be extracted easily.
         """
-
-        SERVER_PUBLIC_KEY_CERTIFICATE = SERVER_TAG + PUBLIC_TAG
-        CLIENT_PUBLIC_KEY_CERTIFICATE = CLIENT_TAG + PUBLIC_TAG
-        SERVER_PRIVATE_KEY_CERTIFICATE = SERVER_TAG + PRIVATE_TAG
-        CLIENT_PRIVATE_KEY_CERTIFICATE = CLIENT_TAG + PRIVATE_TAG
-        """The name of the authentication certificates."""
-
-        @classmethod
-        def get_certificate_dir_path(cls, suite, key_type):
-            """Return the directory path of a certificate."""
-            suite_dir = os.path.join(
-                os.path.expanduser("~"), get_suite_srv_dir(suite))
-            if key_type == KeyType.PRIVATE:
-                return os.path.join(suite_dir, cls.PRIVATE_KEY_DIRNAME)
-            if key_type == KeyType.PUBLIC:
-                return os.path.join(suite_dir, cls.PUBLIC_KEY_DIRNAME)
-
 
 class ContactFileFields:
     """Field names present in ``SuiteFiles.Service.CONTACT``.
@@ -343,34 +372,20 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
     """
     if item not in [
             SuiteFiles.Service.CONTACT,
-            SuiteFiles.Service.CONTACT2,
-            SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
-            SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE,
-            SuiteFiles.Service.CLIENT_PUBLIC_KEY_CERTIFICATE,
-            SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE]:
+            SuiteFiles.Service.CONTACT2] and not isinstance(item, KeyInfo):
         raise ValueError(f"{item}: item not recognised")
 
-    if item in [
-            SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE,
-            SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE,
-            SuiteFiles.Service.CLIENT_PUBLIC_KEY_CERTIFICATE,
-            SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE]:
-
-        path = ""
         # 1 (a)
-        if ((item == SuiteFiles.Service.SERVER_PRIVATE_KEY_CERTIFICATE) or
-           (item == SuiteFiles.Service.CLIENT_PRIVATE_KEY_CERTIFICATE)):
-            path = SuiteFiles.Service.get_certificate_dir_path(
-                reg, KeyType.PRIVATE)
-        # 1(b)
-        elif ((item == SuiteFiles.Service.SERVER_PUBLIC_KEY_CERTIFICATE) or
-              (item == SuiteFiles.Service.CLIENT_PUBLIC_KEY_CERTIFICATE)):
-            path = SuiteFiles.Service.get_certificate_dir_path(
-                reg, KeyType.PUBLIC)
+    if isinstance(item, KeyInfo):
 
-        value = _locate_item(item, path)
-        if value:
-            return value
+        item_location = _locate_item(item.FileName, item.key_path)
+
+        # Temporary hack until we can separate key file 'get' into own function
+        # Additional searches below need a file name, not a complex object
+        item = item.FileName
+
+        if item_location:
+            return item_location
 
     if reg == os.getenv('CYLC_SUITE_NAME'):
         env_keys = []
@@ -619,59 +634,55 @@ def create_auth_files(reg):
     """Create or renew authentication keys for suite 'reg' in the .service
      directory."""
 
-    suite_service_directory = get_suite_srv_dir(reg)
-    os.makedirs(suite_service_directory, exist_ok=True)
+    suite_srv_dir = get_suite_srv_dir(reg)
 
-    # Create directories in cylc-run/<SUITE_NAME>/.service for certificates
+    keys = {"client_public_key": KeyInfo(KeyType.PUBLIC, KeyOwner.CLIENT, suite_srv_dir=suite_srv_dir),
+            "client_private_key": KeyInfo(KeyType.PRIVATE, KeyOwner.CLIENT, suite_srv_dir=suite_srv_dir),
+            "server_public_key": KeyInfo(KeyType.PUBLIC, KeyOwner.SERVER, suite_srv_dir=suite_srv_dir),
+            "server_private_key": KeyInfo(KeyType.PRIVATE, KeyOwner.SERVER, suite_srv_dir=suite_srv_dir)}
 
-    keys_dir = os.path.join(suite_service_directory, 'certificates')
-    public_keys_dir = SuiteFiles.Service.get_certificate_dir_path(
-        reg, KeyType.PUBLIC)
-    secret_keys_dir = SuiteFiles.Service.get_certificate_dir_path(
-        reg, KeyType.PRIVATE)
+    # WARNING, DESTRUCTIVE. Removes old key folders if they already exist.
+    for k in keys:
+        if os.path.exists(k.key_path):
+            shutil.rmtree(k.key_path)
+        os.makedirs(k.key_path, exist_ok=True)
+        os.chmod(k.key_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
-    # Remove old certificates if necessary
+    temp_keys_dir = os.path.join(suite_srv_dir, 'keys')
+    os.mkdir(temp_keys_dir)
 
-    for d in [keys_dir, public_keys_dir, secret_keys_dir]:
-        if os.path.exists(d):
-            shutil.rmtree(d)
-        os.mkdir(d)
-        os.chmod(d, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+    # ZMQ generates keys in a temporary directory.
+    # Move these to .service directory.
+    temp_client_public_key_path, temp_client_private_key_path = (
+        zmq.auth.create_certificates(temp_keys_dir, KeyOwner.CLIENT.value))
+    client_public_keys_path = shutil.move(
+        temp_client_public_key_path,
+        keys["client_public_key"].key_path)
+    os.chmod(client_public_keys_path, stat.S_IRUSR |
+             stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+    client_private_key_path = shutil.move(
+        temp_client_private_key_path,
+        keys["client_private_key"].key_path)
+    os.chmod(client_private_key_path, stat.S_IRUSR | stat.S_IWUSR)
+    
+    
+    temp_server_public_key_path, temp_server_private_key_path = (
+        zmq.auth.create_certificates(
+            temp_keys_dir, KeyOwner.SERVER.value))
+    server_public_keys_path = shutil.move(
+        temp_server_public_key_path, 
+        keys["server_public_key"].key_path)
+    os.chmod(server_public_keys_path, stat.S_IRUSR |
+                stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+    server_private_key_path = shutil.move(
+        temp_server_private_key_path,
+        keys["server_private_key"].key_path)
 
-    # Create new public/private keys in certificates directory
-
-    _, _ = zmq.auth.create_certificates(
-        keys_dir, SuiteFiles.Service.SERVER_TAG)
-    _, _ = zmq.auth.create_certificates(
-        keys_dir, SuiteFiles.Service.CLIENT_TAG)
-
-    # Move public keys to appropriate directory
-
-    for key_file in os.listdir(keys_dir):
-        if key_file.endswith(".key"):
-            shutil.move(os.path.join(keys_dir, key_file),
-                        os.path.join(public_keys_dir, '.'))
-            public_key_file_path = os.path.join(public_keys_dir, key_file)
-            os.chmod(
-                public_key_file_path,
-                stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
-            )
-
-    # Move secret/private keys to appropriate directory
-
-    for key_file in os.listdir(keys_dir):
-        if key_file.endswith(".key_secret"):
-            shutil.move(os.path.join(keys_dir, key_file),
-                        os.path.join(secret_keys_dir, '.'))
-            secret_key_file_path = os.path.join(secret_keys_dir, key_file)
-            os.chmod(
-                secret_key_file_path,
-                stat.S_IRUSR | stat.S_IWUSR
-            )
+    os.chmod(server_private_key_path, stat.S_IRUSR | stat.S_IWUSR)
 
     # Delete temporary directory where keys were generated.
 
-    shutil.rmtree(keys_dir)
+    shutil.rmtree(temp_keys_dir)
 
 
 def _dump_item(path, item, value):
