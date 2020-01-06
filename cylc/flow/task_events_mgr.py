@@ -358,15 +358,16 @@ class TaskEventsManager():
             new_msg)
 
         # Satisfy my output, if possible, and record the result.
+        # (first remove signal: failed/EXIT -> failed)
+        msg0 = message.split('/')[0]
         completed_trigger = itask.state.outputs.set_msg_trg_completion(
-            message=message, is_completed=True)
-
+            message=msg0, is_completed=True)
         if completed_trigger is not None:
            ds = itask.tdef.downstreams
            for seq, dout in ds.items():
               if seq.is_on_sequence(itask.point):
                  for out, downs in dout.items():
-                    if out.output == message:
+                    if out.output == msg0:
                        for down in downs:
                            name, offset = down
                            up_point = itask.point
@@ -374,7 +375,8 @@ class TaskEventsManager():
                                point = up_point - get_interval(offset)
                            else:
                                point = up_point
-                           spawn(itask.tdef.name, up_point, name, point, message)
+                           self.pflag = True
+                           spawn(itask.tdef.name, up_point, name, point, msg0)
 
         if message == TASK_OUTPUT_STARTED:
             if (
@@ -471,7 +473,6 @@ class TaskEventsManager():
             itask.non_unique_events[lseverity] += 1
             self.setup_event_handlers(itask, lseverity, message)
 
-        # SOD:
         if message == TASK_OUTPUT_SUCCEEDED:
             remove(itask)
  

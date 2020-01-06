@@ -504,6 +504,11 @@ class TaskPool(object):
         self.rhpool_changed = True
         if itask.tdef.max_future_prereq_offset is not None:
             self.set_max_future_offset()
+        if not itask.tdef.dependencies:
+           next_point = itask.next_point()
+           if next_point is not None:
+              name = itask.tdef.name
+              self.spawn(name, itask.point, name, next_point)
 
     def remove(self, itask, reason=None):
         """Remove a task proxy from the pool."""
@@ -991,11 +996,9 @@ class TaskPool(object):
             if itask.state.prerequisites_are_not_all_satisfied():
                 itask.state.satisfy_me(all_task_outputs)
 
-    def spawn(self, up_name, up_point, name, point, message):
+    def spawn(self, up_name, up_point, name, point, message=None):
         """Spawn task name. TODO point offset etc."""
         LOG.debug('[%s] -forced spawning', name)
-        outputs = set([])
-        outputs.add((up_name, str(up_point), message))
         itask = None
         for jtask in self.get_all_tasks():
             if jtask.tdef.name == name and jtask.point == point:
@@ -1009,7 +1012,10 @@ class TaskPool(object):
                    self.add_to_runahead_pool(itask)
                    break
         # TODO itask not found? (shouldn't happen)
-        itask.state.satisfy_me(outputs)
+        if message is not None:
+           outputs = set([])
+           outputs.add((up_name, str(up_point), message))
+           itask.state.satisfy_me(outputs)
 
     def remove_suiciding_tasks(self):
         """Remove any tasks that have suicide-triggered.

@@ -1647,7 +1647,8 @@ see `COPYING' in the Cylc source distribution.
 
     def run(self):
         """Main loop."""
-        #from cylc.flow import cylc_pudb; cylc_pudb.set_trace()
+        #from cylc.flow import patch_pudb
+        #from pudb import set_trace; set_trace()
         self.initialise_scheduler()
         self.data_store_mgr.initiate_data_model()
         self.publisher.publish(self.data_store_mgr.get_publish_deltas())
