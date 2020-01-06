@@ -1627,15 +1627,15 @@ class SuiteConfig(object):
                 abs_cycle_point = first_point
                 if last_point is None:
                     # This dependency persists for the whole suite run.
-                    ltaskdef.intercycle_offsets.add((None, seq))
+                    ltaskdef.intercycle_offsets.add((None, seq, name))
                 else:
                     ltaskdef.intercycle_offsets.add(
-                        (str(-(last_point - first_point)), seq))
+                        (str(-(last_point - first_point)), seq, name))
             elif offset:
                 if offset_is_irregular:
-                    offset_tuple = (offset, seq)
+                    offset_tuple = (offset, seq, name)
                 else:
-                    offset_tuple = (offset, None)
+                    offset_tuple = (offset, None, name)
                 ltaskdef.intercycle_offsets.add(offset_tuple)
                 cycle_point_offset = offset
 
@@ -1661,7 +1661,6 @@ class SuiteConfig(object):
 
             triggers[left] = task_trigger
 
-            # SOD
             # (name is left name)
             print(name, right)
             print('> ', task_trigger.task_name)

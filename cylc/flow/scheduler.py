@@ -551,9 +551,15 @@ see `COPYING' in the Cylc source distribution.
             if self.config.start_point is None:
                 # No start cycle point at which to load cycling tasks.
                 continue
-            # Add only tasks with no prerequisites, to the task pool.
+            # Add only tasks with no prerequisites, or only previous instance
+            # dep, to the task pool.
             tdef = self.config.get_taskdef(name)
-            if not tdef.dependencies:
+            addtopool = True
+            for offset, seq, oname in tdef.intercycle_offsets:
+                if oname != name:
+                    addtopool = False
+                    break
+            if addtopool:
                 try:
                    self.pool.add_to_runahead_pool(TaskProxy(
                       tdef, self.config.start_point, is_startup=True))
@@ -1639,12 +1645,7 @@ see `COPYING' in the Cylc source distribution.
 
     def run(self):
         """Main loop."""
-        #import pudb, colorama
-        #colorama.deinit()
-        #pudb.set_trace()
-        #colorama.reinit()
-        from cylc.flow import cylc_pudb
-        cylc_pudb.set_trace()
+        from cylc.flow import cylc_pudb; cylc_pudb.set_trace()
         self.initialise_scheduler()
         self.data_store_mgr.initiate_data_model()
         self.publisher.publish(self.data_store_mgr.get_publish_deltas())

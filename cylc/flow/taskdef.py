@@ -131,7 +131,7 @@ class TaskDef(object):
             # This task does not have dependent tasks at other cycles.
             return point
         cutoff_points = []
-        for offset_string, sequence in self.intercycle_offsets:
+        for offset_string, sequence, _ in self.intercycle_offsets:
             if offset_string is None:
                 # This indicates a dependency that lasts for the whole run.
                 return None

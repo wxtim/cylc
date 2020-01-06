@@ -57,6 +57,7 @@ from cylc.flow.task_outputs import (
     TASK_OUTPUT_FAILED, TASK_OUTPUT_SUBMIT_FAILED, TASK_OUTPUT_EXPIRED)
 from cylc.flow.wallclock import (
     get_current_time_string, get_seconds_as_interval_string as intvl_as_str)
+from cylc.flow.cycling.loader import get_interval
 
 CustomTaskEventHandlerContext = namedtuple(
     "CustomTaskEventHandlerContext",
@@ -370,7 +371,7 @@ class TaskEventsManager():
                            name, offset = down
                            point = itask.point
                            if offset is not None:
-                               point = "TODO"
+                               point = point - get_interval(offset)
                            force_spawn(name, point)
 
         if message == TASK_OUTPUT_STARTED:
