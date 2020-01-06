@@ -554,12 +554,14 @@ see `COPYING' in the Cylc source distribution.
             # Add only tasks with no prerequisites, or only previous instance
             # dep, to the task pool.
             tdef = self.config.get_taskdef(name)
-            addtopool = True
-            for offset, seq, oname in tdef.intercycle_offsets:
-                if oname != name:
-                    addtopool = False
-                    break
-            if addtopool:
+            add = False
+            if not tdef.dependencies:
+                add = True
+            elif len(tdef.intercycle_offsets) == 1:
+                for off, seq, nme in tdef.intercycle_offsets:
+                    if nme == name:
+                        add = True
+            if add:
                 try:
                    self.pool.add_to_runahead_pool(TaskProxy(
                       tdef, self.config.start_point, is_startup=True))

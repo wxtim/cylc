@@ -36,8 +36,6 @@ class TaskProxy(object):
             Clock trigger time in seconds since epoch.
         .expire_time (float):
             Time in seconds since epoch when this task is considered expired.
-        .has_spawned (boolean):
-            Has this task spawned its successor in the sequence?
         .identity (str):
             Task ID in NAME.POINT syntax.
         .is_late (boolean):
@@ -133,8 +131,6 @@ class TaskProxy(object):
             Task state string.
         is_held (bool):
             True if the task is held, else False.
-        has_spawned (boolean):
-            Has this task spawned its successor in the sequence.
         stop_point (cylc.flow.cycling.PointBase):
             Do not spawn successor beyond this point.
         is_startup (boolean):
@@ -151,7 +147,6 @@ class TaskProxy(object):
         'cleanup_cutoff',
         'clock_trigger_time',
         'expire_time',
-        'has_spawned',
         'identity',
         'is_late',
         'is_manual_submit',
@@ -178,7 +173,7 @@ class TaskProxy(object):
 
     def __init__(
             self, tdef, start_point, status=TASK_STATUS_WAITING,
-            is_held=False, has_spawned=False, stop_point=None,
+            is_held=False, stop_point=None,
             is_startup=False, submit_num=0, is_late=False):
         self.tdef = tdef
         if submit_num is None:
@@ -204,7 +199,6 @@ class TaskProxy(object):
         self.cleanup_cutoff = self.tdef.get_cleanup_cutoff_point(self.point)
         self.identity = TaskID.get(self.tdef.name, self.point)
 
-        self.has_spawned = has_spawned
         self.reload_successor = None
         self.point_as_seconds = None
 
@@ -271,7 +265,6 @@ class TaskProxy(object):
         """Copy attributes to successor on reload of this task proxy."""
         self.reload_successor = reload_successor
         reload_successor.submit_num = self.submit_num
-        reload_successor.has_spawned = self.has_spawned
         reload_successor.manual_trigger = self.manual_trigger
         reload_successor.is_manual_submit = self.is_manual_submit
         reload_successor.summary = self.summary
@@ -329,7 +322,6 @@ class TaskProxy(object):
         ret['submit_num'] = self.submit_num
         ret['state'] = self.state.status
         ret['is_held'] = self.state.is_held
-        ret['spawned'] = str(self.has_spawned)
         ntimes = len(self.tdef.elapsed_times)
         if ntimes:
             ret['mean_elapsed_time'] = (
