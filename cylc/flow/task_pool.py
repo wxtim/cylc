@@ -991,16 +991,25 @@ class TaskPool(object):
             if itask.state.prerequisites_are_not_all_satisfied():
                 itask.state.satisfy_me(all_task_outputs)
 
-    def force_spawn(self, name, point):
+    def spawn(self, up_name, up_point, name, point, message):
         """Spawn task name. TODO point offset etc."""
         LOG.debug('[%s] -forced spawning', name)
-        for tname in self.config.get_task_name_list():
-            if tname == name:
-               new_task = TaskProxy(
-                   self.config.get_taskdef(tname), point)
-               break
-        # TODO new_task not initialized
-        return self.add_to_runahead_pool(new_task)
+        outputs = set([])
+        outputs.add((up_name, str(up_point), message))
+        itask = None
+        for jtask in self.get_all_tasks():
+            if jtask.tdef.name == name and jtask.point == point:
+                itask = jtask
+                break
+        if itask is None:
+            for tname in self.config.get_task_name_list():
+                if tname == name:
+                   itask = TaskProxy(
+                       self.config.get_taskdef(tname), point)
+                   self.add_to_runahead_pool(itask)
+                   break
+        # TODO itask not found? (shouldn't happen)
+        itask.state.satisfy_me(outputs)
 
     def remove_suiciding_tasks(self):
         """Remove any tasks that have suicide-triggered.

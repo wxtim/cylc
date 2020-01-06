@@ -1662,11 +1662,11 @@ class SuiteConfig(object):
             triggers[left] = task_trigger
 
             # (name is left name)
-            print(name, right)
-            print('> ', task_trigger.task_name)
-            print('> ', task_trigger.abs_cycle_point)
-            print('> ', task_trigger.cycle_point_offset)
-            print('> ', task_trigger.output)
+            #print(name, right)
+            #print('> ', task_trigger.task_name)
+            #print('> ', task_trigger.abs_cycle_point)
+            #print('> ', task_trigger.cycle_point_offset)
+            #print('> ', task_trigger.output)
             # Task trigger is meant to represent the upstream dep of right
             # but here using it as the output of left, that points to right.
             # (task_trigger.task_name is left)

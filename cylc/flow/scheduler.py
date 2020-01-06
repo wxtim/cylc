@@ -649,7 +649,7 @@ see `COPYING' in the Cylc source distribution.
                 if self.task_events_mgr.process_message(
                         itask, severity, message, event_time,
                         self.task_events_mgr.FLAG_RECEIVED, submit_num,
-                        self.pool.force_spawn):
+                        self.pool.spawn, self.pool.remove):
                     should_poll = True
             if should_poll:
                 to_poll_tasks.append(itask)
@@ -1299,7 +1299,7 @@ see `COPYING' in the Cylc source distribution.
         time0 = time()
         if self._get_events_conf(self.EVENT_INACTIVITY_TIMEOUT):
             self.set_suite_inactivity_timer()
-        self.pool.match_dependencies()
+        #self.pool.match_dependencies()
         if self.stop_mode is None and self.auto_restart_time is None:
             itasks = self.pool.get_ready_tasks()
             if itasks:
@@ -1315,11 +1315,11 @@ see `COPYING' in the Cylc source distribution.
         # IMPLEMENTATION PLAN
         # 1) REPLACE SOS WITH SOD BUT KEEP DEP MATCHING AND SUCCEEDED TASKS.
         # 2) REPLACE DEP MAT. WITH DIRECT SATISFN, AND DITCH SUCCEEDED TASKS.
-        for meth in [
-                self.pool.remove_spent_tasks,
-                self.pool.remove_suiciding_tasks]:
-            if meth():
-                self.is_updated = True
+        #for meth in [
+        #        self.pool.remove_spent_tasks,
+        #        self.pool.remove_suiciding_tasks]:
+        #    if meth():
+        #        self.is_updated = True
 
         self.broadcast_mgr.expire_broadcast(self.pool.get_min_point())
         self.xtrigger_mgr.housekeep()
@@ -1647,7 +1647,7 @@ see `COPYING' in the Cylc source distribution.
 
     def run(self):
         """Main loop."""
-        from cylc.flow import cylc_pudb; cylc_pudb.set_trace()
+        #from cylc.flow import cylc_pudb; cylc_pudb.set_trace()
         self.initialise_scheduler()
         self.data_store_mgr.initiate_data_model()
         self.publisher.publish(self.data_store_mgr.get_publish_deltas())

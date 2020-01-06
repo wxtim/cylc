@@ -293,7 +293,8 @@ class TaskEventsManager():
         event_time=None,
         flag=FLAG_INTERNAL,
         submit_num=None,
-        force_spawn=None,
+        spawn=None,
+        remove=None,
     ):
         """Parse an task message and update task state.
 
@@ -367,12 +368,13 @@ class TaskEventsManager():
                  for out, downs in dout.items():
                     if out.output == message:
                        for down in downs:
-                           LOG.debug('>>>>>>>>> SPAWN ' + str(down))
                            name, offset = down
-                           point = itask.point
+                           up_point = itask.point
                            if offset is not None:
-                               point = point - get_interval(offset)
-                           force_spawn(name, point)
+                               point = up_point - get_interval(offset)
+                           else:
+                               point = up_point
+                           spawn(itask.tdef.name, up_point, name, point, message)
 
         if message == TASK_OUTPUT_STARTED:
             if (
@@ -468,6 +470,11 @@ class TaskEventsManager():
             itask.non_unique_events.setdefault(lseverity, 0)
             itask.non_unique_events[lseverity] += 1
             self.setup_event_handlers(itask, lseverity, message)
+
+        # SOD:
+        if message == TASK_OUTPUT_SUCCEEDED:
+            remove(itask)
+ 
         return None
 
     def _process_message_check(
