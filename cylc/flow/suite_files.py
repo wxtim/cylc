@@ -51,9 +51,15 @@ class KeyInfo():
     """Represents a server or client key file, which can private or public.
 
     Attributes:
-        full_key_path     The absolute path, including filename, for this key object.
+        file_name        The file name of this key object.
+        key_type         public or private
+        key_owner        server or client
+        key_path         The absolute path, not including filename,
+                         for this key object.
+        full_key_path    The absolute path, including filename,
+                         for this key object.
 
-        TODO DOCUMENT the kwargs here??
+
     """
 
     file_name = None
@@ -62,20 +68,20 @@ class KeyInfo():
     key_path = None
     full_key_path = None
 
-
-    def __init__(self, key_type, key_owner, **kwargs):        
+    def __init__(self, key_type, key_owner, **kwargs):
         self.key_type = key_type
-        self.key_owner = key_owner        
+        self.key_owner = key_owner
 
         if 'full_key_path' in kwargs:
-            self.key_path, self.file_name = os.path.split(kwargs.get("full_key_path"))
+            self.key_path, self.file_name = os.path.split(
+                kwargs.get("full_key_path"))
         elif 'suite_srv_dir' in kwargs:
             # Build key filename
 
             file_name = key_owner.value
 
             # Add optional platform name (supports future multiple client keys)
-            if key_owner is KeyOwner.CLIENT and 'platform' in kwargs.get("platform"):
+            if key_owner is KeyOwner.CLIENT and 'platform' in kwargs:
                 file_name = file_name + "f_{platform}"
 
             if key_type == KeyType.PRIVATE:
@@ -88,15 +94,20 @@ class KeyInfo():
             # Build key path (without filename)
 
             temp = f"{key_owner.value}_keys"
-            self.key_path = os.path.join(os.path.expanduser("~"), kwargs.get("suite_srv_dir"), temp, key_type.value)
+            self.key_path = os.path.join(
+                os.path.expanduser("~"),
+                kwargs.get("suite_srv_dir"),
+                temp,
+                key_type.value)
         else:
-            raise ValueError("Cannot create KeyInfo without the suite path or full path.")
+            raise ValueError(
+                "Cannot create KeyInfo without the suite path or full path.")
 
         # Build full key path (including file name)
 
         self.full_key_path = os.path.join(self.key_path, self.file_name)
 
-        
+
 class SuiteFiles:
     """Files and directories located in the suite directory."""
 
@@ -123,13 +134,14 @@ class SuiteFiles:
 
         SOURCE = 'source'
         """Symlink to the suite definition (suite dir)."""
-        
+
         PUBLIC_FILE_EXTENSION = '.key'
         PRIVATE_FILE_EXTENSION = '.key_secret'
         """Keyword identifiers used to form the certificate names.
         Note: the public & private identifiers are set by CurveZMQ, so cannot
         be renamed, but we hard-code them since they can't be extracted easily.
         """
+
 
 class ContactFileFields:
     """Field names present in ``SuiteFiles.Service.CONTACT``.
@@ -636,13 +648,26 @@ def create_auth_files(reg):
 
     suite_srv_dir = get_suite_srv_dir(reg)
 
-    keys = {"client_public_key": KeyInfo(KeyType.PUBLIC, KeyOwner.CLIENT, suite_srv_dir=suite_srv_dir),
-            "client_private_key": KeyInfo(KeyType.PRIVATE, KeyOwner.CLIENT, suite_srv_dir=suite_srv_dir),
-            "server_public_key": KeyInfo(KeyType.PUBLIC, KeyOwner.SERVER, suite_srv_dir=suite_srv_dir),
-            "server_private_key": KeyInfo(KeyType.PRIVATE, KeyOwner.SERVER, suite_srv_dir=suite_srv_dir)}
+    keys = {"client_public_key": KeyInfo(
+            KeyType.PUBLIC,
+            KeyOwner.CLIENT,
+            suite_srv_dir=suite_srv_dir),
+            "client_private_key": KeyInfo(
+            KeyType.PRIVATE,
+            KeyOwner.CLIENT,
+            suite_srv_dir=suite_srv_dir),
+            "server_public_key": KeyInfo(
+            KeyType.PUBLIC,
+            KeyOwner.SERVER,
+            suite_srv_dir=suite_srv_dir),
+            "server_private_key": KeyInfo(
+            KeyType.PRIVATE,
+            KeyOwner.SERVER,
+            suite_srv_dir=suite_srv_dir)
+            }
 
     # WARNING, DESTRUCTIVE. Removes old key folders if they already exist.
-    for k in keys:
+    for k in keys.values():
         if os.path.exists(k.key_path):
             shutil.rmtree(k.key_path)
         os.makedirs(k.key_path, exist_ok=True)
@@ -664,16 +689,15 @@ def create_auth_files(reg):
         temp_client_private_key_path,
         keys["client_private_key"].key_path)
     os.chmod(client_private_key_path, stat.S_IRUSR | stat.S_IWUSR)
-    
-    
+
     temp_server_public_key_path, temp_server_private_key_path = (
         zmq.auth.create_certificates(
             temp_keys_dir, KeyOwner.SERVER.value))
     server_public_keys_path = shutil.move(
-        temp_server_public_key_path, 
+        temp_server_public_key_path,
         keys["server_public_key"].key_path)
     os.chmod(server_public_keys_path, stat.S_IRUSR |
-                stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+             stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
     server_private_key_path = shutil.move(
         temp_server_private_key_path,
         keys["server_private_key"].key_path)
