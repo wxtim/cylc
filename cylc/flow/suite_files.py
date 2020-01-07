@@ -390,11 +390,11 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
         # 1 (a)
     if isinstance(item, KeyInfo):
 
-        item_location = _locate_item(item.FileName, item.key_path)
+        item_location = _locate_item(item.file_name, item.key_path)
 
         # Temporary hack until we can separate key file 'get' into own function
         # Additional searches below need a file name, not a complex object
-        item = item.FileName
+        item = item.file_name
 
         if item_location:
             return item_location

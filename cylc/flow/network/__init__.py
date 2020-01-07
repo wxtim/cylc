@@ -163,6 +163,7 @@ class ZMQSocketBase:
         # initiate bespoke items
         self._bespoke_start()
 
+    # Keeping srv_prv_key_loc as optional arg so as to not break interface
     def _socket_bind(self, min_port, max_port, srv_prv_key_loc=None):
         """Bind socket.
 
@@ -181,10 +182,10 @@ class ZMQSocketBase:
                 KeyType.PRIVATE,
                 KeyOwner.SERVER,
                 full_key_path=srv_prv_key_loc)
-            srv_prv_key = get_auth_item(
-                srv_prv_key_info,
-                self.suite,
-                content=False)
+            # srv_prv_key = get_auth_item(
+            #     srv_prv_key_info,
+            #     self.suite,
+            #     content=False)
 
         # create socket
         self.socket = self.context.socket(self.pattern)
@@ -221,26 +222,27 @@ class ZMQSocketBase:
         if self.barrier is not None:
             self.barrier.wait()
 
+    # Keeping srv_public_key_loc as optional arg so as to not break interface
     def _socket_connect(self, host, port, srv_public_key_loc=None):
         """Connect socket to stub."""
+        suite_srv_dir = get_suite_srv_dir(self.suite)
         if srv_public_key_loc is None:
-            # Create new KeyInfo object for the server public key
-            suite_srv_dir = get_suite_srv_dir(self.suite)
+            # Create new KeyInfo object for the server public key           
             srv_pub_key_info = KeyInfo(
                 KeyType.PUBLIC,
                 KeyOwner.SERVER,
                 suite_srv_dir=suite_srv_dir)
-            srv_public_key = srv_pub_key_info.full_key_path
+           # srv_public_key = srv_pub_key_info.full_key_path
         else:
             srv_pub_key_info = KeyInfo(
                 KeyType.PUBLIC,
                 KeyOwner.SERVER,
                 full_key_path=srv_public_key_loc)
 
-            srv_public_key = get_auth_item(
-                srv_pub_key_info,
-                self.suite,
-                content=False)
+            # srv_public_key = get_auth_item(
+            #     srv_pub_key_info,
+            #     self.suite,
+            #     content=False)
 
         self.host = host
         self.port = port
@@ -271,7 +273,7 @@ class ZMQSocketBase:
             # so it is OK to use; there is no method to load only the
             # public key.
             server_public_key = zmq.auth.load_certificate(
-                srv_public_key)[0]
+                srv_pub_key_info.full_key_path)[0]
             self.socket.curve_serverkey = server_public_key
         except (OSError, ValueError):  # ValueError raised w/ no public key
             raise ClientError(
