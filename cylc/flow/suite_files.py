@@ -38,11 +38,15 @@ from enum import Enum
 
 
 class KeyType(Enum):
+    """Used for authentication keys - public or private"""
+
     PRIVATE = "private"
     PUBLIC = "public"
 
 
 class KeyOwner(Enum):
+    """Used for authentication keys - server or client"""
+
     SERVER = "server"
     CLIENT = "client"
 
@@ -51,22 +55,16 @@ class KeyInfo():
     """Represents a server or client key file, which can private or public.
 
     Attributes:
-        file_name        The file name of this key object.
-        key_type         public or private
-        key_owner        server or client
-        key_path         The absolute path, not including filename,
+        file_name:       The file name of this key object.
+        key_type:        public or private
+        key_owner:       server or client
+        key_path:        The absolute path, not including filename,
                          for this key object.
-        full_key_path    The absolute path, including filename,
+        full_key_path:   The absolute path, including filename,
                          for this key object.
 
 
     """
-
-    file_name = None
-    key_type = None
-    key_owner = None
-    key_path = None
-    full_key_path = None
 
     def __init__(self, key_type, key_owner, **kwargs):
         self.key_type = key_type
@@ -354,15 +352,18 @@ def get_contact_file(reg):
 
 
 def get_auth_item(item, reg, owner=None, host=None, content=False):
-    """Locate/load Curve private-key/certificate ...etc.
+    """Locate/load Curve private-key/ ...etc.
 
     Return file name, or content of file if content=True is set.
     Files are searched from these locations in order:
 
-    1/  a/ Private Curve ZMQ certificates located in:
-            suite service directory/private_keys
-        b/ Public Curve ZMQ certificates located in:
-            suite service directory/public_keys
+    1/  a/ Server Curve ZMQ keys located in:
+            suite service directory/server_keys/private
+            suite service directory/server_keys/public
+
+        b/ Client Curve ZMQ keys located in:
+            suite service directory/client_keys/private
+            suite service directory/client_keys/public
 
     2/ For running task jobs, service directory under:
        a/ $CYLC_SUITE_RUN_DIR for remote jobs.
