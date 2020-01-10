@@ -182,10 +182,6 @@ class ZMQSocketBase:
                 KeyType.PRIVATE,
                 KeyOwner.SERVER,
                 full_key_path=srv_prv_key_loc)
-            # srv_prv_key = get_auth_item(
-            #     srv_prv_key_info,
-            #     self.suite,
-            #     content=False)
 
         # create socket
         self.socket = self.context.socket(self.pattern)
@@ -196,14 +192,17 @@ class ZMQSocketBase:
                 srv_prv_key_info.full_key_path)
         except (ValueError):
             raise SuiteServiceFileError(f"Failed to find server's public "
-                                        f"key in {srv_prv_key_info.full_key_path}.")
+                                        f"key in "
+                                        f"{srv_prv_key_info.full_key_path}.")
         except(OSError):
             raise SuiteServiceFileError(f"IO error opening server's private "
-                                        f"key from {srv_prv_key_info.full_key_path}.")
+                                        f"key from "
+                                        f"{srv_prv_key_info.full_key_path}.")
 
         if server_private_key is None:  # this can't be caught by exception
             raise SuiteServiceFileError(f"Failed to find server's private "
-                                        f"key in {srv_prv_key_info.full_key_path}.")
+                                        f"key in "
+                                        f"{srv_prv_key_info.full_key_path}.")
 
         self.socket.curve_publickey = server_public_key
         self.socket.curve_secretkey = server_private_key
@@ -227,22 +226,17 @@ class ZMQSocketBase:
         """Connect socket to stub."""
         suite_srv_dir = get_suite_srv_dir(self.suite)
         if srv_public_key_loc is None:
-            # Create new KeyInfo object for the server public key           
+            # Create new KeyInfo object for the server public key
             srv_pub_key_info = KeyInfo(
                 KeyType.PUBLIC,
                 KeyOwner.SERVER,
                 suite_srv_dir=suite_srv_dir)
-           # srv_public_key = srv_pub_key_info.full_key_path
+
         else:
             srv_pub_key_info = KeyInfo(
                 KeyType.PUBLIC,
                 KeyOwner.SERVER,
                 full_key_path=srv_public_key_loc)
-
-            # srv_public_key = get_auth_item(
-            #     srv_pub_key_info,
-            #     self.suite,
-            #     content=False)
 
         self.host = host
         self.port = port

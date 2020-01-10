@@ -64,6 +64,7 @@ def test_server_cannot_start_when_server_private_key_cannot_be_loaded():
 
 # TODO test suite dir vs srv_prv_key_loc as arg to start
 
+
 def test_server_cannot_start_when_certificate_file_only_contains_public_key():
     """Server should not be able to start when its certificate file does not
     contain the private key."""
@@ -101,41 +102,44 @@ def test_server_cannot_start_when_public_key_not_found_in_certificate_file():
         server.stop()
 
 
-# def test_client_requires_valid_server_public_key_in_private_key_file():
-#     """Client should not be able to connect to host/port without
-#     server public key."""
+def test_client_requires_valid_server_public_key_in_private_key_file():
+    """Client should not be able to connect to host/port without
+    server public key."""
 
-#     port = random.choice(PORT_RANGE)
-#     client = ZMQSocketBase(zmq.REP, suite="fake_suite")
+    port = random.choice(PORT_RANGE)
+    client = ZMQSocketBase(zmq.REP, suite="fake_suite")
 
-#     test_suite_srv_dir = get_suite_srv_dir(reg="fake_suite")
-#     key_info = KeyInfo(KeyType.PRIVATE, KeyOwner.CLIENT, suite_srv_dir = test_suite_srv_dir)
+    test_suite_srv_dir = get_suite_srv_dir(reg="fake_suite")
+    key_info = KeyInfo(
+        KeyType.PRIVATE,
+        KeyOwner.CLIENT,
+        suite_srv_dir=test_suite_srv_dir)
+    directory = os.path.expanduser("~/cylc-run")
+    tmpdir = os.path.join(directory, "fake_suite")
+    os.makedirs(key_info.key_path, exist_ok=True)
 
-#     os.makedirs(key_info.key_path, exist_ok=True)
+    _pub, _priv = zmq.auth.create_certificates(key_info.key_path, "client")
 
-#     _pub, _priv = zmq.auth.create_certificates(key_info.key_path, "client")
+    with pytest.raises(ClientError, match=r"Failed to load the suite's public "
+                                          r"key, so cannot connect."):
+        client.start(HOST, port, srv_public_key_loc="fake_location")
 
-#     with pytest.raises(
-#         ClientError, match=r"Failed to load the suite's public key, so cannot connect."):
-#             client.start(HOST, port, srv_public_key_loc="fake_location")
+    client.stop()
+    rmtree(tmpdir, ignore_errors=True)
 
-#     client.stop()
-#     sleep(2)
-#     rmtree(os.path.dirname(os.path.dirname(test_suite_srv_dir)))
 
-# def test_client_requires_valid_client_private_key():
-#     """Client should not be able to connect to host/port
-#     without client private key."""
+def test_client_requires_valid_client_private_key():
+    """Client should not be able to connect to host/port
+    without client private key."""
 
-#     port = random.choice(PORT_RANGE)
-#     client = ZMQSocketBase(zmq.REP, suite="fake_suite")
+    port = random.choice(PORT_RANGE)
+    client = ZMQSocketBase(zmq.REP, suite="fake_suite")
 
-#     with pytest.raises(ClientError, match=r"Failed to find user's private "
-#                                           r"key, so cannot connect."
-#                        ):
-#         client.start(HOST, port, srv_public_key_loc="fake_location")
+    with pytest.raises(ClientError, match=r"Failed to find user's private "
+                                          r"key, so cannot connect."):
+        client.start(HOST, port, srv_public_key_loc="fake_location")
 
-#     client.stop()
+    client.stop()
 
 
 def test_single_port():
