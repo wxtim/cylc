@@ -278,7 +278,8 @@ class CylcSuiteDAO(object):
         s = table.update()
         if where_args:
             for left, right in where_args.items():
-                s = s.where(table.c[left] == right)
+                if left in table.c:
+                    s = s.where(table.c[left] == right)
         self.to_update[table.name].append([s, set_args])
 
     # TODO: make it a context manager
