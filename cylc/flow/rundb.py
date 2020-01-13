@@ -690,7 +690,7 @@ class CylcSuiteDAO(object):
             task_pool_table = task_pool_checkpoints
             s = s.where(task_pool.c.id == id_key)
 
-        s = s.append_from(
+        s.append_from(
             task_pool_table.join(
                 task_states,
                 onclause=and_(
