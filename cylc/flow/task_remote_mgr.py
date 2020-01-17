@@ -336,9 +336,12 @@ class TaskRemoteMgr(object):
                 suite_srv_dir=suite_srv_dir)
             dest_path_srvr_public_key = os.path.join(
                 suite_srv_dir, server_pub_keyinfo.file_name)
+            items.append(
+                (server_pub_keyinfo.full_key_path,
+                 dest_path_srvr_public_key))
             dest_path_cli_pri_key = os.path.join(
                 suite_srv_dir, client_pri_keyinfo.file_name)
             items.append(
-                (server_pub_keyinfo.full_key_path, dest_path_srvr_public_key),
-                (client_pri_keyinfo.full_key_path, dest_path_cli_pri_key))
+                (client_pri_keyinfo.full_key_path,
+                 dest_path_cli_pri_key))
         return items
