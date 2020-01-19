@@ -218,7 +218,6 @@ class CylcSuiteDAO(object):
         # FIXME: add connection timeout!
         self.conn_url = "sqlite://" if file_name == '' \
             else f"sqlite:///{file_name}"
-        LOG.info(f"Connection URL: {self.conn_url}")
         self.engine = create_engine(
             self.conn_url,
             echo=False
