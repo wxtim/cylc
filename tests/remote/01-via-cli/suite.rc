@@ -1,0 +1,10 @@
+# Minimal suite, as just need to test CLI start-up:
+[cylc]
+    [[reference test]]
+        live mode suite timeout = PT10S
+[scheduling]
+    [[dependencies]]
+        graph = "foo => bar"
+[runtime]
+    [[root]]
+        script = "/bin/true"
