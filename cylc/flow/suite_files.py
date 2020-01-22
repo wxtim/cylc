@@ -345,13 +345,10 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
     Return file name, or content of file if content=True is set.
     Files are searched from these locations in order:
 
-    1/  a/ Server Curve ZMQ keys located in:
-            suite service directory/server_keys/private
-            suite service directory/server_keys/public
-
-        b/ Client Curve ZMQ keys located in:
-            suite service directory/client_keys/private
-            suite service directory/client_keys/public
+    1/  Server Curve ZMQ keys located in suite service directory
+        Client Curve ZMQ keys located in
+            suite service directory (private keys)
+            suite service directory/client_public_keys (public keys)
 
     2/ For running task jobs, service directory under:
        a/ $CYLC_SUITE_RUN_DIR for remote jobs.
