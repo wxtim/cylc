@@ -66,21 +66,22 @@ class KeyInfo():
 
     """
 
-    def __init__(self, key_type, key_owner, **kwargs):
+    def __init__(self, key_type, key_owner, full_key_path=None,
+                 suite_srv_dir=None, platform=None):
         self.key_type = key_type
         self.key_owner = key_owner
+        self.full_key_path = full_key_path
+        self.suite_srv_dir = suite_srv_dir
+        self.platform = platform
 
-        if 'full_key_path' in kwargs:
-            self.key_path, self.file_name = os.path.split(
-                kwargs.get("full_key_path"))
-        elif 'suite_srv_dir' in kwargs:
+        if self.full_key_path is not None:
+            self.key_path, self.file_name = os.path.split(self.full_key_path)
+        elif self.suite_srv_dir is not None:
             # Build key filename
-
             file_name = key_owner.value
 
             # Add optional platform name (supports future multiple client keys)
-            if key_owner is KeyOwner.CLIENT and 'platform' in kwargs:
-                self.platform = kwargs['platform']
+            if key_owner is KeyOwner.CLIENT and self.platform is not None:
                 file_name = file_name + f"_{self.platform}"
 
             if key_type == KeyType.PRIVATE:
@@ -95,7 +96,7 @@ class KeyInfo():
                 temp = f"{key_owner.value}_{key_type.value}_keys"
                 self.key_path = os.path.join(
                     os.path.expanduser("~"),
-                    kwargs.get("suite_srv_dir"),
+                    self.suite_srv_dir,
                     temp)
             elif (
                 (key_owner is KeyOwner.SERVER
@@ -105,7 +106,7 @@ class KeyInfo():
                 or (key_owner is KeyOwner.SERVER
                     and key_type is KeyType.PUBLIC)):
                 self.key_path = os.path.join(
-                    os.path.expanduser("~"), kwargs.get("suite_srv_dir"))
+                    os.path.expanduser("~"), self.suite_srv_dir)
 
         else:
             raise ValueError(
