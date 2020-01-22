@@ -380,7 +380,7 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
 
         item_location = _locate_item(item.file_name, item.key_path)
 
-        # Temporary hack until we can separate key file 'get' into own function
+        # TODO: separate key file 'get' into own function
         # Additional searches below need a file name, not a complex object
         item = item.file_name
 
@@ -661,29 +661,26 @@ def create_auth_files(reg):
             os.remove(k.full_key_path)
 
     # WARNING, DESTRUCTIVE.
-    # Removes old client public key folder if it already exists.
-    # Create directory and set file permissions.
+    # Removes old client public key folder if it already exists, makes
+    # fresh directory.
     if os.path.exists(keys["client_public_key"].key_path):
         shutil.rmtree(keys["client_public_key"].key_path)
     os.makedirs(keys["client_public_key"].key_path, exist_ok=True)
-    os.chmod(keys["client_public_key"].key_path, 0o700)
 
     # ZMQ keys generated in .service directory.
     # Move client public keys to a sub-directory: .service/client_public_keys.
-    # Set file permissions.
-    client_public_full_key_path, client_private_full_key_path = (
+    # ZMQ keys need to be created with stricter file permissions, changing
+    # umask default denials.
+    old_umask = os.umask(0o177)  # u=rw only set as default for file creation
+    client_public_full_key_path, _client_private_full_key_path = (
         zmq.auth.create_certificates(suite_srv_dir, KeyOwner.CLIENT.value))
-    os.chmod(client_private_full_key_path, stat.S_IRUSR | stat.S_IWUSR)
-    os.chmod(client_public_full_key_path, stat.S_IRUSR |
-             stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
     shutil.move(
         client_public_full_key_path,
         keys["client_public_key"].key_path)
-    server_public_full_key_path, server_private_full_key_path = (
+    _server_public_full_key_path, _server_private_full_key_path = (
         zmq.auth.create_certificates(suite_srv_dir, KeyOwner.SERVER.value))
-    os.chmod(server_private_full_key_path, stat.S_IRUSR | stat.S_IWUSR)
-    os.chmod(server_public_full_key_path, stat.S_IRUSR |
-             stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+    # Return file permissions to default settings.
+    os.umask(old_umask)
 
 
 def _dump_item(path, item, value):
