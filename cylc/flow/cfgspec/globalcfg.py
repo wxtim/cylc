@@ -310,7 +310,8 @@ class GlobalConfig(ParsecConfig):
                         LOG.error('bad %s %s', conf_type, fname)
                         raise
         # (OK if no flow.rc is found, just use system defaults).
-        self._transform()
+        # TODO: Consider refactor of self._transform.
+        # self._transform()
 
     @staticmethod
     def get_platform_item_for_job(job_conf, item):
