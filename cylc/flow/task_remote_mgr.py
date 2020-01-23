@@ -126,7 +126,7 @@ class TaskRemoteMgr(object):
             if value is not None:
                 del self.remote_host_str_map[key]
 
-    def remote_init(self, host, owner):
+    def remote_init(self, platform):
         """Initialise a remote [owner@]host if necessary.
 
         Create UUID file on suite host ".service/uuid" for remotes to identify
@@ -149,20 +149,26 @@ class TaskRemoteMgr(object):
                 If waiting for remote init command to complete
 
         """
+        # Get hosts from platform
+        # TODO consider get a random member of 'remote hosts'
+        host = glbl_cfg().get_platform_item(platform, 'remote hosts')[0]
+        owner = glbl_cfg().get_platform_item(platform, 'owner')
+
+        # TODO Is this ok because it's only a quick check
         if self.single_task_mode or not is_remote(host, owner):
             return REMOTE_INIT_NOT_REQUIRED
         try:
-            status = self.remote_init_map[(host, owner)]
+            status = self.remote_init_map[platform]
         except KeyError:
             pass  # Not yet initialised
         else:
             if status == REMOTE_INIT_FAILED:
-                del self.remote_init_map[(host, owner)]  # reset to allow retry
+                del self.remote_init_map[platform]  # reset to allow retry
             return status
 
         # Determine what items to install
-        comm_meth = glbl_cfg().get_host_item(
-            'task communication method', host, owner)
+        comm_meth = glbl_cfg().get_platform_item(
+            'task communication method', platform)
         owner_at_host = 'localhost'
         if host:
             owner_at_host = host
@@ -207,8 +213,8 @@ class TaskRemoteMgr(object):
             self._remote_init_callback,
             [host, owner, tmphandle])
         # None status: Waiting for command to finish
-        self.remote_init_map[(host, owner)] = None
-        return self.remote_init_map[(host, owner)]
+        self.remote_init_map[platform] = None
+        return self.remote_init_map[platform]
 
     def remote_tidy(self):
         """Remove suite contact files from initialised remotes.

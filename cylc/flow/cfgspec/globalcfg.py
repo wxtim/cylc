@@ -388,7 +388,6 @@ class GlobalConfig(ParsecConfig):
                 value = value.replace('$HOME', owner_home)
         return value
 
-
     def _transform(self):
         """Transform various settings.
 
