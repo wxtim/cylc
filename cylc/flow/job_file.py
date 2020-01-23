@@ -158,8 +158,9 @@ class JobFileWriter(object):
         if vacation_signals_str:
             handle.write("\nCYLC_VACATION_SIGNALS='%s'" % vacation_signals_str)
         # Path to cylc executable, if defined.
-        cylc_exec = glbl_cfg().get_host_item(
-            'cylc executable', job_conf["host"], job_conf["owner"])
+        # TODO: Consider what to do with job_conf["owner"]
+        cylc_exec = glbl_cfg().get_platform_item(
+            'cylc executable', job_conf["platform"], job_conf["owner"])
         if not cylc_exec.endswith('cylc'):
             raise ValueError(
                 f'ERROR: bad cylc executable in global config: {cylc_exec}')
