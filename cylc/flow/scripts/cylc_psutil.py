@@ -56,9 +56,7 @@ def main(parser, options):
 
     # serialise
     for ind, item in enumerate(ret):
-        if hasattr(item, '_todict'):
-            ret[ind] = item._todict()
-        elif hasattr(item, '_asdict'):
+        if hasattr(item, '_asdict'):
             ret[ind] = item._asdict()
 
     print(json.dumps(ret))
