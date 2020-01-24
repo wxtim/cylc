@@ -276,7 +276,7 @@ def detect_old_contact_file(reg, check_host_port=None):
     cmd = ["timeout", "10", "ps", PS_OPTS, str(old_pid_str)]
     if is_remote_host(old_host):
         import shlex
-        ssh_str = str(glbl_cfg().get_platform_item("ssh command"))
+        ssh_str = str(glbl_cfg().get_platform_item("ssh command", old_host))
         cmd = shlex.split(ssh_str) + ["-n", old_host] + cmd
     from subprocess import Popen, PIPE, DEVNULL  # nosec
     from time import sleep, time
