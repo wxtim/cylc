@@ -214,8 +214,9 @@ class TaskEventsManager():
             return itask.tdef.rtconfig[skey][key]
         else:
             try:
-                return glbl_cfg().get_host_item(
-                    key, itask.task_host, itask.task_owner)
+                # TODO: Check on how to add platform to itask correctly
+                return glbl_cfg().get_platform_item(
+                    key, itask.task_platform)
             except (KeyError, ItemNotFoundError):
                 pass
         return default

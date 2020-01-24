@@ -36,6 +36,7 @@ from cylc.flow.parsec.util import pdeepcopy, poverride
 
 from cylc.flow import LOG
 from cylc.flow.batch_sys_manager import JobPollContext
+from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.hostuserutil import get_host, is_remote_host, is_remote_user
 from cylc.flow.job_file import JobFileWriter
 from cylc.flow.pathutil import get_remote_suite_run_job_dir
@@ -202,15 +203,18 @@ class TaskJobManager(object):
         if not prepared_tasks:
             return bad_tasks
 
-        # Group task jobs by (host, owner)
-        auth_itasks = {}  # {(host, owner): [itask, ...], ...}
+        # Group task jobs by (platform)
+        auth_itasks = {}  # {(platform): [itask, ...], ...}
         for itask in prepared_tasks:
-            auth_itasks.setdefault((itask.task_host, itask.task_owner), [])
-            auth_itasks[(itask.task_host, itask.task_owner)].append(itask)
+            auth_itasks.setdefault((itask.task_platform), [])
+            auth_itasks[(itask.task_platform)].append(itask)
         # Submit task jobs for each (host, owner) group
         done_tasks = bad_tasks
-        for (host, owner), itasks in sorted(auth_itasks.items()):
-            is_init = self.task_remote_mgr.remote_init(host, owner)
+        for platform, itasks in sorted(auth_itasks.items()):
+            # TODO consider get a random member of 'remote hosts'
+            host = glbl_cfg().get_platform_item(platform, 'remote hosts')[0]
+            owner = glbl_cfg().get_platform_item(platform, 'owner')
+            is_init = self.task_remote_mgr.remote_init(platform)
             if is_init is None:
                 # Remote is waiting to be initialised
                 for itask in itasks:
