@@ -779,8 +779,12 @@ def _load_local_item(item, path):
         return None
 
 
-def _load_remote_item(item, reg, owner, host):
+def _load_remote_item(item, reg, platform):
     """Load content of service item from remote [owner@]host via SSH."""
+    # TODO consider get a random member of 'remote hosts'
+    host = glbl_cfg().get_platform_item(platform, 'remote hosts')[0]
+    owner = glbl_cfg().get_platform_item(platform, 'owner')
+
     if not is_remote(host, owner):
         return
     if host is None:
@@ -811,7 +815,8 @@ def _load_remote_item(item, reg, owner, host):
     }
     import shlex
     command = shlex.split(
-        glbl_cfg().get_host_item('ssh command', host, owner))
+        glbl_cfg().get_platform_item('ssh command', platform=platform)
+    )
     command += ['-n', owner + '@' + host, script]
     from subprocess import Popen, PIPE, DEVNULL  # nosec
     try:
