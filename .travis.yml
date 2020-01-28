@@ -45,8 +45,6 @@ env:
     - CYLC_TEST_RUN_PLATFORM=false
     # Custom diff command to ignore Xlib errors (xvfb has not RANDR extension).
     - CYLC_TEST_DIFF_CMD="diff -I Xlib -u"
-    # This coverage RC file is created under the script task
-    - COVERAGE_PROCESS_START=1
 
 unittest: &unittest
   stage: unit-test
@@ -72,9 +70,11 @@ regressiontest: &regressiontest
     - export PYTHONPATH="${TRAVIS_BUILD_DIR}/.travis"
     - .travis/coverage-data.sh
     - export COVERAGE_RCFILE="/tmp/.coveragerc"
+    - export COVERAGE_PROCESS_START="$COVERAGE_RCFILE"
     - coverage run .travis/cover.py
     - unset PYTHONPATH
     - unset COVERAGE_RCFILE
+    - unset COVERAGE_PROCESS_START
   after_failure:
     - .travis/after_failure.sh
   after_success:
