@@ -779,7 +779,7 @@ class TaskJobManager(object):
         # Determine task host settings now, just before job submission,
         # because dynamic host selection may be used.
         try:
-            host_, = glbl_cfg().get_platform_item_for_job(rtconfig, 'remote hosts')
+            host_ = glbl_cfg().get_platform_item_for_job(rtconfig, 'remote hosts')
             task_host = self.task_remote_mgr.remote_host_select(host_)
         except TaskRemoteMgmtError as exc:
             # Submit number not yet incremented

@@ -426,6 +426,10 @@ class GlobalConfig(ParsecConfig):
         Chart:
 
         """
+        from cylc.flow.task_remote_mgr import REC_COMMAND
+        if platform and REC_COMMAND.match(platform):
+            return platform
+            
         # Check for the existence of the item we want in the platform specified
         # Or use default values.
         if platform and platform == 'localhost':
