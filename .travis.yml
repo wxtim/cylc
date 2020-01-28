@@ -47,7 +47,6 @@ env:
     - CYLC_TEST_DIFF_CMD="diff -I Xlib -u"
     # This coverage RC file is created under the script task
     - COVERAGE_PROCESS_START=1
-    - COVERAGE_RCFILE="/tmp/.coveragerc"
 
 unittest: &unittest
   stage: unit-test
@@ -72,8 +71,10 @@ regressiontest: &regressiontest
   script:
     - export PYTHONPATH="${TRAVIS_BUILD_DIR}/.travis"
     - .travis/coverage-data.sh
+    - export COVERAGE_RCFILE="/tmp/.coveragerc"
     - coverage run .travis/cover.py
     - unset PYTHONPATH
+    - unset COVERAGE_RCFILE
   after_failure:
     - .travis/after_failure.sh
   after_success:
