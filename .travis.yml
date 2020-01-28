@@ -69,11 +69,9 @@ regressiontest: &regressiontest
   script:
     - export PYTHONPATH="${TRAVIS_BUILD_DIR}/.travis"
     - .travis/coverage-data.sh
-    - export COVERAGE_RCFILE="/tmp/.coveragerc"
-    - export COVERAGE_PROCESS_START="$COVERAGE_RCFILE"
-    - coverage run .travis/cover.py
+    - export COVERAGE_PROCESS_START="/tmp/.coveragerc"
+    - coverage run --debug="sys" --rcfile="$COVERAGE_PROCESS_START" .travis/cover.py
     - unset PYTHONPATH
-    - unset COVERAGE_RCFILE
     - unset COVERAGE_PROCESS_START
   after_failure:
     - .travis/after_failure.sh
