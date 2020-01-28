@@ -477,7 +477,9 @@ class CylcSuiteDAO(object):
         """Return number of restart event in checkpoint_id table."""
         s = select([
             func.count(checkpoint_id.c.event)
-        ]).where(checkpoint_id.c.event == 'restart')
+        ]).select_from(
+            checkpoint_id
+        ).where(checkpoint_id.c.event == 'restart')
         with self.connect() as conn:
             for row in conn.execute(s).fetchall():
                 return row[0]
@@ -577,7 +579,9 @@ class CylcSuiteDAO(object):
                 cast(task_jobs.c.time_run_exit, NUMERIC) -
                 cast(task_jobs.c.time_run, NUMERIC)
             )
-        ]).where(task_jobs.c.run_status == 0).group_by(task_jobs.c.name)\
+        ]).select_from(task_jobs)\
+            .where(task_jobs.c.run_status == 0)\
+            .group_by(task_jobs.c.name)\
             .order_by(task_jobs.c.time_run_exit)
         with self.connect() as conn:
             for row_idx, row in enumerate(conn.execute(s).fetchall()):
@@ -771,7 +775,7 @@ class CylcSuiteDAO(object):
 
         s = select(
             [func.max(checkpoint_id.c.id)]
-        )
+        ).select_from(checkpoint_id)
         id_ = 1
         with self.connect() as conn:
             for max_id, in conn.execute(s).fetchall():
