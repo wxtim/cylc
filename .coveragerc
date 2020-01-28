@@ -4,8 +4,6 @@
 [run]
 
 branch=True
-cover_pylib=False
-concurrency=thread
 data_file=.coverage
 disable_warnings=
     trace-changed
@@ -25,26 +23,16 @@ debug=
 #    process
 #    sys
 #    trace
-# Include can be used only if source is not used!
-#include
-note=
 omit=
     */cylc/flow/tests/*
     */cylc/flow/profiler.py
-    */cylc/flow/profiling/*
-    */cylc/flow/parsec/OrderedDictCompat.py
     */cylc/flow/parsec/tests/*
     */cylc/flow/*_pb2.py
 parallel = True
-plugins=
 source=
-    ./bin
     ./cylc
-timid = False
-
 
 [report]
-
 exclude_lines =
     pragma: no cover
     def __repr__
@@ -53,29 +41,15 @@ exclude_lines =
     def parse_args
 fail_under=0
 ignore_errors = False
-include=
 omit=
     */cylc/flow/tests/*
     */cylc/flow/profiler.py
-    */cylc/flow/profiling/*
-    */cylc/flow/parsec/OrderedDictCompat.py
     */cylc/flow/parsec/tests/*
     */cylc/flow/*_pb2.py
-partial_branches=
-precision=2
-show_missing=False
-skip_covered=False
-sort=Name
-
 
 [html]
-
 directory=htmlcov
-extra_css=
-title=
-
 
 [xml]
-
 output=coverage.xml
 package_depth=99
