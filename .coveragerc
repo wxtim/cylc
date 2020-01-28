@@ -5,13 +5,6 @@
 
 branch=True
 data_file=.coverage
-disable_warnings=
-    trace-changed
-    module-not-python
-    module-not-imported
-    no-data-collected
-    module-not-measured
-    # include-ignored
 debug=
 #    callers
 #    dataio
