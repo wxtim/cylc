@@ -54,11 +54,11 @@ install_requires = [
 ]
 tests_require = [
     'codecov==2.0.*',
-    'coverage==4.5.*',
-    'pytest-cov==2.6.*',
-    'pytest==4.4.*',
+    'coverage==5.0.*',
+    'pytest-cov==2.8.*',
+    'pytest==5.3.*',
     'pycodestyle==2.5.*',
-    'testfixtures==6.6.*'
+    'testfixtures==6.10.*'
 ]
 
 extra_requires = {
