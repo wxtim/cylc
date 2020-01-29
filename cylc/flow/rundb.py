@@ -390,7 +390,8 @@ class CylcSuiteDAO(object):
 
     def pre_select_broadcast_states(self, id_key=None, order=None):
         """Query statement and args formation for select_broadcast_states."""
-        is_checkpoint = id_key is not None and id_key != self.CHECKPOINT_LATEST_ID
+        is_checkpoint = id_key is not None \
+            and id_key != self.CHECKPOINT_LATEST_ID
         table = broadcast_states_checkpoints if is_checkpoint \
             else broadcast_states
         s = select([
@@ -674,7 +675,8 @@ class CylcSuiteDAO(object):
         select from task_pool table if id_key == CHECKPOINT_LATEST_ID.
         Otherwise select from task_pool_checkpoints where id == id_key.
         """
-        is_checkpoint = id_key is not None and id_key != self.CHECKPOINT_LATEST_ID
+        is_checkpoint = id_key is not None \
+            and id_key != self.CHECKPOINT_LATEST_ID
         table = task_pool_checkpoints if is_checkpoint else task_pool
         s = Select(columns=[
             table.c.cycle,
