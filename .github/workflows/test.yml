@@ -28,7 +28,7 @@ jobs:
 
   unit test:
     runs-on: ubuntu-latest
-    stratagy:
+    strategy:
       matrix:
         python-version: ['3.7', '3.8']
     steps:
