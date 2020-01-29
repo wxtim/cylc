@@ -674,13 +674,15 @@ class CylcSuiteDAO(object):
         select from task_pool table if id_key == CHECKPOINT_LATEST_ID.
         Otherwise select from task_pool_checkpoints where id == id_key.
         """
+        is_checkpoint = id_key is not None and id_key != self.CHECKPOINT_LATEST_ID
+        table = task_pool_checkpoints if is_checkpoint else task_pool
         s = Select(columns=[
-            task_pool.c.cycle,
-            task_pool.c.name,
-            task_pool.c.spawned,
+            table.c.cycle,
+            table.c.name,
+            table.c.spawned,
             task_late_flags.c.value,
-            task_pool.c.status,
-            task_pool.c.is_held,
+            table.c.status,
+            table.c.is_held,
             task_states.c.submit_num,
             task_jobs.c.try_num,
             task_jobs.c.user_at_host,
@@ -690,46 +692,43 @@ class CylcSuiteDAO(object):
             task_outputs.c.outputs
         ])
 
-        if id_key is None or id_key == self.CHECKPOINT_LATEST_ID:
-            task_pool_table = task_pool
-        else:
-            task_pool_table = task_pool_checkpoints
-            s = s.where(task_pool.c.id == id_key)
+        if is_checkpoint:
+            s = s.where(table.c.id == id_key)
 
         s.append_from(
-            task_pool_table.join(
+            table.join(
                 task_states,
                 onclause=and_(
-                    task_pool_table.c.cycle == task_states.c.cycle,
-                    task_pool_table.c.name == task_states.c.name
+                    table.c.cycle == task_states.c.cycle,
+                    table.c.name == task_states.c.name
                 )
             ).join(
                 task_late_flags,
                 onclause=and_(
-                    task_pool_table.c.cycle == task_late_flags.c.cycle,
-                    task_pool_table.c.name == task_late_flags.c.name
+                    table.c.cycle == task_late_flags.c.cycle,
+                    table.c.name == task_late_flags.c.name
                 ),
                 isouter=True
             ).join(
                 task_jobs,
                 onclause=and_(
-                    task_pool_table.c.cycle == task_jobs.c.cycle,
-                    task_pool_table.c.name == task_jobs.c.name,
+                    table.c.cycle == task_jobs.c.cycle,
+                    table.c.name == task_jobs.c.name,
                     task_states.c.submit_num == task_jobs.c.submit_num
                 ),
                 isouter=True
             ).join(
                 task_timeout_timers,
                 onclause=and_(
-                    task_pool_table.c.cycle == task_timeout_timers.c.cycle,
-                    task_pool_table.c.name == task_timeout_timers.c.name
+                    table.c.cycle == task_timeout_timers.c.cycle,
+                    table.c.name == task_timeout_timers.c.name
                 ),
                 isouter=True
             ).join(
                 task_outputs,
                 onclause=and_(
-                    task_pool_table.c.cycle == task_outputs.c.cycle,
-                    task_pool_table.c.name == task_outputs.c.name
+                    table.c.cycle == task_outputs.c.cycle,
+                    table.c.name == task_outputs.c.name
                 ),
                 isouter=True
             )
