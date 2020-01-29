@@ -6,27 +6,42 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v1
-    - name: Configure Python
-      uses: actions/setup-python@v1
-      with:
-        python-version: '3.7'
-    - name: Configure System
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y shellcheck  # mailutils
-        # sh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
-        # cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-        # ssh-keyscan -t rsa localhost >> ~/.ssh/known_hosts
-    - name: Install
-      run: pip install ."[all]"
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Configure Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+      - name: Configure System
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck  # mailutils
+          # sh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
+          # cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+          # ssh-keyscan -t rsa localhost >> ~/.ssh/known_hosts
+      - name: Install
+        run: pip install ."[all]"
+      - name: Style
+        run: |
+          pycodestyle
+          .travis/shellchecker
 
-    - name: Style
-      run: |
-        pycodestyle
-        .travis/shellchecker
-
-    - name: Unittest
-      run: |
-        pytest --cov-append --cov=cylc/flow
+  unit test:
+    runs-on: ubuntu-latest
+    stratagy:
+      matrix:
+        python-version: ['3.7', '3.8']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Configure Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          pip install ."[all]"
+          pip install pytest-xdist
+      - name: Unit Test
+        run: |
+          pytest --cov-append --cov=cylc/flow -n 5
