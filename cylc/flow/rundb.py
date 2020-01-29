@@ -437,7 +437,7 @@ class CylcSuiteDAO(object):
         ])
         if order == "DESC":
             s = s.order_by(
-                broadcast_events.c.time.dec(),
+                broadcast_events.c.time.desc(),
                 broadcast_events.c.point.desc(),
                 broadcast_events.c.namespace.desc(),
                 broadcast_events.c.key.desc()
