@@ -1,0 +1,23 @@
+name: test
+
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Configure Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.7'
+    - name: Configure System
+      run: sudo apt-get update
+      run: sudo apt-get install -y mailx shellcheck
+    - name: Install
+      run: pip install ."[all]"
+
+    - name: Style
+      run: |
+        pycodestyle
