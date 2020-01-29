@@ -13,8 +13,9 @@ jobs:
       with:
         python-version: '3.7'
     - name: Configure System
-      run: sudo apt-get update
-      run: sudo apt-get install -y mailx shellcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y mailx shellcheck
     - name: Install
       run: pip install ."[all]"
 
