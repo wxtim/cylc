@@ -39,7 +39,7 @@ def main():
     else:
         command.append('--jobs=5')
     # Safe here - only used in Travis CI for tests with predefined environment
-    sys.exit(call(command, stdin=open(os.devnull)))  # nosec
+    sys.exit(call(command, stdin=open(os.devnull), env=os.environ))  # nosec
 
 
 if __name__ == '__main__':
