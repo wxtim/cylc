@@ -390,20 +390,23 @@ class CylcSuiteDAO(object):
 
     def pre_select_broadcast_states(self, id_key=None, order=None):
         """Query statement and args formation for select_broadcast_states."""
+        is_checkpoint = id_key is not None and id_key != self.CHECKPOINT_LATEST_ID
+        table = broadcast_states_checkpoints if is_checkpoint \
+            else broadcast_states
         s = select([
-            broadcast_states.c.point,
-            broadcast_states.c.namespace,
-            broadcast_states.c.key,
-            broadcast_states.c.value
+            table.c.point,
+            table.c.namespace,
+            table.c.key,
+            table.c.value
         ])
         if order == "ASC":
             s = s.order_by(
-                broadcast_states.c.point.asc(),
-                broadcast_states.c.namespace.asc(),
-                broadcast_states.c.key.asc()
+                table.c.point.asc(),
+                table.c.namespace.asc(),
+                table.c.key.asc()
             )
-        if id_key is not None and id_key != self.CHECKPOINT_LATEST_ID:
-            s = s.where(broadcast_states.c.id == id_key)
+        if is_checkpoint:
+            s = s.where(table.c.id == id_key)
         with self.connect() as conn:
             return conn.execute(s).fetchall()
 
