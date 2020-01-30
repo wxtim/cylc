@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.7', '3.8']
+        python-version: ['3.7']
     steps:
       - name: Checkout
         uses: actions/checkout@v1
@@ -45,3 +45,29 @@ jobs:
       - name: Unit Test
         run: |
           pytest --cov-append --cov=cylc/flow -n 5
+
+  functional_test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7']
+        chunk: ['1/4', '2/4', '3/4', '4/4']
+    env:
+      CHUNK: ${{ matrix.chunk }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Configure Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          pip install ."[all]"
+          pip install pytest-xdist
+      - name: Unit Test
+        run: |
+          export PYTHONPATH="${PWD}/.travis"
+          .travis/coverage-data.sh
+          coverage run .travis/cover.py
+          unset PYTHONPATH
