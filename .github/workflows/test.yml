@@ -5,29 +5,6 @@ on: [pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-      - name: Configure Python
-        uses: actions/setup-python@v1
-        with:
-          python-version: '3.7'
-      - name: Configure System
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck  # mailutils
-          # sh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
-          # cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-          # ssh-keyscan -t rsa localhost >> ~/.ssh/known_hosts
-      - name: Install
-        run: pip install ."[all]"
-      - name: Style
-        run: |
-          pycodestyle
-          .travis/shellchecker
-
-  unit_test:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.7']
@@ -38,10 +15,21 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Configure System
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck  # mailutils
+          # sh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
+          # cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+          # ssh-keyscan -t rsa localhost >> ~/.ssh/known_hosts
       - name: Install
         run: |
           pip install ."[all]"
           pip install pytest-xdist
+      - name: Style
+        run: |
+          pycodestyle
+          .travis/shellchecker
       - name: Unit Test
         run: |
           pytest --cov-append --cov=cylc/flow -n 5
@@ -65,7 +53,7 @@ jobs:
         run: |
           pip install ."[all]"
           pip install pytest-xdist
-      - name: Unit Test
+      - name: Test
         run: |
           export PYTHONPATH="${PWD}/.travis"
           .travis/coverage-data.sh
