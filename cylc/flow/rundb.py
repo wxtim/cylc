@@ -543,7 +543,7 @@ class CylcSuiteDAO(object):
         :return: a dict for mapping keys to the column values
         :rtype: dict
         """
-        s = select([
+        columns = [
             task_jobs.c.is_manual_submit,
             task_jobs.c.try_num,
             task_jobs.c.time_submit,
@@ -556,7 +556,8 @@ class CylcSuiteDAO(object):
             task_jobs.c.user_at_host,
             task_jobs.c.batch_sys_name,
             task_jobs.c.batch_sys_job_id
-        ])
+        ]
+        s = select(columns=columns)
         if submit_num in [None, "NN"]:
             s = s.where(
                 and_(
@@ -566,9 +567,6 @@ class CylcSuiteDAO(object):
             ).order_by(
                 task_jobs.c.submit_num
             )
-            with suppress(Exception):
-                with self.connect() as conn:
-                    return conn.execute(s).fetchone()
         else:
             s = s.where(
                 and_(
@@ -577,9 +575,13 @@ class CylcSuiteDAO(object):
                     task_jobs.c.submit_num == submit_num
                 )
             )
-            with suppress(Exception):
-                with self.connect() as conn:
-                    return conn.execute(s).fetchall()
+        with suppress(Exception):
+            with self.connect() as conn:
+                for row in conn.execute(s).fetchall():
+                    ret = {}
+                    for key, value in zip([c.name for c in columns], row):
+                        ret[key] = value
+                    return ret
 
     def select_task_job_run_times(self, callback):
         """Select run times of succeeded task jobs grouped by task names.
