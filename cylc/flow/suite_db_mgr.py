@@ -29,7 +29,6 @@ from shutil import copy, rmtree
 from tempfile import mkstemp
 
 from sqlalchemy import Table
-from collections import defaultdict
 
 from cylc.flow import LOG
 from cylc.flow import __version__ as CYLC_VERSION
