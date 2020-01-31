@@ -696,20 +696,20 @@ class CylcSuiteDAO(object):
         s = Select(
             from_obj=table,
             columns=[
-            table.c.cycle,
-            table.c.name,
-            table.c.spawned,
-            task_late_flags.c.value,
-            table.c.status,
-            table.c.is_held,
-            task_states.c.submit_num,
-            task_jobs.c.try_num,
-            task_jobs.c.user_at_host,
-            task_jobs.c.time_submit,
-            task_jobs.c.time_run,
-            task_timeout_timers.c.timeout,
-            task_outputs.c.outputs
-        ])
+                table.c.cycle,
+                table.c.name,
+                table.c.spawned,
+                task_late_flags.c.value,
+                table.c.status,
+                table.c.is_held,
+                task_states.c.submit_num,
+                task_jobs.c.try_num,
+                task_jobs.c.user_at_host,
+                task_jobs.c.time_submit,
+                task_jobs.c.time_run,
+                task_timeout_timers.c.timeout,
+                task_outputs.c.outputs
+            ])
 
         if is_checkpoint:
             s = s.where(table.c.id == id_key)
