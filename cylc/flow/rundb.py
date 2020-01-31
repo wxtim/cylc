@@ -576,11 +576,7 @@ class CylcSuiteDAO(object):
             )
         with suppress(Exception):
             with self.connect() as conn:
-                return {
-                    column: value
-                    for column, value
-                    in conn.execute(s).fetchall().items()
-                }
+                return conn.execute(s).fetchall()
 
     def select_task_job_run_times(self, callback):
         """Select run times of succeeded task jobs grouped by task names.
