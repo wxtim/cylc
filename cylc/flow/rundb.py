@@ -565,7 +565,10 @@ class CylcSuiteDAO(object):
                 )
             ).order_by(
                 task_jobs.c.submit_num
-            ).limit(1)
+            )
+            with suppress(Exception):
+                with self.connect() as conn:
+                    return conn.execute(s).fetchone()
         else:
             s = s.where(
                 and_(
@@ -574,9 +577,9 @@ class CylcSuiteDAO(object):
                     task_jobs.c.submit_num == submit_num
                 )
             )
-        with suppress(Exception):
-            with self.connect() as conn:
-                return conn.execute(s).fetchall()
+            with suppress(Exception):
+                with self.connect() as conn:
+                    return conn.execute(s).fetchall()
 
     def select_task_job_run_times(self, callback):
         """Select run times of succeeded task jobs grouped by task names.
