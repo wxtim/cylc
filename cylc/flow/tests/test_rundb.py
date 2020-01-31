@@ -43,17 +43,18 @@ class TestRunDb(unittest.TestCase):
     def test_select_task_job(self):
         """Test the rundb CylcSuiteDAO select_task_job method"""
         columns = list(task_jobs.columns)
-        expected_values = {column.name: 2 for column in columns}
+        expected_values = [{column.name: 2 for column in columns}]
 
         mocked_execute = mock.Mock()
-        mocked_execute.fetchone.return_value = expected_values
+        mocked_execute.fetchall.return_value = expected_values
         self.mocked_connection.execute.return_value = mocked_execute
 
         # parameterized test
         for cycle, name, submit_num in self.get_select_task_job:
-            row = self.dao.select_task_job(cycle, name, submit_num)
-            for value in row.values():
-                self.assertEqual(2, value)
+            rows = self.dao.select_task_job(cycle, name, submit_num)
+            for row in rows:
+                for column in columns:
+                    self.assertEqual(2, row[column.name])
 
     def test_select_task_job_sqlite_error(self):
         """Test that when the rundb CylcSuiteDAO select_task_job method raises
