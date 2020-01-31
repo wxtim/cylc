@@ -67,6 +67,13 @@ broadcast_states_checkpoints = Table(
     Column('value', TEXT)
 )
 
+checkpoint_id = Table(
+    'checkpoint_id', meta,
+    Column('id', INTEGER, primary_key=True),
+    Column('time', TEXT),
+    Column('event', TEXT)
+)
+
 inheritance = Table(
     'inheritance', meta,
     Column('namespace', TEXT, primary_key=True),
@@ -90,6 +97,18 @@ suite_template_vars = Table(
     'suite_template_vars', meta,
     Column('key', TEXT, primary_key=True),
     Column('value', TEXT)
+)
+
+task_action_timers = Table(
+    'task_action_timers', meta,
+    Column('cycle', TEXT, primary_key=True),
+    Column('name', TEXT, primary_key=True),
+    Column('ctx_key', TEXT, primary_key=True),
+    Column('ctx', TEXT),
+    Column('delays', TEXT),
+    Column('num', INTEGER),
+    Column('delay', TEXT),
+    Column('timeout', TEXT)
 )
 
 task_jobs = Table(
@@ -121,25 +140,6 @@ task_events = Table(
     Column('message', TEXT)
 )
 
-task_action_timers = Table(
-    'task_action_timers', meta,
-    Column('cycle', TEXT, primary_key=True),
-    Column('name', TEXT, primary_key=True),
-    Column('ctx_key', TEXT, primary_key=True),
-    Column('ctx', TEXT),
-    Column('delays', TEXT),
-    Column('num', INTEGER),
-    Column('delay', TEXT),
-    Column('timeout', TEXT)
-)
-
-checkpoint_id = Table(
-    'checkpoint_id', meta,
-    Column('id', INTEGER, primary_key=True),
-    Column('time', TEXT),
-    Column('event', TEXT)
-)
-
 task_late_flags = Table(
     'task_late_flags', meta,
     Column('cycle', TEXT, primary_key=True),
@@ -161,6 +161,12 @@ task_pool = Table(
     Column('spawned', INTEGER),
     Column('status', TEXT),
     Column('is_held', INTEGER)
+)
+
+xtriggers = Table(
+    'xtriggers', meta,
+    Column('signature', TEXT, primary_key=True),
+    Column('results', REAL)
 )
 
 task_pool_checkpoints = Table(
@@ -188,12 +194,6 @@ task_timeout_timers = Table(
     Column('cycle', TEXT, primary_key=True),
     Column('name', TEXT, primary_key=True),
     Column('timeout', REAL)
-)
-
-xtriggers = Table(
-    'xtriggers', meta,
-    Column('signature', TEXT, primary_key=True),
-    Column('results', REAL)
 )
 
 # ---
@@ -325,6 +325,7 @@ class CylcSuiteDAO(object):
                         if table_name in self.to_update:
                             for stmt, args in self.to_update[table_name]:
                                 self._execute_stmt(stmt, args, conn)
+                    trans.commit()
                 except SQLAlchemyError:
                     if not self.is_public:
                         raise
@@ -357,7 +358,6 @@ class CylcSuiteDAO(object):
                                 "recovered after (%(attempt)d)"
                                 "attempt(s)\n" % {"attempt": self.n_tries})
                     self.n_tries = 0
-                    trans.commit()
 
     def _execute_stmt(self, stmt: ValuesBase, stmt_args_list: List[Dict],
                       conn: Connection):
@@ -543,14 +543,29 @@ class CylcSuiteDAO(object):
         :return: a dict for mapping keys to the column values
         :rtype: dict
         """
-        s = select([column for column in task_jobs.c])
+        s = select([
+            task_jobs.c.is_manual_submit,
+            task_jobs.c.try_num,
+            task_jobs.c.time_submit,
+            task_jobs.c.time_submit_exit,
+            task_jobs.c.submit_status,
+            task_jobs.c.time_run,
+            task_jobs.c.time_run_exit,
+            task_jobs.c.run_signal,
+            task_jobs.c.run_status,
+            task_jobs.c.user_at_host,
+            task_jobs.c.batch_sys_name,
+            task_jobs.c.batch_sys_job_id
+        ])
         if submit_num in [None, "NN"]:
             s = s.where(
                 and_(
                     task_jobs.c.cycle == cycle,
                     task_jobs.c.name == name
                 )
-            ).order_by(task_jobs.c.submit_num)
+            ).order_by(
+                task_jobs.c.submit_num
+            ).limit(1)
         else:
             s = s.where(
                 and_(
@@ -564,7 +579,7 @@ class CylcSuiteDAO(object):
                 return {
                     column: value
                     for column, value
-                    in conn.execute(s).fetchone().items()
+                    in conn.execute(s).fetchall().items()
                 }
 
     def select_task_job_run_times(self, callback):
@@ -678,7 +693,9 @@ class CylcSuiteDAO(object):
         is_checkpoint = id_key is not None \
             and id_key != self.CHECKPOINT_LATEST_ID
         table = task_pool_checkpoints if is_checkpoint else task_pool
-        s = Select(columns=[
+        s = Select(
+            from_obj=table,
+            columns=[
             table.c.cycle,
             table.c.name,
             table.c.spawned,
