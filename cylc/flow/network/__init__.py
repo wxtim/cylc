@@ -249,9 +249,11 @@ class ZMQSocketBase:
         try:
             client_public_key, client_priv_key = zmq.auth.load_certificate(
                 client_priv_key_info.full_key_path)
-        except (OSError, ValueError):
+        except (OSError, ValueError) as exc:
+            LOG.exception(f"{exc}: {error_msg} ", exc_info=True)
             raise ClientError(error_msg)
         if client_priv_key is None:  # this can't be caught by exception
+            LOG.exception(f"{exc}: {error_msg} ", exc_info=True)
             raise ClientError(error_msg)
         self.socket.curve_publickey = client_public_key
         self.socket.curve_secretkey = client_priv_key
@@ -267,7 +269,8 @@ class ZMQSocketBase:
             server_public_key = zmq.auth.load_certificate(
                 srv_pub_key_info.full_key_path)[0]
             self.socket.curve_serverkey = server_public_key
-        except (OSError, ValueError):  # ValueError raised w/ no public key
+        except (OSError, ValueError) as exc:  # ValueError raised w/ no public key
+            LOG.exception(f"{exc}: {error_msg} ", exc_info=True)
             raise ClientError(
                 "Failed to load the suite's public key, so cannot connect.")
 
