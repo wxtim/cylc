@@ -19,7 +19,8 @@ import json
 import os
 import sqlite3
 import sys
-from cylc.flow.rundb import *
+from cylc.flow.rundb import (
+    CylcSuiteDAO, suite_params, task_outputs, task_states)
 from cylc.flow.task_state import (
     TASK_STATUS_SUBMITTED, TASK_STATUS_SUBMIT_RETRYING,
     TASK_STATUS_RUNNING, TASK_STATUS_SUCCEEDED, TASK_STATUS_FAILED,
@@ -101,9 +102,9 @@ class CylcSuiteDBChecker(object):
             for state in self.state_lookup(status):
                 stmt_args.append(state)
                 stmt_frags.append("status==?")
-            stmt_wheres.append("(" + " OR ".join(stmt_frags) + ")")
+            stmt_wheres.append("(" + (" OR ").join(stmt_frags) + ")")
         if stmt_wheres:
-            stmt += " where " + " AND ".join(stmt_wheres)
+            stmt += " where " + (" AND ").join(stmt_wheres)
 
         res = []
         for row in self.conn.execute(stmt, stmt_args):

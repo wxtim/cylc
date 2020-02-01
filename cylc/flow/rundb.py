@@ -215,11 +215,13 @@ class CylcSuiteDAO(object):
         conn_url (str) - DB connection URL, e.g. sqlite:///tmp/file.db
         is_public (bool) - If True, allow retries, etc
         """
-        # FIXME: add connection timeout!
         self.conn_url = "sqlite://" if file_name == '' \
             else f"sqlite:///{file_name}"
         self.engine = create_engine(
             self.conn_url,
+            connect_args={
+                'timeout': self.CONN_TIMEOUT
+            },
             echo=False
         )
         if self.is_sqlite() and file_name != '':
@@ -332,12 +334,12 @@ class CylcSuiteDAO(object):
                     self.n_tries += 1
                     if self.is_sqlite():
                         LOG.warning(
-                            "%(file)s: write attempt (%(attempt)d) did not"
+                            "%(file)s: write attempt (%(attempt)d) did not "
                             "complete\n" % {"file": self.db_file_name,
                                             "attempt": self.n_tries})
                     else:
                         LOG.warning(
-                            "write attempt (%(attempt)d) did not"
+                            "write attempt (%(attempt)d) did not "
                             "complete\n" % {"attempt": self.n_tries})
                     with suppress(SQLAlchemyError):
                         trans.rollback()
