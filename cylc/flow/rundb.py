@@ -816,7 +816,7 @@ class CylcSuiteDAO(object):
                     'time': get_current_time_string(),
                     'event': event
                 }
-                dao.to_insert[checkpoint_id].append(
+                dao.to_insert[checkpoint_id.name].append(
                     [checkpoint_id.insert(), checkpoint])
             for table, checkpoint_table in [
                 (suite_params, suite_params_checkpoints),
@@ -829,7 +829,7 @@ class CylcSuiteDAO(object):
                             'id': id_
                         }
                         insert_values.update(row)
-                        dao.to_insert[checkpoint_table].append(
+                        dao.to_insert[checkpoint_table.name].append(
                             [checkpoint_table.insert(), insert_values])
 
     def is_sqlite(self) -> bool:
