@@ -252,7 +252,12 @@ class CylcSuiteDAO(object):
         all these items.
 
         """
-        self.to_delete[table.name].append([table.delete(), where_args])
+        s = table.delete()
+        if where_args:
+            for left, right in where_args.items():
+                if left in table.c:
+                    s = s.where(table.c[left] == right)
+        self.to_delete[table.name].append(s)
 
     def add_insert_item(self, table: Table, args: dict):
         """Queue an INSERT args for a given table.
@@ -314,8 +319,8 @@ class CylcSuiteDAO(object):
                 try:
                     for table_name in meta.tables:
                         if table_name in self.to_delete:
-                            for stmt, args in self.to_delete[table_name]:
-                                self._execute_stmt(stmt, args, conn)
+                            for stmt in self.to_delete[table_name]:
+                                self._execute_stmt(stmt, [], conn)
                         if table_name in self.to_insert:
                             # TODO: old code computed executemany for inserts
                             for stmt, args in self.to_insert.get(table_name):
