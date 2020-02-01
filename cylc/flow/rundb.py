@@ -166,7 +166,7 @@ task_pool = Table(
 xtriggers = Table(
     'xtriggers', meta,
     Column('signature', TEXT, primary_key=True),
-    Column('results', REAL)
+    Column('results', TEXT)
 )
 
 task_pool_checkpoints = Table(
