@@ -27,7 +27,7 @@ from sqlalchemy import (
     MetaData)
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.sql import and_, select
+from sqlalchemy.sql import and_, or_, select
 from sqlalchemy.sql.dml import ValuesBase
 from sqlalchemy.sql.expression import Select
 
@@ -202,13 +202,12 @@ task_timeout_timers = Table(
 class CylcSuiteDAO(object):
     """Data access object for the suite runtime database."""
 
-    CONN_TIMEOUT = 0.2
     DB_FILE_BASE_NAME = "db"
     MAX_TRIES = 100
     CHECKPOINT_LATEST_ID = 0
     CHECKPOINT_LATEST_EVENT = "latest"
 
-    def __init__(self, file_name: str, is_public=False):
+    def __init__(self, file_name: str, is_public=False, timeout=0.2):
         """Initialise object.
 
         FIXME: we must receive a connection URL, not a SQLite DB name
@@ -220,7 +219,7 @@ class CylcSuiteDAO(object):
         self.engine = create_engine(
             self.conn_url,
             connect_args={
-                'timeout': self.CONN_TIMEOUT
+                'timeout': timeout
             },
             echo=False
         )
@@ -832,6 +831,77 @@ class CylcSuiteDAO(object):
                         dao.to_insert[checkpoint_table.name].append(
                             [checkpoint_table.insert(), insert_values])
 
+    def get_cycle_point_format(self):
+        """Get the ``suite_params`` cycle point format."""
+        with self.connect() as conn:
+            s = Select([
+                suite_params.c.value
+            ]).where(suite_params.c.key == 'cycle_point_format')
+            return conn.execute(s).fetchone()
+
+    def find_task_outputs(
+            self,
+            task,
+            cycle,
+            state_lookup,
+            status=None):
+        mask = "outputs"
+        return self._find_task_states_or_outputs(
+            table=task_outputs,
+            mask=mask,
+            task=task,
+            cycle=cycle,
+            state_lookup=state_lookup,
+            status=status
+        )
+
+    def find_task_states(
+            self,
+            mask,
+            task,
+            cycle,
+            state_lookup,
+            status=None):
+        if mask is None:
+            mask = "name, cycle, status"
+        return self._find_task_states_or_outputs(
+            table=task_states,
+            mask=mask,
+            task=task,
+            cycle=cycle,
+            state_lookup=state_lookup,
+            status=status
+        )
+
+    def _find_task_states_or_outputs(
+            self,
+            *,
+            table,
+            mask,
+            task,
+            cycle,
+            state_lookup,
+            status):
+        s = Select([
+            table.c[column.strip()] for column in mask.split(",")
+        ])
+        if task is not None:
+            s = s.where(table.c.name == task)
+        if cycle is not None:
+            s = s.where(table.c.cycle == cycle)
+        if status:
+            s = s.where(
+                or_(*[
+                    table.c.status == state for state in state_lookup
+                ])
+            )
+        res = []
+        with self.connect() as conn:
+            for row in conn.execute(s).fetchall():
+                if not all(v is None for v in row):
+                    res.append(list(row))
+        return res
+
     def is_sqlite(self) -> bool:
         return self.engine.dialect.name == 'sqlite'
 
@@ -886,7 +956,7 @@ class CylcSuiteDAO(object):
         * Add a is_held column.
         * Set status and is_held as per the new schema.
         * Set the swap_hold values to None
-          (bacause sqlite3 does not support DROP COLUMN)
+          (because sqlite3 does not support DROP COLUMN)
 
         From:
             cylc<8
@@ -921,7 +991,8 @@ class CylcSuiteDAO(object):
                                     is_held BOOL
                             '''
                         )
-                        for cycle, name, status, hold_swap in conn.execute(rf'''
+                        for cycle, name, status, hold_swap in conn.execute(
+                            rf'''
                                 SELECT
                                     cycle, name, status, hold_swap
                                 FROM
