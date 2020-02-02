@@ -837,7 +837,7 @@ class CylcSuiteDAO(object):
             s = Select([
                 suite_params.c.value
             ]).where(suite_params.c.key == 'cycle_point_format')
-            return conn.execute(s).fetchone()
+            return conn.execute(s).fetchone()[0]
 
     def find_task_outputs(
             self,
