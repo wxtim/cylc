@@ -1248,7 +1248,7 @@ see `COPYING' in the Cylc source distribution.
     def database_health_check(self):
         """If public database is stuck, blast it away by copying the content
         of the private database into it."""
-        self.suite_db_mgr.recover_pub_from_pri()
+        # self.suite_db_mgr.recover_pub_from_pri()
 
     def late_tasks_check(self):
         """Report tasks that are never active and are late."""

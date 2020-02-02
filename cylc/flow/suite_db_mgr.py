@@ -184,9 +184,9 @@ class SuiteDatabaseManager(object):
                 # Just in case the path is a directory!
                 rmtree(self.pri_path, ignore_errors=True)
         self.pri_dao = self.get_pri_dao()
-        os.chmod(self.pri_path, 0o600)
-        self.pub_dao = CylcSuiteDAO(self.pub_path, is_public=True)
-        self.copy_pri_to_pub()
+        # os.chmod(self.pri_path, 0o600)
+        # self.pub_dao = CylcSuiteDAO(self.pub_path, is_public=True)
+        # self.copy_pri_to_pub()
 
     def on_suite_shutdown(self):
         """Close data access objects."""
@@ -208,13 +208,13 @@ class SuiteDatabaseManager(object):
                 while db_deletes:
                     where_args = db_deletes.pop(0)
                     self.pri_dao.add_delete_item(table, where_args)
-                    self.pub_dao.add_delete_item(table, where_args)
+                    # self.pub_dao.add_delete_item(table, where_args)
         if any(self.db_inserts_map.values()):
             for table, db_inserts in self.db_inserts_map.items():
                 while db_inserts:
                     db_insert = db_inserts.pop(0)
                     self.pri_dao.add_insert_item(table, db_insert)
-                    self.pub_dao.add_insert_item(table, db_insert)
+                    # self.pub_dao.add_insert_item(table, db_insert)
         if (hasattr(self, 'db_updates_map') and
                 any(self.db_updates_map.values())):
             for table, db_updates in self.db_updates_map.items():
@@ -222,8 +222,8 @@ class SuiteDatabaseManager(object):
                     set_args, where_args = db_updates.pop(0)
                     self.pri_dao.add_update_item(
                         table, set_args, where_args)
-                    self.pub_dao.add_update_item(
-                        table, set_args, where_args)
+                    # self.pub_dao.add_update_item(
+                    #     table, set_args, where_args)
 
         # Previously, we used a separate thread for database writes. This has
         # now been removed. For the private database, there is no real
@@ -234,7 +234,7 @@ class SuiteDatabaseManager(object):
         # there is no evidence that this is a bottleneck, so it is better to
         # keep the logic simple.
         self.pri_dao.execute_queued_items()
-        self.pub_dao.execute_queued_items()
+        # self.pub_dao.execute_queued_items()
 
     def put_broadcast(self, modified_settings, is_cancel=False):
         """Put or clear broadcasts in runtime database."""

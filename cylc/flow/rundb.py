@@ -24,7 +24,8 @@ from typing import Dict, List, Union
 
 from sqlalchemy import (
     cast, Column, create_engine, func, INTEGER, NUMERIC, REAL, Table, TEXT,
-    MetaData)
+    BOOLEAN, MetaData)
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import and_, or_, select
@@ -116,7 +117,7 @@ task_jobs = Table(
     Column('cycle', TEXT, primary_key=True),
     Column('name', TEXT, primary_key=True),
     Column('submit_num', INTEGER, primary_key=True),
-    Column('is_manual_submit', INTEGER),
+    Column('is_manual_submit', BOOLEAN),
     Column('try_num', INTEGER),
     Column('time_submit', TEXT),
     Column('time_submit_exit', TEXT),
@@ -160,7 +161,7 @@ task_pool = Table(
     Column('name', TEXT, primary_key=True),
     Column('spawned', INTEGER),
     Column('status', TEXT),
-    Column('is_held', INTEGER)
+    Column('is_held', BOOLEAN)
 )
 
 xtriggers = Table(
@@ -176,7 +177,7 @@ task_pool_checkpoints = Table(
     Column('name', TEXT, primary_key=True),
     Column('spawned', INTEGER),
     Column('status', TEXT),
-    Column('is_held', INTEGER)
+    Column('is_held', BOOLEAN)
 )
 
 task_states = Table(
@@ -214,12 +215,13 @@ class CylcSuiteDAO(object):
         conn_url (str) - DB connection URL, e.g. sqlite:///tmp/file.db
         is_public (bool) - If True, allow retries, etc
         """
-        self.conn_url = "sqlite://" if file_name == '' \
-            else f"sqlite:///{file_name}"
+        # self.conn_url = "sqlite://" if file_name == '' \
+        #     else f"sqlite:///{file_name}"
+        self.conn_url = "postgresql://cylc:cylc@localhost/cylc-five"
         self.engine = create_engine(
             self.conn_url,
             connect_args={
-                'timeout': timeout
+                'connect_timeout': 2
             },
             echo=False
         )
@@ -269,7 +271,8 @@ class CylcSuiteDAO(object):
         Empty elements are padded with None.
 
         """
-        self.to_insert[table.name].append([table.insert(), args])
+        s = insert(table)
+        self.to_insert[table.name].append([s, args])
 
     def add_update_item(self, table: Table, set_args: dict,
                         where_args=None):
@@ -327,6 +330,13 @@ class CylcSuiteDAO(object):
                                 if self.is_sqlite():
                                     stmt = stmt.prefix_with("OR REPLACE",
                                                             dialect="sqlite")
+                                else:
+                                    # postgres upsert
+                                    if stmt.table.primary_key:
+                                        stmt = stmt.on_conflict_do_update(
+                                            constraint=f'{table_name}_pkey',
+                                            set_=args
+                                        )
                                 self._execute_stmt(stmt, args, conn)
                         if table_name in self.to_update:
                             for stmt, args in self.to_update[table_name]:
