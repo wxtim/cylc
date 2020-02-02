@@ -899,61 +899,64 @@ class CylcSuiteDAO(object):
             bool - True if upgrade performed, False if upgrade skipped.
 
         """
+        # FIXME: Alembic? See JupyterHub... it seems to be able to workaround
+        #        drop limitation with sqlite, and would support other DBs.
+        with self.connect() as conn:
+            # check if upgrade required
+            schema = conn.execute(rf'PRAGMA table_info({task_pool.name})')
+            for _, name, *_ in schema:
+                if name == 'is_held':
+                    LOG.debug('is_held column present - skipping db upgrade')
+                    return False
+            with conn.begin() as trans:
+                # perform upgrade
+                try:
+                    for table in [task_pool.name, task_pool_checkpoints.name]:
+                        LOG.info('Upgrade hold_swap => is_held in %s', table)
+                        conn.execute(
+                            rf'''
+                                ALTER TABLE
+                                    {table}
+                                ADD COLUMN
+                                    is_held BOOL
+                            '''
+                        )
+                        for cycle, name, status, hold_swap in conn.execute(rf'''
+                                SELECT
+                                    cycle, name, status, hold_swap
+                                FROM
+                                    {table}
+                        '''):
+                            if status == 'held':
+                                new_status = hold_swap
+                                is_held = True
+                            elif hold_swap == 'held':
+                                new_status = status
+                                is_held = True
+                            else:
+                                new_status = status
+                                is_held = False
+                            conn.execute(
+                                rf'''
+                                    UPDATE
+                                        {table}
+                                    SET
+                                        status=?,
+                                        is_held=?,
+                                        hold_swap=?
+                                    WHERE
+                                        cycle==?
+                                        AND name==?
+                                ''',
+                                (new_status, is_held, None, cycle, name)
+                            )
+                        self.remove_columns(table, ['hold_swap'])
+                        trans.commit()
+                except SQLAlchemyError:
+                    LOG.exception()
+                    with suppress(SQLAlchemyError):
+                        trans.rollback()
         return True
-        # FIXME: alembic? See JupyterHub...
-        # conn = self.connect()
-        #
-        # # check if upgrade required
-        # schema = conn.execute(rf'PRAGMA table_info({self.TABLE_TASK_POOL})')
-        # for _, name, *_ in schema:
-        #     if name == 'is_held':
-        #         LOG.debug('is_held column present - skipping db upgrade')
-        #         return False
-        #
-        # # perform upgrade
-        # for table in [self.TABLE_TASK_POOL,
-        #     self.TABLE_TASK_POOL_CHECKPOINTS]:
-        #     LOG.info('Upgrade hold_swap => is_held in %s', table)
-        #     conn.execute(
-        #         rf'''
-        #             ALTER TABLE
-        #                 {table}
-        #             ADD COLUMN
-        #                 is_held BOOL
-        #         '''
-        #     )
-        #     for cycle, name, status, hold_swap in conn.execute(rf'''
-        #             SELECT
-        #                 cycle, name, status, hold_swap
-        #             FROM
-        #                 {table}
-        #     '''):
-        #         if status == 'held':
-        #             new_status = hold_swap
-        #             is_held = True
-        #         elif hold_swap == 'held':
-        #             new_status = status
-        #             is_held = True
-        #         else:
-        #             new_status = status
-        #             is_held = False
-        #         conn.execute(
-        #             rf'''
-        #                 UPDATE
-        #                     {table}
-        #                 SET
-        #                     status=?,
-        #                     is_held=?,
-        #                     hold_swap=?
-        #                 WHERE
-        #                     cycle==?
-        #                     AND name==?
-        #             ''',
-        #             (new_status, is_held, None, cycle, name)
-        #         )
-        #     self.remove_columns(table, ['hold_swap'])
-        #     conn.commit()
-        # return True
 
 
 __all__ = [
