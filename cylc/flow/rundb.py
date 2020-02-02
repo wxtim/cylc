@@ -151,7 +151,7 @@ task_outputs = Table(
     'task_outputs', meta,
     Column('cycle', TEXT, primary_key=True),
     Column('name', TEXT, primary_key=True),
-    Column('outputs', INTEGER)
+    Column('outputs', TEXT)
 )
 
 task_pool = Table(
