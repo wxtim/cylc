@@ -20,6 +20,7 @@ FROM python:3.7.6-alpine3.11
 # well as all dependencies.
 # Install dependencies with apk and pip
 
+# NOTE: pyzmq doesn't work when running non-root
 RUN apk update && \
     apk add --no-cache \
     bash \
@@ -29,8 +30,9 @@ RUN apk update && \
     gcc \
     git \
     g++ \
-    python3-dev
-    #apk del build-dependencies
+    python3-dev && \
+    pip install "pyzmq==18.0.*" && \
+    apk del build-dependencies
 
 # Add a non-root user
 
@@ -43,6 +45,9 @@ RUN addgroup -g 1000 cylc && \
 
 WORKDIR ${USER_ROOT}
 
+RUN mkdir -p ${USER_ROOT}/cylc-flow
+COPY ./ cylc-flow/
+
 # Change ownerships...
 # and permissions, sudoers etc...
 RUN chown -R ${USER_NAME}:${USER_GROUP} ${USER_ROOT} && \
@@ -54,11 +59,13 @@ ENV HOME ${USER_ROOT}
 ENV PYTHONHTTPSVERIFY 0
 ENV PYTHONWARNINGS ignore
 
-RUN mkdir -p ${USER_ROOT}/cylc-flow && \
-    chown -R ${USER_NAME}:${USER_GROUP} ${USER_ROOT}/cylc-flow
+ENV VIRTUAL_ENV=${USER_ROOT}/venv
 
-VOLUME ${USER_ROOT}/cylc-flow
+RUN python -m venv --system-site-packages venv && \
+    source venv/bin/activate && \
+    cd cylc-flow && \
+    pip install -e ".[test]"
 
-WORKDIR ${USER_ROOT}/cylc-flow
+ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 
-ENTRYPOINT ["tail", "-f", "/dev/null"]
+ENTRYPOINT ["cylc"]
