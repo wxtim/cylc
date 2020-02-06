@@ -1,8 +1,0 @@
-version: "3.7"
-services:
-  cylc-flow:
-    build:
-      context: ./
-      dockerfile: Dockerfile
-    volumes:
-      - ./:/home/cylc/cylc-flow/
