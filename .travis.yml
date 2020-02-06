@@ -33,6 +33,9 @@ addons:
 
 language: python
 
+services:
+  - docker
+
 stages:
 - unit-test
 - functional-test
@@ -61,6 +64,14 @@ unittest: &unittest
     - coverage combine --append
     - coverage xml --ignore-errors
     - bash <(curl -s https://codecov.io/bash)
+
+remotetest: &remotetest
+  state: functional-test
+  script:
+    - docker build -f Dockerfile.ssh -t cylc/cylc-flow-ssh-tests .
+    - docker run --name cylc-flow-ssh -d -p 22:22 cylc/cylc-flow-ssh-tests
+    - docker ps -a
+    - pytest --cov-append --cov=cylc/flow -m "remote and ssh"
 
 regressiontest: &regressiontest
   stage: functional-test
@@ -105,6 +116,10 @@ jobs:
 
   # run unittests at each supported Python version
   - <<: *unittest
+    python: "3.7"
+
+  # run remote tests
+  - <<: *remotetest
     python: "3.7"
 
   # run regression tests in chunks with the most contemporary
