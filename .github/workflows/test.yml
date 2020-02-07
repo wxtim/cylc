@@ -19,9 +19,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck sqlite3 s-nail
-          # sh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
-          # cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-          # ssh-keyscan -t rsa localhost >> ~/.ssh/known_hosts
       - name: Install
         run: |
           pip install ."[all]"
@@ -60,7 +57,7 @@ jobs:
         run: |
           export PYTHONPATH="${PWD}/.travis"
           .travis/coverage-data.sh
-          coverage run .travis/cover.py
+          etc/bin/run-functional-tests -j 8
           unset PYTHONPATH
 
   flaky_test:
@@ -68,9 +65,7 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.7']
-        chunk: ['1/4', '2/4', '3/4', '4/4']
     env:
-      CHUNK: ${{ matrix.chunk }}
       FLAKYTESTS: ./flakytests
     steps:
       - name: Checkout
@@ -90,5 +85,5 @@ jobs:
         run: |
           export PYTHONPATH="${PWD}/.travis"
           .travis/coverage-data.sh
-          coverage run .travis/cover.py
+          etc/bin/run-functional-tests -j 8
           unset PYTHONPATH
