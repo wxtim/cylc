@@ -18,7 +18,7 @@ jobs:
       - name: Configure System
         run: |
           sudo apt-get update
-          sudo apt-get install -y shellcheck sqlite3  # mailutils
+          sudo apt-get install -y shellcheck sqlite3 s-nail
           # sh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
           # cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
           # ssh-keyscan -t rsa localhost >> ~/.ssh/known_hosts
@@ -52,11 +52,10 @@ jobs:
       - name: Configure System
         run: |
           sudo apt-get update
-          sudo apt-get install -y sqlite3  # mailutils
+          sudo apt-get install -y sqlite3 s-nail
       - name: Install
         run: |
           pip install ."[all]"
-          pip install pytest-xdist
       - name: Test
         run: |
           export PYTHONPATH="${PWD}/.travis"
