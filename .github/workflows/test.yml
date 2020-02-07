@@ -49,6 +49,10 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Configure System
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3  # mailutils
       - name: Install
         run: |
           pip install ."[all]"
