@@ -20,3 +20,23 @@
 
 import coverage
 coverage.process_startup()
+
+import cylc.flow.terminal
+
+
+original_cli_function = cylc.flow.terminal.cli_function
+
+def mocked_cli_function(parser_function=None, **parser_kwargs):
+    """Wrap the original cylc.flow.terminal.cli_function with a
+    try finally, to save and stop the coverage process.
+
+    See: https://github.com/cylc/cylc-flow/pull/3486
+    """
+    try:
+        return original_cli_function(parser_function, **parser_kwargs)
+    finally:
+        if getattr(coverage.process_startup, 'coverage', False):
+            coverage.process_startup.coverage.save()
+            coverage.process_startup.coverage.stop()
+
+cylc.flow.terminal.cli_function = mocked_cli_function
