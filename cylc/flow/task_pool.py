@@ -88,6 +88,8 @@ class TaskPool(object):
         self.rhpool_changed = False
         self.pool_changes = []
 
+        self.conditional_done = set([])  # SOD - TODO housekeeping
+
         self.is_held = False
         self.hold_point = None
         self.held_future_tasks = []
@@ -175,6 +177,13 @@ class TaskPool(object):
         if self.get_task_by_id(itask.identity) is not None:
             LOG.warning(
                 '%s cannot be added to pool: task ID already exists' %
+                itask.identity)
+            return
+
+        if itask.identity in self.conditional_done:
+            # SOD
+            LOG.warning(
+                '%s not adding to pool: task previously ran' %
                 itask.identity)
             return
 
@@ -487,6 +496,10 @@ class TaskPool(object):
 
     def release_runahead_task(self, itask):
         """Release itask to the appropriate queue in the active pool."""
+        if itask.state.prerequisites_are_not_all_satisfied():
+           # SOD: we spawn at first ouput, but keep in rh pool
+           # SOD: to hide spawned tasks until ready to run.
+           return
         try:
             queue = self.myq[itask.tdef.name]
         except KeyError:
@@ -498,6 +511,8 @@ class TaskPool(object):
         self.pool_changed = True
         self.pool_changes.append(itask)
         LOG.debug("[%s] -released to the task pool", itask)
+        if itask.state.prereq_is_conditional():
+            self.conditional_done.add(itask.identity)
         del self.runahead_pool[itask.point][itask.identity]
         if not self.runahead_pool[itask.point]:
             del self.runahead_pool[itask.point]
