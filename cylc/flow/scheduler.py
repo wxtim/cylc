@@ -1312,14 +1312,14 @@ see `COPYING' in the Cylc source distribution.
                     itask, itask.state.get_resolved_dependencies())
 
         # SOD   self.pool.spawn_all_tasks,
-        # IMPLEMENTATION PLAN
-        # 1) REPLACE SOS WITH SOD BUT KEEP DEP MATCHING AND SUCCEEDED TASKS.
-        # 2) REPLACE DEP MAT. WITH DIRECT SATISFN, AND DITCH SUCCEEDED TASKS.
         #for meth in [
         #        self.pool.remove_spent_tasks,
         #        self.pool.remove_suiciding_tasks]:
         #    if meth():
         #        self.is_updated = True
+
+        if self.pool.remove_suiciding_tasks():
+            self.is_updated = True
 
         self.broadcast_mgr.expire_broadcast(self.pool.get_min_point())
         self.xtrigger_mgr.housekeep()
@@ -1647,7 +1647,6 @@ see `COPYING' in the Cylc source distribution.
 
     def run(self):
         """Main loop."""
-        #from cylc.flow import patch_pudb; from pudb import set_trace; set_trace()
         self.initialise_scheduler()
         self.data_store_mgr.initiate_data_model()
         self.publisher.publish(self.data_store_mgr.get_publish_deltas())

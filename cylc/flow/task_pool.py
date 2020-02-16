@@ -496,9 +496,10 @@ class TaskPool(object):
 
     def release_runahead_task(self, itask):
         """Release itask to the appropriate queue in the active pool."""
-        if itask.state.prerequisites_are_not_all_satisfied():
+        #from cylc.flow import patch_pudb; import pudb; pudb.set_trace()
+        if not itask.state.prerequisites_are_all_satisfied():
            # SOD: we spawn at first ouput, but keep in rh pool
-           # SOD: to hide spawned tasks until ready to run.
+           #      to hide spawned tasks until ready to run.
            return
         try:
             queue = self.myq[itask.tdef.name]
@@ -1012,8 +1013,8 @@ class TaskPool(object):
                 itask.state.satisfy_me(all_task_outputs)
 
     def spawn(self, up_name, up_point, name, point, message=None):
-        """Spawn task name. TODO point offset etc."""
-        LOG.debug('[%s] -forced spawning', name)
+        """Spawn task name. TODO point offset etc. (done?)"""
+        LOG.debug('[%s] spawning', name)
         itask = None
         for jtask in self.get_all_tasks():
             if jtask.tdef.name == name and jtask.point == point:
@@ -1038,7 +1039,7 @@ class TaskPool(object):
         Return the number of removed tasks.
         """
         num_removed = 0
-        for itask in self.get_tasks():
+        for itask in self.get_all_tasks():
             if (itask.state.suicide_prerequisites and
                     itask.state.suicide_prerequisites_are_all_satisfied()):
                 if itask.state(
@@ -1050,7 +1051,6 @@ class TaskPool(object):
                     LOG.warning('[%s] -suiciding while active', itask)
                 else:
                     LOG.info('[%s] -suiciding', itask)
-                self.force_spawn(itask)
                 self.remove(itask, 'suicide')
                 num_removed += 1
         return num_removed
@@ -1166,8 +1166,9 @@ class TaskPool(object):
         """Remove tasks from pool."""
         itasks, bad_items = self.filter_task_proxies(items)
         for itask in itasks:
-            if spawn:
-                self.force_spawn(itask)
+           # SOD TODO get rid of 'spawn' arg?
+           # if spawn:
+           #     self.force_spawn(itask)
             self.remove(itask, 'by request')
         return len(bad_items)
 
