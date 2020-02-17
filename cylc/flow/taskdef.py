@@ -83,6 +83,7 @@ class TaskDef(object):
         name = downstream
         offset = trigger.cycle_point_offset
         self.downstreams.setdefault(sequence, {}).setdefault(trigger, []).append((name, offset))
+        print('XXXXX', self.name, trigger, name, offset, sequence)
 
     def add_dependency(self, dependency, sequence):
         """Add a dependency to a named sequence.

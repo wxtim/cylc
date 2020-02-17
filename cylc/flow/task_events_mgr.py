@@ -357,7 +357,11 @@ class TaskEventsManager():
             get_task_job_id(itask.point, itask.tdef.name, submit_num),
             new_msg)
 
-        # Satisfy my output, if possible, and record the result.
+        # Satisfy my output, if possible, and spawn downstream tasks.
+        # Only spawn downstream if on-sequence. Example:
+        #   T06 = "waz[-PT6H] => foo"
+        #   PT6H = "waz"
+        # waz should trigger foo only if foo is on the T06 sequence
         # (first remove signal: failed/EXIT -> failed)
         msg0 = message.split('/')[0]
         completed_trigger = itask.state.outputs.set_msg_trg_completion(
@@ -365,18 +369,18 @@ class TaskEventsManager():
         if completed_trigger is not None:
            ds = itask.tdef.downstreams
            for seq, dout in ds.items():
-              if seq.is_on_sequence(itask.point):
-                 for out, downs in dout.items():
-                    if out.output == msg0:
-                       for down in downs:
-                           name, offset = down
-                           up_point = itask.point
-                           if offset is not None:
-                               point = up_point - get_interval(offset)
-                           else:
-                               point = up_point
-                           self.pflag = True
-                           spawn(itask.tdef.name, up_point, name, point, msg0)
+              for out, downs in dout.items():
+                 if out.output == msg0:
+                    for down in downs:
+                        name, offset = down
+                        if offset is not None:
+                            point = itask.point - get_interval(offset)
+                        else:
+                            point = itask.point
+                        if seq.is_on_sequence(point):
+                            # Only spawn if the downstream task is on-sequence.
+                            self.pflag = True
+                            spawn(itask.tdef.name, itask.point, name, point, msg0)
 
         if message == TASK_OUTPUT_STARTED:
             if (

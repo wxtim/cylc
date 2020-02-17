@@ -1014,7 +1014,7 @@ class TaskPool(object):
 
     def spawn(self, up_name, up_point, name, point, message=None):
         """Spawn task name. TODO point offset etc. (done?)"""
-        LOG.debug('[%s] spawning', name)
+        LOG.info('[%s.%s] spawning %s.%s (%s)', up_name, up_point, name, point, message)
         itask = None
         for jtask in self.get_all_tasks():
             if jtask.tdef.name == name and jtask.point == point:
