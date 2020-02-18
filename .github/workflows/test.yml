@@ -2,6 +2,7 @@ name: test
 
 on: [pull_request]
 
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,6 +31,7 @@ jobs:
       - name: Unit Test
         run: |
           pytest --cov-append --cov=cylc/flow -n 5
+          coverage combine --append
 
   functional_test:
     runs-on: ubuntu-latest
@@ -59,6 +61,7 @@ jobs:
           .travis/coverage-data.sh
           etc/bin/run-functional-tests -j 8
           unset PYTHONPATH
+          coverage combine --append
 
   flaky_test:
     runs-on: ubuntu-latest
@@ -87,3 +90,12 @@ jobs:
           .travis/coverage-data.sh
           etc/bin/run-functional-tests -j 8
           unset PYTHONPATH
+      - name: Coverage
+        run: |
+          coverage combine --append
+          coverage xml --ignore-errors
+      - name: Upload
+        uses: codecov/codecov-action@v1.0.5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: coverage.xml
