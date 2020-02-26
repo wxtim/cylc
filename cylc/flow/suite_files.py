@@ -333,49 +333,6 @@ def get_contact_file(reg):
         get_suite_srv_dir(reg), SuiteFiles.Service.CONTACT)
 
 
-def get_auth_item(item, reg, owner=None, host=None):
-    """Locate/load Curve private-key/ ...etc.
-
-    Return file name, or content of file if content=True is set.
-    Files are searched from these locations in order:
-
-    1/  Server Curve ZMQ keys located in suite service directory
-        Client Curve ZMQ keys located in
-            suite service directory (private keys)
-            suite service directory/client_public_keys (public keys)
-
-    2/ For running task jobs, service directory under:
-       a/ $CYLC_SUITE_RUN_DIR for remote jobs.
-       b/ $CYLC_SUITE_RUN_DIR_ON_SUITE_HOST for local jobs or remote jobs
-          with SSH messaging.
-
-    3/ For suite on local user@host. The suite service directory.
-
-    4/ Location under $HOME/.cylc/ for remote suite control from accounts
-       that do not actually need the suite definition directory to be
-       installed:
-       $HOME/.cylc/auth/SUITE_OWNER@SUITE_HOST/SUITE_NAME/
-
-    5/ For remote suites, try locating the file from the suite service
-       directory on remote owner@host via SSH. If content=False, the value
-       of the located file will be dumped under:
-       $HOME/.cylc/auth/SUITE_OWNER@SUITE_HOST/SUITE_NAME/
-
-    """
-    if item not in [
-            SuiteFiles.Service.CONTACT,
-            SuiteFiles.Service.CONTACT2]:
-        raise ValueError(f"{item}: item not recognised")
-
-    # 3/ Local suite service directory
-    path = get_suite_srv_dir(reg)
-    value = _load_local_item(item, path)
-    if value:
-        return value
-    else:
-        raise SuiteServiceFileError("Couldn't get %s" % item)
-
-
 def get_suite_rc(reg, suite_owner=None):
     """Return the suite.rc path of a suite."""
     return os.path.join(
@@ -420,13 +377,17 @@ def get_suite_srv_dir(reg, suite_owner=None):
 
 def load_contact_file(reg, owner=None, host=None):
     """Load contact file. Return data as key=value dict."""
-    file_base = SuiteFiles.Service.CONTACT
-    file_content = get_auth_item(file_base, reg, owner, host)
-    data = {}
-    for line in file_content.splitlines():
-        key, value = [item.strip() for item in line.split("=", 1)]
-        data[key] = value
-    return data
+    try:
+        file_base = SuiteFiles.Service.CONTACT
+        path = get_suite_srv_dir(reg)
+        file_content = _load_local_item(file_base, path)
+        data = {}
+        for line in file_content.splitlines():
+            key, value = [item.strip() for item in line.split("=", 1)]
+            data[key] = value
+        return data
+    except SuiteServiceFileError:
+        raise SuiteServiceFileError(f"Couldn't get {file_base}")
 
 
 def parse_suite_arg(options, arg):
@@ -564,7 +525,11 @@ def register(reg=None, source=None, redirect=False, rundir=None):
 
 def create_auth_files(reg):
     """Create or renew authentication keys for suite 'reg' in the .service
-     directory."""
+     directory.
+     Server Curve ZMQ keys located in suite service directory
+     Client Curve ZMQ keys located in
+        suite service directory (private keys)
+        suite service directory/client_public_keys (public keys)"""
 
     suite_srv_dir = get_suite_srv_dir(reg)
 
@@ -635,14 +600,6 @@ def _dump_item(path, item, value):
     fname = os.path.join(path, item)
     os.rename(handle.name, fname)
     LOG.debug('Generated %s', fname)
-
-
-def _get_cache_dir(reg, owner, host):
-    """Return the cache directory for remote suite service files."""
-    return os.path.join(
-        os.path.expanduser("~"), ".cylc", "auth"
-        "%s@%s" % (owner, host), reg
-    )
 
 
 def get_suite_title(reg):
