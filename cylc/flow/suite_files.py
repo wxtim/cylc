@@ -339,7 +339,7 @@ def get_contact_file(reg):
         get_suite_srv_dir(reg), SuiteFiles.Service.CONTACT)
 
 
-def get_auth_item(item, reg, owner=None, host=None, content=False):
+def get_auth_item(item, reg, platform=None, content=False):
     """Locate/load Curve private-key/ ...etc.
 
     Return file name, or content of file if content=True is set.
@@ -402,7 +402,7 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
             if value:
                 return value
     # 3/ Local suite service directory
-    if _is_local_auth_ok(reg, owner, host):
+    if _is_local_auth_ok(reg, platform):
         path = get_suite_srv_dir(reg)
         if content:
             value = _load_local_item(item, path)
@@ -411,7 +411,7 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
         if value:
             return value
     # 4/ Disk cache for remote suites
-    if owner is not None and host is not None:
+    if platform is not None:
         paths = [_get_cache_dir(reg, owner, host)]
         short_host = host.split('.', 1)[0]
         if short_host != host:
@@ -429,10 +429,10 @@ def get_auth_item(item, reg, owner=None, host=None, content=False):
     # host, because it is installed on task host by "cylc remote-init" on
     # demand.
     if item != SuiteFiles.Service.CONTACT2:
-        value = _load_remote_item(item, reg, owner, host)
+        value = _load_remote_item(item, reg, platform)
         if value:
             if not content:
-                path = _get_cache_dir(reg, owner, host)
+                path = _get_cache_dir(reg, )
                 _dump_item(path, item, value)
                 value = os.path.join(path, item)
             return value
@@ -482,12 +482,12 @@ def get_suite_srv_dir(reg, suite_owner=None):
     return os.path.join(run_d, SuiteFiles.Service.DIRNAME)
 
 
-def load_contact_file(reg, owner=None, host=None, file_base=None):
+def load_contact_file(reg, platform=None, file_base=None):
     """Load contact file. Return data as key=value dict."""
     if not file_base:
         file_base = SuiteFiles.Service.CONTACT
     file_content = get_auth_item(
-        file_base, reg, owner, host, content=True)
+        file_base, reg, platform, content=True)
     data = {}
     for line in file_content.splitlines():
         key, value = [item.strip() for item in line.split("=", 1)]
@@ -734,12 +734,12 @@ def get_suite_title(reg):
 
 
 @lru_cache()
-def _is_local_auth_ok(reg, owner, host):
+def _is_local_auth_ok(reg, platform):
     """Return True if it is OK to use local passphrase file.
 
     Use values in ~/cylc-run/REG/.service/contact to make a judgement.
     """
-    if is_remote(host, owner):
+    if is_remote(platform):
         fname = os.path.join(
             get_suite_srv_dir(reg), SuiteFiles.Service.CONTACT)
         data = {}
@@ -779,12 +779,12 @@ def _load_local_item(item, path):
         return None
 
 
-def _load_remote_item(item, reg, owner, host):
+def _load_remote_item(item, reg, platform):
     """Load content of service item from remote [owner@]host via SSH."""
-    if not is_remote(host, owner):
+    if not is_remote(platform):
         return
-    if host is None:
-        host = 'localhost'
+    if platform is None:
+        platform = 'localhost'
     if owner is None:
         owner = get_user()
     if item == SuiteFiles.Service.CONTACT and not is_remote_host(host):

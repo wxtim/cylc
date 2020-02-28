@@ -105,11 +105,11 @@ SPEC = {
     'job platforms': {
         '__MANY__': {
             'batch system': [VDR.V_STRING, 'background'],
-            'batch submit command template': [VDR.V_STRING],
+            'batch submit command template': [VDR.V_STRING, None],
             'shell': [VDR.V_STRING, '/bin/bash'],
             'run directory': [VDR.V_STRING, '$HOME/cylc-run'],
             'work directory': [VDR.V_STRING, '$HOME/cylc-run'],
-            'suite definition directory': [VDR.V_STRING],
+            'suite definition directory': [VDR.V_STRING, None],
             'task communication method': [
                 VDR.V_STRING, 'zmq', 'poll'],
             # TODO ensure that it is possible to over-ride the following three
@@ -123,23 +123,23 @@ SPEC = {
             'ssh command': [
                 VDR.V_STRING, 'ssh -oBatchMode=yes -oConnectTimeout=10'],
             'use login shell': [VDR.V_BOOLEAN, True],
-            'remote hosts': [VDR.V_STRING_LIST],
+            'remote hosts': [VDR.V_STRING_LIST, []],
             'cylc executable': [VDR.V_STRING, 'cylc'],
-            'global init-script': [VDR.V_STRING],
+            'global init-script': [VDR.V_STRING, None],
             'copyable environment variables': [VDR.V_STRING_LIST, ''],
             'retrieve job logs': [VDR.V_BOOLEAN],
             'retrieve job logs command': [VDR.V_STRING, 'rsync -a'],
-            'retrieve job logs max size': [VDR.V_STRING],
+            'retrieve job logs max size': [VDR.V_STRING, None],
             'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST],
             'task event handler retry delays': [VDR.V_INTERVAL_LIST],
             'tail command template': [
                 VDR.V_STRING, 'tail -n +1 -F %(filename)s'],
-            'err tailer': [VDR.V_STRING],
-            'out tailer': [VDR.V_STRING],
-            'err viewer': [VDR.V_STRING],
-            'out viewer': [VDR.V_STRING],
+            'err tailer': [VDR.V_STRING, None],
+            'out tailer': [VDR.V_STRING, None],
+            'err viewer': [VDR.V_STRING, None],
+            'out viewer': [VDR.V_STRING, None],
             'job name length maximum': [VDR.V_INTEGER],
-            'owner': [VDR.V_STRING],
+            'owner': [VDR.V_STRING, None],
         },
     },
 
@@ -150,74 +150,74 @@ SPEC = {
         }
     },
 
-    # task
-    'hosts': {
-        'localhost': {
-            'run directory': [VDR.V_STRING, '$HOME/cylc-run'],
-            'work directory': [VDR.V_STRING, '$HOME/cylc-run'],
-            'task communication method': [
-                VDR.V_STRING, 'default', 'ssh', 'poll'],
-            'submission polling intervals': [VDR.V_INTERVAL_LIST],
-            'execution polling intervals': [VDR.V_INTERVAL_LIST],
-            'scp command': [
-                VDR.V_STRING, 'scp -oBatchMode=yes -oConnectTimeout=10'],
-            'ssh command': [
-                VDR.V_STRING, 'ssh -oBatchMode=yes -oConnectTimeout=10'],
-            'use login shell': [VDR.V_BOOLEAN, True],
-            'cylc executable': [VDR.V_STRING, 'cylc'],
-            'global init-script': [VDR.V_STRING],
-            'copyable environment variables': [VDR.V_STRING_LIST],
-            'retrieve job logs': [VDR.V_BOOLEAN],
-            'retrieve job logs command': [VDR.V_STRING, 'rsync -a'],
-            'retrieve job logs max size': [VDR.V_STRING],
-            'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST],
-            'task event handler retry delays': [VDR.V_INTERVAL_LIST],
-            'tail command template': [
-                VDR.V_STRING, 'tail -n +1 -F %(filename)s'],
-            'batch systems': {
-                '__MANY__': {
-                    'err tailer': [VDR.V_STRING],
-                    'out tailer': [VDR.V_STRING],
-                    'err viewer': [VDR.V_STRING],
-                    'out viewer': [VDR.V_STRING],
-                    'job name length maximum': [VDR.V_INTEGER],
-                    'execution time limit polling intervals': [
-                        VDR.V_INTERVAL_LIST],
-                },
-            },
-        },
-        '__MANY__': {
-            'run directory': [VDR.V_STRING],
-            'work directory': [VDR.V_STRING],
-            'task communication method': [
-                VDR.V_STRING, 'default', 'ssh', 'poll'],
-            'submission polling intervals': [VDR.V_INTERVAL_LIST],
-            'execution polling intervals': [VDR.V_INTERVAL_LIST],
-            'scp command': [VDR.V_STRING],
-            'ssh command': [VDR.V_STRING],
-            'use login shell': [VDR.V_BOOLEAN],
-            'cylc executable': [VDR.V_STRING],
-            'global init-script': [VDR.V_STRING],
-            'copyable environment variables': [VDR.V_STRING_LIST],
-            'retrieve job logs': [VDR.V_BOOLEAN],
-            'retrieve job logs command': [VDR.V_STRING],
-            'retrieve job logs max size': [VDR.V_STRING],
-            'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST],
-            'task event handler retry delays': [VDR.V_INTERVAL_LIST],
-            'tail command template': [VDR.V_STRING],
-            'batch systems': {
-                '__MANY__': {
-                    'err tailer': [VDR.V_STRING],
-                    'out tailer': [VDR.V_STRING],
-                    'out viewer': [VDR.V_STRING],
-                    'err viewer': [VDR.V_STRING],
-                    'job name length maximum': [VDR.V_INTEGER],
-                    'execution time limit polling intervals': [
-                        VDR.V_INTERVAL_LIST],
-                },
-            },
-        },
-    },
+    # # task
+    # 'hosts': {
+    #     'localhost': {
+    #         'run directory': [VDR.V_STRING, '$HOME/cylc-run'],
+    #         'work directory': [VDR.V_STRING, '$HOME/cylc-run'],
+    #         'task communication method': [
+    #             VDR.V_STRING, 'default', 'ssh', 'poll'],
+    #         'submission polling intervals': [VDR.V_INTERVAL_LIST],
+    #         'execution polling intervals': [VDR.V_INTERVAL_LIST],
+    #         'scp command': [
+    #             VDR.V_STRING, 'scp -oBatchMode=yes -oConnectTimeout=10'],
+    #         'ssh command': [
+    #             VDR.V_STRING, 'ssh -oBatchMode=yes -oConnectTimeout=10'],
+    #         'use login shell': [VDR.V_BOOLEAN, True],
+    #         'cylc executable': [VDR.V_STRING, 'cylc'],
+    #         'global init-script': [VDR.V_STRING],
+    #         'copyable environment variables': [VDR.V_STRING_LIST],
+    #         'retrieve job logs': [VDR.V_BOOLEAN],
+    #         'retrieve job logs command': [VDR.V_STRING, 'rsync -a'],
+    #         'retrieve job logs max size': [VDR.V_STRING],
+    #         'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST],
+    #         'task event handler retry delays': [VDR.V_INTERVAL_LIST],
+    #         'tail command template': [
+    #             VDR.V_STRING, 'tail -n +1 -F %(filename)s'],
+    #         'batch systems': {
+    #             '__MANY__': {
+    #                 'err tailer': [VDR.V_STRING],
+    #                 'out tailer': [VDR.V_STRING],
+    #                 'err viewer': [VDR.V_STRING],
+    #                 'out viewer': [VDR.V_STRING],
+    #                 'job name length maximum': [VDR.V_INTEGER],
+    #                 'execution time limit polling intervals': [
+    #                     VDR.V_INTERVAL_LIST],
+    #             },
+    #         },
+    #     },
+    #     '__MANY__': {
+    #         'run directory': [VDR.V_STRING],
+    #         'work directory': [VDR.V_STRING],
+    #         'task communication method': [
+    #             VDR.V_STRING, 'default', 'ssh', 'poll'],
+    #         'submission polling intervals': [VDR.V_INTERVAL_LIST],
+    #         'execution polling intervals': [VDR.V_INTERVAL_LIST],
+    #         'scp command': [VDR.V_STRING],
+    #         'ssh command': [VDR.V_STRING],
+    #         'use login shell': [VDR.V_BOOLEAN],
+    #         'cylc executable': [VDR.V_STRING],
+    #         'global init-script': [VDR.V_STRING],
+    #         'copyable environment variables': [VDR.V_STRING_LIST],
+    #         'retrieve job logs': [VDR.V_BOOLEAN],
+    #         'retrieve job logs command': [VDR.V_STRING],
+    #         'retrieve job logs max size': [VDR.V_STRING],
+    #         'retrieve job logs retry delays': [VDR.V_INTERVAL_LIST],
+    #         'task event handler retry delays': [VDR.V_INTERVAL_LIST],
+    #         'tail command template': [VDR.V_STRING],
+    #         'batch systems': {
+    #             '__MANY__': {
+    #                 'err tailer': [VDR.V_STRING],
+    #                 'out tailer': [VDR.V_STRING],
+    #                 'out viewer': [VDR.V_STRING],
+    #                 'err viewer': [VDR.V_STRING],
+    #                 'job name length maximum': [VDR.V_INTEGER],
+    #                 'execution time limit polling intervals': [
+    #                     VDR.V_INTERVAL_LIST],
+    #             },
+    #         },
+    #     },
+    # },
 
     # task
     'task events': {
@@ -379,7 +379,7 @@ class GlobalConfig(ParsecConfig):
                         LOG.error('bad %s %s', conf_type, fname)
                         raise
         # (OK if no flow.rc is found, just use system defaults).
-        self._transform()
+        # self._transform()
 
     @staticmethod
     def get_platform_item_for_job(job_conf, item):
@@ -429,6 +429,7 @@ class GlobalConfig(ParsecConfig):
         """
         # Check for the existence of the item we want in the platform specified
         # Or use default values.
+        value = None
         if platform:
             platform, raw_platform = forward_lookup(
                 self.get(['job platforms']), platform
@@ -458,83 +459,83 @@ class GlobalConfig(ParsecConfig):
                 value = value.replace('$HOME', self._HOME)
         return value
 
-    def get_host_item(self, item, host=None, owner=None, replace_home=False,
-                      owner_home=None):
-        """This allows hosts with no matching entry in the config file
-        to default to appropriately modified localhost settings."""
+    # def get_host_item(self, item, host=None, owner=None, replace_home=False,
+    #                   owner_home=None):
+    #     """This allows hosts with no matching entry in the config file
+    #     to default to appropriately modified localhost settings."""
 
-        cfg = self.get()
+    #     cfg = self.get()
 
-        # (this may be called with explicit None values for localhost
-        # and owner, so we can't use proper defaults in the arg list)
-        if not host:
-            # if no host is given the caller is asking about localhost
-            host = 'localhost'
+    #     # (this may be called with explicit None values for localhost
+    #     # and owner, so we can't use proper defaults in the arg list)
+    #     if not host:
+    #         # if no host is given the caller is asking about localhost
+    #         host = 'localhost'
 
-        # is there a matching host section?
-        host_key = None
-        if host in cfg['hosts']:
-            # there's an entry for this host
-            host_key = host
-        else:
-            # try for a pattern match
-            for cfg_host in cfg['hosts']:
-                if re.match(cfg_host, host):
-                    host_key = cfg_host
-                    break
-        modify_dirs = False
-        if host_key is not None:
-            # entry exists, any unset items under it have already
-            # defaulted to modified localhost values (see site cfgspec)
-            value = cfg['hosts'][host_key][item]
-        else:
-            # no entry so default to localhost and modify appropriately
-            value = cfg['hosts']['localhost'][item]
-            modify_dirs = True
-        if value is not None and 'directory' in item:
-            if replace_home or modify_dirs:
-                # Replace local home dir with $HOME for eval'n on other host.
-                value = value.replace(self._HOME, '$HOME')
-            elif is_remote_user(owner):
-                # Replace with ~owner for direct access via local filesys
-                # (works for standard cylc-run directory location).
-                if owner_home is None:
-                    owner_home = os.path.expanduser('~%s' % owner)
-                value = value.replace(self._HOME, owner_home)
-        if item == "task communication method" and value == "default":
-            # Translate "default" to client-server comms: "zmq"
-            value = 'zmq'
-        return value
+    #     # is there a matching host section?
+    #     host_key = None
+    #     if host in cfg['hosts']:
+    #         # there's an entry for this host
+    #         host_key = host
+    #     else:
+    #         # try for a pattern match
+    #         for cfg_host in cfg['hosts']:
+    #             if re.match(cfg_host, host):
+    #                 host_key = cfg_host
+    #                 break
+    #     modify_dirs = False
+    #     if host_key is not None:
+    #         # entry exists, any unset items under it have already
+    #         # defaulted to modified localhost values (see site cfgspec)
+    #         value = cfg['hosts'][host_key][item]
+    #     else:
+    #         # no entry so default to localhost and modify appropriately
+    #         value = cfg['hosts']['localhost'][item]
+    #         modify_dirs = True
+    #     if value is not None and 'directory' in item:
+    #         if replace_home or modify_dirs:
+    #             # Replace local home dir with $HOME for eval'n on other host.
+    #             value = value.replace(self._HOME, '$HOME')
+    #         elif is_remote_user(owner):
+    #             # Replace with ~owner for direct access via local filesys
+    #             # (works for standard cylc-run directory location).
+    #             if owner_home is None:
+    #                 owner_home = os.path.expanduser('~%s' % owner)
+    #             value = value.replace(self._HOME, owner_home)
+    #     if item == "task communication method" and value == "default":
+    #         # Translate "default" to client-server comms: "zmq"
+    #         value = 'zmq'
+    #     return value
 
-    def _transform(self):
-        """Transform various settings.
+    # def _transform(self):
+    #     """Transform various settings.
 
-        Host item values of None default to modified localhost values.
-        Expand environment variables and ~ notations.
+    #     Host item values of None default to modified localhost values.
+    #     Expand environment variables and ~ notations.
 
-        Ensure os.environ['HOME'] is defined with the correct value.
-        """
-        cfg = self.get()
+    #     Ensure os.environ['HOME'] is defined with the correct value.
+    #     """
+    #     cfg = self.get()
 
-        for host in cfg['hosts']:
-            if host == 'localhost':
-                continue
-            for item, value in cfg['hosts'][host].items():
-                if value is None:
-                    newvalue = cfg['hosts']['localhost'][item]
-                else:
-                    newvalue = value
-                if newvalue and 'directory' in item:
-                    # replace local home dir with $HOME for evaluation on other
-                    # host
-                    newvalue = newvalue.replace(self._HOME, '$HOME')
-                cfg['hosts'][host][item] = newvalue
+    #     for host in cfg['hosts']:
+    #         if host == 'localhost':
+    #             continue
+    #         for item, value in cfg['hosts'][host].items():
+    #             if value is None:
+    #                 newvalue = cfg['hosts']['localhost'][item]
+    #             else:
+    #                 newvalue = value
+    #             if newvalue and 'directory' in item:
+    #                 # replace local home dir with $HOME for evaluation on other
+    #                 # host
+    #                 newvalue = newvalue.replace(self._HOME, '$HOME')
+    #             cfg['hosts'][host][item] = newvalue
 
-        # Expand environment variables and ~user in LOCAL file paths.
-        if 'HOME' not in os.environ:
-            os.environ['HOME'] = self._HOME
-        cfg['documentation']['local'] = os.path.expandvars(
-            cfg['documentation']['local'])
-        for key, val in cfg['hosts']['localhost'].items():
-            if val and 'directory' in key:
-                cfg['hosts']['localhost'][key] = os.path.expandvars(val)
+    #     # Expand environment variables and ~user in LOCAL file paths.
+    #     if 'HOME' not in os.environ:
+    #         os.environ['HOME'] = self._HOME
+    #     cfg['documentation']['local'] = os.path.expandvars(
+    #         cfg['documentation']['local'])
+    #     for key, val in cfg['hosts']['localhost'].items():
+    #         if val and 'directory' in key:
+    #             cfg['hosts']['localhost'][key] = os.path.expandvars(val)

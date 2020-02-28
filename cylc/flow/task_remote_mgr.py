@@ -57,47 +57,51 @@ class TaskRemoteMgr(object):
     def __init__(self, suite, proc_pool):
         self.suite = suite
         self.proc_pool = proc_pool
-        # self.remote_host_str_map = {host_str: host|TaskRemoteMgmtError|None}
-        self.remote_host_str_map = {}
+        # self.remote_platform_str_map = {platform_str: host|TaskRemoteMgmtError|None}
+        self.remote_platform_str_map = {}
         # self.remote_init_map = {(host, owner): status, ...}
         self.remote_init_map = {}
         self.single_task_mode = False
         self.uuid_str = None
         self.ready = False
 
-    def remote_host_select(self, host_str):
-        """Evaluate a task host string.
+    def remote_platform_select(self, platform_str):
+        """Evaluate a task platform string.
 
         Arguments:
-            host_str (str):
-                An explicit host name, a command in back-tick or $(command)
-                format, or an environment variable holding a hostname.
+            platform_str (str):
+                An explicit platform name, a command in back-tick or
+                $(command) format, or an environment variable holding a
+                platform name.
 
         Return (str):
-            None if evaluate of host_str is still taking place.
-            'localhost' if host_str is not defined or if the evaluated host
-            name is equivalent to 'localhost'.
+            None if evaluate of platform_str is still taking place.
+            'localhost' if platform_str is not defined or if the evaluated
+            platform name is equivalent to 'localhost'.
             Otherwise, return the evaluated host name on success.
 
         Raise TaskRemoteMgmtError on error.
 
+        Todo:
+            Modify this method for platforms.
+            Is this where we want to deal with multiple host platforms?
         """
-        if not host_str:
+        if not platform_str:
             return 'localhost'
 
         # Host selection command: $(command) or `command`
-        match = REC_COMMAND.match(host_str)
+        match = REC_COMMAND.match(platform_str)
         if match:
             cmd_str = match.groups()[1]
-            if cmd_str in self.remote_host_str_map:
+            if cmd_str in self.remote_platform_str_map:
                 # Command recently launched
-                value = self.remote_host_str_map[cmd_str]
+                value = self.remote_platform_str_map[cmd_str]
                 if isinstance(value, TaskRemoteMgmtError):
                     raise value  # command failed
                 elif value is None:
                     return  # command not yet ready
                 else:
-                    host_str = value  # command succeeded
+                    platform_str = value  # command succeeded
             else:
                 # Command not launched (or already reset)
                 self.proc_pool.put_command(
@@ -106,14 +110,14 @@ class TaskRemoteMgr(object):
                         ['bash', '-c', cmd_str],
                         env=dict(os.environ)),
                     self._remote_host_select_callback, [cmd_str])
-                self.remote_host_str_map[cmd_str] = None
-                return self.remote_host_str_map[cmd_str]
+                self.remote_platform_str_map[cmd_str] = None
+                return self.remote_platform_str_map[cmd_str]
 
         # Environment variable substitution
-        host_str = os.path.expandvars(host_str)
+        platform_str = os.path.expandvars(platform_str)
         # Remote?
-        if is_remote_host(host_str):
-            return host_str
+        if is_remote_host(platform_str):
+            return platform_str
         else:
             return 'localhost'
 
@@ -122,12 +126,12 @@ class TaskRemoteMgr(object):
 
         This is normally called after the results are consumed.
         """
-        for key, value in list(self.remote_host_str_map.copy().items()):
+        for key, value in list(self.remote_platform_str_map.copy().items()):
             if value is not None:
-                del self.remote_host_str_map[key]
+                del self.remote_platform_str_map[key]
 
-    def remote_init(self, host, owner):
-        """Initialise a remote [owner@]host if necessary.
+    def remote_init(self, platform):
+        """Initialise a remote platform if necessary.
 
         Create UUID file on suite host ".service/uuid" for remotes to identify
         shared file system with suite host.
@@ -149,15 +153,15 @@ class TaskRemoteMgr(object):
                 If waiting for remote init command to complete
 
         """
-        if self.single_task_mode or not is_remote(host, owner):
+        if self.single_task_mode or not is_remote(platform):
             return REMOTE_INIT_NOT_REQUIRED
         try:
-            status = self.remote_init_map[(host, owner)]
+            status = self.remote_init_map[platform]
         except KeyError:
             pass  # Not yet initialised
         else:
             if status == REMOTE_INIT_FAILED:
-                del self.remote_init_map[(host, owner)]  # reset to allow retry
+                del self.remote_init_map[platform]  # reset to allow retry
             return status
 
         # Determine what items to install
@@ -172,8 +176,8 @@ class TaskRemoteMgr(object):
         items = self._remote_init_items(comm_meth)
         # No item to install
         if not items:
-            self.remote_init_map[(host, owner)] = REMOTE_INIT_NOT_REQUIRED
-            return self.remote_init_map[(host, owner)]
+            self.remote_init_map[platform] = REMOTE_INIT_NOT_REQUIRED
+            return self.remote_init_map[platform]
 
         # Create a TAR archive with the service files,
         # so they can be sent later via SSH's STDIN to the task remote.
@@ -207,8 +211,8 @@ class TaskRemoteMgr(object):
             self._remote_init_callback,
             [host, owner, tmphandle])
         # None status: Waiting for command to finish
-        self.remote_init_map[(host, owner)] = None
-        return self.remote_init_map[(host, owner)]
+        self.remote_init_map[platform] = None
+        return self.remote_init_map[platform]
 
     def remote_tidy(self):
         """Remove suite contact files from initialised remotes.
@@ -275,11 +279,11 @@ class TaskRemoteMgr(object):
         if proc_ctx.ret_code == 0 and proc_ctx.out:
             # Good status
             LOG.debug(proc_ctx)
-            self.remote_host_str_map[cmd_str] = proc_ctx.out.splitlines()[0]
+            self.remote_platform_str_map[cmd_str] = proc_ctx.out.splitlines()[0]
         else:
             # Bad status
             LOG.error(proc_ctx)
-            self.remote_host_str_map[cmd_str] = TaskRemoteMgmtError(
+            self.remote_platform_str_map[cmd_str] = TaskRemoteMgmtError(
                 TaskRemoteMgmtError.MSG_SELECT, (cmd_str, None), cmd_str,
                 proc_ctx.ret_code, proc_ctx.out, proc_ctx.err)
 
@@ -295,7 +299,7 @@ class TaskRemoteMgr(object):
                 if status in proc_ctx.out:
                     # Good status
                     LOG.debug(proc_ctx)
-                    self.remote_init_map[(host, owner)] = status
+                    self.remote_init_map[platform] = status
                     return
         # Bad status
         LOG.error(TaskRemoteMgmtError(
@@ -303,7 +307,7 @@ class TaskRemoteMgr(object):
             (host, owner), ' '.join(quote(item) for item in proc_ctx.cmd),
             proc_ctx.ret_code, proc_ctx.out, proc_ctx.err))
         LOG.error(proc_ctx)
-        self.remote_init_map[(host, owner)] = REMOTE_INIT_FAILED
+        self.remote_init_map[platform] = REMOTE_INIT_FAILED
 
     def _remote_init_items(self, comm_meth):
         """Return list of items to install based on communication method.

@@ -70,7 +70,7 @@ TaskEventMailContext = namedtuple(
 
 TaskJobLogsRetrieveContext = namedtuple(
     "TaskJobLogsRetrieveContext",
-    ["key", "ctx_type", "user_at_host", "max_size"])
+    ["key", "ctx_type", "user_at_platform", "max_size"])
 
 
 def log_task_job_activity(ctx, suite, point, name, submit_num=None):
@@ -214,8 +214,8 @@ class TaskEventsManager():
             return itask.tdef.rtconfig[skey][key]
         else:
             try:
-                return glbl_cfg().get_host_item(
-                    key, itask.task_host, itask.task_owner)
+                return glbl_cfg().get_platform_item(
+                    key, itask.task_platform)
             except (KeyError, ItemNotFoundError):
                 pass
         return default
@@ -605,10 +605,10 @@ class TaskEventsManager():
 
     def _process_job_logs_retrieval(self, schd_ctx, ctx, id_keys):
         """Process retrieval of task job logs from remote user@host."""
-        if ctx.user_at_host and "@" in ctx.user_at_host:
-            s_user, s_host = ctx.user_at_host.split("@", 1)
+        if ctx.user_at_platform and "@" in ctx.user_at_platform:
+            s_user, s_host = ctx.user_at_platform.split("@", 1)
         else:
-            s_user, s_host = (None, ctx.user_at_host)
+            s_user, s_host = (None, ctx.user_at_platform)
         ssh_str = str(glbl_cfg().get_host_item("ssh command", s_host, s_user))
         rsync_str = str(glbl_cfg().get_host_item(
             "retrieve job logs command", s_host, s_user))
@@ -630,7 +630,7 @@ class TaskEventsManager():
         cmd.append("--exclude=/**")  # exclude everything else
         # Remote source
         cmd.append("%s:%s/" % (
-            ctx.user_at_host,
+            ctx.user_at_platform,
             get_remote_suite_run_job_dir(s_host, s_user, schd_ctx.suite)))
         # Local target
         cmd.append(get_suite_run_job_dir(schd_ctx.suite) + "/")
@@ -849,12 +849,12 @@ class TaskEventsManager():
             (self.HANDLER_JOB_LOGS_RETRIEVE, event),
             str(itask.point), itask.tdef.name, itask.submit_num)
         if itask.task_owner:
-            user_at_host = itask.task_owner + "@" + itask.task_host
+            user_at_platform = itask.task_owner + "@" + itask.task_platform
         else:
-            user_at_host = itask.task_host
+            user_at_platform = itask.task_platform
         events = (self.EVENT_FAILED, self.EVENT_RETRY, self.EVENT_SUCCEEDED)
         if (event not in events or
-                user_at_host in [get_user() + '@localhost', 'localhost'] or
+                user_at_platform in [get_user() + '@localhost', 'localhost'] or
                 not self.get_host_conf(itask, "retrieve job logs") or
                 id_key in self.event_timers):
             return
@@ -866,7 +866,7 @@ class TaskEventsManager():
             TaskJobLogsRetrieveContext(
                 self.HANDLER_JOB_LOGS_RETRIEVE,  # key
                 self.HANDLER_JOB_LOGS_RETRIEVE,  # ctx_type
-                user_at_host,
+                user_at_platform,
                 self.get_host_conf(itask, "retrieve job logs max size"),
             ),
             retry_delays)
@@ -929,10 +929,10 @@ class TaskEventsManager():
             # Note: user@host may not always be set for a submit number, e.g.
             # on late event or if host select command fails. Use null string to
             # prevent issues in this case.
-            user_at_host = itask.summary['job_hosts'].get(itask.submit_num, '')
-            if user_at_host and '@' not in user_at_host:
+            user_at_platform = itask.summary['job_hosts'].get(itask.submit_num, '')
+            if user_at_platform and '@' not in user_at_platform:
                 # (only has 'user@' on the front if user is not suite owner).
-                user_at_host = '%s@%s' % (get_user(), user_at_host)
+                user_at_platform = '%s@%s' % (get_user(), user_at_platform)
             # Custom event handler can be a command template string
             # or a command that takes 4 arguments (classic interface)
             # Note quote() fails on None, need str(None).
@@ -957,7 +957,7 @@ class TaskEventsManager():
                         str(itask.summary['started_time_string'])),
                     "finish_time": quote(
                         str(itask.summary['finished_time_string'])),
-                    "user@host": quote(user_at_host)
+                    "user@host": quote(user_at_platform)
                 }
 
                 if self.suite_cfg:

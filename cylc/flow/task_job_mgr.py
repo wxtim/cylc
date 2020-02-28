@@ -36,13 +36,16 @@ from cylc.flow.parsec.util import pdeepcopy, poverride
 
 from cylc.flow import LOG
 from cylc.flow.batch_sys_manager import JobPollContext
-from cylc.flow.hostuserutil import get_host, is_remote_host, is_remote_user
+from cylc.flow.hostuserutil import (
+    get_host, is_remote_host, is_remote_user, is_remote
+)
 from cylc.flow.job_file import JobFileWriter
 from cylc.flow.pathutil import get_remote_suite_run_job_dir
 from cylc.flow.subprocpool import SubProcPool
 from cylc.flow.subprocctx import SubProcContext
 from cylc.flow.task_action_timer import TaskActionTimer
 from cylc.flow.task_events_mgr import TaskEventsManager, log_task_job_activity
+from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.task_message import FAIL_MESSAGE_PREFIX
 from cylc.flow.task_job_logs import (
     JOB_LOG_JOB, get_task_job_log, get_task_job_job_log,
@@ -205,12 +208,12 @@ class TaskJobManager(object):
         # Group task jobs by (host, owner)
         auth_itasks = {}  # {(host, owner): [itask, ...], ...}
         for itask in prepared_tasks:
-            auth_itasks.setdefault((itask.task_host, itask.task_owner), [])
-            auth_itasks[(itask.task_host, itask.task_owner)].append(itask)
+            auth_itasks.setdefault((itask.task_platform), [])
+            auth_itasks[itask.task_platform].append(itask)
         # Submit task jobs for each (host, owner) group
         done_tasks = bad_tasks
-        for (host, owner), itasks in sorted(auth_itasks.items()):
-            is_init = self.task_remote_mgr.remote_init(host, owner)
+        for platform, itasks in sorted(auth_itasks.items()):
+            is_init = self.task_remote_mgr.remote_init(platform)
             if is_init is None:
                 # Remote is waiting to be initialised
                 for itask in itasks:
@@ -229,26 +232,27 @@ class TaskJobManager(object):
             if (
                 self.batch_sys_mgr.is_job_local_to_host(
                     itask.summary['batch_sys_name']) and
-                not is_remote_host(host)
+                not is_remote_host(platform)
             ):
-                owner_at_host = get_host()
+                owner_at_platform = get_host()
             else:
-                owner_at_host = host
+                owner_at_platform = host
             # Persist
+            owner = glbl_cfg().get_platform_item('owner', platform)
             if owner:
-                owner_at_host = owner + '@' + owner_at_host
+                owner_at_platform = owner + '@' + owner_at_platform
             now_str = get_current_time_string()
             done_tasks.extend(itasks)
             for itask in itasks:
                 # Log and persist
                 LOG.info(
                     '[%s] -submit-num=%02d, owner@host=%s',
-                    itask, itask.submit_num, owner_at_host)
+                    itask, itask.submit_num, owner_at_platform)
                 self.suite_db_mgr.put_insert_task_jobs(itask, {
                     'is_manual_submit': itask.is_manual_submit,
                     'try_num': itask.get_try_num(),
                     'time_submit': now_str,
-                    'user_at_host': owner_at_host,
+                    'user_at_host': owner_at_platform,
                     'batch_sys_name': itask.summary['batch_sys_name'],
                 })
                 itask.is_manual_submit = False
@@ -260,7 +264,7 @@ class TaskJobManager(object):
                     log_task_job_activity(
                         SubProcContext(
                             self.JOBS_SUBMIT,
-                            '(init %s)' % owner_at_host,
+                            '(init %s)' % owner_at_platform,
                             err=REMOTE_INIT_FAILED,
                             ret_code=1),
                         suite, itask.point, itask.tdef.name)
@@ -276,9 +280,9 @@ class TaskJobManager(object):
                 cmd.append('--utc-mode')
             remote_mode = False
             kwargs = {}
+            # @TODO THis outer loop is clearly deprecated. Get rid of it.
             for key, value, test_func in [
-                    ('host', host, is_remote_host),
-                    ('user', owner, is_remote_user)]:
+                    ('platform', platform, is_remote)]:
                 if test_func(value):
                     cmd.append('--%s=%s' % (key, value))
                     remote_mode = True
@@ -286,7 +290,7 @@ class TaskJobManager(object):
             if remote_mode:
                 cmd.append('--remote-mode')
             cmd.append('--')
-            cmd.append(get_remote_suite_run_job_dir(host, owner, suite))
+            cmd.append(get_remote_suite_run_job_dir(platform, suite))
             # Chop itasks into a series of shorter lists if it's very big
             # to prevent overloading of stdout and stderr pipes.
             itasks = sorted(itasks, key=lambda itask: itask.identity)
@@ -406,13 +410,13 @@ class TaskJobManager(object):
     def _job_cmd_out_callback(suite, itask, cmd_ctx, line):
         """Callback on job command STDOUT/STDERR."""
         if cmd_ctx.cmd_kwargs.get("host") and cmd_ctx.cmd_kwargs.get("user"):
-            owner_at_host = "(%(user)s@%(host)s) " % cmd_ctx.cmd_kwargs
+            owner_at_platform = "(%(user)s@%(host)s) " % cmd_ctx.cmd_kwargs
         elif cmd_ctx.cmd_kwargs.get("host"):
-            owner_at_host = "(%(host)s) " % cmd_ctx.cmd_kwargs
+            owner_at_platform = "(%(host)s) " % cmd_ctx.cmd_kwargs
         elif cmd_ctx.cmd_kwargs.get("user"):
-            owner_at_host = "(%(user)s@localhost) " % cmd_ctx.cmd_kwargs
+            owner_at_platform = "(%(user)s@localhost) " % cmd_ctx.cmd_kwargs
         else:
-            owner_at_host = ""
+            owner_at_platform = ""
         try:
             timestamp, _, content = line.split("|")
         except ValueError:
@@ -425,10 +429,10 @@ class TaskJobManager(object):
             with open(job_activity_log, "ab") as handle:
                 if not line.endswith("\n"):
                     line += "\n"
-                handle.write((owner_at_host + line).encode())
+                handle.write((owner_at_platform + line).encode())
         except IOError as exc:
             LOG.warning("%s: write failed\n%s" % (job_activity_log, exc))
-            LOG.warning("[%s] -%s%s", itask, owner_at_host, line)
+            LOG.warning("[%s] -%s%s", itask, owner_at_platform, line)
 
     def _kill_task_jobs_callback(self, ctx, suite, itasks):
         """Callback when kill tasks command exits."""
@@ -767,11 +771,11 @@ class TaskJobManager(object):
         else:
             rtconfig = itask.tdef.rtconfig
 
-        # Determine task host settings now, just before job submission,
-        # because dynamic host selection may be used.
+        # Determine task platform settings now, just before job submission,
+        # because dynamic platform selection may be used.
         try:
-            task_host = self.task_remote_mgr.remote_host_select(
-                rtconfig['remote']['host'])
+            task_platform = self.task_remote_mgr.remote_platform_select(
+                rtconfig['platform'])
         except TaskRemoteMgmtError as exc:
             # Submit number not yet incremented
             itask.submit_num += 1
@@ -782,10 +786,10 @@ class TaskJobManager(object):
                 suite, itask, dry_run, '(remote host select)', exc)
             return False
         else:
-            if task_host is None:  # host select not ready
+            if task_platform is None:  # host select not ready
                 itask.set_summary_message(self.REMOTE_SELECT_MSG)
                 return
-            itask.task_host = task_host
+            itask.task_platform = task_platform
             # Submit number not yet incremented
             itask.submit_num += 1
             # Retry delays, needed for the try_num
@@ -795,8 +799,11 @@ class TaskJobManager(object):
             job_conf = self._prep_submit_task_job_impl(suite, itask, rtconfig)
             local_job_file_path = get_task_job_job_log(
                 suite, itask.point, itask.tdef.name, itask.submit_num)
-            self.job_file_writer.write(local_job_file_path, job_conf,
-                                       check_syntax=check_syntax)
+            self.job_file_writer.write(
+                local_job_file_path,
+                job_conf,
+                check_syntax=check_syntax
+            )
         except Exception as exc:
             # Could be a bad command template, IOError, etc
             self._prep_submit_task_job_error(
@@ -841,15 +848,16 @@ class TaskJobManager(object):
 
     def _prep_submit_task_job_impl(self, suite, itask, rtconfig):
         """Helper for self._prep_submit_task_job."""
-        itask.task_owner = rtconfig['remote']['owner']
+        itask.task_owner = glbl_cfg().get_platform_item('owner', rtconfig['platform'])
         if itask.task_owner:
-            owner_at_host = itask.task_owner + "@" + itask.task_host
+            owner_at_host = itask.task_owner + "@" + itask.task_platform
         else:
-            owner_at_host = itask.task_host
+            owner_at_host = itask.task_platform
+
         itask.summary['host'] = owner_at_host
         itask.summary['job_hosts'][itask.submit_num] = owner_at_host
 
-        itask.summary['batch_sys_name'] = rtconfig['job']['batch system']
+        itask.summary['batch_sys_name'] = glbl_cfg().get_platform_item('batch system', rtconfig['platform'])
         for name in rtconfig['extra log files']:
             itask.summary['logfiles'].append(
                 os.path.expanduser(os.path.expandvars(name)))
@@ -863,7 +871,6 @@ class TaskJobManager(object):
                 rtconfig['job']['execution time limit'])
         except TypeError:
             pass
-
         scripts = self._get_job_scripts(itask, rtconfig)
 
         # Location of job file, etc
@@ -871,11 +878,18 @@ class TaskJobManager(object):
         job_d = get_task_job_id(
             itask.point, itask.tdef.name, itask.submit_num)
         job_file_path = get_remote_suite_run_job_dir(
-            itask.task_host, itask.task_owner, suite, job_d, JOB_LOG_JOB)
+            itask.task_platform, suite, job_d, JOB_LOG_JOB)
+        platform_name = rtconfig['platform']
+        if not platform_name:
+            platform_name = "localhost"
         return {
-            'batch_system_name': rtconfig['job']['batch system'],
-            'batch_submit_command_template': (
-                rtconfig['job']['batch submit command template']),
+            'platform': platform_name,
+            'batch_system_name': glbl_cfg().get_platform_item(
+                'batch system', rtconfig['platform']
+            ),
+            'batch_submit_command_template': glbl_cfg().get_platform_item(
+                'batch submit command template', rtconfig['platform']
+            ),
             'batch_system_conf': batch_sys_conf,
             'dependencies': itask.state.get_resolved_dependencies(),
             'directives': rtconfig['directives'],
@@ -884,7 +898,7 @@ class TaskJobManager(object):
             'env-script': rtconfig['env-script'],
             'err-script': rtconfig['err-script'],
             'exit-script': rtconfig['exit-script'],
-            'host': itask.task_host,
+            'host': itask.task_platform,
             'init-script': rtconfig['init-script'],
             'job_file_path': job_file_path,
             'job_d': job_d,
