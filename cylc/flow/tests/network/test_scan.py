@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
+import os.path
 from collections import namedtuple
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -25,7 +26,7 @@ from cylc.flow import flags
 from cylc.flow.exceptions import SuiteServiceFileError
 from cylc.flow.network import API
 from cylc.flow.network.scan import get_scan_items_from_fs, re_compile_filters
-
+from cylc.flow.suite_files import(KeyInfo, KeyOwner, KeyType)
 
 class CaptureStderr(object):
     """Used to mock sys.stderr"""
@@ -116,9 +117,9 @@ class TestScan(TestCase):
         Args:
             mocked_getpwall (object):
                 Mocked pwd.getpwall
-            mocked_get_suite_src_dir (oject):
+            mocked_get_suite_src_dir (object):
                 Mocked suite_files.get_suite_src_dir
-            mocked_get_suite_title (oject):
+            mocked_get_suite_title (object):
                 Mocked suite_files.get_suite_title
         """
         with TemporaryDirectory() as homedir:
@@ -186,8 +187,28 @@ class TestScan(TestCase):
                 self.assertEqual(
                     [('good', 'localhost', 9999, 1234, str(API))], suites)
 
-    # --- tests for re_compile_filters()
+    @patch("cylc.flow.network.scan.getpwall")
+    @patch("cylc.flow.suite_files.get_suite_srv_dir")
+    def test_get_scan_items_from_fs_with_old_authentication(
+            self, mocked_getpwall, mocked_get_suite_srv_dir):
+        """Test that only active suites are returned if so requested.
+        Args:
+            mocked_get_suite_srv_dir (object): mocked get_suite_srv_dir
+        """
+        # mock sr
+        with TemporaryDirectory() as homedir:
+            # mock pwd.getpwall
+            mocked_getpwall.return_value = [self.pwentry('/bin/bash', 'root', homedir),]
+            suite_srv_dir = Path(homedir, 'cylc-run', 'dolly_mixture', '.service')
+            suite_srv_dir.mkdir(parents=True)
+            passphrase_loc = os.path.join(suite_srv_dir, 'passphrase')
+            open(passphrase_loc, 'a').close
+            owner_pattern = re.compile(pattern="^.oo.$")
+            mocked_get_suite_srv_dir.return_value= suite_srv_dir
+            suites = list(get_scan_items_from_fs(owner_pattern=owner_pattern))
+            self.assertEqual(0, len(suites))
 
+    # --- tests for re_compile_filters()
     def test_re_compile_filters_nones(self):
         """Test with no arguments provided."""
         self.assertEqual((None, None), re_compile_filters())
