@@ -32,12 +32,8 @@ from cylc.flow.network.client import (
 from cylc.flow.suite_files import (
     ContactFileFields,
     SuiteFiles,
-    KeyInfo,
-    KeyOwner,
-    KeyType,
     load_contact_file,
     get_suite_title,
-    get_suite_srv_dir,
     get_suite_source_dir
 )
 
