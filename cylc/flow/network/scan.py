@@ -276,23 +276,18 @@ def get_scan_items_from_fs(
 
             # Choose only suites with .service and matching filter
             if active_only:
-            # Skip suites with old authentication
-                suite_srv_dir = get_suite_srv_dir(reg)
-                server_pri_keyinfo = KeyInfo(
-                    KeyType.PRIVATE,
-                    KeyOwner.SERVER,
-                    suite_srv_dir=suite_srv_dir)
-                passphrase = os.path.join(suite_srv_dir, 'passphrase')
-                if (not os.path.exists(server_pri_keyinfo.full_key_path)
-                        and os.path.exists(passphrase)):
-                    LOG.debug(
-                        f"Suite \"{reg}\" is not upgraded to Cylc 8 and will "
-                        f"not be shown."
-                    )
-                    continue
-                try:
-                    contact_data = load_contact_file(
-                        reg, owner)
+            # Skip suites running with cylc version < 8
+                try:                    
+                    contact_data = load_contact_file(reg, owner)
+                    cylc_version = contact_data[ContactFileFields.VERSION]
+                    stripped_cylc_version = int(cylc_version[:1])
+                    if (stripped_cylc_version < 8):
+                        LOG.debug(
+                            f"Suite \"{reg}\" is not upgraded to Cylc 8 and will "
+                            f"not be shown."
+                        )
+                        continue
+
                 except (SuiteServiceFileError, IOError, TypeError, ValueError):
                     continue
                 yield (
