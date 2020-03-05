@@ -232,7 +232,7 @@ def get_scan_items_from_fs(
 
     Walk users' "~/cylc-run/" to get (host, port) from ".service/contact" for
     active, or all (active plus registered but dormant), suites.
-    Note when active_only, suites run in cylc 7 or less will not be returned. 
+    Note when active_only, suites run in cylc 7 or less will not be returned.
 
     Yields:
         tuple - (reg, host, port, pub_port, api)
@@ -276,15 +276,16 @@ def get_scan_items_from_fs(
 
             # Choose only suites with .service and matching filter
             if active_only:
-            # Skip suites running with cylc version < 8
-                try:                    
+                # Skip suites running with cylc version < 8
+                try:
                     contact_data = load_contact_file(reg, owner)
                     cylc_version = contact_data[ContactFileFields.VERSION]
                     stripped_cylc_version = int(cylc_version[:1])
                     if (stripped_cylc_version < 8):
                         LOG.debug(
-                            f"Suite \"{reg}\" is not upgraded to Cylc 8 and will "
-                            f"not be shown."
+                            f"Suite \"{reg}\" is running in Cylc version "
+                            f"{cylc_version}, not Cylc 8 and will not be "
+                            f"displayed."
                         )
                         continue
 
