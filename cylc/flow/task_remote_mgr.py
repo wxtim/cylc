@@ -133,7 +133,8 @@ class TaskRemoteMgr(object):
             if value is not None:
                 del self.remote_platform_str_map[key]
 
-    def remote_init(self, platform):
+    
+    (self, platform):
         """Initialise a remote platform if necessary.
 
         Create UUID file on suite host ".service/uuid" for remotes to identify
@@ -159,8 +160,11 @@ class TaskRemoteMgr(object):
         owner = glbl_cfg().get_platform_item('owner', platform)
         # TODO make this select hosts nicely
         host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
-        #breakpoint(header="top of remote_init_function")
-        if self.single_task_mode or not is_remote_platform(platform):
+        breakpoint(header="top of remote_init_function")
+        if (
+            self.single_task_mode or 
+            not is_remote_platform(platform)
+        ):
             return REMOTE_INIT_NOT_REQUIRED
         try:
             status = self.remote_init_map[platform]
@@ -186,7 +190,7 @@ class TaskRemoteMgr(object):
             self.remote_init_map[platform] = REMOTE_INIT_NOT_REQUIRED
             return self.remote_init_map[platform]
 
-        # Create a TAR archive with the service files,
+        # Create a TAR archinve with the service files,
         # so they can be sent later via SSH's STDIN to the task remote.
         tmphandle = self.proc_pool.get_temporary_file()
         tarhandle = tarfile.open(fileobj=tmphandle, mode='w')

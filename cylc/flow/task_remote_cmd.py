@@ -40,6 +40,7 @@ def remote_init(uuid_str, rund, indirect_comm=None):
         rund (str): suite run directory
         *indirect_comm (str): use indirect communication via e.g. 'ssh'
     """
+    breakpoint()
     rund = os.path.expandvars(rund)
     srvd = os.path.join(rund, SuiteFiles.Service.DIRNAME)
     try:
