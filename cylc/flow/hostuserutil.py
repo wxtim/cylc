@@ -172,20 +172,13 @@ class HostUtil(object):
             self.remote_users.update(((self.user_pwent.pw_name, False),))
         return self.user_pwent
 
-    def is_remote_host(self, platform):
+    def is_remote_host(self, name):
         """Return True if name has different IP address than the current host.
 
         Return False if name is None.
         Return True if host is unknown.
 
         """
-        names = glbl_cfg().get_platform_item('remote hosts', platform)
-        # TODO - consider if this is reasonable - perhaps we should be using
-        # if name.any() or if name.all() here?
-        if names:
-            name = names[0]
-        else:
-            name = None
         if name not in self._remote_hosts:
             if not name or name.split(".")[0].startswith("localhost"):
                 # e.g. localhost.localdomain
@@ -200,13 +193,12 @@ class HostUtil(object):
                         host_info != self._get_host_info())
         return self._remote_hosts[name]
 
-    def is_remote_user(self, platform):
+    def is_remote_user(self, name):
         """Return True if name is not a name of the current user.
 
         Return False if name is None.
         Return True if name is not in the password database.
         """
-        name = glbl_cfg().get_platform_item('owner', platform)
         if not name:
             return False
         if name not in self.remote_users:
@@ -217,9 +209,28 @@ class HostUtil(object):
                 self.remote_users[name] = True
         return self.remote_users[name]
 
-    def is_remote(self, platform):
+    def _is_remote_platform(self, platform):
+        """Return True if any job host in platform have different IP address 
+        to the current host.
+        
+        Return False if name is None.
+        Return True if host is unknown.
+
+        Todo:
+            Should this fail miserably if some hosts are remote and some are
+            not?
+        """
+        #breakpoint(header="inside is_remote_platform")
+        if not platform:
+            return False
+        for host in glbl_cfg().get_platform_item('remote hosts', platform):
+            if is_remote_host(host) is True:
+                return True
+        return False
+
+    def is_remote(self, host, owner):
         """Shorthand: is_remote_host(host) or is_remote_user(owner)."""
-        return self.is_remote_host(platform) or self.is_remote_user(platform)
+        return self.is_remote_host(host) or self.is_remote_user(owner)
 
 
 def get_host_ip_by_name(target):
@@ -249,13 +260,16 @@ def get_user():
 
 def get_user_home():
     """Shorthand for HostUtil.get_inst().get_user_home()."""
-    return HostUtil.get_inst().get_user_home(platform)
+    return HostUtil.get_inst().get_user_home()
 
 
-def is_remote(platform):
-    """Shorthand for HostUtil.get_inst().is_remote(platform)."""
-    return HostUtil.get_inst().is_remote(platform)
+def is_remote(host, owner):
+    """Shorthand for HostUtil.get_inst().is_remote(host, owner)."""
+    return HostUtil.get_inst().is_remote(host, owner)
 
+def is_remote_platform(platform):
+    """Shorthand for HostUtil.get_inst().is_remote(host, owner)."""
+    return HostUtil.get_inst()._is_remote_platform(platform)
 
 def is_remote_host(name):
     """Shorthand for HostUtil.get_inst().is_remote_host(name)."""

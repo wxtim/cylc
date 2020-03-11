@@ -33,7 +33,10 @@ from cylc.flow import LOG
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.exceptions import TaskRemoteMgmtError
 import cylc.flow.flags
-from cylc.flow.hostuserutil import is_remote, is_remote_host, is_remote_user
+from cylc.flow.hostuserutil import (
+    is_remote, is_remote_host, is_remote_user,
+    is_remote_platform
+)
 from cylc.flow.pathutil import get_remote_suite_run_dir
 from cylc.flow.subprocctx import SubProcContext
 from cylc.flow.suite_files import (
@@ -153,7 +156,11 @@ class TaskRemoteMgr(object):
                 If waiting for remote init command to complete
 
         """
-        if self.single_task_mode or not is_remote(platform):
+        owner = glbl_cfg().get_platform_item('owner', platform)
+        # TODO make this select hosts nicely
+        host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
+        #breakpoint(header="top of remote_init_function")
+        if self.single_task_mode or not is_remote_platform(platform):
             return REMOTE_INIT_NOT_REQUIRED
         try:
             status = self.remote_init_map[platform]
@@ -165,8 +172,8 @@ class TaskRemoteMgr(object):
             return status
 
         # Determine what items to install
-        comm_meth = glbl_cfg().get_host_item(
-            'task communication method', host, owner)
+        comm_meth = glbl_cfg().get_platform_item(
+            'task communication method', platform)
         owner_at_host = 'localhost'
         if host:
             owner_at_host = host
@@ -299,7 +306,7 @@ class TaskRemoteMgr(object):
                 if status in proc_ctx.out:
                     # Good status
                     LOG.debug(proc_ctx)
-                    self.remote_init_map[platform] = status
+                    self.remote_init_map[(host, owner)] = status
                     return
         # Bad status
         LOG.error(TaskRemoteMgmtError(
@@ -307,7 +314,7 @@ class TaskRemoteMgr(object):
             (host, owner), ' '.join(quote(item) for item in proc_ctx.cmd),
             proc_ctx.ret_code, proc_ctx.out, proc_ctx.err))
         LOG.error(proc_ctx)
-        self.remote_init_map[platform] = REMOTE_INIT_FAILED
+        self.remote_init_map[(host, owner)] = REMOTE_INIT_FAILED
 
     def _remote_init_items(self, comm_meth):
         """Return list of items to install based on communication method.

@@ -31,7 +31,7 @@ from cylc.flow.exceptions import SuiteServiceFileError
 from cylc.flow.pathutil import get_remote_suite_run_dir, get_suite_run_dir
 import cylc.flow.flags
 from cylc.flow.hostuserutil import (
-    get_host, get_user, is_remote, is_remote_host, is_remote_user)
+    get_host, get_user, is_remote, is_remote_host, is_remote_user, is_remote_platform)
 from cylc.flow.unicode_rules import SuiteNameValidator
 
 from enum import Enum
@@ -739,7 +739,7 @@ def _is_local_auth_ok(reg, platform):
 
     Use values in ~/cylc-run/REG/.service/contact to make a judgement.
     """
-    if is_remote(platform):
+    if is_remote_platform(platform):
         fname = os.path.join(
             get_suite_srv_dir(reg), SuiteFiles.Service.CONTACT)
         data = {}
@@ -781,7 +781,7 @@ def _load_local_item(item, path):
 
 def _load_remote_item(item, reg, platform):
     """Load content of service item from remote [owner@]host via SSH."""
-    if not is_remote(platform):
+    if not is_remote_platform(platform):
         return
     if platform is None:
         platform = 'localhost'

@@ -37,7 +37,7 @@ from cylc.flow.parsec.util import pdeepcopy, poverride
 from cylc.flow import LOG
 from cylc.flow.batch_sys_manager import JobPollContext
 from cylc.flow.hostuserutil import (
-    get_host, is_remote_host, is_remote_user, is_remote
+    get_host, is_remote_host, is_remote_user, is_remote, is_remote_platform
 )
 from cylc.flow.job_file import JobFileWriter
 from cylc.flow.pathutil import get_remote_suite_run_job_dir
@@ -229,30 +229,33 @@ class TaskJobManager(object):
             # allows the restart logic to correctly poll the status of the
             # background/at jobs that may still be running on the previous
             # suite host.
+            from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
+            owner = glbl_cfg().get_platform_item('owner', platform)
+            host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
             if (
                 self.batch_sys_mgr.is_job_local_to_host(
                     itask.summary['batch_sys_name']) and
-                not is_remote_host(platform)
+                not is_remote_host(host)
             ):
-                owner_at_platform = get_host()
+                owner_at_host = get_host()
             else:
-                owner_at_platform = host
+                owner_at_host = host
             # Persist
             owner = glbl_cfg().get_platform_item('owner', platform)
             if owner:
-                owner_at_platform = owner + '@' + owner_at_platform
+                owner_at_host = owner + '@' + owner_at_host
             now_str = get_current_time_string()
             done_tasks.extend(itasks)
             for itask in itasks:
                 # Log and persist
                 LOG.info(
                     '[%s] -submit-num=%02d, owner@host=%s',
-                    itask, itask.submit_num, owner_at_platform)
+                    itask, itask.submit_num, owner_at_host)
                 self.suite_db_mgr.put_insert_task_jobs(itask, {
                     'is_manual_submit': itask.is_manual_submit,
                     'try_num': itask.get_try_num(),
                     'time_submit': now_str,
-                    'user_at_host': owner_at_platform,
+                    'user_at_host': owner_at_host,
                     'batch_sys_name': itask.summary['batch_sys_name'],
                 })
                 itask.is_manual_submit = False
@@ -264,7 +267,7 @@ class TaskJobManager(object):
                     log_task_job_activity(
                         SubProcContext(
                             self.JOBS_SUBMIT,
-                            '(init %s)' % owner_at_platform,
+                            '(init %s)' % owner_at_host,
                             err=REMOTE_INIT_FAILED,
                             ret_code=1),
                         suite, itask.point, itask.tdef.name)
@@ -282,7 +285,7 @@ class TaskJobManager(object):
             kwargs = {}
             # @TODO THis outer loop is clearly deprecated. Get rid of it.
             for key, value, test_func in [
-                    ('platform', platform, is_remote)]:
+                    ('platform', platform, is_remote_platform)]:
                 if test_func(value):
                     cmd.append('--%s=%s' % (key, value))
                     remote_mode = True
@@ -410,13 +413,13 @@ class TaskJobManager(object):
     def _job_cmd_out_callback(suite, itask, cmd_ctx, line):
         """Callback on job command STDOUT/STDERR."""
         if cmd_ctx.cmd_kwargs.get("host") and cmd_ctx.cmd_kwargs.get("user"):
-            owner_at_platform = "(%(user)s@%(host)s) " % cmd_ctx.cmd_kwargs
+            owner_at_host = "(%(user)s@%(host)s) " % cmd_ctx.cmd_kwargs
         elif cmd_ctx.cmd_kwargs.get("host"):
-            owner_at_platform = "(%(host)s) " % cmd_ctx.cmd_kwargs
+            owner_at_host = "(%(host)s) " % cmd_ctx.cmd_kwargs
         elif cmd_ctx.cmd_kwargs.get("user"):
-            owner_at_platform = "(%(user)s@localhost) " % cmd_ctx.cmd_kwargs
+            owner_at_host = "(%(user)s@localhost) " % cmd_ctx.cmd_kwargs
         else:
-            owner_at_platform = ""
+            owner_at_host = ""
         try:
             timestamp, _, content = line.split("|")
         except ValueError:
@@ -429,10 +432,10 @@ class TaskJobManager(object):
             with open(job_activity_log, "ab") as handle:
                 if not line.endswith("\n"):
                     line += "\n"
-                handle.write((owner_at_platform + line).encode())
+                handle.write((owner_at_host + line).encode())
         except IOError as exc:
             LOG.warning("%s: write failed\n%s" % (job_activity_log, exc))
-            LOG.warning("[%s] -%s%s", itask, owner_at_platform, line)
+            LOG.warning("[%s] -%s%s", itask, owner_at_host, line)
 
     def _kill_task_jobs_callback(self, ctx, suite, itasks):
         """Callback when kill tasks command exits."""

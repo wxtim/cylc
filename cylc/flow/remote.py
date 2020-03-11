@@ -31,7 +31,7 @@ from time import sleep
 from cylc.flow import LOG
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 import cylc.flow.flags
-from cylc.flow.hostuserutil import is_remote
+from cylc.flow.hostuserutil import (is_remote, is_remote_platform)
 from cylc.flow import __version__ as CYLC_VERSION
 
 
@@ -126,7 +126,7 @@ def run_cmd(command, stdin=None, capture_process=False, capture_status=False,
             return True
 
 
-def construct_ssh_cmd(raw_cmd, user=None, host=None, forward_x11=False,
+def construct_ssh_cmd(raw_cmd, platform=None, forward_x11=False,
                       stdin=False, ssh_login_shell=None, ssh_cylc=None,
                       set_UTC=False, allow_flag_opts=False):
     """Append a bare command with further options required to run via ssh.
@@ -153,7 +153,9 @@ def construct_ssh_cmd(raw_cmd, user=None, host=None, forward_x11=False,
         A list containing a chosen command including all arguments and options
         necessary to directly execute the bare command on a given host via ssh.
     """
-    command = shlex.split(glbl_cfg().get_host_item('ssh command', host, user))
+    command = shlex.split(glbl_cfg().get_platform_item('ssh command', platform))
+    user = glbl_cfg().get_platform_item('owner', platform)
+    host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
 
     if forward_x11:
         command.append('-Y')
@@ -271,8 +273,7 @@ class RemoteRunner(object):
     OPT_ARG_OPTS = ('--user', '--host', '--ssh-cylc')
 
     def __init__(self, argv=None):
-        self.user = None  # i.e. owner; name it user for consistency with CLI
-        self.host = None
+        self.platform=None
         self.ssh_login_shell = None
         self.ssh_cylc = None
         self.argv = argv or sys.argv
@@ -299,10 +300,10 @@ class RemoteRunner(object):
             else:
                 self.args.append(arg)
 
-        if self.user is None and self.host is None:
+        if self.platform is None:
             self.is_remote = False
         else:
-            self.is_remote = is_remote(self.host, self.user)
+            self.is_remote = is_remote_platform(self.platform)
 
     def execute(self, dry_run=False, forward_x11=False, abort_if=None,
                 set_rel_local=False):
@@ -328,7 +329,7 @@ class RemoteRunner(object):
             # State as relative localhost to prevent recursive host selection.
             cmd.append("--host=localhost")
         command = construct_ssh_cmd(
-            cmd, user=self.user, host=self.host, forward_x11=forward_x11,
+            cmd, platform=self.platform, forward_x11=forward_x11,
             ssh_login_shell=self.ssh_login_shell, ssh_cylc=self.ssh_cylc,
             set_UTC=True, allow_flag_opts=False)
 
