@@ -115,7 +115,6 @@ class SuiteEventHandler():
                 self._run_event_handlers_callback(proc_ctx)
             else:
                 # Run command using process pool otherwise
-                breakpoint()
                 self.proc_pool.put_command(
                     proc_ctx, self._run_event_mail_callback)
 
