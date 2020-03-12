@@ -134,7 +134,7 @@ class TaskRemoteMgr(object):
                 del self.remote_platform_str_map[key]
 
     
-    (self, platform):
+    def remote_init(self, platform):
         """Initialise a remote platform if necessary.
 
         Create UUID file on suite host ".service/uuid" for remotes to identify
@@ -160,7 +160,6 @@ class TaskRemoteMgr(object):
         owner = glbl_cfg().get_platform_item('owner', platform)
         # TODO make this select hosts nicely
         host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
-        breakpoint(header="top of remote_init_function")
         if (
             self.single_task_mode or 
             not is_remote_platform(platform)
