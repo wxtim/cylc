@@ -310,7 +310,7 @@ def get_scan_items_from_fs(owner_pattern=None, updater=None):
             try:
                 contact_data = srv_files_mgr.load_contact_file(reg, owner)
                 cylc_version = contact_data[srv_files_mgr.KEY_VERSION]
-                major_version = int(cylc_version.split(".",1)[0])
+                major_version = int(cylc_version.split(".", 1)[0])
                 if (major_version > 7):
                     LOG.debug(
                         f"Suite \"{reg}\" is running in Cylc version "
