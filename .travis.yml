@@ -33,6 +33,9 @@ addons:
 
 language: python
 
+services:
+  - docker
+
 stages:
 - unit-test
 - functional-test
@@ -81,6 +84,17 @@ regressiontest: &regressiontest
     - coverage xml --ignore-errors
     - bash <(curl -s https://codecov.io/bash)
 
+slurm: &slurm
+  stage: functional-test-slurm
+  python:
+    - "3.7"
+  before_install:
+    - docker build -t slurm:test dockerfiles/slurm/
+    - docker run --name slurm --hostname docker -v $(pwd -P):/root/cylc-flow --rm -d slurm:test
+    - docker ps -a
+  script:
+    - docker exec -w /root/cylc-flow slurm ./etc/bin/run-functional-tests.sh -v tests/slurm
+
 flakytest: &flakytest
   stage: sensitive-test
   python:
@@ -121,6 +135,10 @@ jobs:
   - <<: *regressiontest
     python: "3.7"
     env: CHUNK="4/4"
+
+  - <<: *slurm
+    python: "3.7"
+    env: CYLC_TEST_BATCH_SLURM=true
 
   - <<: *flakytest
     python: "3.7"
