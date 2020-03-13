@@ -309,13 +309,12 @@ def get_scan_items_from_fs(owner_pattern=None, updater=None):
             reg = os.path.relpath(dirpath, run_d)
             try:
                 contact_data = srv_files_mgr.load_contact_file(reg, owner)
-                cylc_version = contact_data[srv_files_mgr.KEY_VERSION]
-                major_version = int(cylc_version.split(".", 1)[0])
-                if (major_version > 7):
-                    LOG.debug(
-                        f"Suite \"{reg}\" is running in Cylc version "
-                        f"{cylc_version} and will not be displayed."
-                    )
+                cylc_ver = contact_data[srv_files_mgr.KEY_VERSION]
+                major_ver = int(cylc_ver.split(".", 1)[0])
+                if (major_ver > 7):
+                    LOG.debug("Suite %s is running in Cylc version %s "
+                              "and will not be displayed." % (reg, cylc_ver)
+                              )
                     continue
             except (SuiteServiceFileError, IOError, TypeError, ValueError):
                 continue
