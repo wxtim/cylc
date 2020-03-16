@@ -638,7 +638,7 @@ create_test_globalrc() {
     # Suite host self-identification method.
     echo "$PRE" >'etc/flow.rc'
     SITE_TESTS_CONF_FILE="$(cylc get-global --print-site-dir)/flow-tests.rc"
-    USER_TESTS_CONF_FILE="$(cylc get-global --print-user-dir)/flow-tests.rc"
+    USER_TESTS_CONF_FILE="$HOME/.cylc/flow-tests.rc"
     if [[ -f "${SITE_TESTS_CONF_FILE}" ]]; then
         cat "${SITE_TESTS_CONF_FILE}" >>'etc/flow.rc'
     fi

@@ -216,6 +216,10 @@ class TaskRemoteMgr(object):
             cmd.append('--indirect-comm=%s' % comm_meth)
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
+        # Hack - fix properly ---------------------------------------
+        if platform == 'exvcylcdev01':
+            cmd[5] = cmd[5].replace('/home/h02/tpilling', '$HOME')
+        # -----------------------------------------------------------
         self.proc_pool.put_command(
             SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
             self._remote_init_callback,
