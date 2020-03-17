@@ -30,12 +30,12 @@ jobs:
           .travis/shellchecker
       - name: Unit Test
         run: |
-          pytest --cov-append --cov=cylc/flow -n 5
+          pytest --cov=cylc/flow -n 5
       - name: Upload
         uses: codecov/codecov-action@v1.0.5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: coverage.xml
+          file: .coverage
 
   #functional_test:
   #  runs-on: ubuntu-latest
