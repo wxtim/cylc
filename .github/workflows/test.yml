@@ -4,7 +4,7 @@ on: [pull_request]
 
 
 jobs:
-  build:
+  unit-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -35,37 +35,39 @@ jobs:
         uses: codecov/codecov-action@v1.0.5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: .coverage
 
-  #functional_test:
-  #  runs-on: ubuntu-latest
-  #  strategy:
-  #    matrix:
-  #      python-version: ['3.7']
-  #      chunk: ['1/4', '2/4', '3/4', '4/4']
-  #  env:
-  #    CHUNK: ${{ matrix.chunk }}
-  #  steps:
-  #    - name: Checkout
-  #      uses: actions/checkout@v1
-  #    - name: Configure Python
-  #      uses: actions/setup-python@v1
-  #      with:
-  #        python-version: ${{ matrix.python-version }}
-  #    - name: Configure System
-  #      run: |
-  #        sudo apt-get update
-  #        sudo apt-get install -y sqlite3 s-nail
-  #    - name: Install
-  #      run: |
-  #        pip install ."[all]"
-  #    - name: Test
-  #      run: |
-  #        export PYTHONPATH="${PWD}/.travis"
-  #        .travis/coverage-data.sh
-  #        etc/bin/run-functional-tests -j 8
-  #        unset PYTHONPATH
-  #        coverage combine --append
+  functional_test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7']
+        chunk: ['1/4', '2/4', '3/4', '4/4']
+    env:
+      CHUNK: ${{ matrix.chunk }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Configure Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Configure System
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sqlite3 s-nail
+      - name: Install
+        run: |
+          pip install ."[all]"
+      - name: Test
+        run: |
+          coverage run etc/bin/coverme.py \
+            etc/bin/run-functional-tests -j 8
+          coverage combine --append
+      - name: Upload
+        uses: codecov/codecov-action@v1.0.5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: .coverage
 
   #flaky_test:
   #  runs-on: ubuntu-latest
