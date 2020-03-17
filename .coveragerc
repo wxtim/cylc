@@ -1,10 +1,8 @@
-# This is the Coverage.py configuration file. This is used by Travis-CI when running
-# the tests and collecting coverage
+# This is the Coverage.py configuration file.
 
 [run]
 
 branch=True
-cover_pylib=False
 concurrency=thread
 data_file=.coverage
 disable_warnings=
@@ -13,53 +11,31 @@ disable_warnings=
     module-not-imported
     no-data-collected
     module-not-measured
-    # include-ignored
-debug=
-#    callers
-#    dataio
-#    multiprocess
-#    dataio
-#    dataop
-#    pid
-#    plugin
-#    process
-#    sys
-#    trace
-# Include can be used only if source is not used!
-#include
-note=
 omit=
     */cylc/flow/tests/*
-    */cylc/flow/profiler.py
-    */cylc/flow/profiling/*
-    */cylc/flow/parsec/OrderedDictCompat.py
     */cylc/flow/parsec/tests/*
+    */cylc/flow/profiler.py
     */cylc/flow/*_pb2.py
-parallel = True
-plugins=
+parallel=True
 source=
-    ./bin
     ./cylc
-timid = False
 
 
 [report]
 
-exclude_lines =
+exclude_lines=
     pragma: no cover
     def __repr__
     raise NotImplementedError
     if __name__ == .__main__.:
     def parse_args
 fail_under=0
-ignore_errors = False
+ignore_errors=False
 include=
 omit=
     */cylc/flow/tests/*
-    */cylc/flow/profiler.py
-    */cylc/flow/profiling/*
-    */cylc/flow/parsec/OrderedDictCompat.py
     */cylc/flow/parsec/tests/*
+    */cylc/flow/profiler.py
     */cylc/flow/*_pb2.py
 partial_branches=
 precision=2
@@ -71,8 +47,6 @@ sort=Name
 [html]
 
 directory=htmlcov
-extra_css=
-title=
 
 
 [xml]
