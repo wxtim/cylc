@@ -50,7 +50,8 @@ env:
   - CYLC_TEST_DIFF_CMD="diff -I Xlib -u"
   # This coverage RC file is created under the script task
   - COVERAGE_PROCESS_START="/tmp/.coveragerc"
-#matrix:
+matrix:
+  - CHUNK="1/1"
 #  - CHUNK="1/4"
 #  - CHUNK="2/4"
 #  - CHUNK="3/4"
