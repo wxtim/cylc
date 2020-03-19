@@ -50,11 +50,11 @@ env:
   - CYLC_TEST_DIFF_CMD="diff -I Xlib -u"
   # This coverage RC file is created under the script task
   - COVERAGE_PROCESS_START="/tmp/.coveragerc"
-  matrix:
-  - CHUNK="1/4"
-  - CHUNK="2/4"
-  - CHUNK="3/4"
-  - CHUNK="4/4"
+#matrix:
+#  - CHUNK="1/4"
+#  - CHUNK="2/4"
+#  - CHUNK="3/4"
+#  - CHUNK="4/4"
 
 # this is the default test stage, which is used for functional-tests
 install: .travis/install.sh functional-tests docs
