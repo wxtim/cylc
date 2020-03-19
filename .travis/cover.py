@@ -23,7 +23,7 @@ from subprocess import call
 
 def main():
     # Run tests with virtual frame buffer for X support.
-    if call('xvfb-run -a cylc test-battery --chunk $CHUNK --state=save -j 5',
+    if call('xvfb-run -a cylc test-battery --chunk $CHUNK --state=save -j 5 tests/authentication tests/cylc-scan/03-monitor.t',
             shell=True) != 0:
         # Non-zero return code
         sys.stderr.write('\n\nRerunning Failed Tests...\n\n')
