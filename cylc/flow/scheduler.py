@@ -1305,7 +1305,6 @@ see `COPYING' in the Cylc source distribution.
                 self.pool.remove_suiciding_tasks]:
             if meth():
                 self.is_updated = True
-
         self.broadcast_mgr.expire_broadcast(self.pool.get_min_point())
         self.xtrigger_mgr.housekeep()
         self.suite_db_mgr.put_xtriggers(self.xtrigger_mgr.sat_xtrig)
@@ -1654,11 +1653,15 @@ see `COPYING' in the Cylc source distribution.
             # PROCESS ALL TASKS whenever something has changed that might
             # require renegotiation of dependencies, etc.
             if self.should_process_tasks():
+                LOG.debug("HI")
                 self.process_task_pool()
+                LOG.debug("BYE")
             self.late_tasks_check()
-
+            LOG.debug("Saskatoon")
             self.process_queued_task_messages()
+            LOG.debug("Berry")
             self.process_command_queue()
+            LOG.debug("Pie")
             self.task_events_mgr.process_events(self)
 
             # Re-initialise data model on reload
