@@ -157,7 +157,7 @@ class TaskRemoteMgr(object):
                 If waiting for remote init command to complete
 
         """
-        owner = glbl_cfg().get_platform_item('owner', host,)
+        owner = glbl_cfg().get_platform_item('owner', platform)
         # TODO make this select hosts nicely
         host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
         if (
@@ -212,15 +212,13 @@ class TaskRemoteMgr(object):
             cmd.append('--user=%s' % owner)
         if cylc.flow.flags.debug:
             cmd.append('--debug')
-        # if comm_meth in ['ssh']:
-        #     cmd.append('--indirect-comm=%s' % comm_meth)
-        # Hackily force comm_meth=ssh
-        cmd.append('--indirect-comm=ssh')
+        if comm_meth in ['ssh']:
+            cmd.append('--indirect-comm=%s' % comm_meth)
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
         # Hack - fix properly ---------------------------------------
-        # if platform == 'exvcylcdev01':
-        #     cmd[5] = cmd[5].replace('/home/h02/tpilling', '$HOME')
+        if platform == 'exvcylcdev01':
+            cmd[5] = cmd[5].replace('/home/h02/tpilling', '$HOME')
         # -----------------------------------------------------------
         self.proc_pool.put_command(
             SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
@@ -228,6 +226,7 @@ class TaskRemoteMgr(object):
             [host, owner, tmphandle])
         # None status: Waiting for command to finish
         self.remote_init_map[platform] = None
+        LOG.debug("TaskRemoteMgr.remote_init done")
         return self.remote_init_map[platform]
 
     def remote_tidy(self):

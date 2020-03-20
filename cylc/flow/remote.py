@@ -33,6 +33,7 @@ from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 import cylc.flow.flags
 from cylc.flow.hostuserutil import is_remote
 from cylc.flow import __version__ as CYLC_VERSION
+from cylc.flow.platform_lookup import reverse_lookup
 
 
 def get_proc_ancestors():
@@ -153,7 +154,8 @@ def construct_ssh_cmd(raw_cmd, user=None, host=None, forward_x11=False,
         A list containing a chosen command including all arguments and options
         necessary to directly execute the bare command on a given host via ssh.
     """
-    command = shlex.split(glbl_cfg().get_host_item('ssh command', host, user))
+    platform = reverse_lookup(glbl_cfg().get(['job platforms']), {'batch system': 'background'}, {'host': host})
+    command = shlex.split(glbl_cfg().get(['job platforms', platform, 'ssh command']))
 
     if forward_x11:
         command.append('-Y')
@@ -182,8 +184,7 @@ def construct_ssh_cmd(raw_cmd, user=None, host=None, forward_x11=False,
 
     # Use bash -l?
     if ssh_login_shell is None:
-        ssh_login_shell = glbl_cfg().get_host_item(
-            'use login shell', host, user)
+        ssh_login_shell = glbl_cfg().get(['job platforms', platform, 'use login shell'])
     if ssh_login_shell:
         # A login shell will always source /etc/profile and the user's bash
         # profile file. To avoid having to quote the entire remote command
@@ -194,7 +195,7 @@ def construct_ssh_cmd(raw_cmd, user=None, host=None, forward_x11=False,
     if ssh_cylc:
         command.append(ssh_cylc)
     else:
-        ssh_cylc = glbl_cfg().get_host_item('cylc executable', host, user)
+        ssh_cylc = glbl_cfg().get(['job platforms', platform, 'cylc executable'])
         if ssh_cylc.endswith('cylc'):
             command.append(ssh_cylc)
         else:

@@ -42,40 +42,27 @@ def remote_init(uuid_str, rund, indirect_comm=None):
     """
     rund = os.path.expandvars(rund)
     srvd = os.path.join(rund, SuiteFiles.Service.DIRNAME)
-    print(f"rund is {rund}\nsrvd is {srvd}")
     try:
-        print(f"os.path.join(srvd, FILE_BASE_UUID) is {os.path.join(srvd, FILE_BASE_UUID)}")
         orig_uuid_str = open(os.path.join(srvd, FILE_BASE_UUID)).read()
-        print(f"orig_uuid_str  is {orig_uuid_str}")
     except IOError:
         pass
-    # else:
-    #     if orig_uuid_str == uuid_str:
-    #         print(f"orig_uuid_str is {orig_uuid_str}")
-    #         print(f"uuid_str is      {uuid_str}")
-    #         print(REMOTE_INIT_NOT_REQUIRED)
-    #         return
+    else:
+        if orig_uuid_str == uuid_str:
+            print(REMOTE_INIT_NOT_REQUIRED)
+            return
     os.makedirs(rund, exist_ok=True)
     oldcwd = os.getcwd()
     os.chdir(rund)
     # Extract job.sh from library, for use in job scripts.
-    print("before extract_resources")
     extract_resources(SuiteFiles.Service.DIRNAME, ['etc/job.sh'])
-    print("after extract resources")
     try:
-        print("before tarfile.open")
         tarhandle = tarfile.open(fileobj=sys.stdin.buffer, mode='r|')
-        print("x")
         tarhandle.extractall()
-        print('Y')
         tarhandle.close()
-        print('Z')
     finally:
         os.chdir(oldcwd)
     if indirect_comm:
-        print('A')
         fname = os.path.join(srvd, SuiteFiles.Service.CONTACT2)
-        print(f"fname is {fname}")
         with open(fname, 'w') as handle:
             handle.write('%s=%s\n' % (
                 ContactFileFields.COMMS_PROTOCOL_2, indirect_comm))
