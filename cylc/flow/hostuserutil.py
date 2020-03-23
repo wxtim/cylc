@@ -220,7 +220,6 @@ class HostUtil(object):
             Should this fail miserably if some hosts are remote and some are
             not?
         """
-        #breakpoint(header="inside is_remote_platform")
         if not platform:
             return False
         for host in glbl_cfg().get_platform_item('remote hosts', platform):

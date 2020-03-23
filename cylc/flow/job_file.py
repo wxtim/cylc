@@ -120,8 +120,7 @@ class JobFileWriter(object):
     @staticmethod
     def _get_platform_item(job_conf, key):
         """Return host item from glbl_cfg()."""
-        return glbl_cfg().get_platform_item(
-            key, job_conf["host"], job_conf["owner"])
+        return glbl_cfg().get_platform_item_for_job(job_conf, key)
 
     @staticmethod
     def _write_header(handle, job_conf):
@@ -158,8 +157,7 @@ class JobFileWriter(object):
         if vacation_signals_str:
             handle.write("\nCYLC_VACATION_SIGNALS='%s'" % vacation_signals_str)
         # Path to cylc executable, if defined.
-        cylc_exec = glbl_cfg().get_platform_item(
-            'cylc executable', job_conf["host"], job_conf["owner"])
+        cylc_exec = self._get_platform_item(job_conf, 'cylc executable')
         if not cylc_exec.endswith('cylc'):
             raise ValueError(
                 f'ERROR: bad cylc executable in global config: {cylc_exec}')
