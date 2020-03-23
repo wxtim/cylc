@@ -381,10 +381,9 @@ class GlobalConfig(ParsecConfig):
         # (OK if no flow.rc is found, just use system defaults).
         # self._transform()
 
-    @staticmethod
-    def get_platform_item_for_job(job_conf, item):
+    def get_platform_item_for_job(self, job_conf, item):
         # Returns platform item job from the job config and item
-        return get_platform_item(item, job_conf['platform'])
+        return self.get_platform_item(item, job_conf['platform'])
 
     def get_platform_item(
         self, item, platform=None, owner=None, replace_home=False,
