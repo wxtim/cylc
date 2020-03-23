@@ -96,7 +96,7 @@ from cylc.flow.wallclock import (
     get_seconds_as_interval_string,
     get_time_string_from_unix_time as time2str,
     get_utc_mode)
-from cylc.flow.xtrigger_mgr import XtriggerManage
+from cylc.flow.xtrigger_mgr import XtriggerManager
 from cylc.flow.platform_lookup import reverse_lookup
 
 
@@ -1073,11 +1073,6 @@ see `COPYING' in the Cylc source distribution.
                 'cannot get process "args" from "ps": %s' % err)
         # Write suite contact file.
         # Preserve contact data in memory, for regular health check.
-        platform = reverse_lookup(
-            glbl_cfg().get(['job platforms']),
-            {'batch system': 'background'},
-            {'host': host}
-        )
         fields = suite_files.ContactFileFields
         contact_data = {
             fields.API:
@@ -1095,7 +1090,11 @@ see `COPYING' in the Cylc source distribution.
             fields.PUBLISH_PORT:
                 str(self.publisher.port),
             fields.SSH_USE_LOGIN_SHELL:
-                str(glbl_cfg().get_platform_item('use login shell')),
+                str(
+                    glbl_cfg().get_platform_item(
+                        'use login shell', 'localhost'
+                    )
+                ),
             fields.SUITE_RUN_DIR_ON_SUITE_HOST:
                 self.suite_run_dir,
             fields.UUID:

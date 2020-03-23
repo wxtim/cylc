@@ -154,8 +154,21 @@ def construct_ssh_cmd(raw_cmd, user=None, host=None, forward_x11=False,
         A list containing a chosen command including all arguments and options
         necessary to directly execute the bare command on a given host via ssh.
     """
-    platform = reverse_lookup(glbl_cfg().get(['job platforms']), {'batch system': 'background'}, {'host': host})
-    command = shlex.split(glbl_cfg().get(['job platforms', platform, 'ssh command']))
+    # Use reverse lookup to identify which platform to get 'ssh command'
+    # Variable from
+    # TODO - it is likely that 'background' is the correct batch system, 
+    # but I am concerned about the behaviour this causes - if you are trying
+    # to install on a platform for use with PBS setting the 'ssh command'
+    # variable doesn't do anything. I'm sure that we have the info here to do
+    # anything else but it's a possible flaw that we should either doc or fix
+    platform = reverse_lookup(glbl_cfg().get(
+        ['job platforms']),
+        {'batch system':
+        'background'}, {'host': host}
+    )
+    command = shlex.split(
+        glbl_cfg().get(['job platforms', platform, 'ssh command'])
+    )
 
     if forward_x11:
         command.append('-Y')
