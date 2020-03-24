@@ -216,10 +216,6 @@ class TaskRemoteMgr(object):
             cmd.append('--indirect-comm=%s' % comm_meth)
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
-        # Hack - fix properly ---------------------------------------
-        if platform == 'exvcylcdev01':
-            cmd[5] = cmd[5].replace('/home/h02/tpilling', '$HOME')
-        # -----------------------------------------------------------
         self.proc_pool.put_command(
             SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
             self._remote_init_callback,
@@ -248,7 +244,10 @@ class TaskRemoteMgr(object):
             pass
         # Issue all SSH commands in parallel
         procs = {}
-        for (host, owner), init_with_contact in self.remote_init_map.items():
+        for platform, init_with_contact in self.remote_init_map.items():
+            owner = glbl_cfg().get_platform_item('owner', platform)
+            # TODO make this select hosts nicely
+            host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
             if init_with_contact != REMOTE_INIT_DONE:
                 continue
             cmd = ['timeout', '10', 'cylc', 'remote-tidy']

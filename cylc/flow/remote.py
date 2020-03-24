@@ -158,9 +158,10 @@ def construct_ssh_cmd(raw_cmd, user=None, host=None, forward_x11=False,
     # Variable from
     # TODO - it is likely that 'background' is the correct batch system, 
     # but I am concerned about the behaviour this causes - if you are trying
-    # to install on a platform for use with PBS setting the 'ssh command'
-    # variable doesn't do anything. I'm sure that we have the info here to do
-    # anything else but it's a possible flaw that we should either doc or fix
+    # to install on a platform with batch system the 'ssh command' variable
+    # doesn't do anything. I'm not sure that we have the info at this point in
+    # the code to do anything else but it's a gotcha that we should either 
+    # doc or fix.
     platform = reverse_lookup(glbl_cfg().get(
         ['job platforms']),
         {'batch system':
