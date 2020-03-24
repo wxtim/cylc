@@ -252,14 +252,14 @@ class TaskRemoteMgr(object):
             pass
         # Issue all SSH commands in parallel
         procs = {}
-        for _platform, init_with_contact in self.remote_init_map.items():
+        for platform, init_with_contact in self.remote_init_map.items():
             if init_with_contact != REMOTE_INIT_DONE:
                 continue
             cmd = ['timeout', '10', 'cylc', 'remote-tidy']
-            host = get_host()
+            host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
             if is_remote_host(host):
                 cmd.append('--host=%s' % host)
-            owner = get_user()
+            owner = glbl_cfg().get_platform_item('owner', platform)
             if is_remote_user(owner):
                 cmd.append('--user=%s' % owner)
             if cylc.flow.flags.debug:
