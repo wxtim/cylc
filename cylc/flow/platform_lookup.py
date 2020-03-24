@@ -92,7 +92,7 @@ def reverse_lookup(platforms, job, remote):
     |     +----------v----------------+
     |     | Do all items other than   |
     +<----+ "host" and "batch system" |
-    |   No| match for this plaform    |
+    |   No| match for this platform   |
     |     +---------------------------+
     |                           |Yes
     |                +----------v----------------+ No

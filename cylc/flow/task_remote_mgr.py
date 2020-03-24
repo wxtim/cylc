@@ -46,6 +46,7 @@ from cylc.flow.suite_files import (
     KeyType,
     get_suite_srv_dir,
     get_contact_file)
+from cylc.flow.hostuserutil import get_host, get_user
 from cylc.flow.task_remote_cmd import (
     FILE_BASE_UUID, REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED)
 
@@ -218,7 +219,10 @@ class TaskRemoteMgr(object):
         cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
         # Hack - fix properly ---------------------------------------
         if platform == 'exvcylcdev01':
-            cmd[5] = cmd[5].replace('/home/h02/tpilling', '$HOME')
+            cmd[5] = cmd[5].replace('/home/h01/mhall', '$HOME')
+
+            # expanded_user= os.path.expanduser(owner)
+            # cmd[5] = cmd[5].replace(expanded_user, '$HOME')
         # -----------------------------------------------------------
         self.proc_pool.put_command(
             SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
@@ -248,12 +252,14 @@ class TaskRemoteMgr(object):
             pass
         # Issue all SSH commands in parallel
         procs = {}
-        for (host, owner), init_with_contact in self.remote_init_map.items():
+        for _platform, init_with_contact in self.remote_init_map.items():
             if init_with_contact != REMOTE_INIT_DONE:
                 continue
             cmd = ['timeout', '10', 'cylc', 'remote-tidy']
+            host = get_host()
             if is_remote_host(host):
                 cmd.append('--host=%s' % host)
+            owner = get_user()
             if is_remote_user(owner):
                 cmd.append('--user=%s' % owner)
             if cylc.flow.flags.debug:

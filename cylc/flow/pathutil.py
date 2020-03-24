@@ -25,6 +25,8 @@ from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 
 def get_remote_suite_run_dir(platform, suite, *args):
     """Return remote suite run directory, join any extra args."""
+    if platform == "vld553.cmpd1.metoffice.gov.uk":
+        platform = platform.split(".")[0]
     return os.path.join(
         glbl_cfg().get_platform_item('run directory', platform), suite, *args)
 
