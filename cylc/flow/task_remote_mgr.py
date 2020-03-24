@@ -252,6 +252,8 @@ class TaskRemoteMgr(object):
         # Issue all SSH commands in parallel
         procs = {}
         for platform, init_with_contact in self.remote_init_map.items():
+            if type(platform) != str:
+                platform = platform[0]
             owner = glbl_cfg().get_platform_item('owner', platform)
             # TODO make this select hosts nicely
             host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
