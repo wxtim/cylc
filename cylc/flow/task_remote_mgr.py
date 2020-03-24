@@ -215,7 +215,14 @@ class TaskRemoteMgr(object):
         if comm_meth in ['ssh']:
             cmd.append('--indirect-comm=%s' % comm_meth)
         cmd.append(str(self.uuid_str))
-        cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
+        # hacky change made to get things working - 
+        # TODO fix get_platform_item to make it return $HOME
+        #cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
+        x = get_remote_suite_run_dir(host, owner, self.suite)
+        x = x.replace('/home/h02/tpilling', '$HOME')
+        cmd.append(x)
+
+        
         self.proc_pool.put_command(
             SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
             self._remote_init_callback,

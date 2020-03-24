@@ -1639,8 +1639,12 @@ see `COPYING' in the Cylc source distribution.
         self.initialise_scheduler()
         self.data_store_mgr.initiate_data_model()
         self.publisher.publish(self.data_store_mgr.get_publish_deltas())
+        mainloop_count = 1
         while True:  # MAIN LOOP
-            LOG.debug('VVV Start of Mainloop VVV')
+            LOG.debug(
+                f'VVV Start of Mainloop (iteration {mainloop_count}) VVV'
+            )
+            mainloop_count += 1
             tinit = time()
             has_reloaded = False
 
