@@ -33,8 +33,10 @@ cylc run "${SUITE_NAME}"
 unset CYLC_CONF_PATH
 
 # Wait for first task 'foo' to fail.
+echo '$$$ 1' >&2
 cylc suite-state "${SUITE_NAME}" --task=foo --status=failed --point=1 \
     --interval=1 --max-polls=10 || exit 1
+echo '$$$ 2' >&2
 
 # Disable the suite passphrase (to leave us with public access privilege).
 SRV_D="$(cylc get-global-config --print-run-dir)/${SUITE_NAME}/.service"
@@ -43,7 +45,8 @@ mv "${SRV_D}/passphrase" "${SRV_D}/passphrase.DIS"
 # Check scan --full output.
 HOST="$(sed -n 's/^CYLC_SUITE_HOST=//p' "${SRV_D}/contact")"
 PORT="$(sed -n 's/^CYLC_SUITE_PORT=//p' "${SRV_D}/contact")"
-cylc scan --comms-timeout=5 -fb -n "${SUITE_NAME}" >'scan-f.out' 2>'/dev/null'
+cylc scan --comms-timeout=5 -fb -n "${SUITE_NAME}" >'scan-f.out'
+echo "$$$ 3 - $!"
 cmp_ok 'scan-f.out' <<__END__
 ${SUITE_NAME} ${USER}@${HOST}:${PORT}
    Title:
@@ -66,7 +69,7 @@ ${SUITE_NAME} ${USER}@${HOST}:${PORT}
 __END__
 
 # Check scan --describe output.
-cylc scan --comms-timeout=5 -db -n "${SUITE_NAME}" >'scan-d.out' 2>'/dev/null'
+cylc scan --comms-timeout=5 -db -n "${SUITE_NAME}" >'scan-d.out'
 cmp_ok 'scan-d.out' <<__END__
 ${SUITE_NAME} ${USER}@${HOST}:${PORT}
    Title:
@@ -85,7 +88,7 @@ ${SUITE_NAME} ${USER}@${HOST}:${PORT}
 __END__
 
 # Check scan --raw output.
-cylc scan --comms-timeout=5 -rb -n "${SUITE_NAME}" >'scan-r.out' 2>'/dev/null'
+cylc scan --comms-timeout=5 -rb -n "${SUITE_NAME}" >'scan-r.out'
 cmp_ok 'scan-r.out' <<__END__
 ${SUITE_NAME}|${USER}|${HOST}|port|${PORT}
 ${SUITE_NAME}|${USER}|${HOST}|another_metadata|1
