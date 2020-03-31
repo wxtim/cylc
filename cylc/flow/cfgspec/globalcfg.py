@@ -456,6 +456,8 @@ class GlobalConfig(ParsecConfig):
                 value = value.replace('$HOME', owner_home)
             else:
                 value = value.replace('$HOME', self._HOME)
+        if item == 'remote hosts' and not value:
+            value = [os.environ['HOSTNAME']]
         return value
 
     # def get_host_item(self, item, host=None, owner=None, replace_home=False,
