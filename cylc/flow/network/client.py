@@ -25,6 +25,7 @@ from typing import Union
 import zmq
 import zmq.asyncio
 
+from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow import LOG
 from cylc.flow.exceptions import (
     ClientError,
@@ -128,6 +129,22 @@ class SuiteRuntimeClient(ZMQSocketBase):
         self.start(host, port, srv_public_key_loc)
         # gather header info post start
         self.header = self.get_header()
+
+    def _socket_connect(self, host, port, srv_public_key_loc=None):
+        """Open ssh tunnel for when task communication method is set to ssh.
+           Note that this tunnel automatically closes when not in use.
+           Overwrites Base method
+        """
+        comms_method = glbl_cfg().get(['communication', 'method'])
+        if comms_method == "ssh":
+            self.socket = self.context.socket(self.pattern)
+            self._socket_options()
+            zmq.ssh.tunnel_connection(
+                self.socket,
+                f'tcp://{host}:{port}',
+                f'tcp://{host}:22')
+        else:  # use default behaviour for ZMQ connections
+            ZMQSocketBase._socket_connect(self, host, port)
 
     def _socket_options(self):
         """Set socket options after socket instantiation before connect.
