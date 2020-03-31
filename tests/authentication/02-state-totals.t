@@ -45,8 +45,9 @@ mv "${SRV_D}/passphrase" "${SRV_D}/passphrase.DIS"
 # Check scan --full output.
 HOST="$(sed -n 's/^CYLC_SUITE_HOST=//p' "${SRV_D}/contact")"
 PORT="$(sed -n 's/^CYLC_SUITE_PORT=//p' "${SRV_D}/contact")"
-cylc scan --comms-timeout=5 -fb -n "${SUITE_NAME}" >'scan-f.out'
+cylc scan --debug --comms-timeout=5 -fb -n "${SUITE_NAME}" >'scan-f.out' &
 echo "$$$ 3 - $!"
+wait
 cmp_ok 'scan-f.out' <<__END__
 ${SUITE_NAME} ${USER}@${HOST}:${PORT}
    Title:
