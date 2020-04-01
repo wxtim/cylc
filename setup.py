@@ -50,7 +50,8 @@ install_requires = [
     'markupsafe==1.1.*',
     'protobuf==3.11.*',
     'pyzmq==18.1.*',
-    'click>=7.0'
+    'click>=7.0',
+    'pexpect>=4.8'
 ]
 tests_require = [
     'codecov==2.0.*',

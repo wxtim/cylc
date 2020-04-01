@@ -143,6 +143,28 @@ class SuiteRuntimeServer(ZMQSocketBase):
             self.schd.data_store_mgr.data,
             schd=self.schd)
 
+    def _socket_bind(self, min_port, max_port, srv_prv_key_loc=None):
+
+        LOG.debug(f'new server bind')
+
+         # create socket
+        self.socket = self.context.socket(self.pattern)
+        self._socket_options()
+        try:
+            if min_port == max_port:
+                self.port = min_port
+                self.socket.bind(f'tcp://*:{min_port}')
+            else:
+                self.port = self.socket.bind_to_random_port(
+                    'tcp://*', min_port, max_port)
+        except (zmq.error.ZMQError, zmq.error.ZMQBindError) as exc:
+            raise CylcError(f'could not start Cylc ZMQ server: {exc}')
+
+        LOG.debug(f'binding server to port {self.port}')
+
+        if self.barrier is not None:
+            self.barrier.wait()
+
     def _socket_options(self):
         """Set socket options.
 
@@ -177,16 +199,23 @@ class SuiteRuntimeServer(ZMQSocketBase):
     def _listener(self):
         """The server main loop, listen for and serve requests."""
         while True:
+            LOG.debug(f'TEMP LOG: Server receiving something it would seem....')
             # process any commands passed to the listener by its parent process
             if self.queue.qsize():
                 command = self.queue.get()
+                LOG.debug(f'TEMP LOG: Server received command: {command}')
                 if command == 'STOP':
                     break
                 raise ValueError('Unknown command "%s"' % command)
 
             try:
+                LOG.debug(f'TEMP LOG: Trying to receive a string')
+
                 # wait RECV_TIMEOUT for a message
                 msg = self.socket.recv_string()
+
+                LOG.debug(f'TEMP LOG: Received string: {msg}')
+
             except zmq.error.Again:
                 # timeout, continue with the loop, this allows the listener
                 # thread to stop

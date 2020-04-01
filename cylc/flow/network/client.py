@@ -23,7 +23,9 @@ import sys
 from typing import Union
 
 import zmq
+import zmq.ssh
 import zmq.asyncio
+import pexpect
 
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow import LOG
@@ -113,6 +115,7 @@ class SuiteRuntimeClient(ZMQSocketBase):
     ):
         super().__init__(zmq.REQ, context=context)
         self.suite = suite
+        self.owner = owner #todo: poss put an if statement here
         if port:
             port = int(port)
         if not (host and port):
@@ -135,14 +138,26 @@ class SuiteRuntimeClient(ZMQSocketBase):
            Note that this tunnel automatically closes when not in use.
            Overwrites Base method
         """
-        comms_method = glbl_cfg().get(['communication', 'method'])
+        comms_method = 'ssh'
+        #glbl_cfg().get_host_item('task communication method', self.host)
+        self.host = host
+        self.port = port
+
         if comms_method == "ssh":
+
             self.socket = self.context.socket(self.pattern)
             self._socket_options()
-            zmq.ssh.tunnel_connection(
-                self.socket,
-                f'tcp://{host}:{port}',
-                f'tcp://{host}:22')
+            
+            import traceback
+            try:
+                new_url, tunnel, addr, server = zmq.ssh.tunnel_connection(
+                    self.socket,
+                    f'tcp://{host}:{port}',
+                    f'mhall@{host}:22',timeout=600)                
+            except Exception as ex:
+                LOG.debug(f"Failed to open tunnel with exception {traceback.format_exc()}")
+                LOG.exception(ex)
+            LOG.debug(f'SSH tunnel started to tcp://{host}:{port} via SSH host tcp://{host}:22 with owner = {self.owner} by {str(tunnel)} with new url: {new_url} addr: {addr} server: {server}')
         else:  # use default behaviour for ZMQ connections
             ZMQSocketBase._socket_connect(self, host, port)
 
@@ -154,7 +169,7 @@ class SuiteRuntimeClient(ZMQSocketBase):
         """
         # if there is no server don't keep the client hanging around
         self.socket.setsockopt(zmq.LINGER, int(self.DEFAULT_TIMEOUT))
-
+        LOG.debug("This is _socket options!!!!!!!!")
         # create a poller to handle timeouts
         self.poller = zmq.Poller()
         self.poller.register(self.socket, zmq.POLLIN)
@@ -165,6 +180,7 @@ class SuiteRuntimeClient(ZMQSocketBase):
         Has the same arguments and return values as ``serial_request``.
 
         """
+        import traceback
         timeout = (float(timeout) * 1000 if timeout else None) or self.timeout
         if not args:
             args = {}
@@ -179,13 +195,22 @@ class SuiteRuntimeClient(ZMQSocketBase):
         msg.update(self.header)
         LOG.debug('zmq:send %s', msg)
         message = encode_(msg)
-        self.socket.send_string(message)
 
+        try:
+            self.socket.send_string(message)
+        except Exception as ex:
+            LOG.exception(ex)
+            LOG.debug(f"Failed to open tunnel with exception {traceback.format_exc()}")
+
+        LOG.debug(f'timeout: {timeout}')
         # receive response
-        if self.poller.poll(timeout):
+        if self.poller.poll(10000):
+            LOG.debug(f'timeout: {timeout}')
             res = await self.socket.recv()
         else:
+            LOG.debug(f'moo')
             if callable(self.timeout_handler):
+                LOG.debug(f'mo mooo')
                 self.timeout_handler()
             raise ClientTimeout('Timeout waiting for server response.')
 

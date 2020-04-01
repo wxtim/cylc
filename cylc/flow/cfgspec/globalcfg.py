@@ -109,7 +109,7 @@ SPEC = {
             'work directory': [VDR.V_STRING, '$HOME/cylc-run'],
             'suite definition directory': [VDR.V_STRING],
             'task communication method': [
-                VDR.V_STRING, 'zmq', 'poll'],
+                VDR.V_STRING, 'ssh', 'zmq', 'poll'],
             # TODO ensure that it is possible to over-ride the following three
             # settings in suite config.
             'submission polling intervals': [VDR.V_INTERVAL_LIST],
@@ -422,9 +422,10 @@ class GlobalConfig(ParsecConfig):
                 if owner_home is None:
                     owner_home = os.path.expanduser('~%s' % owner)
                 value = value.replace(self._HOME, owner_home)
-        if item == "task communication method" and value == "default":
-            # Translate "default" to client-server comms: "zmq"
-            value = 'zmq'
+        
+        if item == "task communication method":
+            if value == "default":
+                value = 'zmq'
         return value
 
     def _transform(self):

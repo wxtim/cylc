@@ -153,6 +153,8 @@ class ZMQSocketBase:
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
 
+        LOG.debug(f'Woo haa 2 - start sequence init')
+
         if self.bind:
             self._socket_bind(*args, **kwargs)
         else:
@@ -168,6 +170,8 @@ class ZMQSocketBase:
         Will use a port range provided to select random ports.
 
         """
+        LOG.debug(f'old server bind')
+
         if srv_prv_key_loc is None:
             # Create new KeyInfo object for the server private key
             suite_srv_dir = get_suite_srv_dir(self.suite)
@@ -222,6 +226,9 @@ class ZMQSocketBase:
     # Keeping srv_public_key_loc as optional arg so as to not break interface
     def _socket_connect(self, host, port, srv_public_key_loc=None):
         """Connect socket to stub."""
+        LOG.debug(f'Woo haa 3 - base class connect')
+
+       
         suite_srv_dir = get_suite_srv_dir(self.suite)
         if srv_public_key_loc is None:
             # Create new KeyInfo object for the server public key
@@ -240,7 +247,7 @@ class ZMQSocketBase:
         self.port = port
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
-
+        
         client_priv_key_info = KeyInfo(
             KeyType.PRIVATE,
             KeyOwner.CLIENT,
@@ -272,6 +279,7 @@ class ZMQSocketBase:
                 "Failed to load the suite's public key, so cannot connect.")
 
         self.socket.connect(f'tcp://{host}:{port}')
+
 
     def _socket_options(self):
         """Set socket options.
