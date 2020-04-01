@@ -59,6 +59,9 @@ env:
 # this is the default test stage, which is used for functional-tests
 install: .travis/install.sh functional-tests docs
 script:
+- cylc version
+- cylc version --long
+- echo $CYLC_VERSION
 - export PYTHONPATH="${TRAVIS_BUILD_DIR}/.travis"
 # When we run cylc commands, there are processes being forked, that get a
 # new working directory. As .coveragerc contains relatives paths, it fails
