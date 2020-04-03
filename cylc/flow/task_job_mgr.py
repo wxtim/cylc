@@ -229,7 +229,6 @@ class TaskJobManager(object):
             # allows the restart logic to correctly poll the status of the
             # background/at jobs that may still be running on the previous
             # suite host.
-            from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
             owner = glbl_cfg().get_platform_item('owner', platform)
             host = glbl_cfg().get_platform_item('remote hosts', platform)[0]
             if (
@@ -241,7 +240,6 @@ class TaskJobManager(object):
             else:
                 owner_at_host = host
             # Persist
-            owner = glbl_cfg().get_platform_item('owner', platform)
             if owner:
                 owner_at_host = owner + '@' + owner_at_host
             now_str = get_current_time_string()

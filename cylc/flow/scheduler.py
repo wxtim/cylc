@@ -1639,12 +1639,7 @@ see `COPYING' in the Cylc source distribution.
         self.initialise_scheduler()
         self.data_store_mgr.initiate_data_model()
         self.publisher.publish(self.data_store_mgr.get_publish_deltas())
-        mainloop_count = 1
         while True:  # MAIN LOOP
-            # LOG.debug(
-            #     f'VVV Start of Mainloop (iteration {mainloop_count}) VVV'
-            # )
-            mainloop_count += 1
             tinit = time()
             has_reloaded = False
 
@@ -1665,6 +1660,7 @@ see `COPYING' in the Cylc source distribution.
             if self.should_process_tasks():
                 self.process_task_pool()
             self.late_tasks_check()
+
             self.process_queued_task_messages()
             self.process_command_queue()
             self.task_events_mgr.process_events(self)

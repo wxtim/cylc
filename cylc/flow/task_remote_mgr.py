@@ -218,7 +218,7 @@ class TaskRemoteMgr(object):
         # hacky change made to get things working - 
         # TODO fix get_platform_item to make it return $HOME
         #cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
-        x = get_remote_suite_run_dir(host, owner, self.suite)
+        x = get_remote_suite_run_dir(platform, self.suite)
         x = x.replace('/home/h02/tpilling', '$HOME')
         cmd.append(x)
 
