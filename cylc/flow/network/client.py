@@ -23,7 +23,7 @@ import sys
 from typing import Union
 
 import zmq
-import zmq.ssh
+from zmq import ssh
 import zmq.asyncio
 import pexpect
 
@@ -150,14 +150,14 @@ class SuiteRuntimeClient(ZMQSocketBase):
             
             import traceback
             try:
-                new_url, tunnel, addr, server = zmq.ssh.tunnel_connection(
+                tunnel = ssh.tunnel_connection(
                     self.socket,
-                    f'tcp://{host}:{port}',
-                    f'mhall@{host}:22',timeout=600)                
+                    f'tcp://127.0.0.1:{port}',
+                    f'{host}',timeout=60)                
             except Exception as ex:
                 LOG.debug(f"Failed to open tunnel with exception {traceback.format_exc()}")
                 LOG.exception(ex)
-            LOG.debug(f'SSH tunnel started to tcp://{host}:{port} via SSH host tcp://{host}:22 with owner = {self.owner} by {str(tunnel)} with new url: {new_url} addr: {addr} server: {server}')
+            LOG.debug(f'SSH tunnel started to tcp://{host}:{port} via SSH host tcp://{host}:22 with owner = {self.owner} by {str(tunnel)}')
         else:  # use default behaviour for ZMQ connections
             ZMQSocketBase._socket_connect(self, host, port)
 
@@ -169,6 +169,7 @@ class SuiteRuntimeClient(ZMQSocketBase):
         """
         # if there is no server don't keep the client hanging around
         self.socket.setsockopt(zmq.LINGER, int(self.DEFAULT_TIMEOUT))
+     #   self.socket.setsockopt(zmq.IPV6, True)
         LOG.debug("This is _socket options!!!!!!!!")
         # create a poller to handle timeouts
         self.poller = zmq.Poller()
@@ -204,7 +205,7 @@ class SuiteRuntimeClient(ZMQSocketBase):
 
         LOG.debug(f'timeout: {timeout}')
         # receive response
-        if self.poller.poll(10000):
+        if self.poller.poll(timeout):
             LOG.debug(f'timeout: {timeout}')
             res = await self.socket.recv()
         else:

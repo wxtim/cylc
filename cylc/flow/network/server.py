@@ -145,10 +145,11 @@ class SuiteRuntimeServer(ZMQSocketBase):
 
     def _socket_bind(self, min_port, max_port, srv_prv_key_loc=None):
 
-        LOG.debug(f'new server bind')
 
          # create socket
         self.socket = self.context.socket(self.pattern)
+        LOG.debug(f'new server bind {self.socket.curve_server}')
+
         self._socket_options()
         try:
             if min_port == max_port:
@@ -160,8 +161,6 @@ class SuiteRuntimeServer(ZMQSocketBase):
         except (zmq.error.ZMQError, zmq.error.ZMQBindError) as exc:
             raise CylcError(f'could not start Cylc ZMQ server: {exc}')
 
-        LOG.debug(f'binding server to port {self.port}')
-
         if self.barrier is not None:
             self.barrier.wait()
 
@@ -172,7 +171,10 @@ class SuiteRuntimeServer(ZMQSocketBase):
 
         """
         # create socket
-        self.socket.RCVTIMEO = int(self.RECV_TIMEOUT) * 1000
+        self.socket.RCVTIMEO = int(self.RECV_TIMEOUT) * 100
+        # self.socket.setsockopt(zmq.IPV6, True)
+        # self.socket.setsockopt(zmq.PLAIN_SERVER, 1)
+
 
     def _bespoke_start(self):
         """Setup start items, and run listener.
@@ -199,22 +201,16 @@ class SuiteRuntimeServer(ZMQSocketBase):
     def _listener(self):
         """The server main loop, listen for and serve requests."""
         while True:
-            LOG.debug(f'TEMP LOG: Server receiving something it would seem....')
             # process any commands passed to the listener by its parent process
             if self.queue.qsize():
                 command = self.queue.get()
-                LOG.debug(f'TEMP LOG: Server received command: {command}')
                 if command == 'STOP':
                     break
                 raise ValueError('Unknown command "%s"' % command)
 
             try:
-                LOG.debug(f'TEMP LOG: Trying to receive a string')
-
                 # wait RECV_TIMEOUT for a message
                 msg = self.socket.recv_string()
-
-                LOG.debug(f'TEMP LOG: Received string: {msg}')
 
             except zmq.error.Again:
                 # timeout, continue with the loop, this allows the listener

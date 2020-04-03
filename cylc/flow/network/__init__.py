@@ -156,6 +156,7 @@ class ZMQSocketBase:
         LOG.debug(f'Woo haa 2 - start sequence init')
 
         if self.bind:
+            LOG.debug(f'calling bindio')
             self._socket_bind(*args, **kwargs)
         else:
             self._socket_connect(*args, **kwargs)
