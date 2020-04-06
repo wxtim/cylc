@@ -24,7 +24,8 @@ import socket
 from cylc.flow import LOG
 
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
-from cylc.flow.exceptions import SuiteServiceFileError
+from cylc.flow.exceptions import (
+    SuiteServiceFileError, VersionCompatibilityError)
 import cylc.flow.flags
 from cylc.flow.hostuserutil import is_remote_host, get_host_ip_by_name
 from cylc.flow.network.client import (
@@ -228,7 +229,8 @@ def get_scan_items_from_fs(
 
     Walk users' "~/cylc-run/" to get (host, port) from ".service/contact" for
     active, or all (active plus registered but dormant), suites.
-    Note when active_only, suites run in cylc 7 or less will not be returned.
+    Note suites run in cylc 7 or less will only be returned as LOG.info
+    statement.
 
     Yields:
         tuple - (reg, host, port, pub_port, api)
@@ -272,20 +274,21 @@ def get_scan_items_from_fs(
 
             # Choose only suites with .service and matching filter
             if active_only:
-                # Skip suites running with cylc version < 8
+                # Skip suites running with cylc version < 8 (these suites
+                # do not have PUBLISH_PORT field)
                 try:
                     contact_data = load_contact_file(reg, owner)
                     cylc_version = contact_data[ContactFileFields.VERSION]
                     major_version = int(cylc_version.split(".", 1)[0])
                     if (major_version < 8):
-                        LOG.debug(
-                            f"Suite \"{reg}\" is running in Cylc version "
-                            f"{cylc_version}, not Cylc 8 and will not be "
-                            f"displayed."
-                        )
-                        continue
-
-                except (SuiteServiceFileError, IOError, TypeError, ValueError):
+                        msg = (f"Suite \"{reg}\" is running in Cylc version"
+                               f" {cylc_version}, not Cylc 8 and"
+                               f" will not be displayed.")
+                        raise VersionCompatibilityError(msg=msg)
+                except VersionCompatibilityError as exc:
+                    LOG.info(f"Version Compatibility Error: {exc}")
+                    continue
+                except (SuiteServiceFileError, IOError, TypeError):
                     continue
                 yield (
                     reg,

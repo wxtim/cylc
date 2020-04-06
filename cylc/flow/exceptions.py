@@ -172,3 +172,9 @@ class CylcMissingFinalCyclePointError(CyclingError):
 class PlatformLookupError(CylcConfigError):
     """Unable to determine the correct job platform from the information
     given"""
+
+
+class VersionCompatibilityError(CylcError):
+    """Mixed version error."""
+    def __init__(self, msg=None):
+        CylcError.__init__(self, f"{msg}")
