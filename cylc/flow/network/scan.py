@@ -24,8 +24,7 @@ import socket
 from cylc.flow import LOG
 
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
-from cylc.flow.exceptions import (
-    SuiteServiceFileError, VersionCompatibilityError)
+from cylc.flow.exceptions import SuiteServiceFileError
 import cylc.flow.flags
 from cylc.flow.hostuserutil import is_remote_host, get_host_ip_by_name
 from cylc.flow.network.client import (
@@ -281,13 +280,11 @@ def get_scan_items_from_fs(
                     cylc_version = contact_data[ContactFileFields.VERSION]
                     major_version = int(cylc_version.split(".", 1)[0])
                     if (major_version < 8):
-                        msg = (f"Suite \"{reg}\" is running in Cylc version"
-                               f" {cylc_version}, not Cylc 8 and"
-                               f" will not be displayed.")
-                        raise VersionCompatibilityError(msg=msg)
-                except VersionCompatibilityError as exc:
-                    LOG.info(f"Version Compatibility Error: {exc}")
-                    continue
+                        LOG.info(
+                            f"Suite \"{reg}\" is running in Cylc version"
+                            f" {cylc_version}, not Cylc 8 and"
+                            f" will not be displayed.")
+                        continue
                 except (SuiteServiceFileError, IOError, TypeError):
                     continue
                 yield (
