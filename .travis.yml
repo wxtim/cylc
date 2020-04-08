@@ -93,8 +93,8 @@ slurm: &slurm
     - docker run --name slurm --hostname docker -v $(pwd -P):/root/cylc-flow --rm -d slurm:test
     - docker ps -a
   install:
-    - docker exec -w /root/cylc-flow slurm python3.7 -m pip install -e .[all]
     - docker exec slurm python3.7 -m pip install six==1.12
+    - docker exec -w /root/cylc-flow slurm python3.7 -m pip install -e .[all]
   script:
     - docker exec -e CYLC_TEST_BATCH_SLURM=true -w /root/cylc-flow slurm ./etc/bin/run-functional-tests.sh -v tests/slurm
 
