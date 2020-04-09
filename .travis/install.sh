@@ -25,7 +25,7 @@ shopt -s extglob
 args=("$@")
 
 # pygtk via apt-get, necessary for both unit and functional tests
-sudo apt-get install graphviz libgraphviz-dev python-gtk2-dev heirloom-mailx
+sudo apt-get install graphviz libgraphviz-dev python-gtk2-dev s-nail
 # coverage dependencies
 pip install coverage pytest-cov mock testfixtures
 
