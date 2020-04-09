@@ -31,7 +31,7 @@ cache: pip
 virtualenv:
   # we need system packages in Travis-CI's virtualenv in order to access pygtk, installed via apt-get
   system_site_packages: true
-dist: xenial
+dist: bionic
 addons:
   apt:
     # instruct travis-ci to always run apt-get before each build
