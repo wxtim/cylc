@@ -78,7 +78,8 @@ class TestGlobalConfig(unittest.TestCase):
             else:
                 coercer = validator.coerce_interval_list
             host_item = global_config.get_host_item(item=key, host='foo')
-            self.assertTrue(host_item == coercer(items[key], []))
+            self.assertTrue(host_item == coercer(items[key], []),
+                            "host_item=%s, key=%s" % (host_item, key))
 
         shutil.rmtree(conf_dir)
 
