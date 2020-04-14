@@ -92,6 +92,9 @@ SLURM when task name has a percent `%` character.
 [#3543](https://github.com/cylc/cylc-flow/pull/3543) - fixed pipe polling
 issue observed on darwin (BSD) which could cause Cylc to hang.
 
+[#3452](https://github.com/cylc/cylc-flow/pull/3452) - Fix param graph
+issue when mixing offset and conditional (e.g. foo<m-1> & baz => foo<m>).
+
 -------------------------------------------------------------------------------
 ## __cylc-8.0a1 (2019-09-18)__
 
