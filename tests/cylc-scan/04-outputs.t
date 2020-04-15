@@ -19,7 +19,6 @@
 
 . "$(dirname "$0")/test_header"
 set_test_number 5
-
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
 
 TEST_NAME="${TEST_NAME_BASE}-validate"
@@ -29,9 +28,11 @@ run_ok "${TEST_NAME}" cylc validate "${SUITE_NAME}"
 cylc run "${SUITE_NAME}"
 export CYLC_CONF_PATH="${PWD}/etc"
 # Wait for first task 'foo' to fail.
+echo '$$$ 1' >&2
+
 cylc suite-state "${SUITE_NAME}" --task=foo --status=failed --point=1 \
     --interval=1 --max-polls=10 || exit 1
-
+echo '$$$ 2' >&2
 # Check scan --full output.
 SRV_D="$(cylc get-global-config --print-run-dir)/${SUITE_NAME}/.service"
 HOST="$(sed -n 's/^CYLC_SUITE_HOST=//p' "${SRV_D}/contact")"
@@ -40,7 +41,8 @@ PUBLISH_PORT="$(sed -n 's/^CYLC_SUITE_PUBLISH_PORT=//p' "${SRV_D}/contact")"
 CYLC_VERSION="$(sed -n 's/^CYLC_VERSION=//p' "${SRV_D}/contact")"
 
 cylc scan --comms-timeout=5 -f --color=never -n "${SUITE_NAME}" \
-    >'scan-f.out' 2>'/dev/null'
+    >'scan-f.out' # 2>'/dev/null'
+echo '$$$ 3' >&2
 cmp_ok 'scan-f.out' <<__END__
 ${SUITE_NAME} ${USER}@${HOST}:${PORT} ${USER}@${HOST}:${PUBLISH_PORT}
    Title:
@@ -66,7 +68,8 @@ __END__
 
 # Check scan --describe output.
 cylc scan --comms-timeout=5 -d --color=never -n "${SUITE_NAME}" \
-    >'scan-d.out' 2>'/dev/null'
+    >'scan-d.out' # 2>'/dev/null'
+echo '$$$ 4' >&2
 cmp_ok 'scan-d.out' <<__END__
 ${SUITE_NAME} ${USER}@${HOST}:${PORT}
    Title:
@@ -88,14 +91,14 @@ __END__
 
 # Check scan --raw output.
 cylc scan --comms-timeout=5 -t raw --color=never -n "${SUITE_NAME}" \
-    >'scan-r.out' 2>'/dev/null'
+    >'scan-r.out' # 2>'/dev/null'
 cmp_ok 'scan-r.out' <<__END__
 ${SUITE_NAME}|${USER}|${HOST}|port|${PORT}
 __END__
 
 # Check scan --json output.
 cylc scan --comms-timeout=5 -t json --color=never -n "${SUITE_NAME}" \
-    >'scan-j.out' 2>'/dev/null'
+    >'scan-j.out' # 2>'/dev/null'
 cmp_json 'scan-j.out' 'scan-j.out' <<__END__
 [
     [   "${SUITE_NAME}",
