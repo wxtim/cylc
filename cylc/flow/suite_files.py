@@ -135,9 +135,6 @@ class SuiteFiles:
         For details of the fields see ``ContactFileFields``.
         """
 
-        CONTACT2 = 'contact2'
-        """Same as ``CONTACT``, installed on remote platforms."""
-
         SOURCE = 'source'
         """Symlink to the suite definition (suite dir)."""
 
