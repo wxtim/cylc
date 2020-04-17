@@ -214,8 +214,7 @@ class TaskEventsManager():
             ret = itask.tdef.rtconfig[skey][key]
         else:
             try:
-                ret = glbl_cfg().get_host_item(
-                    key, itask.task_host, itask.task_owner)
+                ret = itask.platform[key]
             except (KeyError, ItemNotFoundError):
                 ret = default
         return ret
