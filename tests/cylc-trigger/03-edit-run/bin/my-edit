@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 sed -i 's|^false|true|' "$@"
 # shellcheck disable=SC2016
