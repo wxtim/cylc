@@ -628,17 +628,11 @@ def register(reg=None, source=None, redirect=False, rundir=None):
     return reg
 
 
-def create_auth_files(reg):
-    """Create or renew authentication keys for suite 'reg' in the .service
-     directory."""
+def remove_keys_on_client():
+    """Removes client-held authentication keys"""
 
-    suite_srv_dir = get_suite_srv_dir(reg)
-
+    suite_srv_dir= get_suite_srv_dir(reg)
     keys = {
-        "client_public_key": KeyInfo(
-            KeyType.PUBLIC,
-            KeyOwner.CLIENT,
-            suite_srv_dir=suite_srv_dir),
         "client_private_key": KeyInfo(
             KeyType.PRIVATE,
             KeyOwner.CLIENT,
@@ -647,31 +641,61 @@ def create_auth_files(reg):
             KeyType.PUBLIC,
             KeyOwner.SERVER,
             suite_srv_dir=suite_srv_dir),
-        "server_private_key": KeyInfo(
-            KeyType.PRIVATE,
-            KeyOwner.SERVER,
-            suite_srv_dir=suite_srv_dir)
     }
-
-    # WARNING, DESTRUCTIVE. Removes old keys if they already exist.
+    # WARNING, DESTRUCTIVE. Removes old keys if they already exist. 
+    
     for k in keys.values():
         if os.path.exists(k.full_key_path):
             os.remove(k.full_key_path)
 
-    # WARNING, DESTRUCTIVE.
-    # Removes old client public key folder if it already exists, makes
-    # fresh directory.
+
+def remove_keys_on_server():
+    """Removes server-held authentication keys"""
+
+    suite_srv_dir= get_suite_srv_dir(reg)
+    keys = {
+            "client_public_key": KeyInfo(
+                KeyType.PUBLIC,
+                KeyOwner.CLIENT,
+                suite_srv_dir=suite_srv_dir),
+            "server_private_key": KeyInfo(
+                KeyType.PRIVATE,
+                KeyOwner.SERVER,
+                suite_srv_dir=suite_srv_dir)
+            }
+    # WARNING, DESTRUCTIVE. Removes old keys if they already exist. 
+
+    for k in keys.values():
+        if os.path.exists(k.full_key_path):
+            os.remove(k.full_key_path)
+
+    # Deletes and makes a fresh client pubic key folder.
     if os.path.exists(keys["client_public_key"].key_path):
         shutil.rmtree(keys["client_public_key"].key_path)
-    os.makedirs(keys["client_public_key"].key_path, exist_ok=True)
+        os.makedirs(keys["client_public_key"].key_path, exist_ok=True)
 
+
+def create_auth_files(reg, client=True):
+    """Create or renew authentication keys for suite 'reg' in the .service
+     directory.
+     Generate a pair of authentication keys"""
+    if client=true:
+        set public keypath to ,....
+        set private key pah to ....
+
+
+    clean_keys(takes 2 paths)
     # ZMQ keys generated in .service directory.
     # Move client public keys to a sub-directory: .service/client_public_keys.
     # ZMQ keys need to be created with stricter file permissions, changing
     # umask default denials.
+
     old_umask = os.umask(0o177)  # u=rw only set as default for file creation
     client_public_full_key_path, _client_private_full_key_path = (
         zmq.auth.create_certificates(suite_srv_dir, KeyOwner.CLIENT.value))
+    
+    
+    
     shutil.move(
         client_public_full_key_path,
         keys["client_public_key"].key_path)
