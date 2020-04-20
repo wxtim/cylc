@@ -51,6 +51,7 @@ def remote_init(uuid_str, rund, indirect_comm=None):
             print(REMOTE_INIT_NOT_REQUIRED)
             return
     os.makedirs(rund, exist_ok=True)
+    os.makedirs(os.path.expanduser("~/cylc-run/somesuite"))
     oldcwd = os.getcwd()
     os.chdir(rund)
     # Extract job.sh from library, for use in job scripts.
