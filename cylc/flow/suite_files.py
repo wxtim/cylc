@@ -22,7 +22,6 @@ import os
 import re
 import shutil
 import stat
-from string import ascii_letters, digits
 import zmq.auth
 
 from cylc.flow import LOG

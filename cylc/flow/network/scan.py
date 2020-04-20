@@ -278,7 +278,7 @@ def get_scan_items_from_fs(
                 try:
                     contact_data = load_contact_file(reg, owner)
                 except (SuiteServiceFileError, IOError, TypeError) as exc:
-                    LOG.debug(f"Error loading contact file: {exc}")
+                    LOG.debug(f"Error loading contact file for: {reg}")
                     continue
                 try:
                     cylc_version = contact_data[ContactFileFields.VERSION]
