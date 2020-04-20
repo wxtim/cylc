@@ -285,12 +285,21 @@ class TaskRemoteMgr(object):
 
     def _remote_init_callback(self, proc_ctx, host, owner, tmphandle):
         """Callback when "cylc remote-init" exits"""
+        import re
         self.ready = True
         try:
             tmphandle.close()
         except OSError:  # E.g. ignore bad unlink, etc
             pass
         if proc_ctx.ret_code == 0:
+                if "KEYSTART" in proc_ctx.out:
+                regex_result = re.search('KEYSTART(.*)KEYEND', proc_ctx.out)
+                key = regex_result.group(1)
+                print(f"*********************: {key}")
+                text_file = open("/tmp/ztesting.txt", "w")
+                _ = text_file.write(key)
+                text_file.close()
+
             for status in (REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED):
                 if status in proc_ctx.out:
                     # Good status

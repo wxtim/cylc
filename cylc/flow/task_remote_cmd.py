@@ -67,6 +67,11 @@ def remote_init(uuid_str, rund, indirect_comm=None):
         with open(fname, 'w') as handle:
             handle.write('%s=%s\n' % (
                 ContactFileFields.COMMS_PROTOCOL_2, indirect_comm))
+    # original = sys.stdout
+    # pathtofile = os.path.join(srvd, "blah.txt")
+    # sys.stdout = open(pathtofile, "w")
+    print("KEYSTARTThis is a test might be a key in futureKEYEND")
+    # sys.stdout.close()
     print(REMOTE_INIT_DONE)
     return
 
