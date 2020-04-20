@@ -628,7 +628,7 @@ def register(reg=None, source=None, redirect=False, rundir=None):
     return reg
 
 
-def remove_keys_on_client():
+def remove_keys_on_client(reg):
     """Removes client-held authentication keys"""
 
     suite_srv_dir= get_suite_srv_dir(reg)
@@ -649,7 +649,7 @@ def remove_keys_on_client():
             os.remove(k.full_key_path)
 
 
-def remove_keys_on_server():
+def remove_keys_on_server(reg):
     """Removes server-held authentication keys"""
 
     suite_srv_dir= get_suite_srv_dir(reg)
@@ -669,10 +669,10 @@ def remove_keys_on_server():
         if os.path.exists(k.full_key_path):
             os.remove(k.full_key_path)
 
-    # Deletes and makes a fresh client pubic key folder.
+    # Deletes client pubic key folder.
     if os.path.exists(keys["client_public_key"].key_path):
         shutil.rmtree(keys["client_public_key"].key_path)
-        os.makedirs(keys["client_public_key"].key_path, exist_ok=True)
+        
 
 
 def create_auth_files(reg, client=True):
