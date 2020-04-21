@@ -654,10 +654,6 @@ def create_server_keys(keys,suite_srv_dir):
 
     os.makedirs(keys["client_public_key"].key_path, exist_ok=True)
     old_umask = os.umask(0o177)  # u=rw only set as default for file creation
-    client_public_full_key_path, _client_private_full_key_path = (
-        zmq.auth.create_certificates(suite_srv_dir, KeyOwner.CLIENT.value))
-    shutil.move(
-        client_public_full_key_path,keys["client_public_key"].key_path)
     _server_public_full_key_path, _server_private_full_key_path = (
         zmq.auth.create_certificates(suite_srv_dir, KeyOwner.SERVER.value))
     # Return file permissions to default settings.
