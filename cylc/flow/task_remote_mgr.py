@@ -202,8 +202,12 @@ class TaskRemoteMgr(object):
             cmd.append('--indirect-comm=%s' % comm_meth)
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
+        cmd.append(self.suite)
         self.proc_pool.put_command(
-            SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
+            SubProcContext(
+                'remote-init',
+                cmd,
+                stdin_files=[tmphandle]),
             self._remote_init_callback,
             [host, owner, tmphandle])
         # None status: Waiting for command to finish
@@ -292,7 +296,7 @@ class TaskRemoteMgr(object):
         except OSError:  # E.g. ignore bad unlink, etc
             pass
         if proc_ctx.ret_code == 0:
-                if "KEYSTART" in proc_ctx.out:
+            if "KEYSTART" in proc_ctx.out:
                 regex_result = re.search('KEYSTART(.*)KEYEND', proc_ctx.out)
                 key = regex_result.group(1)
                 print(f"*********************: {key}")

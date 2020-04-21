@@ -46,6 +46,7 @@ def main():
             argdoc=[
                 ("UUID", "UUID of current suite server process"),
                 ("RUND", "The run directory of the suite"),
+                ("SUITE", "The name of the suite")
             ],
         )
         parser.add_option(
@@ -58,8 +59,8 @@ def main():
             dest="indirect_comm",
             default=None,
         )
-        options, (uuid_str, rund) = parser.parse_args()
-        remote_init(uuid_str, rund, indirect_comm=options.indirect_comm)
+        options, (uuid_str, rund, suite) = parser.parse_args()
+        remote_init(uuid_str, rund, suite, indirect_comm=options.indirect_comm)
 
 
 if __name__ == "__main__":

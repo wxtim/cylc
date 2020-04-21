@@ -628,41 +628,9 @@ def register(reg=None, source=None, redirect=False, rundir=None):
     return reg
 
 
-def remove_keys_on_client(reg):
-    """Removes client-held authentication keys"""
-
-    suite_srv_dir= get_suite_srv_dir(reg)
-    keys = {
-        "client_private_key": KeyInfo(
-            KeyType.PRIVATE,
-            KeyOwner.CLIENT,
-            suite_srv_dir=suite_srv_dir),
-        "server_public_key": KeyInfo(
-            KeyType.PUBLIC,
-            KeyOwner.SERVER,
-            suite_srv_dir=suite_srv_dir),
-    }
-    # WARNING, DESTRUCTIVE. Removes old keys if they already exist. 
-    
-    for k in keys.values():
-        if os.path.exists(k.full_key_path):
-            os.remove(k.full_key_path)
-
-
-def remove_keys_on_server(reg):
+def remove_keys_on_server(keys):
     """Removes server-held authentication keys"""
 
-    suite_srv_dir= get_suite_srv_dir(reg)
-    keys = {
-            "client_public_key": KeyInfo(
-                KeyType.PUBLIC,
-                KeyOwner.CLIENT,
-                suite_srv_dir=suite_srv_dir),
-            "server_private_key": KeyInfo(
-                KeyType.PRIVATE,
-                KeyOwner.SERVER,
-                suite_srv_dir=suite_srv_dir)
-            }
     # WARNING, DESTRUCTIVE. Removes old keys if they already exist. 
 
     for k in keys.values():
@@ -673,32 +641,23 @@ def remove_keys_on_server(reg):
     if os.path.exists(keys["client_public_key"].key_path):
         shutil.rmtree(keys["client_public_key"].key_path)
         
-
-
-def create_auth_files(reg, client=True):
+def create_server_keys(keys,suite_srv_dir):
     """Create or renew authentication keys for suite 'reg' in the .service
      directory.
-     Generate a pair of authentication keys"""
-    if client=true:
-        set public keypath to ,....
-        set private key pah to ....
+     Generate a pair of ZMQ authentication keys"""    
 
+     # ZMQ keys generated in .service directory.
+     # Client public keys are moved to a sub-directory: 
+     #   .service/client_public_keys.
+     # ZMQ keys need to be created with stricter file permissions, changing
+     # umask default denials.
 
-    clean_keys(takes 2 paths)
-    # ZMQ keys generated in .service directory.
-    # Move client public keys to a sub-directory: .service/client_public_keys.
-    # ZMQ keys need to be created with stricter file permissions, changing
-    # umask default denials.
-
+    os.makedirs(keys["client_public_key"].key_path, exist_ok=True)
     old_umask = os.umask(0o177)  # u=rw only set as default for file creation
     client_public_full_key_path, _client_private_full_key_path = (
         zmq.auth.create_certificates(suite_srv_dir, KeyOwner.CLIENT.value))
-    
-    
-    
     shutil.move(
-        client_public_full_key_path,
-        keys["client_public_key"].key_path)
+        client_public_full_key_path,keys["client_public_key"].key_path)
     _server_public_full_key_path, _server_private_full_key_path = (
         zmq.auth.create_certificates(suite_srv_dir, KeyOwner.SERVER.value))
     # Return file permissions to default settings.

@@ -28,6 +28,7 @@ from cylc.flow.pathutil import get_suite_run_dir
 from cylc.flow.remote import remrun, remote_cylc_cmd
 from cylc.flow.scheduler import Scheduler
 from cylc.flow import suite_files
+from cylc.flow.suite_files import (KeyType, KeyOwner, KeyInfo)
 from cylc.flow.resources import extract_resources
 from cylc.flow.terminal import cli_function
 
@@ -238,9 +239,21 @@ def scheduler_cli(parser, options, args, is_restart=False):
         sys.stderr.write(f'suite service directory not found '
                          f'at: {suite_run_dir}\n')
         sys.exit(1)
-
+    suite_srv_dir= suite_files.get_suite_srv_dir(reg)
+    keys = {
+            "client_public_key": KeyInfo(
+                KeyType.PUBLIC,
+                KeyOwner.CLIENT,
+                suite_srv_dir=suite_srv_dir),
+            "server_private_key": KeyInfo(
+                KeyType.PRIVATE,
+                KeyOwner.SERVER,
+                suite_srv_dir=suite_srv_dir)
+            }
+    #call server clean here
+    suite_files.remove_keys_on_server(keys)
     # Create auth files if needed.
-    suite_files.create_auth_files(reg)
+    suite_files.create_server_keys(keys, suite_srv_dir)
 
     # Extract job.sh from library, for use in job scripts.
     extract_resources(
