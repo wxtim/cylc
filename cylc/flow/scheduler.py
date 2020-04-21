@@ -282,11 +282,7 @@ class Scheduler(object):
                 suite_files.KeyType.PUBLIC,
                 suite_files.KeyOwner.CLIENT,
                 suite_srv_dir=suite_srv_dir)
-            client_pub_key_dir = client_pub_keyinfo.key_path
-            self.curve_auth.configure_curve(
-                domain='*',
-                location=(client_pub_key_dir)
-            )
+            self.client_pub_key_dir = client_pub_keyinfo.key_path
             # create thread sync barrier for setup
             barrier = Barrier(3, timeout=10)
             port_range = glbl_cfg().get(['suite servers', 'run ports'])
@@ -300,7 +296,6 @@ class Scheduler(object):
             barrier.wait()
             self.port = self.server.port
             self.pub_port = self.publisher.port
-
             self.configure()
             self.profiler.start()
             self.run()
@@ -613,6 +608,7 @@ see `COPYING' in the Cylc source distribution.
         # Re-initialise run directory for user@host for each submitted and
         # running tasks.
         # Note: tasks should all be in the runahead pool at this point.
+
         auths = set()
         for itask in self.pool.get_rh_tasks():
             if itask.state(*TASK_STATUSES_ACTIVE):
@@ -1331,7 +1327,11 @@ see `COPYING' in the Cylc source distribution.
             if itasks:
                 self.is_updated = True
             for itask in self.task_job_mgr.submit_task_jobs(
-                self.suite, itasks, self.config.run_mode('simulation')
+                    self.suite,
+                    itasks,
+                    self.curve_auth,
+                    self.client_pub_key_dir,
+                    self.config.run_mode('simulation')
             ):
                 LOG.info(
                     '[%s] -triggered off %s',
@@ -1591,6 +1591,7 @@ see `COPYING' in the Cylc source distribution.
             await asyncio.sleep(duration)
             # Record latest main loop interval
             self.main_loop_intervals.append(time() - tinit)
+
             # END MAIN LOOP
 
     async def update_data_structure(self):

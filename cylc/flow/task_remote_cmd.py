@@ -16,12 +16,19 @@
 """Implement "cylc remote-init" and "cylc remote-tidy"."""
 
 import os
-import sys
+import zmq
 import tarfile
+from zmq.utils.strtypes import bytes, unicode, b, u
+import sys
+import datetime
 
 import cylc.flow.flags
 from cylc.flow.suite_files import (
+    KeyInfo,
+    KeyOwner,
+    KeyType,
     ContactFileFields,
+    get_suite_srv_dir,
     SuiteFiles
 )
 from cylc.flow.resources import extract_resources
@@ -32,7 +39,45 @@ REMOTE_INIT_DONE = 'REMOTE INIT DONE'
 REMOTE_INIT_NOT_REQUIRED = 'REMOTE INIT NOT REQUIRED'
 
 
-def remote_init(uuid_str, rund, indirect_comm=None):
+def remove_keys_on_platform(suite, srvd):
+    """Removes platform-held authentication keys"""
+    keys = {
+        "client_private_key": KeyInfo(
+            KeyType.PRIVATE,
+            KeyOwner.CLIENT,
+            suite_srv_dir=srvd),
+        "client_public_key": KeyInfo(
+            KeyType.PUBLIC,
+            KeyOwner.CLIENT,
+            suite_srv_dir=srvd),
+        "server_public_key": KeyInfo(
+            KeyType.PUBLIC,
+            KeyOwner.SERVER,
+            suite_srv_dir=srvd),
+    }
+    # WARNING, DESTRUCTIVE. Removes old keys if they already exist.
+
+    for k in keys.values():
+        if os.path.exists(k.full_key_path):
+            os.remove(k.full_key_path)
+
+
+def create_platform_keys(suite, srvd):
+    """Create or renew authentication keys for suite 'reg' in the .service
+     directory.
+     Generate a pair of ZMQ authentication keys"""
+    # ZMQ keys generated in .service directory.
+    # ZMQ keys need to be created with stricter file permissions, changing
+    # umask default denials.
+
+    old_umask = os.umask(0o177)  # u=rw only set as default for file creation
+    _client_public_full_key_path, _client_private_full_key_path = (
+        zmq.auth.create_certificates(srvd, KeyOwner.CLIENT.value))
+    # Return file permissions to default settings.
+    os.umask(old_umask)
+
+
+def remote_init(uuid_str, rund, suite, indirect_comm=None):
     """cylc remote-init
 
     Arguments:
@@ -50,8 +95,9 @@ def remote_init(uuid_str, rund, indirect_comm=None):
         if orig_uuid_str == uuid_str:
             print(REMOTE_INIT_NOT_REQUIRED)
             return
-    os.makedirs(rund, exist_ok=True)
-    os.makedirs(os.path.expanduser("~/cylc-run/somesuite"))
+    os.makedirs(srvd, exist_ok=True)
+    remove_keys_on_platform(suite, srvd)
+    create_platform_keys(suite, srvd)
     oldcwd = os.getcwd()
     os.chdir(rund)
     # Extract job.sh from library, for use in job scripts.
@@ -67,11 +113,12 @@ def remote_init(uuid_str, rund, indirect_comm=None):
         with open(fname, 'w') as handle:
             handle.write('%s=%s\n' % (
                 ContactFileFields.COMMS_PROTOCOL_2, indirect_comm))
-    # original = sys.stdout
-    # pathtofile = os.path.join(srvd, "blah.txt")
-    # sys.stdout = open(pathtofile, "w")
-    print("KEYSTARTThis is a test might be a key in futureKEYEND")
-    # sys.stdout.close()
+    path_to_pub_key = os.path.join(srvd, "client.key")
+    print("KEYSTART", end='')
+    keyfile = open(path_to_pub_key)
+    print(keyfile.read(), end='KEYEND')
+    keyfile.close()
+
     print(REMOTE_INIT_DONE)
     return
 
