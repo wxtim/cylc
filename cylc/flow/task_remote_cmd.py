@@ -36,19 +36,17 @@ FILE_BASE_UUID = 'uuid'
 REMOTE_INIT_DONE = 'REMOTE INIT DONE'
 REMOTE_INIT_NOT_REQUIRED = 'REMOTE INIT NOT REQUIRED'
 
-def remove_keys_on_platform(suite):
+def remove_keys_on_platform(suite, srvd):
     """Removes platform-held authentication keys"""
-
-    suite_srv_dir= get_suite_srv_dir(suite)
     keys = {
         "client_private_key": KeyInfo(
             KeyType.PRIVATE,
             KeyOwner.CLIENT,
-            suite_srv_dir=suite_srv_dir),
+            suite_srv_dir=srvd),
         "server_public_key": KeyInfo(
             KeyType.PUBLIC,
             KeyOwner.SERVER,
-            suite_srv_dir=suite_srv_dir),
+            suite_srv_dir=srvd),
     }
     # WARNING, DESTRUCTIVE. Removes old keys if they already exist. 
     
@@ -56,19 +54,17 @@ def remove_keys_on_platform(suite):
         if os.path.exists(k.full_key_path):
             os.remove(k.full_key_path)
 
-def create_platform_keys(suite):
+def create_platform_keys(suite, srvd):
     """Create or renew authentication keys for suite 'reg' in the .service
      directory.
      Generate a pair of ZMQ authentication keys"""
     # ZMQ keys generated in .service directory.
     # ZMQ keys need to be created with stricter file permissions, changing
     # umask default denials.
-    suite_srv_dir = get_suite_srv_dir(suite)
+
     old_umask = os.umask(0o177)  # u=rw only set as default for file creation
     _client_public_full_key_path, _client_private_full_key_path = (
-        zmq.auth.create_certificates(suite_srv_dir, KeyOwner.CLIENT.value))
-
-    
+        zmq.auth.create_certificates(srvd, KeyOwner.CLIENT.value))
     # Return file permissions to default settings.
     os.umask(old_umask)
 
@@ -90,9 +86,9 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
         if orig_uuid_str == uuid_str:
             print(REMOTE_INIT_NOT_REQUIRED)
             return
-    os.makedirs(rund, exist_ok=True)
-    remove_keys_on_platform(suite)
-    create_platform_keys(suite)
+    os.makedirs(srvd, exist_ok=True)
+    remove_keys_on_platform(suite, srvd)
+    create_platform_keys(suite,srvd)
     oldcwd = os.getcwd()
     os.chdir(rund)
     # Extract job.sh from library, for use in job scripts.
@@ -108,10 +104,16 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
         with open(fname, 'w') as handle:
             handle.write('%s=%s\n' % (
                 ContactFileFields.COMMS_PROTOCOL_2, indirect_comm))
+    # client_public_key = KeyInfo(
+    #     KeyType.PUBLIC,
+    #     KeyOwner.CLIENT,
+    #     suite_srv_dir=srvd)
+    path_to_pub_key = os.path.join(srvd, "client.key")
+    public_key, _ = zmq.auth.load_certificate(path_to_pub_key)
     # original = sys.stdout
     # pathtofile = os.path.join(srvd, "blah.txt")
     # sys.stdout = open(pathtofile, "w")
-    print("KEYSTARTThis is a test might be a key in futureKEYEND")
+    print(f"KEYSTART{public_key}KEYEND")
     # sys.stdout.close()
     print(REMOTE_INIT_DONE)
     return
