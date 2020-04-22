@@ -36,6 +36,7 @@ FILE_BASE_UUID = 'uuid'
 REMOTE_INIT_DONE = 'REMOTE INIT DONE'
 REMOTE_INIT_NOT_REQUIRED = 'REMOTE INIT NOT REQUIRED'
 
+
 def remove_keys_on_platform(suite, srvd):
     """Removes platform-held authentication keys"""
     keys = {
@@ -48,11 +49,12 @@ def remove_keys_on_platform(suite, srvd):
             KeyOwner.SERVER,
             suite_srv_dir=srvd),
     }
-    # WARNING, DESTRUCTIVE. Removes old keys if they already exist. 
-    
+    # WARNING, DESTRUCTIVE. Removes old keys if they already exist.
+
     for k in keys.values():
         if os.path.exists(k.full_key_path):
             os.remove(k.full_key_path)
+
 
 def create_platform_keys(suite, srvd):
     """Create or renew authentication keys for suite 'reg' in the .service
@@ -67,6 +69,7 @@ def create_platform_keys(suite, srvd):
         zmq.auth.create_certificates(srvd, KeyOwner.CLIENT.value))
     # Return file permissions to default settings.
     os.umask(old_umask)
+
 
 def remote_init(uuid_str, rund, suite, indirect_comm=None):
     """cylc remote-init
@@ -88,7 +91,7 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
             return
     os.makedirs(srvd, exist_ok=True)
     remove_keys_on_platform(suite, srvd)
-    create_platform_keys(suite,srvd)
+    create_platform_keys(suite, srvd)
     oldcwd = os.getcwd()
     os.chdir(rund)
     # Extract job.sh from library, for use in job scripts.
@@ -104,17 +107,9 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
         with open(fname, 'w') as handle:
             handle.write('%s=%s\n' % (
                 ContactFileFields.COMMS_PROTOCOL_2, indirect_comm))
-    # client_public_key = KeyInfo(
-    #     KeyType.PUBLIC,
-    #     KeyOwner.CLIENT,
-    #     suite_srv_dir=srvd)
     path_to_pub_key = os.path.join(srvd, "client.key")
     public_key, _ = zmq.auth.load_certificate(path_to_pub_key)
-    # original = sys.stdout
-    # pathtofile = os.path.join(srvd, "blah.txt")
-    # sys.stdout = open(pathtofile, "w")
     print(f"KEYSTART{public_key}KEYEND")
-    # sys.stdout.close()
     print(REMOTE_INIT_DONE)
     return
 
