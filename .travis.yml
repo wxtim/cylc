@@ -33,8 +33,12 @@ addons:
 
 language: python
 
+services:
+  - docker
+
 stages:
 - unit-test
+- functional-test-bash
 - functional-test
 - sensitive-test
 
@@ -81,6 +85,38 @@ regressiontest: &regressiontest
     - coverage xml --ignore-errors
     - bash <(curl -s https://codecov.io/bash)
 
+bashtest: &bashtest
+  stage: functional-test-bash
+  python:
+    - "3.7"
+  before_install:
+    - docker build -t bash:test dockerfiles/bash/
+    # does not have a supervisor or daemon process entrypoint, so needs both -t and -d
+    - docker run --name bash -v $(pwd -P):/root/cylc-flow --rm -t -d bash:test /bin/bash
+    - docker ps -a
+  install:
+    - docker exec bash python3.7 -m pip install six==1.12
+    - docker exec -w /root/cylc-flow bash python3.7 -m pip install -e .[all]
+  script:
+    # we do not run all the tests, as we have too many bash versions to test!
+    - docker exec bash update-alternatives --set bash /bash/bash-${BASHVERSION}
+    - docker exec -e CYLC_TEST_RUN_GENERIC=true -w /root/cylc-flow bash
+      ./etc/bin/run-functional-tests.sh -v
+      tests/broadcast/00-simple.t
+      tests/cylc-poll/11-event-time.t
+      tests/cylc-poll/15-job-st-file-no-batch.t
+      tests/events/28-inactivity.t
+      tests/events/34-task-abort.t
+      tests/hold-release/12-hold-then-retry.t
+      tests/job-file-trap/00-sigusr1.t
+      tests/job-file-trap/02-pipefail.t
+      tests/jobscript/12-err-script.t
+      tests/jobscript/19-exit-script.t
+      tests/reload/19-remote-kill.t
+      tests/shutdown/09-now2.t
+      tests/shutdown/13-no-port-file-check.t
+      tests/shutdown/14-no-dir-check.t
+
 flakytest: &flakytest
   stage: sensitive-test
   python:
@@ -121,6 +157,16 @@ jobs:
   - <<: *regressiontest
     python: "3.7"
     env: CHUNK="4/4"
+
+  - <<: *bashtest
+    python: "3.7"
+    env: BASHVERSION="3.2"
+  - <<: *bashtest
+    python: "3.7"
+    env: BASHVERSION="4.2"
+  - <<: *bashtest
+    python: "3.7"
+    env: BASHVERSION="5.0"
 
   - <<: *flakytest
     python: "3.7"
