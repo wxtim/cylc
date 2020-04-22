@@ -299,9 +299,11 @@ class TaskRemoteMgr(object):
             if "KEYSTART" in proc_ctx.out:
                 regex_result = re.search('KEYSTART(.*)KEYEND', proc_ctx.out)
                 key = regex_result.group(1)
-                print(f"*********************: {key}")
                 suite_srv_dir = get_suite_srv_dir(suite)
-                public_key=KeyInfo(KeyType.PUBLIC, KeyOwner.CLIENT, suite_srv_dir= suite_srv_dir)
+                public_key = KeyInfo(
+                    KeyType.PUBLIC,
+                    KeyOwner.CLIENT,
+                    suite_srv_dir=suite_srv_dir)
                 text_file = open(public_key.full_key_path, "w")
                 _ = text_file.write(key)
                 text_file.close()
@@ -339,7 +341,6 @@ class TaskRemoteMgr(object):
                     SuiteFiles.Service.CONTACT)))
 
         if comm_meth in ['zmq']:
-
             suite_srv_dir = get_suite_srv_dir(self.suite)
             server_pub_keyinfo = KeyInfo(
                 KeyType.PUBLIC,

@@ -239,20 +239,19 @@ def scheduler_cli(parser, options, args, is_restart=False):
         sys.stderr.write(f'suite service directory not found '
                          f'at: {suite_run_dir}\n')
         sys.exit(1)
-    suite_srv_dir= suite_files.get_suite_srv_dir(reg)
+    suite_srv_dir = suite_files.get_suite_srv_dir(reg)
     keys = {
-            "client_public_key": KeyInfo(
-                KeyType.PUBLIC,
-                KeyOwner.CLIENT,
-                suite_srv_dir=suite_srv_dir),
-            "server_private_key": KeyInfo(
-                KeyType.PRIVATE,
-                KeyOwner.SERVER,
-                suite_srv_dir=suite_srv_dir)
-            }
-    #call server clean here
+        "client_public_key": KeyInfo(
+            KeyType.PUBLIC,
+            KeyOwner.CLIENT,
+            suite_srv_dir=suite_srv_dir),
+        "server_private_key": KeyInfo(
+            KeyType.PRIVATE,
+            KeyOwner.SERVER,
+            suite_srv_dir=suite_srv_dir)
+    }
+    # Clean any existing authentication keys and create new ones.
     suite_files.remove_keys_on_server(keys)
-    # Create auth files if needed.
     suite_files.create_server_keys(keys, suite_srv_dir)
 
     # Extract job.sh from library, for use in job scripts.
