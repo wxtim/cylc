@@ -263,6 +263,10 @@ def scheduler_cli(parser, options, args, is_restart=False):
             KeyType.PUBLIC,
             KeyOwner.CLIENT,
             suite_srv_dir=suite_srv_dir),
+        "server_public_key": KeyInfo(
+            KeyType.PUBLIC,
+            KeyOwner.SERVER,
+            suite_srv_dir=suite_srv_dir),
         "server_private_key": KeyInfo(
             KeyType.PRIVATE,
             KeyOwner.SERVER,
