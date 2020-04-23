@@ -186,7 +186,11 @@ class SuiteConfig(object):
         # parse, upgrade, validate the suite, but don't expand with default
         # items
         self.mem_log("config.py: before RawSuiteConfig init")
-        self.pcfg = RawSuiteConfig(fpath, output_fname, template_vars)
+        self.pcfg = RawSuiteConfig(
+            fpath, 
+            os.path.expandvars(output_fname), 
+            template_vars
+        )
         self.mem_log("config.py: after RawSuiteConfig init")
         self.mem_log("config.py: before get(sparse=True")
         self.cfg = self.pcfg.get(sparse=True)

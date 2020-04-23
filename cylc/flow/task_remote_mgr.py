@@ -155,19 +155,20 @@ class TaskRemoteMgr(object):
         if self.single_task_mode or not is_remote_platform(platform):
             return REMOTE_INIT_NOT_REQUIRED
         try:
-            status = self.remote_init_map[platform]
+            status = self.remote_init_map[platform['name']]
         except KeyError:
             pass  # Not yet initialised
         else:
             if status == REMOTE_INIT_FAILED:
-                del self.remote_init_map[platform]  # reset to allow retry
+                del self.remote_init_map[platform['name']]  # reset to allow retry
             return status
 
         # Determine what items to install
         
-        comm_meth = platform_cfg['task communication method']
+        comm_meth = platform['task communication method']
         # TODO pick a more elegant host picking method
-        host = randchoice(platform_cfg['remote hosts'])
+        host = randchoice(platform['remote hosts'])
+        owner = platform['owner']
         owner_at_host = 'localhost'
         if host:
             owner_at_host = host
@@ -202,14 +203,14 @@ class TaskRemoteMgr(object):
         if comm_meth in ['ssh']:
             cmd.append('--indirect-comm=%s' % comm_meth)
         cmd.append(str(self.uuid_str))
-        cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
+        cmd.append(get_remote_suite_run_dir(platform, self.suite))
         self.proc_pool.put_command(
             SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
             self._remote_init_callback,
             [host, owner, tmphandle])
         # None status: Waiting for command to finish
-        self.remote_init_map[platform] = None
-        return self.remote_init_map[platform]
+        self.remote_init_map[platform['name']] = None
+        return self.remote_init_map[platform['name']]
 
     def remote_tidy(self):
         """Remove suite contact files from initialised remotes.
@@ -294,7 +295,7 @@ class TaskRemoteMgr(object):
                 if status in proc_ctx.out:
                     # Good status
                     LOG.debug(proc_ctx)
-                    self.remote_init_map[platform] = status
+                    self.remote_init_map[platform['name']] = status
                     return
         # Bad status
         LOG.error(TaskRemoteMgmtError(
@@ -302,7 +303,7 @@ class TaskRemoteMgr(object):
             (host, owner), ' '.join(quote(item) for item in proc_ctx.cmd),
             proc_ctx.ret_code, proc_ctx.out, proc_ctx.err))
         LOG.error(proc_ctx)
-        self.remote_init_map[platform] = REMOTE_INIT_FAILED
+        self.remote_init_map[platform['name']] = REMOTE_INIT_FAILED
 
     def _remote_init_items(self, comm_meth):
         """Return list of items to install based on communication method.
