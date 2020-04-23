@@ -44,6 +44,10 @@ def remove_keys_on_platform(suite, srvd):
             KeyType.PRIVATE,
             KeyOwner.CLIENT,
             suite_srv_dir=srvd),
+        "client_public_key": KeyInfo(
+            KeyType.PUBLIC,
+            KeyOwner.CLIENT,
+            suite_srv_dir=srvd),        
         "server_public_key": KeyInfo(
             KeyType.PUBLIC,
             KeyOwner.SERVER,
@@ -108,8 +112,13 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
             handle.write('%s=%s\n' % (
                 ContactFileFields.COMMS_PROTOCOL_2, indirect_comm))
     path_to_pub_key = os.path.join(srvd, "client.key")
-    public_key, _ = zmq.auth.load_certificate(path_to_pub_key)
-    print(f"KEYSTART{public_key}KEYEND")
+    # public_key, _ = zmq.auth.load_certificate(path_to_pub_key)
+    print("KEYSTART", end='')
+    keyfile = open(path_to_pub_key)
+    print(keyfile.read(), end='')    # >> open(path_to_pub_key, 'w')
+    keyfile.close()
+    print("KEYEND")
+
     print(REMOTE_INIT_DONE)
     return
 

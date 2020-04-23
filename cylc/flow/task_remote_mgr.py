@@ -296,8 +296,9 @@ class TaskRemoteMgr(object):
         except OSError:  # E.g. ignore bad unlink, etc
             pass
         if proc_ctx.ret_code == 0:
+            print(proc_ctx.out)
             if "KEYSTART" in proc_ctx.out:
-                regex_result = re.search('KEYSTART(.*)KEYEND', proc_ctx.out)
+                regex_result = re.search('KEYSTART((.|\n|\r)*)KEYEND', proc_ctx.out)
                 key = regex_result.group(1)
                 suite_srv_dir = get_suite_srv_dir(suite)
                 public_key = KeyInfo(
