@@ -12,11 +12,11 @@
         # T00, T12, T18... 
         T00, T12, T18 = "foo"
         # T04...
-        T04 = "run_ok"
+        T04 = "run_ok & fail"
         # T05...
-        T05 = "run_ok_2"
+        T05 = "run_ok_2 & fail"
 [runtime]
-    [[foo]]
+    [[foo, fail]]
         script = false
     [[bar]]
         script = true
