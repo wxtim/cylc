@@ -78,7 +78,7 @@ for DATE_TIME_STR in $(sed 's/[|]/ /g' "${NAME}"); do
 done
 
 NAME='select-task-pool.out'
-sqlite3 "${DB_FILE}" 'SELECT name, cycle, spawned FROM task_pool ORDER BY name' \
+sqlite3 "${DB_FILE}" 'SELECT name, cycle, status FROM task_pool ORDER BY name' \
     >"${NAME}"
 cmp_ok "${TEST_SOURCE_DIR}/${TEST_NAME_BASE}/${NAME}" "${NAME}"
 

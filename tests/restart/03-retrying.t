@@ -45,13 +45,13 @@ suite_run_ok "${TEST_NAME_BASE}-run" \
     cylc run --debug --no-detach "${SUITE_NAME}"
 sqlite3 "${SUITE_RUN_DIR}/log/db" 'SELECT * FROM task_pool' >'sqlite3.out'
 cmp_ok 'sqlite3.out' <<'__DB_DUMP__'
-1|t1|1|retrying|0
+1|t1|retrying|{}|{}|0
 __DB_DUMP__
 suite_run_ok "${TEST_NAME_BASE}-restart" \
     cylc restart --debug --no-detach "${SUITE_NAME}"
 sqlite3 "${SUITE_RUN_DIR}/log/db" 'SELECT * FROM task_pool' >'sqlite3.out'
 cmp_ok 'sqlite3.out' <<'__DB_DUMP__'
-1|t1|1|succeeded|0
+1|t1|succeeded|{}|{}|0
 __DB_DUMP__
 #-------------------------------------------------------------------------------
 purge_suite "${SUITE_NAME}"
