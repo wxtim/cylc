@@ -23,7 +23,7 @@ dumpdbtables() {
     sqlite3 "${SUITE_RUN_DIR}/log/db" \
         'SELECT * FROM suite_params WHERE key=="stopcp";' >'stopcp.out'
     sqlite3 "${SUITE_RUN_DIR}/log/db" \
-        'SELECT * FROM task_pool ORDER BY cycle, name;' >'taskpool.out'
+        'SELECT cycle, name, status FROM task_pool ORDER BY cycle, name;' >'taskpool.out'
 }
 
 set_test_number 16
@@ -62,6 +62,7 @@ case "${CYLC_TASK_CYCLE_POINT}" in
 2016)
     sed -i 's/\(final cycle point =\) 2024/\1 2025/' "${CYLC_SUITE_DEF_PATH}/suite.rc"
     cylc reload "${CYLC_SUITE_NAME}"
+    sleep 2
     :;;
 2019)
     cylc stop "${CYLC_SUITE_NAME}" '2021'
@@ -78,8 +79,8 @@ suite_run_ok "${TEST_NAME_BASE}-run" \
 dumpdbtables
 cmp_ok 'stopcp.out' <<<'stopcp|2018'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2015|t1|1|succeeded|0
-2016|t1|0|waiting|0
+2015|t1|succeeded
+2016|t1|waiting
 __OUT__
 
 suite_run_ok "${TEST_NAME_BASE}-restart-1" \
@@ -87,8 +88,8 @@ suite_run_ok "${TEST_NAME_BASE}-restart-1" \
 dumpdbtables
 cmp_ok 'stopcp.out' <'/dev/null'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2018|t1|1|succeeded|0
-2019|t1|0|waiting|0
+2018|t1|succeeded
+2019|t1|waiting
 __OUT__
 
 suite_run_ok "${TEST_NAME_BASE}-restart-2" \
@@ -96,8 +97,8 @@ suite_run_ok "${TEST_NAME_BASE}-restart-2" \
 dumpdbtables
 cmp_ok 'stopcp.out' <<<'stopcp|2021'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2019|t1|1|succeeded|0
-2020|t1|0|waiting|0
+2019|t1|succeeded
+2020|t1|waiting
 __OUT__
 
 suite_run_ok "${TEST_NAME_BASE}-restart-3" \
@@ -105,8 +106,8 @@ suite_run_ok "${TEST_NAME_BASE}-restart-3" \
 dumpdbtables
 cmp_ok 'stopcp.out' <'/dev/null'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2021|t1|1|succeeded|0
-2022|t1|0|waiting|0
+2021|t1|succeeded
+2022|t1|waiting
 __OUT__
 
 suite_run_ok "${TEST_NAME_BASE}-restart-4" \
@@ -114,8 +115,7 @@ suite_run_ok "${TEST_NAME_BASE}-restart-4" \
 dumpdbtables
 cmp_ok 'stopcp.out' <'/dev/null'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2025|t1|1|succeeded|0
-2026|t1|0|waiting|0
+2025|t1|succeeded
 __OUT__
 
 purge_suite "${SUITE_NAME}"

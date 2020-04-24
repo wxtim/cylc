@@ -10,7 +10,8 @@ second task fixes and retriggers it with an edit-run."""
 [scheduling]
     [[graph]]
         R1 = """
-            broken-task:fail => fixer-task
+            fixer-task
+            broken-task
             syntax_errored_task:submit-fail => syntax_fixer_task
         """
 [runtime]
@@ -18,6 +19,7 @@ second task fixes and retriggers it with an edit-run."""
         script = false
     [[fixer-task]]
         script = """
+cylc__job__poll_grep_suite_log 'broken-task.1.* failed'
 cylc trigger --edit $CYLC_SUITE_NAME 'broken-task.1' << __END1__
 y
 __END1__"""

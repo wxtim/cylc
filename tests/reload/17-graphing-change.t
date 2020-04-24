@@ -18,7 +18,7 @@
 # Test that removing a task from the graph works OK.
 . "$(dirname "$0")/test_header"
 #-------------------------------------------------------------------------------
-set_test_number 13
+set_test_number 12
 #-------------------------------------------------------------------------------
 # test reporting of added tasks
 
@@ -59,13 +59,12 @@ grep_ok "Removed task: 'one'" "${LOG_FILE}"
 #-------------------------------------------------------------------------------
 # test reporting of adding / removing / swapping tasks
 
-# set suite running
-run_ok "${TEST_NAME_BASE}-release" cylc release "${SUITE_NAME}"
-
 # change the suite.rc file
 cp "${TEST_SOURCE_DIR}/graphing-change/suite-2.rc" \
     "${TEST_DIR}/${SUITE_NAME}/suite.rc"
 
+cylc spawn "${SUITE_NAME}"  foo.1
+cylc spawn "${SUITE_NAME}"  baz.1
 # reload suite
 run_ok "${TEST_NAME_BASE}-swap-reload" cylc reload "${SUITE_NAME}"
 while (($(grep -c 'Reload completed' "${LOG_FILE}" || true) < 3)); do

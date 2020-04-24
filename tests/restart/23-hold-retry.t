@@ -26,7 +26,7 @@ suite_run_ok "${TEST_NAME_BASE}-run" \
 sqlite3 "${SUITE_RUN_DIR}/log/db" \
     'SELECT * FROM task_pool ORDER BY cycle, name' >'task-pool.out'
 cmp_ok 'task-pool.out' <<__OUT__
-1|t1|1|retrying|1
+1|t1|retrying|{}|{}|1
 __OUT__
 cylc restart "${SUITE_NAME}" --debug --no-detach 1>'out' 2>&1 &
 SUITE_PID=$!
@@ -39,7 +39,7 @@ fi
 sqlite3 "${SUITE_RUN_DIR}/log/db" \
     'SELECT * FROM task_pool ORDER BY cycle, name' >'task-pool.out'
 cmp_ok 'task-pool.out' <<__OUT__
-1|t1|1|succeeded|0
+1|t1|succeeded|{}|{}|0
 __OUT__
 
 purge_suite "${SUITE_NAME}"
