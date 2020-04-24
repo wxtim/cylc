@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +15,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""cylc [control] trigger [OPTIONS] ARGS
+"""cylc [control] trigger2 [OPTIONS] ARGS
 
-Manually trigger tasks.
-  cylc trigger REG - trigger all tasks in a running workflow
-  cylc trigger REG TASK_GLOB ... - trigger some tasks in a running workflow
+Manually trigger tasks IN THE TASK POOL.
+
+TODO: decide if we need this under SoD?
+
+  cylc trigger2 REG - trigger all tasks in a running workflow
+  cylc trigger2 REG TASK_GLOB ... - trigger some tasks in a running workflow
 
 NOTE waiting tasks that are queue-limited will be queued if triggered, to
 submit as normal when released by the queue; queued tasks will submit
@@ -61,7 +64,7 @@ from cylc.flow.terminal import prompt, cli_function
 
 def get_option_parser():
     parser = COP(
-        __doc__, comms=True, multitask_nocycles=True,
+        __doc__, comms=True, multitask=True,
         argdoc=[
             ('REG', 'Suite name'),
             ('[TASK_GLOB ...]', 'Task matching patterns')])
@@ -81,7 +84,7 @@ def get_option_parser():
 
 @cli_function(get_option_parser)
 def main(parser, options, suite, *task_globs):
-    """CLI for "cylc trigger"."""
+    """CLI for "cylc trigger2"."""
     msg = 'Trigger task(s) %s in %s' % (task_globs, suite)
     prompt(msg, options.force)
 
@@ -197,7 +200,7 @@ def main(parser, options, suite, *task_globs):
 
     # Trigger the task proxy(s).
     pclient(
-        'trigger_tasks',
+        'trigger_tasks2',
         {'tasks': task_globs, 'back_out': aborted}
     )
 
