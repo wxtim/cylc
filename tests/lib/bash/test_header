@@ -252,6 +252,7 @@ cmp_ok() {
     local TEST_NAME
     TEST_NAME="$(basename "${FILE_TEST}")-cmp-ok"
     local DIFF_CMD=${CYLC_TEST_DIFF_CMD:-'diff -u'}
+    set -x
     if ${DIFF_CMD} "${FILE_CONTROL}" "${FILE_TEST}" >"${TEST_NAME}.stderr" 2>&1
     then
         ok "${TEST_NAME}"
