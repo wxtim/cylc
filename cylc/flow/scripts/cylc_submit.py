@@ -117,7 +117,8 @@ def main(parser, options, suite, *task_ids):
             raise UserInputError("No task found for %s" % task_id)
         for taskdef in taskdefs:
             itasks.append(TaskProxy(
-                taskdef, get_point(point_str).standardise(), is_startup=True))
+                taskdef, config.initial_point,
+                get_point(point_str).standardise(), is_startup=True))
 
     # Initialise job submit environment
     make_suite_run_tree(suite)

@@ -198,13 +198,6 @@ class SuiteConfig(object):
         if 'graph' not in self.cfg['scheduling']:
             raise SuiteConfigError("missing [scheduling][[graph]] section.")
         # (The check that 'graph' is defined is below).
-        # The two runahead limiting schemes are mutually exclusive.
-        rlim = self.cfg['scheduling'].get('runahead limit')
-        mact = self.cfg['scheduling'].get('max active cycle points')
-        if rlim and mact:
-            raise SuiteConfigError(
-                "use 'runahead limit' OR "
-                "'max active cycle points', not both")
 
         # Override the suite defn with an initial point from the CLI.
         icp_str = getattr(self.options, 'icp', None)
@@ -512,8 +505,7 @@ class SuiteConfig(object):
             GraphNodeParser.get_inst().clear()
         self.mem_log("config.py: after load_graph()")
 
-        self.compute_runahead_limits()
-
+        self.compute_runahead_limit()
         self.configure_queues()
 
         if self.run_mode('simulation', 'dummy', 'dummy-local'):
@@ -1053,8 +1045,8 @@ class SuiteConfig(object):
     #             log_msg += '\t\t' + item + '\t' + val
     #         LOG.info(log_msg)
 
-    def compute_runahead_limits(self):
-        """Extract the runahead limits information."""
+    def compute_runahead_limit(self):
+        """Extract runahead limit config."""
         max_cycles = self.cfg['scheduling']['max active cycle points']
         if max_cycles == 0:
             raise SuiteConfigError(
@@ -1552,7 +1544,7 @@ class SuiteConfig(object):
                 # if right is None, lefts are lone nodes
                 # for which we still define the taskdefs
                 continue
-            name, offset_is_from_icp, _, offset, _ = (
+            name, offset, _, offset_is_from_icp, _, _ = (
                 GraphNodeParser.get_inst().parse(node))
 
             if name not in self.cfg['runtime']:
@@ -1619,30 +1611,10 @@ class SuiteConfig(object):
                 xtrig_labels.add(left[1:])
                 continue
             # (GraphParseError checked above)
-            name, offset_is_from_icp, offset_is_irregular, offset, output = (
+            (name, offset, output, offset_is_from_icp,
+             offset_is_irregular, offset_is_absolute) = (
                 GraphNodeParser.get_inst().parse(left))
             ltaskdef = self.taskdefs[name]
-
-            # Determine intercycle offsets.
-            abs_cycle_point = None
-            cycle_point_offset = None
-            if offset_is_from_icp:
-                first_point = get_point_relative(offset, self.initial_point)
-                last_point = seq.get_stop_point()
-                abs_cycle_point = first_point
-                if last_point is None:
-                    # This dependency persists for the whole suite run.
-                    ltaskdef.intercycle_offsets.add((None, seq))
-                else:
-                    ltaskdef.intercycle_offsets.add(
-                        (str(-(last_point - first_point)), seq))
-            elif offset:
-                if offset_is_irregular:
-                    offset_tuple = (offset, seq)
-                else:
-                    offset_tuple = (offset, None)
-                ltaskdef.intercycle_offsets.add(offset_tuple)
-                cycle_point_offset = offset
 
             # Qualifier.
             outputs = self.cfg['runtime'][name]['outputs']
@@ -1653,11 +1625,13 @@ class SuiteConfig(object):
                 # Qualifier specified => standardise.
                 qualifier = TaskTrigger.get_trigger_name(output)
             else:
-                # No qualifier specified => use "succeeded".
+                # No qualifier specified => use succeeded.
                 qualifier = TASK_OUTPUT_SUCCEEDED
 
             # Generate TaskTrigger if not already done.
-            key = (name, abs_cycle_point, cycle_point_offset, qualifier)
+            key = (name, offset, qualifier,
+                   offset_is_irregular, offset_is_absolute,
+                   offset_is_from_icp, self.initial_point)
             try:
                 task_trigger = task_triggers[key]
             except KeyError:
@@ -1665,6 +1639,10 @@ class SuiteConfig(object):
                 task_triggers[key] = task_trigger
 
             triggers[left] = task_trigger
+
+            # (name is left name)
+            self.taskdefs[name].add_downstreams(task_trigger, right, seq)
+            self.taskdefs[right].add_upstreams(task_trigger, name, seq)
 
         # Walk down "expr_list" depth first, and replace any items matching a
         # key in "triggers" ("left" values) with the trigger.
@@ -1848,7 +1826,7 @@ class SuiteConfig(object):
                         offset_is_from_icp = False
                         offset = None
                     else:
-                        name, offset_is_from_icp, _, offset, _ = (
+                        name, offset, _, offset_is_from_icp, _, _ = (
                             GraphNodeParser.get_inst().parse(left))
                     if offset:
                         if offset_is_from_icp:
@@ -1962,7 +1940,7 @@ class SuiteConfig(object):
                         offset_is_from_icp = False
                         offset = None
                     else:
-                        name, offset_is_from_icp, _, offset, _ = (
+                        name, offset, _, offset_is_from_icp, _, _ = (
                             GraphNodeParser.get_inst().parse(left))
                     if offset:
                         if offset_is_from_icp:
@@ -2202,8 +2180,7 @@ class SuiteConfig(object):
 
         # Get the taskdef object for generating the task proxy class
         taskd = TaskDef(
-            name, rtcfg, self.run_mode(), self.start_point,
-            self.cfg['scheduling']['spawn to max active cycle points'])
+            name, rtcfg, self.run_mode(), self.start_point)
 
         # TODO - put all taskd.foo items in a single config dict
 

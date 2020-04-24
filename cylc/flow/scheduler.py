@@ -24,6 +24,7 @@ from shlex import quote
 from queue import Empty, Queue
 from shutil import copytree, rmtree
 from subprocess import Popen, PIPE, DEVNULL
+from operator import itemgetter
 import sys
 from threading import Barrier
 from time import sleep, time
@@ -39,7 +40,8 @@ from cylc.flow import main_loop
 from cylc.flow.broadcast_mgr import BroadcastMgr
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.config import SuiteConfig
-from cylc.flow.cycling.loader import get_point, standardise_point_string
+from cylc.flow.cycling.loader import (get_point, standardise_point_string,
+                                      get_interval)
 from cylc.flow.daemonize import daemonize
 from cylc.flow.exceptions import (
     CylcError,
@@ -152,11 +154,9 @@ class Scheduler(object):
         'release_suite',
         'release_tasks',
         'kill_tasks',
-        'reset_task_states',
         'spawn_tasks',
         'trigger_tasks',
         'nudge',
-        'insert_tasks',
         'reload_suite'
     )
 
@@ -522,6 +522,8 @@ see `COPYING' in the Cylc source distribution.
             self.suite_db_mgr,
             self.task_events_mgr,
             self.job_pool)
+        # SoD: nasty hack, find a better way.
+        self.task_events_mgr.spawn_func = self.pool.spawn
 
         self.profiler.log_memory("scheduler.py: before load_tasks")
         if self.is_restart:
@@ -569,7 +571,16 @@ see `COPYING' in the Cylc source distribution.
         self.profiler.log_memory("scheduler.py: end configure")
 
     def load_tasks_for_run(self):
-        """Load tasks for a new run."""
+        """Load tasks for a new run.
+
+        Iterate through all sequences to find the first instance of each task,
+        and add it to the pool if it has no parents.
+
+        (Later on, tasks with parents will be spawned on-demand, and tasks with
+        no parents will be auto-spawned when their own previous instances are
+        released from the runhead pool.)
+
+        """
         if self.config.start_point is not None:
             if self.options.warm:
                 LOG.info('Warm Start %s' % self.config.start_point)
@@ -581,15 +592,27 @@ see `COPYING' in the Cylc source distribution.
 
         for name in task_list:
             if self.config.start_point is None:
-                # No start cycle point at which to load cycling tasks.
+                # TODO: no start cycle point at which to load cycling tasks?
                 continue
-            try:
-                self.pool.add_to_runahead_pool(TaskProxy(
-                    self.config.get_taskdef(name), self.config.start_point,
-                    is_startup=True))
-            except TaskProxySequenceBoundsError as exc:
-                LOG.debug(str(exc))
+            tdef = self.config.get_taskdef(name)
+            spawn = []
+            for seq in tdef.sequences:
+                point = seq.get_first_point(self.config.start_point)
+                if point is None:
+                    continue
+                spawn.append([tdef, self.config.start_point, point])
+            if not spawn:
                 continue
+            spawn.sort(key=itemgetter(2))
+            tdef, cfg_start, point = spawn[0]
+            parent_points = tdef.get_parent_points(point)
+            if not parent_points or all(x < cfg_start for x in parent_points):
+                try:
+                    self.pool.add_to_runahead_pool(
+                        TaskProxy(tdef, cfg_start, point, is_startup=True))
+                except TaskProxySequenceBoundsError as exc:
+                    # TODO is this needed?
+                    LOG.debug(str(exc))
 
     def load_tasks_for_restart(self):
         """Load tasks for restart."""
@@ -808,43 +831,60 @@ see `COPYING' in the Cylc source distribution.
         """
         itasks, bad_items = self.pool.filter_task_proxies(items)
         results = {}
-        now = time()
         for itask in itasks:
             if list_prereqs:
+                # TODO: does this need to be handled separately like this?
                 results[itask.identity] = {
                     'prerequisites': itask.state.prerequisites_dump(
                         list_prereqs=True)}
                 continue
-            extras = {}
-            if itask.tdef.clocktrigger_offset is not None:
-                extras['Clock trigger time reached'] = (
-                    itask.is_waiting_clock_done(now))
-                extras['Triggers at'] = time2str(
-                    itask.clock_trigger_time)
-            for trig, satisfied in itask.state.external_triggers.items():
-                key = f'External trigger "{trig}"'
-                if satisfied:
-                    extras[key] = 'satisfied'
-                else:
-                    extras[key] = 'NOT satisfied'
-            for label, satisfied in itask.state.xtriggers.items():
-                sig = self.xtrigger_mgr.get_xtrig_ctx(
-                    itask, label).get_signature()
-                extra = f'xtrigger "{label} = {sig}"'
-                if satisfied:
-                    extras[extra] = 'satisfied'
-                else:
-                    extras[extra] = 'NOT satisfied'
-            outputs = []
-            for _, msg, is_completed in itask.state.outputs.get_all():
-                outputs.append(
-                    [f"{itask.identity} {msg}", is_completed])
-            results[itask.identity] = {
-                "meta": itask.tdef.describe(),
-                "prerequisites": itask.state.prerequisites_dump(),
-                "outputs": outputs,
-                "extras": extras}
+            results[itask.identity] = self._info_get_task_requisites(
+                itask, list_prereqs=False)
+        for task_id in bad_items:
+            # TODO: currently assuming bad_items is a list of task IDs at valid
+            # cycle points. TODO: make it clear that these are not live tasks.
+            name, point = TaskID.split(task_id)
+            for tname in self.config.get_task_name_list():
+                if tname == name:
+                    itask = TaskProxy(
+                        self.config.get_taskdef(name),
+                        self.config.initial_point,
+                        get_point(point))
+                    results[itask.identity] = self._info_get_task_requisites(
+                        itask, list_prereqs=False)
         return results, bad_items
+
+    def _info_get_task_requisites(self, itask, list_prereqs):
+        extras = {}
+        now = time()
+        if itask.tdef.clocktrigger_offset is not None:
+            extras['Clock trigger time reached'] = (
+                itask.is_waiting_clock_done(now))
+            extras['Triggers at'] = time2str(
+                itask.clock_trigger_time)
+        for trig, satisfied in itask.state.external_triggers.items():
+            key = f'External trigger "{trig}"'
+            if satisfied:
+                extras[key] = 'satisfied'
+            else:
+                extras[key] = 'NOT satisfied'
+        for label, satisfied in itask.state.xtriggers.items():
+            sig = self.xtrigger_mgr.get_xtrig_ctx(
+                itask, label).get_signature()
+            extra = f'xtrigger "{label} = {sig}"'
+            if satisfied:
+                extras[extra] = 'satisfied'
+            else:
+                extras[extra] = 'NOT satisfied'
+        outputs = []
+        for _, msg, is_completed in itask.state.outputs.get_all():
+            outputs.append(
+                [f"{itask.identity} {msg}", is_completed])
+        return {
+            "meta": itask.tdef.describe(),
+            "prerequisites": itask.state.prerequisites_dump(),
+            "outputs": outputs,
+            "extras": extras}
 
     def info_ping_task(self, task_id, exists_only=False):
         """Return True if task exists and running."""
@@ -1025,14 +1065,9 @@ see `COPYING' in the Cylc source distribution.
         cylc.flow.flags.debug = bool(LOG.isEnabledFor(logging.DEBUG))
         return True, 'OK'
 
-    def command_remove_tasks(self, items, spawn=False):
+    def command_remove_tasks(self, items):
         """Remove tasks."""
-        return self.pool.remove_tasks(items, spawn)
-
-    def command_insert_tasks(self, items, stop_point_string=None,
-                             check_point=True):
-        """Insert tasks."""
-        return self.pool.insert_tasks(items, stop_point_string, check_point)
+        return self.pool.remove_tasks(items)
 
     def command_nudge(self):
         """Cause the task processing loop to be invoked"""
@@ -1325,7 +1360,6 @@ see `COPYING' in the Cylc source distribution.
         time0 = time()
         if self._get_events_conf(self.EVENT_INACTIVITY_TIMEOUT):
             self.set_suite_inactivity_timer()
-        self.pool.match_dependencies()
         if self.stop_mode is None and self.auto_restart_time is None:
             itasks = self.pool.get_ready_tasks()
             if itasks:
@@ -1336,13 +1370,12 @@ see `COPYING' in the Cylc source distribution.
                 LOG.info(
                     '[%s] -triggered off %s',
                     itask, itask.state.get_resolved_dependencies())
-        for meth in [
-                self.pool.spawn_all_tasks,
-                self.pool.remove_spent_tasks,
-                self.pool.remove_suiciding_tasks]:
-            if meth():
-                self.is_updated = True
 
+        if self.pool.remove_suiciding_tasks():
+            self.is_updated = True
+
+        if self.pool.housekeep_tasks():
+            self.is_updated = True
         self.broadcast_mgr.expire_broadcast(self.pool.get_min_point())
         self.xtrigger_mgr.housekeep()
         self.suite_db_mgr.put_xtriggers(self.xtrigger_mgr.sat_xtrig)
@@ -1527,8 +1560,6 @@ see `COPYING' in the Cylc source distribution.
                 self.task_events_mgr.pflag = True
             self.proc_pool.process()
 
-            # PROCESS ALL TASKS whenever something has changed that might
-            # require renegotiation of dependencies, etc.
             if self.should_process_tasks():
                 self.process_task_pool()
             self.late_tasks_check()
@@ -1863,6 +1894,7 @@ see `COPYING' in the Cylc source distribution.
             self.pool.hold_all_tasks()
             self.task_events_mgr.pflag = True
             self.suite_db_mgr.put_suite_hold()
+            LOG.info('Suite held.')
         else:
             LOG.info(
                 'Setting suite hold cycle point: %s.'
@@ -1888,6 +1920,10 @@ see `COPYING' in the Cylc source distribution.
         """Trigger tasks."""
         return self.pool.trigger_tasks(items, back_out)
 
+    def command_trigger_tasks2(self, items, back_out=False):
+        """Trigger tasks."""
+        return self.pool.trigger_tasks2(items, back_out)
+
     def command_dry_run_tasks(self, items, check_syntax=True):
         """Dry-run tasks, e.g. edit run."""
         itasks, bad_items = self.pool.filter_task_proxies(items)
@@ -1907,13 +1943,9 @@ see `COPYING' in the Cylc source distribution.
                 self.proc_pool.process()
                 sleep(self.INTERVAL_MAIN_LOOP_QUICK)
 
-    def command_reset_task_states(self, items, state=None, outputs=None):
-        """Reset the state of tasks."""
-        return self.pool.reset_task_states(items, state, outputs)
-
-    def command_spawn_tasks(self, items):
+    def command_spawn_tasks(self, items, failed, non_failed):
         """Force spawn task successors."""
-        return self.pool.spawn_tasks(items)
+        return self.pool.spawn_tasks(items, failed, non_failed)
 
     def command_take_checkpoints(self, name):
         """Insert current task_pool, etc to checkpoints tables."""
