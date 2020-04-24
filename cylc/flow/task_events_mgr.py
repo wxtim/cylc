@@ -26,6 +26,7 @@ This module provides logic to:
 """
 
 from collections import namedtuple
+from itertools import chain
 from logging import getLevelName, CRITICAL, ERROR, WARNING, INFO, DEBUG
 import os
 from shlex import quote
@@ -147,6 +148,7 @@ class TaskEventsManager():
         self.mail_footer = None
         self.next_mail_time = None
         self.event_timers = {}
+        self.spawn_func = None
         # Set pflag = True to stimulate task dependency negotiation whenever a
         # task changes state in such a way that others could be affected. The
         # flag should only be turned off again after use in
@@ -284,6 +286,28 @@ class TaskEventsManager():
             elif ctx.ctx_type == self.HANDLER_JOB_LOGS_RETRIEVE:
                 self._process_job_logs_retrieval(schd_ctx, ctx, id_keys)
 
+    def _spawn_children(self, itask, output):
+        """Spawn children of output, or all children on succeed/fail"""
+        try:
+            children = itask.children[output]
+        except KeyError:
+            # No children depend on this ouput
+            children = []
+
+        finished = False
+        if output in [TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_FAILED]:
+            # Spawn all children
+            childrens = itask.children.values()
+            children = list(chain(*childrens))
+            if not (output == TASK_OUTPUT_FAILED
+                    and not itask.failure_handled):
+                finished = True
+
+        for c_name, c_point in children:
+            self.pflag = True
+            self.spawn_func(itask.tdef.name, itask.point, c_name, c_point,
+                            output, finished=finished)
+
     def process_message(
         self,
         itask,
@@ -354,9 +378,12 @@ class TaskEventsManager():
             get_task_job_id(itask.point, itask.tdef.name, submit_num),
             new_msg)
 
-        # Satisfy my output, if possible, and record the result.
+        # Satisfy my output, if possible, and spawn children.
+        # (first remove signal: failed/EXIT -> failed)
+
+        msg0 = message.split('/')[0]
         completed_trigger = itask.state.outputs.set_msg_trg_completion(
-            message=message, is_completed=True)
+            message=msg0, is_completed=True)
 
         if message == TASK_OUTPUT_STARTED:
             if (
@@ -365,22 +392,27 @@ class TaskEventsManager():
             ):
                 return True
             self._process_message_started(itask, event_time)
+            self._spawn_children(itask, TASK_OUTPUT_STARTED)
         elif message == TASK_OUTPUT_SUCCEEDED:
             self._process_message_succeeded(itask, event_time)
+            self._spawn_children(itask, TASK_OUTPUT_SUCCEEDED)
         elif message == TASK_OUTPUT_FAILED:
             if (
                     flag == self.FLAG_RECEIVED
                     and itask.state.is_gt(TASK_STATUS_FAILED)
             ):
                 return True
-            self._process_message_failed(itask, event_time, self.JOB_FAILED)
+            if self._process_message_failed(
+                    itask, event_time, self.JOB_FAILED):
+                self._spawn_children(itask, TASK_OUTPUT_FAILED)
         elif message == self.EVENT_SUBMIT_FAILED:
             if (
                     flag == self.FLAG_RECEIVED
                     and itask.state.is_gt(TASK_STATUS_SUBMIT_FAILED)
             ):
                 return True
-            self._process_message_submit_failed(itask, event_time)
+            if self._process_message_submit_failed(itask, event_time):
+                self._spawn_children(itask, TASK_OUTPUT_SUBMIT_FAILED)
         elif message == TASK_OUTPUT_SUBMITTED:
             if (
                     flag == self.FLAG_RECEIVED
@@ -388,6 +420,7 @@ class TaskEventsManager():
             ):
                 return True
             self._process_message_submitted(itask, event_time)
+            self._spawn_children(itask, TASK_OUTPUT_SUBMITTED)
         elif message.startswith(FAIL_MESSAGE_PREFIX):
             # Task received signal.
             if (
@@ -399,7 +432,9 @@ class TaskEventsManager():
             self._db_events_insert(itask, "signaled", signal)
             self.suite_db_mgr.put_update_task_jobs(
                 itask, {"run_signal": signal})
-            self._process_message_failed(itask, event_time, self.JOB_FAILED)
+            if self._process_message_failed(
+                    itask, event_time, self.JOB_FAILED):
+                self._spawn_children(itask, TASK_OUTPUT_FAILED)
         elif message.startswith(ABORT_MESSAGE_PREFIX):
             # Task aborted with message
             if (
@@ -411,7 +446,8 @@ class TaskEventsManager():
             self._db_events_insert(itask, "aborted", message)
             self.suite_db_mgr.put_update_task_jobs(
                 itask, {"run_signal": aborted_with})
-            self._process_message_failed(itask, event_time, aborted_with)
+            if self._process_message_failed(itask, event_time, aborted_with):
+                self._spawn_children(itask, TASK_OUTPUT_FAILED)
         elif message.startswith(VACATION_MESSAGE_PREFIX):
             # Task job pre-empted into a vacation state
             self._db_events_insert(itask, "vacated", message)
@@ -434,6 +470,7 @@ class TaskEventsManager():
             self.pflag = True
             self.suite_db_mgr.put_update_task_outputs(itask)
             self.setup_event_handlers(itask, completed_trigger, message)
+            self._spawn_children(itask, msg0)
         else:
             # Unhandled messages. These include:
             #  * general non-output/progress messages
@@ -452,7 +489,6 @@ class TaskEventsManager():
             itask.non_unique_events.setdefault(lseverity, 0)
             itask.non_unique_events[lseverity] += 1
             self.setup_event_handlers(itask, lseverity, message)
-        return None
 
     def _process_message_check(
         self,
@@ -676,11 +712,17 @@ class TaskEventsManager():
                 LOG.exception(exc)
 
     def _process_message_failed(self, itask, event_time, message):
-        """Helper for process_message, handle a failed message."""
+        """Helper for process_message, handle a failed message.
+
+        Return True if no retries.
+        """
+        # TODO finished tasks nueue via object init?
+        fail = False
         if event_time is None:
             event_time = get_current_time_string()
         itask.set_summary_time('finished', event_time)
-        job_d = get_task_job_id(itask.point, itask.tdef.name, itask.submit_num)
+        job_d = get_task_job_id(
+            itask.point, itask.tdef.name, itask.submit_num)
         self.job_pool.set_job_time(job_d, 'finished', event_time)
         self.job_pool.set_job_state(job_d, TASK_STATUS_FAILED)
         self.suite_db_mgr.put_update_task_jobs(itask, {
@@ -695,6 +737,7 @@ class TaskEventsManager():
                 self.setup_event_handlers(itask, "failed", message)
             LOG.critical(
                 "[%s] -job(%02d) %s", itask, itask.submit_num, "failed")
+            fail = True
         elif itask.state.reset(TASK_STATUS_RETRYING):
             delay_msg = "retrying in %s" % (
                 itask.try_timers[TASK_STATUS_RETRYING].delay_timeout_as_str())
@@ -706,6 +749,7 @@ class TaskEventsManager():
             self.setup_event_handlers(
                 itask, "retry", "%s, %s" % (self.JOB_FAILED, delay_msg))
         self._reset_job_timers(itask)
+        return fail
 
     def _process_message_started(self, itask, event_time):
         """Helper for process_message, handle a started message."""
@@ -759,7 +803,11 @@ class TaskEventsManager():
         self._reset_job_timers(itask)
 
     def _process_message_submit_failed(self, itask, event_time):
-        """Helper for process_message, handle a submit-failed message."""
+        """Helper for process_message, handle a submit-failed message.
+
+        Return True if no retries.
+        """
+        fail = False
         LOG.error('[%s] -%s', itask, self.EVENT_SUBMIT_FAILED)
         if event_time is None:
             event_time = get_current_time_string()
@@ -775,6 +823,7 @@ class TaskEventsManager():
                 itask.try_timers[TASK_STATUS_SUBMIT_RETRYING].next() is None):
             # No submission retry lined up: definitive failure.
             # See github #476.
+            fail = True
             if itask.state.reset(TASK_STATUS_SUBMIT_FAILED):
                 self.setup_event_handlers(
                     itask, self.EVENT_SUBMIT_FAILED,
@@ -794,6 +843,7 @@ class TaskEventsManager():
                 itask, self.EVENT_SUBMIT_RETRY,
                 "job %s, %s" % (self.EVENT_SUBMIT_FAILED, delay_msg))
         self._reset_job_timers(itask)
+        return fail
 
     def _process_message_submitted(self, itask, event_time):
         """Helper for process_message, handle a submit-succeeded message."""

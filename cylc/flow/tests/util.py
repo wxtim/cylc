@@ -160,6 +160,7 @@ def create_task_proxy(task_name: str, suite_config: SuiteConfig,
     task_def = suite_config.get_taskdef(task_name)
     return TaskProxy(
         tdef=task_def,
+        initial_point=suite_config.start_point,
         start_point=suite_config.start_point,
         is_startup=is_startup)
 

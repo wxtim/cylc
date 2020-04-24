@@ -389,11 +389,21 @@ class SuiteDatabaseManager(object):
         # Should already be done by self.put_task_event_timers above.
         self.db_deletes_map[self.TABLE_TASK_TIMEOUT_TIMERS].append({})
         for itask in pool.get_all_tasks():
+            satisfied = {}
+            for p in itask.state.prerequisites:
+                for k, v in p.satisfied.items():
+                    # need string key, not tuple for json.dumps
+                    satisfied[json.dumps(k)] = v
+            parents_finished = {}
+            for k, v in itask.parents_finished.items():
+                # need string key, not tuple for json.dumps
+                parents_finished[json.dumps(k)] = v
             self.db_inserts_map[self.TABLE_TASK_POOL].append({
                 "name": itask.tdef.name,
                 "cycle": str(itask.point),
-                "spawned": int(itask.has_spawned),
                 "status": itask.state.status,
+                "satisfied": json.dumps(satisfied),
+                "parents_finished": json.dumps(parents_finished),
                 "is_held": itask.state.is_held})
             if itask.timeout is not None:
                 self.db_inserts_map[self.TABLE_TASK_TIMEOUT_TIMERS].append({
