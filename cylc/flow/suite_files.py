@@ -98,10 +98,13 @@ class KeyInfo():
                     self.suite_srv_dir,
                     temp)
             elif (
+                key_owner is KeyOwner.CLIENT and key_type is KeyType.PRIVATE
+                ):
+                    self.key_path = self.suite_srv_dir
+            
+            elif (
                 (key_owner is KeyOwner.SERVER
-                 and key_type is KeyType.PRIVATE)
-                or (key_owner is KeyOwner.CLIENT
-                    and key_type is KeyType.PRIVATE)
+                 and key_type is KeyType.PRIVATE) 
                 or (key_owner is KeyOwner.SERVER
                     and key_type is KeyType.PUBLIC)):
                 self.key_path = os.path.join(
@@ -114,6 +117,7 @@ class KeyInfo():
         # Build full key path (including file name)
 
         self.full_key_path = os.path.join(self.key_path, self.file_name)
+        print(f"This keyitem {key_owner} {key_type} has path: {self.full_key_path}")
 
 
 class SuiteFiles:

@@ -109,14 +109,18 @@ class SuiteRuntimeClient(ZMQSocketBase):
             port: Union[int, str] = None,
             context: object = None,
             timeout: Union[float, str] = None,
-            srv_public_key_loc: str = None
+            srv_public_key_loc: str = None,
+            scan: bool = False
     ):
-        super().__init__(zmq.REQ, context=context)
+        super().__init__(zmq.REQ, context=context, scan=scan)
         self.suite = suite
         if port:
+            print(f"yaaaaaaaaaaaaaaaaaaaaaaaaa {port}")
             port = int(port)
         if not (host and port):
+            print("naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaah")
             host, port, _ = get_location(suite, owner, host)
+            print(f"naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaah2 {host} : {port}")
         if timeout is None:
             timeout = self.DEFAULT_TIMEOUT
         else:
@@ -125,7 +129,9 @@ class SuiteRuntimeClient(ZMQSocketBase):
         self.timeout_handler = partial(
             self._timeout_handler, suite, host, port)
         self.poller = None
-        # Connect the ZMQ socket on instantiation
+        # Connect the ZMQ socket on 
+        print(f"naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaah3 {host} : {port}")
+
         self.start(host, port, srv_public_key_loc)
         # gather header info post start
         self.header = self.get_header()

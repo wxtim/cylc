@@ -282,6 +282,7 @@ class Scheduler(object):
                 suite_files.KeyType.PUBLIC,
                 suite_files.KeyOwner.CLIENT,
                 suite_srv_dir=suite_srv_dir)
+            print(f"return of the mac {client_pub_keyinfo.key_path}")
             client_pub_key_dir = client_pub_keyinfo.key_path
             self.curve_auth.configure_curve(
                 domain='*',
