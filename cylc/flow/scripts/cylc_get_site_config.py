@@ -70,6 +70,7 @@ def get_option_parser():
 
 @cli_function(get_option_parser, remove_opts=['--host', '--user'])
 def main(parser, options):
+    breakpoint()
     if options.run_dir:
         print(forward_lookup()['run directory'])
     elif options.site_dir:
