@@ -275,7 +275,7 @@ class TaskProxy(object):
         reload_successor.summary = self.summary
         reload_successor.local_job_file_path = self.local_job_file_path
         reload_successor.try_timers = self.try_timers
-        reload_successor.task_host = self.task_host
+        reload_successor.platform = self.platform
         reload_successor.task_owner = self.task_owner
         reload_successor.job_vacated = self.job_vacated
         reload_successor.poll_timer = self.poll_timer
