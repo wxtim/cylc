@@ -278,10 +278,10 @@ class Scheduler(object):
                 suite_files.KeyOwner.CLIENT,
                 suite_srv_dir=suite_srv_dir)
             print(f"return of the mac {client_pub_keyinfo.key_path}")
-            client_pub_key_dir = client_pub_keyinfo.key_path
+            self.client_pub_key_dir = client_pub_keyinfo.key_path
             self.curve_auth.configure_curve(
                 domain='*',
-                location=(client_pub_key_dir)
+                location=(self.client_pub_key_dir)
             )
             # create thread sync barrier for setup
             barrier = Barrier(3, timeout=10)
@@ -580,6 +580,9 @@ see `COPYING' in the Cylc source distribution.
         # Re-initialise run directory for user@host for each submitted and
         # running tasks.
         # Note: tasks should all be in the runahead pool at this point.
+
+        print("^^^^^^^^^^^^^^^^^^^ in sched")
+
         auths = set()
         for itask in self.pool.get_rh_tasks():
             if itask.state(*TASK_STATUSES_ACTIVE):
@@ -1219,6 +1222,7 @@ see `COPYING' in the Cylc source distribution.
         require renegotiation of dependencies, etc"""
         LOG.debug("BEGIN TASK PROCESSING")
         time0 = time()
+        print("^^^^^^^^^^^^^^^^^^^^ process task pooo")
         if self._get_events_conf(self.EVENT_INACTIVITY_TIMEOUT):
             self.set_suite_inactivity_timer()
         self.pool.match_dependencies()
@@ -1227,7 +1231,7 @@ see `COPYING' in the Cylc source distribution.
             if itasks:
                 self.is_updated = True
             for itask in self.task_job_mgr.submit_task_jobs(
-                self.suite, itasks, self.config.run_mode('simulation')
+                self.suite, itasks,  self.curve_auth, self.client_pub_key_dir, self.config.run_mode('simulation')
             ):
                 LOG.info(
                     '[%s] -triggered off %s',
@@ -1587,7 +1591,7 @@ see `COPYING' in the Cylc source distribution.
             # PROCESS ALL TASKS whenever something has changed that might
             # require renegotiation of dependencies, etc.
             if self.should_process_tasks():
-                self.process_task_pool()
+                self.process_task_pool() #BOOKMARK
             self.late_tasks_check()
 
             self.process_queued_task_messages()

@@ -37,6 +37,7 @@ from cylc.flow.remote import remrun
 
 
 def main():
+    print("++++++++++++++++++++++++++++++++++++++++")
     if not remrun():
         from cylc.flow.option_parsers import CylcOptionParser as COP
         from cylc.flow.task_remote_cmd import remote_init
