@@ -279,10 +279,10 @@ class Scheduler(object):
                 suite_srv_dir=suite_srv_dir)
             print(f"return of the mac {client_pub_keyinfo.key_path}")
             self.client_pub_key_dir = client_pub_keyinfo.key_path
-            self.curve_auth.configure_curve(
-                domain='*',
-                location=(self.client_pub_key_dir)
-            )
+            # self.curve_auth.configure_curve(
+            #     domain='*',
+            #     location=(self.client_pub_key_dir)
+            # )
             # create thread sync barrier for setup
             barrier = Barrier(3, timeout=10)
             port_range = glbl_cfg().get(['suite servers', 'run ports'])
