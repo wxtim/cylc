@@ -116,7 +116,6 @@ class ZMQSocketBase:
     def __init__(self, pattern, suite=None, bind=False, context=None,
                  barrier=None, threaded=False, daemon=False, scan=False):
         self.bind = bind
-        print(f"taaaaaaaaaaaaaahhhhhhhhhhhhdaaaaaaaahhhhhhhh1{scan}")
         if context is None:
             self.context = zmq.asyncio.Context()
         else:

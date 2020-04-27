@@ -307,10 +307,8 @@ class TaskRemoteMgr(object):
                     KeyType.PUBLIC,
                     KeyOwner.CLIENT,
                     suite_srv_dir=suite_srv_dir)
-                if isinstance(key, bytes):
-                    key = key.decode('utf-8')
                 text_file = open(public_key.full_key_path, "w", encoding='utf8')
-                _ = text_file.write(u"{key}")
+                _ = text_file.write(key)
                 text_file.close()
 
             for status in (REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED):
@@ -327,24 +325,25 @@ class TaskRemoteMgr(object):
         LOG.error(proc_ctx)
         self.remote_init_map[(host, owner)] = REMOTE_INIT_FAILED
 
-    _cert_public_banner = u("""#   ****  Generated on {0} by pyzmq  ****
-    #   ZeroMQ CURVE Public Certificate
-    #   Exchange securely, or use a secure mechanism to verify the contents
-    #   of this file after exchange. Store public certificates in your home
-    #   directory, in the .curve subdirectory.
-    """)
+    # _cert_public_banner = u("""#   ****  Generated on {0} by pyzmq  ****
+    # #   ZeroMQ CURVE Public Certificate
+    # #   Exchange securely, or use a secure mechanism to verify the contents
+    # #   of this file after exchange. Store public certificates in your home
+    # #   directory, in the .curve subdirectory.
+    # """)
 
-    def _write_key_file(key_filename, banner, public_key, encoding='utf-8'):
-    """Create a certificate file"""
-        if isinstance(public_key, bytes):
-            public_key2 = public_key.decode(encoding)
+    # def _write_key_file(key_filename, banner, public_key, encoding='utf-8'):
+    # """Create a certificate file"""
+    
+    #     if isinstance(public_key, bytes):
+    #         public_key2 = public_key.decode(encoding)
         
-        with io.open(key_filename, 'w', encoding='utf8') as f:
-                f.write("KEYSTART")
-                f.write(banner.format(datetime.datetime.now()))
-                f.write(u('curve\n'))
-                f.write(u("    public-key = \"{0}\"\n").format(public_key2))
-                f.write("KEYEND")
+    #     with io.open(key_filename, 'w', encoding='utf8') as f:
+    #             f.write("KEYSTART")
+    #             f.write(banner.format(datetime.datetime.now()))
+    #             f.write(u('curve\n'))
+    #             f.write(u("    public-key = \"{0}\"\n").format(public_key2))
+    #             f.write("KEYEND")
 
     def _remote_init_items(self, comm_meth):
         """Return list of items to install based on communication method.

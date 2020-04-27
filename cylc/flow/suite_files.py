@@ -638,9 +638,9 @@ def remove_keys_on_server(keys):
         if os.path.exists(k.full_key_path):
             os.remove(k.full_key_path)
 
-    # Deletes client pubic key folder.
-    if os.path.exists(keys["client_public_key"].key_path):
-        shutil.rmtree(keys["client_public_key"].key_path)
+    # # Deletes client pubic key folder.
+    # if os.path.exists(keys["client_public_key"].key_path):
+    #     shutil.rmtree(keys["client_public_key"].key_path)
 
 
 def create_server_keys(keys, suite_srv_dir):
