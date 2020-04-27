@@ -25,6 +25,7 @@ use -i/--item and wrap parent sections in square brackets:
    cylc get-site-config --item '[editors]terminal'
 Multiple items can be specified at once."""
 
+from os.path import expandvars
 
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.option_parsers import CylcOptionParser as COP
@@ -70,9 +71,11 @@ def get_option_parser():
 
 @cli_function(get_option_parser, remove_opts=['--host', '--user'])
 def main(parser, options):
-    breakpoint()
     if options.run_dir:
-        print(forward_lookup()['run directory'])
+        x = expandvars(forward_lookup()['run directory'])
+        with open('tmp.pyout', 'w') as fh:
+            fh.write(repr(x))
+        print(x)
     elif options.site_dir:
         print(glbl_cfg().SITE_CONF_DIR)
     elif options.user_dir:
