@@ -16,9 +16,11 @@
 """Implement "cylc remote-init" and "cylc remote-tidy"."""
 
 import os
-import sys
-import tarfile
 import zmq
+import tarfile
+from zmq.utils.strtypes import bytes, unicode, b, u
+import sys
+import datetime
 
 import cylc.flow.flags
 from cylc.flow.suite_files import (
@@ -71,6 +73,8 @@ def create_platform_keys(suite, srvd):
     old_umask = os.umask(0o177)  # u=rw only set as default for file creation
     _client_public_full_key_path, _client_private_full_key_path = (
         zmq.auth.create_certificates(srvd, KeyOwner.CLIENT.value))
+    print(f"hmmmmmmmmmmmmmmmmmmm1 {_client_private_full_key_path}")
+    print(f"hmmmmmmmmmmmmmmmmmmm2 {_client_public_full_key_path}")
     # Return file permissions to default settings.
     os.umask(old_umask)
 
@@ -113,15 +117,43 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
                 ContactFileFields.COMMS_PROTOCOL_2, indirect_comm))
     path_to_pub_key = os.path.join(srvd, "client.key")
     # public_key, _ = zmq.auth.load_certificate(path_to_pub_key)
-    print("KEYSTART", end='')
-    keyfile = open(path_to_pub_key)
-    print(keyfile.read(), end='')    # >> open(path_to_pub_key, 'w')
-    keyfile.close()
-    print("KEYEND")
+    #print("KEYSTART", end='')
+    public_key, _ = zmq.auth.load_certificate(path_to_pub_key)
+   # keyfile = open(path_to_pub_key)
+    import datetime
+    _write_key_file(_cert_public_banner.format(datetime.datetime.now()), public_key)
+   # print(keyfile.read(), end='KEYEND')   # >> open(path_to_pub_key, 'w')
+    #keyfile.close()
+    #print("KEYEND")
 
     print(REMOTE_INIT_DONE)
     return
 
+_cert_public_banner = u("""#   ****  Generated on {0} by pyzmq  ****
+#   ZeroMQ CURVE Public Certificate
+#   Exchange securely, or use a secure mechanism to verify the contents
+#   of this file after exchange. Store public certificates in your home
+#   directory, in the .curve subdirectory.
+""")
+
+def _write_key_file(banner, public_key, encoding='utf-8'):
+    """Create a certificate file"""
+    if isinstance(public_key, bytes):
+        public_key2 = public_key.decode(encoding)
+
+    print("KEYSTART")
+    print(banner.format(datetime.datetime.now()))
+    print(u('curve\n'))
+    print(u("    public-key = \"{0}\"\n").format(public_key2))
+    print("KEYEND")
+    #with sys.stdout.open() as f:
+        
+   # with io.open(key_filename, 'w', encoding='utf8') as f:
+        # f.write("KEYSTART")
+        # f.write(banner.format(datetime.datetime.now()))
+        # f.write(u('curve\n'))
+        # f.write(u("    public-key = \"{0}\"\n").format(public_key2))
+        # f.write("KEYEND")
 
 def remote_tidy(rund):
     """cylc remote-tidy
