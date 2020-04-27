@@ -117,7 +117,6 @@ class KeyInfo():
         # Build full key path (including file name)
 
         self.full_key_path = os.path.join(self.key_path, self.file_name)
-        print(f"This keyitem {key_owner} {key_type} has path: {self.full_key_path}")
 
 
 class SuiteFiles:

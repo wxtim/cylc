@@ -223,12 +223,14 @@ class TaskJobManager(object):
                         self.REMOTE_INIT_MSG)
                 continue
             
+            # configure_curve must be called every time certificates are added
+            # or removed, in order to update the Authenticator's state 
+
             curve_auth.configure_curve(
                 domain='*',
                 location=(client_pub_key_dir)
             )
 
-            #client_pub_key_dir
 
             # Ensure that localhost background/at jobs are recorded as running
             # on the host name of the current suite host, rather than just
