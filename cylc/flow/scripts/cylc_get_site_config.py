@@ -73,8 +73,9 @@ def get_option_parser():
 def main(parser, options):
     if options.run_dir:
         x = expandvars(forward_lookup()['run directory'])
+        x = x.strip()
         with open('tmp.pyout', 'w') as fh:
-            fh.write(repr(x))
+            fh.write(x)
         print(x)
     elif options.site_dir:
         print(glbl_cfg().SITE_CONF_DIR)
