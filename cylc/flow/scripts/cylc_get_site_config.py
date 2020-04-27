@@ -72,11 +72,7 @@ def get_option_parser():
 @cli_function(get_option_parser, remove_opts=['--host', '--user'])
 def main(parser, options):
     if options.run_dir:
-        x = expandvars(forward_lookup()['run directory'])
-        x = x.strip()
-        with open('tmp.pyout', 'w') as fh:
-            fh.write(x)
-        print(x)
+        print(expandvars(forward_lookup()['run directory'])) 
     elif options.site_dir:
         print(glbl_cfg().SITE_CONF_DIR)
     elif options.user_dir:

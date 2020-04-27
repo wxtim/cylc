@@ -239,7 +239,6 @@ def get_scan_items_from_fs(
     # TODO RM after rebasing onto Oliver's Branch
     # if owner_pattern is None:
         # Run directory of current user only
-    run_dirs = [forward_lookup()['run directory'], None]
     # else:
     #     # Run directory of all users matching "owner_pattern".
     #     # But skip those with /nologin or /false shells
@@ -259,54 +258,42 @@ def get_scan_items_from_fs(
         sys.stderr.write('Listing suites:%s%s\n' % (
             DEBUG_DELIM, DEBUG_DELIM.join(item[1] for item in run_dirs if
                                           item[1] is not None)))
-    for run_d, owner in run_dirs:
-        for dirpath, dnames, _ in os.walk(run_d, followlinks=True):
-            # Always descend for top directory, but
-            # don't descend further if it has a .service/ or log/ dir
-            if dirpath != run_d and (
-                    SuiteFiles.Service.DIRNAME
-                    in dnames or 'log' in dnames):
-                dnames[:] = []
+    run_d = forward_lookup()['run directory']
+    for dirpath, dnames, _ in os.walk(run_d, followlinks=True):
+        # Always descend for top directory, but
+        # don't descend further if it has a .service/ or log/ dir
+        if dirpath != run_d and (
+                SuiteFiles.Service.DIRNAME
+                in dnames or 'log' in dnames):
+            dnames[:] = []
 
-            # Filter suites by name
-            reg = os.path.relpath(dirpath, run_d)
-            if reg_pattern and not reg_pattern.match(reg):
+        # Filter suites by name
+        reg = os.path.relpath(dirpath, run_d)
+        if reg_pattern and not reg_pattern.match(reg):
+            continue
+
+        # Choose only suites with .service and matching filter
+        if active_only:
+            try:
+                contact_data = load_contact_file(
+                    reg)
+            except (SuiteServiceFileError, IOError, TypeError, ValueError):
                 continue
-
-            # Choose only suites with .service and matching filter
-            if active_only:
-                # Skip suites running with cylc version < 8 (these suites
-                # do not have PUBLISH_PORT field)
-                try:
-                    contact_data = load_contact_file(reg, owner)
-                except (SuiteServiceFileError, IOError, TypeError) as exc:
-                    LOG.debug(f"Error loading contact file for: {reg}")
-                    continue
-                try:
-                    cylc_version = contact_data[ContactFileFields.VERSION]
-                    major_version = int(cylc_version.split(".", 1)[0])
-                    if (major_version < 8):
-                        LOG.info(f"Omitting \"{reg}\" (cylc-{cylc_version})")
-                        continue
-                except Exception as exc:
-                    LOG.debug(
-                        f"Error getting version from contact file: {exc}")
-                    continue
-                yield (
-                    reg,
-                    contact_data[ContactFileFields.HOST],
-                    contact_data[ContactFileFields.PORT],
-                    contact_data[ContactFileFields.PUBLISH_PORT],
-                    contact_data[ContactFileFields.API]
-                )
-            else:
-                try:
-                    source_dir = get_suite_source_dir(reg)
-                    title = get_suite_title(reg)
-                except (SuiteServiceFileError, IOError):
-                    continue
-                yield (
-                    reg,
-                    source_dir,
-                    title
-                )
+            yield (
+                reg,
+                contact_data[ContactFileFields.HOST],
+                contact_data[ContactFileFields.PORT],
+                contact_data[ContactFileFields.PUBLISH_PORT],
+                contact_data[ContactFileFields.API]
+            )
+        else:
+            try:
+                source_dir = get_suite_source_dir(reg)
+                title = get_suite_title(reg)
+            except (SuiteServiceFileError, IOError):
+                continue
+            yield (
+                reg,
+                source_dir,
+                title
+            )

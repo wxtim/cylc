@@ -376,7 +376,8 @@ def main(parser, options, *args, color=False):
                 raise UserInputError(
                     "max rotation %d" % (len(logs) - 1))
         localhost_platform_cfg = forward_lookup()
-        remote_platform_cfg = forward_lookup(platform)
+        # TODO re-enable remote lookup
+        #remote_platform_cfg = forward_lookup(platform)
         tail_tmpl = str(localhost_platform_cfg["tail command template"])
         out = view_log(logpath, mode, tail_tmpl, color=color)
         if out == 1:
@@ -409,7 +410,7 @@ def main(parser, options, *args, color=False):
             except KeyError:
                 # Is already long form (standard log, or custom).
                 pass
-        platform, batch_sys_name, live_job_id = get_task_job_attrs(
+        user_at_host, batch_sys_name, live_job_id = get_task_job_attrs(
             suite_name, point, task, options.submit_num)
         user, host = split_user_at_host(user_at_host)
         batchview_cmd = None
@@ -428,7 +429,9 @@ def main(parser, options, *args, color=False):
                 elif mode == 'tail':
                     conf_key = "err tailer"
             if conf_key is not None:
-                conf = remote_platform_cfg["batch systems"]
+                # TODO re-enable cat log stuff to work remotely.
+                #conf = remote_platform_cfg["batch systems"]
+                conf = 'background'
                 batchview_cmd_tmpl = None
                 try:
                     batchview_cmd_tmpl = conf[batch_sys_name][conf_key]
@@ -438,56 +441,56 @@ def main(parser, options, *args, color=False):
                     batchview_cmd = batchview_cmd_tmpl % {
                         "job_id": str(live_job_id)}
 
-        log_is_remote = (
-            is_remote(platform)
-            and (options.filename not in JOB_LOGS_LOCAL)
-        )
-        log_is_retrieved = (
-            remote_platform_cfg['retrieve job logs']
-            and live_job_id is None
-        )
-        if log_is_remote and (not log_is_retrieved or options.force_remote):
-            logpath = os.path.normpath(get_remote_suite_run_job_dir(
-                host, user,
-                suite_name, point, task, options.submit_num, options.filename))
-            tail_tmpl = str(remote_platform_cfg["tail command template"]
-            # Reinvoke the cat-log command on the remote account.
-            cmd = ['cat-log']
-            if cylc.flow.flags.debug:
-                cmd.append('--debug')
-            for item in [logpath, mode, tail_tmpl]:
-                cmd.append('--remote-arg=%s' % quote(item))
-            if batchview_cmd:
-                cmd.append('--remote-arg=%s' % quote(batchview_cmd))
-            cmd.append(suite_name)
-            is_edit_mode = (mode == 'edit')
-            try:
-                proc = remote_cylc_cmd(
-                    cmd, user, host, capture_process=is_edit_mode,
-                    manage=(mode == 'tail'))
-            except KeyboardInterrupt:
-                # Ctrl-C while tailing.
-                pass
-            else:
-                if is_edit_mode:
-                    # Write remote stdout to a temp file for viewing in editor.
-                    # Only BUFSIZE bytes at a time in case huge stdout volume.
-                    out = NamedTemporaryFile()
-                    data = proc.stdout.read(BUFSIZE)
-                    while data:
-                        out.write(data)
-                        data = proc.stdout.read(BUFSIZE)
-                    os.chmod(out.name, S_IRUSR)
-                    out.seek(0, 0)
-        else:
+        # log_is_remote = (
+        #     is_remote(platform)
+        #     and (options.filename not in JOB_LOGS_LOCAL)
+        # )
+        # log_is_retrieved = (
+        #     remote_platform_cfg['retrieve job logs']
+        #     and live_job_id is None
+        # )
+        # if log_is_remote and (not log_is_retrieved or options.force_remote):
+        #     logpath = os.path.normpath(get_remote_suite_run_job_dir(
+        #         host, user,
+        #         suite_name, point, task, options.submit_num, options.filename))
+        #     tail_tmpl = str(remote_platform_cfg["tail command template"])
+        #     # Reinvoke the cat-log command on the remote account.
+        #     cmd = ['cat-log']
+        #     if cylc.flow.flags.debug:
+        #         cmd.append('--debug')
+        #     for item in [logpath, mode, tail_tmpl]:
+        #         cmd.append('--remote-arg=%s' % quote(item))
+        #     if batchview_cmd:
+        #         cmd.append('--remote-arg=%s' % quote(batchview_cmd))
+        #     cmd.append(suite_name)
+        #     is_edit_mode = (mode == 'edit')
+        #     try:
+        #         proc = remote_cylc_cmd(
+        #             cmd, user, host, capture_process=is_edit_mode,
+        #             manage=(mode == 'tail'))
+        #     except KeyboardInterrupt:
+        #         # Ctrl-C while tailing.
+        #         pass
+        #     else:
+        #         if is_edit_mode:
+        #             # Write remote stdout to a temp file for viewing in editor.
+        #             # Only BUFSIZE bytes at a time in case huge stdout volume.
+        #             out = NamedTemporaryFile()
+        #             data = proc.stdout.read(BUFSIZE)
+        #             while data:
+        #                 out.write(data)
+        #                 data = proc.stdout.read(BUFSIZE)
+        #             os.chmod(out.name, S_IRUSR)
+        #             out.seek(0, 0)
+        # else:
             # Local task job or local job log.
-            logpath = os.path.normpath(get_suite_run_job_dir(
-                suite_name, point, task, options.submit_num, options.filename))
-            tail_tmpl = str(localhost_platform_cfg["tail command template"])
-            out = view_log(logpath, mode, tail_tmpl, batchview_cmd,
-                           color=color)
-            if mode != 'edit':
-                sys.exit(out)
+        logpath = os.path.normpath(get_suite_run_job_dir(
+            suite_name, point, task, options.submit_num, options.filename))
+        tail_tmpl = str(forward_lookup()["tail command template"])
+        out = view_log(logpath, mode, tail_tmpl, batchview_cmd,
+                        color=color)
+        if mode != 'edit':
+            sys.exit(out)
         if mode == 'edit':
             tmpfile_edit(out, options.geditor)
 
