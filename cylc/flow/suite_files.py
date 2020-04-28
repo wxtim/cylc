@@ -97,13 +97,11 @@ class KeyInfo():
                     os.path.expanduser("~"),
                     self.suite_srv_dir,
                     temp)
-            elif (
-                key_owner is KeyOwner.CLIENT and key_type is KeyType.PRIVATE
-            ):
-                self.key_path = self.suite_srv_dir
 
             elif (
                 (key_owner is KeyOwner.SERVER
+                 and key_type is KeyType.PRIVATE)
+                or (key_owner is KeyOwner.CLIENT 
                  and key_type is KeyType.PRIVATE)
                 or (key_owner is KeyOwner.SERVER
                     and key_type is KeyType.PUBLIC)):
@@ -637,10 +635,6 @@ def remove_keys_on_server(keys):
         if os.path.exists(k.full_key_path):
             os.remove(k.full_key_path)
 
-    # # Deletes client pubic key folder.
-    # if os.path.exists(keys["client_public_key"].key_path):
-    #     shutil.rmtree(keys["client_public_key"].key_path)
-
 
 def create_server_keys(keys, suite_srv_dir):
     """Create or renew authentication keys for suite 'reg' in the .service
@@ -656,10 +650,11 @@ def create_server_keys(keys, suite_srv_dir):
     old_umask = os.umask(0o177)  # u=rw only set as default for file creation
     _server_public_full_key_path, _server_private_full_key_path = (
         zmq.auth.create_certificates(suite_srv_dir, KeyOwner.SERVER.value))
-    import shutil
+    
+    # cylc scan requires server to behave as a client, so copy public server
+    # key into client public key folder
     client_folder = keys["client_public_key"].key_path
     server_pub_in_client_folder = f"{client_folder}/server.key"
-
     shutil.copyfile(_server_public_full_key_path, server_pub_in_client_folder)
 
     # Return file permissions to default settings.
