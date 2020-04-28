@@ -294,9 +294,8 @@ class ZMQSocketBase:
         self._socket_options()
         error_msg = (
             "Failed to find user's cylc scan private key, so cannot connect.")
-
+        # give keys time to load
         array_of_timings = [2, 4]
-
         for attempt, delay in enumerate(array_of_timings):
             try:
                 srv_public_key, srv_priv_key = zmq.auth.load_certificate(
@@ -311,8 +310,6 @@ class ZMQSocketBase:
                 self.socket.curve_publickey = srv_public_key
                 self.socket.curve_secretkey = srv_priv_key
                 break
-
-
 
         # A client can only connect to the server if it knows its public key,
         # so we grab this from the location it was created on the filesystem:
