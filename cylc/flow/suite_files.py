@@ -99,12 +99,12 @@ class KeyInfo():
                     temp)
             elif (
                 key_owner is KeyOwner.CLIENT and key_type is KeyType.PRIVATE
-                ):
-                    self.key_path = self.suite_srv_dir
-            
+            ):
+                self.key_path = self.suite_srv_dir
+
             elif (
                 (key_owner is KeyOwner.SERVER
-                 and key_type is KeyType.PRIVATE) 
+                 and key_type is KeyType.PRIVATE)
                 or (key_owner is KeyOwner.SERVER
                     and key_type is KeyType.PUBLIC)):
                 self.key_path = os.path.join(
@@ -656,6 +656,12 @@ def create_server_keys(keys, suite_srv_dir):
     old_umask = os.umask(0o177)  # u=rw only set as default for file creation
     _server_public_full_key_path, _server_private_full_key_path = (
         zmq.auth.create_certificates(suite_srv_dir, KeyOwner.SERVER.value))
+    import shutil
+    client_folder = keys["client_public_key"].key_path
+    server_pub_in_client_folder = f"{client_folder}/server.key"
+
+    shutil.copyfile(_server_public_full_key_path, server_pub_in_client_folder)
+
     # Return file permissions to default settings.
     os.umask(old_umask)
 

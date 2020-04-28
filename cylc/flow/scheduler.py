@@ -581,8 +581,6 @@ see `COPYING' in the Cylc source distribution.
         # running tasks.
         # Note: tasks should all be in the runahead pool at this point.
 
-        print("^^^^^^^^^^^^^^^^^^^ in sched")
-
         auths = set()
         for itask in self.pool.get_rh_tasks():
             if itask.state(*TASK_STATUSES_ACTIVE):
@@ -1222,7 +1220,6 @@ see `COPYING' in the Cylc source distribution.
         require renegotiation of dependencies, etc"""
         LOG.debug("BEGIN TASK PROCESSING")
         time0 = time()
-        print("^^^^^^^^^^^^^^^^^^^^ process task pooo")
         if self._get_events_conf(self.EVENT_INACTIVITY_TIMEOUT):
             self.set_suite_inactivity_timer()
         self.pool.match_dependencies()
@@ -1231,7 +1228,11 @@ see `COPYING' in the Cylc source distribution.
             if itasks:
                 self.is_updated = True
             for itask in self.task_job_mgr.submit_task_jobs(
-                self.suite, itasks,  self.curve_auth, self.client_pub_key_dir, self.config.run_mode('simulation')
+                    self.suite,
+                    itasks,
+                    self.curve_auth,
+                    self.client_pub_key_dir,
+                    self.config.run_mode('simulation')
             ):
                 LOG.info(
                     '[%s] -triggered off %s',
@@ -1591,7 +1592,7 @@ see `COPYING' in the Cylc source distribution.
             # PROCESS ALL TASKS whenever something has changed that might
             # require renegotiation of dependencies, etc.
             if self.should_process_tasks():
-                self.process_task_pool() #BOOKMARK
+                self.process_task_pool()
             self.late_tasks_check()
 
             self.process_queued_task_messages()

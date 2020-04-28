@@ -35,10 +35,6 @@ def get_remote_suite_run_job_dir(host, owner, suite, *args):
         host, owner, suite, 'log', 'job', *args)
 
 
-def get_remote_suite_srv_dir(host, owner, suite, *args):
-    """Return remote suite run directory."""
-    return os.path.join(get_remote_suite_run_dir(host, owner, suite, *args), '.service')
-
 def get_remote_suite_work_dir(host, owner, suite, *args):
     """Return remote suite work directory root, join any extra args."""
     return os.path.join(
