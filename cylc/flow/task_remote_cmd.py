@@ -87,7 +87,6 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
     """
     rund = os.path.expandvars(rund)
     srvd = os.path.join(rund, SuiteFiles.Service.DIRNAME)
-    print("here is remote init")
     try:
         orig_uuid_str = open(os.path.join(srvd, FILE_BASE_UUID)).read()
     except IOError:

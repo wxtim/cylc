@@ -28,7 +28,6 @@ import re
 from subprocess import Popen, PIPE, DEVNULL
 import tarfile
 from time import time
-from zmq.utils.strtypes import bytes, unicode, b, u
 
 from cylc.flow import LOG
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg

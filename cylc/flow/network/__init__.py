@@ -248,7 +248,7 @@ class ZMQSocketBase:
             KeyOwner.CLIENT,
             suite_srv_dir=suite_srv_dir)
 
-        error_msg = ("Failed to find user's private key, so cannot connect.")
+        error_msg = "Failed to find user's private key, so cannot connect."
         try:
             client_public_key, client_priv_key = zmq.auth.load_certificate(
                 client_priv_key_info.full_key_path)
@@ -292,8 +292,9 @@ class ZMQSocketBase:
         self.port = port
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
-        error_msg = "Failed to find user's cylc scan private key, so cannot connect."
-        
+        error_msg = (
+            "Failed to find user's cylc scan private key, so cannot connect.")
+
         array_of_timings = [2, 4]
 
         for attempt, delay in enumerate(array_of_timings):
