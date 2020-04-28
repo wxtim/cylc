@@ -177,7 +177,8 @@ class TaskJobManager(object):
                 bad_tasks.append(itask)
         return [prepared_tasks, bad_tasks]
 
-    def submit_task_jobs(self, suite, itasks, curve_auth, client_pub_key_dir, is_simulation=False):
+    def submit_task_jobs(self, suite, itasks, curve_auth,
+                         client_pub_key_dir, is_simulation=False):
         """Prepare and submit task jobs.
 
         Submit tasks where possible. Ignore tasks that are waiting for host
@@ -192,8 +193,6 @@ class TaskJobManager(object):
         """
         if is_simulation:
             return self._simulation_submit_task_jobs(itasks)
-
-        print("^^^^^^^^^^^^^^^^^^^ in ")
 
         # Prepare tasks for job submission
         prepared_tasks, bad_tasks = self.prep_submit_task_jobs(suite, itasks)
@@ -222,16 +221,13 @@ class TaskJobManager(object):
                             itask.point, itask.tdef.name, itask.submit_num),
                         self.REMOTE_INIT_MSG)
                 continue
-            
-            # configure_curve must be called every time certificates are added
-            # or removed, in order to update the Authenticator's state 
 
+            # configure_curve must be called every time certificates are added
+            # or removed, in order to update the Authenticator's state
             curve_auth.configure_curve(
                 domain='*',
                 location=(client_pub_key_dir)
             )
-
-
             # Ensure that localhost background/at jobs are recorded as running
             # on the host name of the current suite host, rather than just
             # "localhost". On suite restart on a different suite host, this

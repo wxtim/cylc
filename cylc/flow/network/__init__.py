@@ -33,7 +33,6 @@ from cylc.flow.exceptions import (
     SuiteStopped
 )
 from cylc.flow.hostuserutil import get_fqdn_by_host
-from cylc.flow.pathutil import get_remote_suite_srv_dir
 from cylc.flow.suite_files import (
     ContactFileFields,
     KeyType,
@@ -161,7 +160,7 @@ class ZMQSocketBase:
         if self.bind:
             self._socket_bind(*args, **kwargs)
         else:
-            if self.scan == False:
+            if self.scan is False:
                 self._socket_connect(*args, **kwargs)
             else:
                 self._socket_scan_connect(*args, **kwargs)
@@ -248,11 +247,11 @@ class ZMQSocketBase:
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
         client_priv_key_info = KeyInfo(
-        KeyType.PRIVATE,
-        KeyOwner.CLIENT,
-        suite_srv_dir=suite_srv_dir)
+            KeyType.PRIVATE,
+            KeyOwner.CLIENT,
+            suite_srv_dir=suite_srv_dir)
 
-        error_msg = "Failed to find user's private key, so cannot connect."
+        error_msg = ("Failed to find user's private key, so cannot connect.")
         try:
             client_public_key, client_priv_key = zmq.auth.load_certificate(
                 client_priv_key_info.full_key_path)
@@ -262,7 +261,7 @@ class ZMQSocketBase:
             raise ClientError(error_msg)
         self.socket.curve_publickey = client_public_key
         self.socket.curve_secretkey = client_priv_key
-        
+
         # A client can only connect to the server if it knows its public key,
         # so we grab this from the location it was created on the filesystem:
         try:
@@ -288,26 +287,35 @@ class ZMQSocketBase:
             KeyOwner.SERVER,
             suite_srv_dir=suite_srv_dir)
         client_pub_key_info = KeyInfo(
-        KeyType.PUBLIC,
-        KeyOwner.CLIENT,
-        suite_srv_dir=suite_srv_dir)
+            KeyType.PUBLIC,
+            KeyOwner.CLIENT,
+            suite_srv_dir=suite_srv_dir)
 
         self.host = host
         self.port = port
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
+        error_msg = "Failed to find user's cylc scan private key, so cannot connect."
+        
+        array_of_timings = [2, 4]
 
-        error_msg = "Failed to find user's private key, so cannot connect."
-        try:
-            srv_public_key, srv_priv_key = zmq.auth.load_certificate(
-                srv_priv_key_info.full_key_path)
-        except (OSError, ValueError):
-            raise ClientError(error_msg)
-        if srv_priv_key is None:  # this can't be caught by exception
-            raise ClientError(error_msg)
-        self.socket.curve_publickey = srv_public_key
-        self.socket.curve_secretkey = srv_priv_key
-    
+        for attempt, delay in enumerate(array_of_timings):
+            try:
+                srv_public_key, srv_priv_key = zmq.auth.load_certificate(
+                    srv_priv_key_info.full_key_path)
+            except (OSError, ValueError):
+                if attempt == len(array_of_timings):
+                    raise ClientError(error_msg)
+                else:
+                    sleep(delay)
+                    continue
+            else:
+                self.socket.curve_publickey = srv_public_key
+                self.socket.curve_secretkey = srv_priv_key
+                break
+
+
+
         # A client can only connect to the server if it knows its public key,
         # so we grab this from the location it was created on the filesystem:
         try:
@@ -316,9 +324,9 @@ class ZMQSocketBase:
             # for the latter item if not there (as for all public key files)
             # so it is OK to use; there is no method to load only the
             # public key.
-            client_public_key = zmq.auth.load_certificate(
-                client_pub_key_info.full_key_path)[0]
-            self.socket.curve_serverkey = client_public_key
+            # client_public_key = zmq.auth.load_certificate(
+            #   client_pub_key_info.full_key_path)[0]
+            self.socket.curve_serverkey = srv_public_key
         except (OSError, ValueError):  # ValueError raised w/ no public key
             raise ClientError(
                 "Failed to load the suite's public key, so cannot connect.")

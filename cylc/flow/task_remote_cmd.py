@@ -49,7 +49,7 @@ def remove_keys_on_platform(suite, srvd):
         "client_public_key": KeyInfo(
             KeyType.PUBLIC,
             KeyOwner.CLIENT,
-            suite_srv_dir=srvd),        
+            suite_srv_dir=srvd),
         "server_public_key": KeyInfo(
             KeyType.PUBLIC,
             KeyOwner.SERVER,
@@ -73,8 +73,6 @@ def create_platform_keys(suite, srvd):
     old_umask = os.umask(0o177)  # u=rw only set as default for file creation
     _client_public_full_key_path, _client_private_full_key_path = (
         zmq.auth.create_certificates(srvd, KeyOwner.CLIENT.value))
-    print(f"hmmmmmmmmmmmmmmmmmmm1 {_client_private_full_key_path}")
-    print(f"hmmmmmmmmmmmmmmmmmmm2 {_client_public_full_key_path}")
     # Return file permissions to default settings.
     os.umask(old_umask)
 
@@ -89,6 +87,7 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
     """
     rund = os.path.expandvars(rund)
     srvd = os.path.join(rund, SuiteFiles.Service.DIRNAME)
+    print("here is remote init")
     try:
         orig_uuid_str = open(os.path.join(srvd, FILE_BASE_UUID)).read()
     except IOError:

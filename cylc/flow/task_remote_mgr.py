@@ -296,18 +296,19 @@ class TaskRemoteMgr(object):
             tmphandle.close()
         except OSError:  # E.g. ignore bad unlink, etc
             pass
-        
+
         if proc_ctx.ret_code == 0:
-            print(proc_ctx.out)
             if "KEYSTART" in proc_ctx.out:
-                regex_result = re.search('KEYSTART((.|\n|\r)*)KEYEND', proc_ctx.out)
+                regex_result = re.search(
+                    'KEYSTART((.|\n|\r)*)KEYEND', proc_ctx.out)
                 key = regex_result.group(1)
                 suite_srv_dir = get_suite_srv_dir(suite)
                 public_key = KeyInfo(
                     KeyType.PUBLIC,
                     KeyOwner.CLIENT,
                     suite_srv_dir=suite_srv_dir)
-                text_file = open(public_key.full_key_path, "w", encoding='utf8')
+                text_file = open(
+                    public_key.full_key_path, "w", encoding='utf8')
                 _ = text_file.write(key)
                 text_file.close()
 
@@ -324,26 +325,6 @@ class TaskRemoteMgr(object):
             proc_ctx.ret_code, proc_ctx.out, proc_ctx.err))
         LOG.error(proc_ctx)
         self.remote_init_map[(host, owner)] = REMOTE_INIT_FAILED
-
-    # _cert_public_banner = u("""#   ****  Generated on {0} by pyzmq  ****
-    # #   ZeroMQ CURVE Public Certificate
-    # #   Exchange securely, or use a secure mechanism to verify the contents
-    # #   of this file after exchange. Store public certificates in your home
-    # #   directory, in the .curve subdirectory.
-    # """)
-
-    # def _write_key_file(key_filename, banner, public_key, encoding='utf-8'):
-    # """Create a certificate file"""
-    
-    #     if isinstance(public_key, bytes):
-    #         public_key2 = public_key.decode(encoding)
-        
-    #     with io.open(key_filename, 'w', encoding='utf8') as f:
-    #             f.write("KEYSTART")
-    #             f.write(banner.format(datetime.datetime.now()))
-    #             f.write(u('curve\n'))
-    #             f.write(u("    public-key = \"{0}\"\n").format(public_key2))
-    #             f.write("KEYEND")
 
     def _remote_init_items(self, comm_meth):
         """Return list of items to install based on communication method.

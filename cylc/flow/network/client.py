@@ -126,7 +126,7 @@ class SuiteRuntimeClient(ZMQSocketBase):
         self.timeout_handler = partial(
             self._timeout_handler, suite, host, port)
         self.poller = None
-        # Connect the ZMQ socket on 
+        # Connect the ZMQ socket on instantiation
         self.start(host, port, srv_public_key_loc)
         # gather header info post start
         self.header = self.get_header()
