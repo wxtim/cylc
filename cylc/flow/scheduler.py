@@ -592,7 +592,7 @@ see `COPYING' in the Cylc source distribution.
 
         for name in task_list:
             if self.config.start_point is None:
-                # TODO: no start cycle point at which to load cycling tasks?
+                # No start cycle point at which to load cycling tasks.
                 continue
             tdef = self.config.get_taskdef(name)
             spawn = []
