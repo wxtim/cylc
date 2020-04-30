@@ -1230,7 +1230,7 @@ class SuiteRuntimeServer(ZMQSocketBase):
 
     @authorise(Priv.CONTROL)
     @expose
-    def trigger_tasks(self, tasks, back_out=False):
+    def trigger_tasks(self, tasks, back_out=False, task_pool=False):
         """Trigger submission of task jobs where possible.
 
         Args:
@@ -1238,6 +1238,8 @@ class SuiteRuntimeServer(ZMQSocketBase):
                 List of identifiers, see `task globs`_
             back_out (bool, optional):
                 Abort e.g. in the event of a rejected trigger-edit.
+            task_pool (bool, optional):
+                Target task pool instead of abstract tasks.
 
         Returns:
             tuple: (outcome, message)
@@ -1249,31 +1251,8 @@ class SuiteRuntimeServer(ZMQSocketBase):
 
         """
         self.schd.command_queue.put(
-            ("trigger_tasks", (tasks,), {"back_out": back_out}))
-        return (True, 'Command queued')
-
-    @authorise(Priv.CONTROL)
-    @expose
-    def trigger_tasks2(self, tasks, back_out=False):
-        """Trigger submission of task jobs where possible.
-
-        Args:
-            tasks (list):
-                List of identifiers, see `task globs`_
-            back_out (bool, optional):
-                Abort e.g. in the event of a rejected trigger-edit.
-
-        Returns:
-            tuple: (outcome, message)
-
-            outcome (bool)
-                True if command successfully queued.
-            message (str)
-                Information about outcome.
-
-        """
-        self.schd.command_queue.put(
-            ("trigger_tasks2", (tasks,), {"back_out": back_out}))
+            ("trigger_tasks", (tasks,),
+              {"back_out": back_out, "task_pool": task_pool}))
         return (True, 'Command queued')
 
     # UIServer Data Commands

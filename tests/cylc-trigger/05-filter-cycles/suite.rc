@@ -20,7 +20,7 @@
 wait
 cylc__job__poll_grep_suite_log 'fixable.1970.* failed'
 cylc__job__poll_grep_suite_log 'fixable.1990.* failed'
-cylc trigger2 "${CYLC_SUITE_NAME}" '19*/*'
+cylc trigger --task-pool "${CYLC_SUITE_NAME}" '19*/*'
 """
     [[z]]
         script = true

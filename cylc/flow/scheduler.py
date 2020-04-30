@@ -1916,13 +1916,9 @@ see `COPYING' in the Cylc source distribution.
         """Is the suite paused?"""
         return self.pool.is_held
 
-    def command_trigger_tasks(self, items, back_out=False):
+    def command_trigger_tasks(self, items, back_out=False, task_pool=False):
         """Trigger tasks."""
-        return self.pool.trigger_tasks(items, back_out)
-
-    def command_trigger_tasks2(self, items, back_out=False):
-        """Trigger tasks."""
-        return self.pool.trigger_tasks2(items, back_out)
+        return self.pool.trigger_tasks(items, back_out, task_pool)
 
     def command_dry_run_tasks(self, items, check_syntax=True):
         """Dry-run tasks, e.g. edit run."""

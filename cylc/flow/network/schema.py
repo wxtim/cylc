@@ -1439,8 +1439,6 @@ class Trigger(Mutation, TaskMutation):
         description = sstrip('''
             Manually trigger tasks.
 
-            TODO: re-implement edit funtionality!
-
             For single tasks you can use `edit` to edit the generated job
             script before it submits, to apply one-off changes. A diff between
             the original and edited job script will be saved to the task job
@@ -1456,30 +1454,7 @@ class Trigger(Mutation, TaskMutation):
 
     class Arguments(TaskMutation.Arguments):
         back_out = Boolean()
-
-
-class Trigger2(Mutation, TaskMutation):
-    class Meta:
-        description = sstrip('''
-            Manually trigger tasks.
-
-            TODO: re-implement edit funtionality!
-
-            For single tasks you can use `edit` to edit the generated job
-            script before it submits, to apply one-off changes. A diff between
-            the original and edited job script will be saved to the task job
-            log directory.
-
-            Warning: waiting tasks that are queue-limited will be queued if
-            triggered, to submit as normal when released by the queue; queued
-            tasks will submit immediately if triggered, even if that violates
-            the queue limit (so you may need to trigger a queue-limited task
-            twice to get it to submit immediately).
-        ''')
-        resolver = partial(mutator, command='trigger_tasks')
-
-    class Arguments(TaskMutation.Arguments):
-        back_out = Boolean()
+        task_pool = Boolean()
 
 
 # Mutation declarations
@@ -1508,7 +1483,6 @@ class Mutations(ObjectType):
     remove = Remove.Field(description=Remove._meta.description)
     spawn = Spawn.Field(description=Spawn._meta.description)
     trigger = Trigger.Field(description=Trigger._meta.description)
-    trigger2 = Trigger2.Field(description=Trigger2._meta.description)
 
     # job actions
     # TODO

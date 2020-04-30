@@ -27,7 +27,7 @@ cylc__job__poll_grep_suite_log 'fixable-1b.* failed'
 cylc__job__poll_grep_suite_log 'fixable-2a.* failed'
 cylc__job__poll_grep_suite_log 'fixable-2b.* failed'
 cylc__job__poll_grep_suite_log 'fixable-3.* failed'
-cylc trigger2 "${CYLC_SUITE_NAME}" 'FIXABLE-1.*' 'fixable-2*.1' 'fixable-3.1'
+cylc trigger --task-pool "${CYLC_SUITE_NAME}" 'FIXABLE-1.*' 'fixable-2*.1' 'fixable-3.1'
 """
     [[loser]]
         script = false
