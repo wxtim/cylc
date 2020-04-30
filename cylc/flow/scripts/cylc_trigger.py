@@ -67,6 +67,11 @@ def get_option_parser():
             ('[TASK_GLOB ...]', 'Task matching patterns')])
 
     parser.add_option(
+        "-t", "--task-pool",
+        help="target tasks in the pool rather than abstract tasks.",
+        action="store_true", default=False, dest="task_pool")
+
+    parser.add_option(
         "-e", "--edit",
         help="Manually edit the job script before running it.",
         action="store_true", default=False, dest="edit_run")
@@ -198,7 +203,11 @@ def main(parser, options, suite, *task_globs):
     # Trigger the task proxy(s).
     pclient(
         'trigger_tasks',
-        {'tasks': task_globs, 'back_out': aborted}
+        {
+            'tasks': task_globs,
+            'back_out': aborted,
+            'task_pool': options.task_pool
+        }
     )
 
 

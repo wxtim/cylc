@@ -1203,92 +1203,80 @@ class TaskPool(object):
             self.remove(itask, 'by request')
         return len(bad_items)
 
-    def trigger_tasks(self, items, back_out=False):
+    def trigger_tasks(self, items, back_out=False, task_pool=False):
         """Forced task triggering.
 
-        This is the new version that can insert (if necessary) and trigger any
-        task in the workflow.
+        task_pool=False:
+           Insert and trigger any abstract task in the workflow.
+        task_pool=True:
+           Match (potentially by state) and trigger existing tasks in the task
+           pool, e.g. to allow retriggering a bunch of unhandled failed tasks.
 
-        TODO: edit run back-out not implemented in this new version.
-        Still works in the old.
-
-        """
-        # TODO COMBINE THIS LOGIC WITH THAT OF spawn_tasks?
-
-        if back_out:
-            LOG.warning("EDIT-RUN BACK-OUT NOT DONE FOR THIS TRIGGER METHOD.")
-            return
-        n_warnings = 0
-        task_items = {}
-        select_args = []
-        for item in items:
-            point_str, name_str = self._parse_task_item(item)[:2]
-            if point_str is None:
-                LOG.warning(
-                    "%s: task ID for trigger must contain cycle point" % item)
-                n_warnings += 1
-                continue
-            try:
-                point_str = standardise_point_string(point_str)
-            except PointParsingError as exc:
-                LOG.warning(
-                    self.ERR_PREFIX_TASKID_MATCH + ("%s (%s)" % (item, exc)))
-                n_warnings += 1
-                continue
-            taskdefs = self.config.find_taskdefs(name_str)
-            if not taskdefs:
-                LOG.warning(self.ERR_PREFIX_TASKID_MATCH + item)
-                n_warnings += 1
-                continue
-            for taskdef in taskdefs:
-                task_items[(taskdef.name, point_str)] = taskdef
-                select_args.append((taskdef.name, point_str))
-
-        for name, point_str in select_args:
-            self.spawn(
-                'None', 'None', name,
-                get_point(point_str).standardise(), go=True)
-        return
-
-    def trigger_tasks2(self, items, back_out=False):
-        """Forced task triggering.
-
-        This is the old version, which matches tasks that already exist in the
-        pool, to allow (e.g.) retriggering a bunch of unhandled failed tasks
-        all at once.
-
-        NOTE: this is much less useful under SoD, compared to the version of
-        the command that targets any tasks and inserts them automatically.
-
-        TODO: decided how to combine the two functionalities.
+        TODO: edit run back-out not implemented for the insert-and-trigger case.
 
         """
-        itasks, bad_items = self.filter_task_proxies(items)
-        n_warnings = len(bad_items)
-        for itask in itasks:
+        if task_pool:
+            itasks, bad_items = self.filter_task_proxies(items)
+            n_warnings = len(bad_items)
+            for itask in itasks:
+                if back_out:
+                    # (Aborted edit-run, reset for next trigger attempt).
+                    try:
+                        del itask.summary['job_hosts'][itask.submit_num]
+                    except KeyError:
+                        pass
+                    job_d = get_task_job_id(
+                        itask.point, itask.tdef.name, itask.submit_num)
+                    self.job_pool.remove_job(job_d)
+                    itask.submit_num -= 1
+                    itask.summary['submit_num'] = itask.submit_num
+                    itask.local_job_file_path = None
+                    continue
+                if itask.state(*TASK_STATUSES_ACTIVE):
+                    LOG.warning('%s: already triggered' % itask.identity)
+                    n_warnings += 1
+                    continue
+                itask.manual_trigger = True
+                if not itask.state(
+                        TASK_STATUS_QUEUED,
+                        is_held=False
+                ):
+                    itask.state.reset(TASK_STATUS_READY, is_held=False)
+        else:
+            # TODO COMBINE THE FOLLOWING LOGIC WITH THAT OF spawn_tasks?
             if back_out:
-                # (Aborted edit-run, reset for next trigger attempt).
+                LOG.warning("EDIT-RUN BACK-OUT NOT DONE FOR THIS TRIGGER METHOD.")
+                return
+            n_warnings = 0
+            task_items = {}
+            select_args = []
+            for item in items:
+                point_str, name_str = self._parse_task_item(item)[:2]
+                if point_str is None:
+                    LOG.warning(
+                        "%s: task ID for trigger must contain cycle point" % item)
+                    n_warnings += 1
+                    continue
                 try:
-                    del itask.summary['job_hosts'][itask.submit_num]
-                except KeyError:
-                    pass
-                job_d = get_task_job_id(
-                    itask.point, itask.tdef.name, itask.submit_num)
-                self.job_pool.remove_job(job_d)
-                itask.submit_num -= 1
-                itask.summary['submit_num'] = itask.submit_num
-                itask.local_job_file_path = None
-                continue
-            if itask.state(*TASK_STATUSES_ACTIVE):
-                LOG.warning('%s: already triggered' % itask.identity)
-                n_warnings += 1
-                continue
-            itask.manual_trigger = True
-            if not itask.state(
-                    TASK_STATUS_QUEUED,
-                    is_held=False
-            ):
-                itask.state.reset(TASK_STATUS_READY, is_held=False)
+                    point_str = standardise_point_string(point_str)
+                except PointParsingError as exc:
+                    LOG.warning(
+                        self.ERR_PREFIX_TASKID_MATCH + ("%s (%s)" % (item, exc)))
+                    n_warnings += 1
+                    continue
+                taskdefs = self.config.find_taskdefs(name_str)
+                if not taskdefs:
+                    LOG.warning(self.ERR_PREFIX_TASKID_MATCH + item)
+                    n_warnings += 1
+                    continue
+                for taskdef in taskdefs:
+                    task_items[(taskdef.name, point_str)] = taskdef
+                    select_args.append((taskdef.name, point_str))
+
+            for name, point_str in select_args:
+                self.spawn(
+                    'None', 'None', name,
+                    get_point(point_str).standardise(), go=True)
         return n_warnings
 
     def sim_time_check(self, message_queue):

@@ -15,5 +15,5 @@ t1:start => recover-t1
         script="""
 cylc broadcast -p 1 -n t1 -s'[environment]HELLO=Hello' "${CYLC_SUITE_NAME}"
 sleep 1
-cylc trigger2 "${CYLC_SUITE_NAME}" t1 1
+cylc trigger --task-pool "${CYLC_SUITE_NAME}" t1 1
 """

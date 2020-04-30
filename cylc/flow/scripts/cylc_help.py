@@ -234,7 +234,6 @@ control_commands['stop'] = ['stop', 'shutdown']
 control_commands['restart'] = ['restart']
 control_commands['spawn'] = ['spawn']
 control_commands['trigger'] = ['trigger']
-control_commands['trigger2'] = ['trigger2']
 control_commands['remove'] = ['remove']
 control_commands['poll'] = ['poll']
 control_commands['kill'] = ['kill']
@@ -347,9 +346,7 @@ comsum['run'] = 'Start a suite at a given cycle point'
 comsum['stop'] = 'Shut down running suites'
 comsum['restart'] = 'Restart a suite from a previous state'
 comsum['spawn'] = 'Spawn tasks that depend on outputs'
-# TODO: decide if we need trigger2 under SoD?
 comsum['trigger'] = 'Manually trigger any tasks'
-comsum['trigger2'] = 'Manually trigger tasks in the task pool'
 comsum['remove'] = 'Remove task instances from scheduler task pool'
 comsum['poll'] = 'Poll submitted or running tasks'
 comsum['kill'] = 'Kill submitted or running tasks'
