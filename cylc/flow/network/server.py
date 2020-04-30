@@ -1252,7 +1252,7 @@ class SuiteRuntimeServer(ZMQSocketBase):
         """
         self.schd.command_queue.put(
             ("trigger_tasks", (tasks,),
-              {"back_out": back_out, "task_pool": task_pool}))
+             {"back_out": back_out, "task_pool": task_pool}))
         return (True, 'Command queued')
 
     # UIServer Data Commands
