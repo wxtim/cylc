@@ -6,9 +6,8 @@
         timeout = PT20S
 [scheduling]
     [[graph]]
-# Under SoD this test currently relies on use of trigger2 for aborted edit-run
-# functionality, which needs target tasks to stay in the pool: so victim is an
-# unhandled failed task.
+# SoD: aborted edit-run currently needs the --task-pool trigger option, which
+# needs target tasks to be in the pool, so victim is an unhandled failed task.
         R1 = """
 victim
 perpetrator
@@ -25,7 +24,7 @@ test $CYLC_TASK_SUBMIT_NUMBER -eq 2
 # Edit run to break victim, but abort after the edit.
 # If the edit run is actioned the edited task will fail instead of succeed (at
 # submit number 2).
-cylc trigger2 --edit $CYLC_SUITE_NAME victim.1 << __END__
+cylc trigger --task-pool --edit $CYLC_SUITE_NAME victim.1 << __END__
 n
 __END__
 # Add a new line (for nicer output).
@@ -42,5 +41,5 @@ my-suite-state-summary-test \
 
 # Then trigger victim - the original unedited task should run (and succeed at
 # submit number 2).
-cylc trigger2 $CYLC_SUITE_NAME victim.1
+cylc trigger --task-pool $CYLC_SUITE_NAME victim.1
 """
