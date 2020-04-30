@@ -1409,7 +1409,7 @@ class Poll(Mutation, TaskMutation):
 class Remove(Mutation, TaskMutation):
     class Meta:
         description = sstrip('''
-            Remove task instances from the scheduler task pool.
+            Remove one or more task instances from a running workflow.
 
         ''')
         resolver = partial(mutator, command='remove_tasks')

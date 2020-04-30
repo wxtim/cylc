@@ -772,8 +772,6 @@ class TaskPool(object):
             self.stop_point = config.final_point
         self.do_reload = True
 
-        # TODO SoD - need to restore runahead limit :-(
-        # self.custom_runahead_limit = self.config.get_custom_runahead_limit()
         self.custom_runahead_limit = self.config.get_custom_runahead_limit()
         self.max_num_active_cycle_points = (
             self.config.get_max_num_active_cycle_points())
@@ -1153,7 +1151,6 @@ class TaskPool(object):
             for taskdef in taskdefs:
                 task_items[(taskdef.name, point_str)] = taskdef
                 select_args.append((taskdef.name, point_str))
-        # TODO - this only works for the initial spawning!
         submit_nums = self.suite_db_mgr.pri_dao.select_submit_nums(
             select_args)
         for key, taskdef in sorted(task_items.items()):
@@ -1212,8 +1209,6 @@ class TaskPool(object):
            Match (potentially by state) and trigger existing tasks in the task
            pool, e.g. to allow retriggering a bunch of unhandled failed tasks.
 
-        TODO: edit run back-out not implemented for the insert-and-trigger case.
-
         """
         if task_pool:
             itasks, bad_items = self.filter_task_proxies(items)
@@ -1244,8 +1239,9 @@ class TaskPool(object):
                     itask.state.reset(TASK_STATUS_READY, is_held=False)
         else:
             # TODO COMBINE THE FOLLOWING LOGIC WITH THAT OF spawn_tasks?
+            # TODO: edit run back-out for the insert-and-trigger case.
             if back_out:
-                LOG.warning("EDIT-RUN BACK-OUT NOT DONE FOR THIS TRIGGER METHOD.")
+                LOG.warning("EDIT-RUN BACK-OUT NOT DONE FOR THIS METHOD.")
                 return
             n_warnings = 0
             task_items = {}
@@ -1254,14 +1250,15 @@ class TaskPool(object):
                 point_str, name_str = self._parse_task_item(item)[:2]
                 if point_str is None:
                     LOG.warning(
-                        "%s: task ID for trigger must contain cycle point" % item)
+                        "%s: trigger task must have a cycle point" % item)
                     n_warnings += 1
                     continue
                 try:
                     point_str = standardise_point_string(point_str)
                 except PointParsingError as exc:
                     LOG.warning(
-                        self.ERR_PREFIX_TASKID_MATCH + ("%s (%s)" % (item, exc)))
+                        self.ERR_PREFIX_TASKID_MATCH + (
+                            "%s (%s)" % (item, exc)))
                     n_warnings += 1
                     continue
                 taskdefs = self.config.find_taskdefs(name_str)
