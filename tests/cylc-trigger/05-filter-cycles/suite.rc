@@ -18,8 +18,8 @@
     [[fixer]]
         script = """
 wait
-cylc__job__poll_grep_suite_log 'fixable.1970.* failed'
-cylc__job__poll_grep_suite_log 'fixable.1990.* failed'
+cylc__job__poll_grep_suite_log '\[fixable\.19700101T0000Z\].* (received)failed'
+cylc__job__poll_grep_suite_log '\[fixable\.19900101T0000Z\].* (received)failed'
 cylc trigger --task-pool "${CYLC_SUITE_NAME}" '19*/*'
 """
     [[z]]

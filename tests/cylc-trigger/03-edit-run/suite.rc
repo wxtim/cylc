@@ -19,7 +19,7 @@ second task fixes and retriggers it with an edit-run."""
         script = false
     [[fixer-task]]
         script = """
-cylc__job__poll_grep_suite_log 'broken-task.1.* failed'
+cylc__job__poll_grep_suite_log '\[broken-task\.1\].* (received)failed'
 cylc trigger --edit $CYLC_SUITE_NAME 'broken-task.1' << __END1__
 y
 __END1__"""
