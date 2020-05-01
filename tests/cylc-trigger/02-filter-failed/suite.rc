@@ -16,9 +16,9 @@ FIXABLES:succeed-all => Z
     [[fixer]]
         script = """
 wait
-cylc__job__poll_grep_suite_log 'fixable1.* failed'
-cylc__job__poll_grep_suite_log 'fixable2.* failed'
-cylc__job__poll_grep_suite_log 'fixable3.* failed'
+cylc__job__poll_grep_suite_log '\[fixable1\.1\].* (received)failed'
+cylc__job__poll_grep_suite_log '\[fixable2\.1\].* (received)failed'
+cylc__job__poll_grep_suite_log '\[fixable3\.1\].* (received)failed'
 cylc trigger --task-pool "${CYLC_SUITE_NAME}" '*:failed'
         """
     [[Z]]

@@ -22,11 +22,11 @@ FIXABLES:succeed-all & loser:fail => Z
     [[fixer]]
         script = """
 wait
-cylc__job__poll_grep_suite_log 'fixable-1a.* failed'
-cylc__job__poll_grep_suite_log 'fixable-1b.* failed'
-cylc__job__poll_grep_suite_log 'fixable-2a.* failed'
-cylc__job__poll_grep_suite_log 'fixable-2b.* failed'
-cylc__job__poll_grep_suite_log 'fixable-3.* failed'
+cylc__job__poll_grep_suite_log '\[fixable-1a\.1\].* (received)failed'
+cylc__job__poll_grep_suite_log '\[fixable-1b\.1\].* (received)failed'
+cylc__job__poll_grep_suite_log '\[fixable-2a\.1\].* (received)failed'
+cylc__job__poll_grep_suite_log '\[fixable-2b\.1\].* (received)failed'
+cylc__job__poll_grep_suite_log '\[fixable-3\.1\].* (received)failed'
 cylc trigger --task-pool "${CYLC_SUITE_NAME}" 'FIXABLE-1.*' 'fixable-2*.1' 'fixable-3.1'
 """
     [[loser]]

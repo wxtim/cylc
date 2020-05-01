@@ -27,7 +27,7 @@ will time out."""
     [[foo]]
         script = """
            cylc kill "$CYLC_SUITE_NAME" 'bar.1'
-           cylc__job__poll_grep_suite_log 'bar.1.* failed'
+           cylc__job__poll_grep_suite_log '\[bar\.1\].* (internal)failed'
            cylc release "$CYLC_SUITE_NAME" 'bar.1'
            """
     [[bar]]
