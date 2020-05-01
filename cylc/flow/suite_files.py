@@ -17,6 +17,7 @@
 
 # Note: Some modules are NOT imported in the header. Expensive modules are only
 # imported on demand.
+import errno
 from functools import lru_cache
 import os
 import re
@@ -634,6 +635,22 @@ def remove_keys_on_server(keys):
     for k in keys.values():
         if os.path.exists(k.full_key_path):
             os.remove(k.full_key_path)
+    # Remove active symlinks of keys
+    # if os.path.exist(symlink):
+    #     os.remove(symlink)
+
+
+def make_symlink(src, dest):
+    """Makes symlinks, replaces them if they already exist"""
+    try:
+        os.symlink(src, dest)
+    except (OSError, Exception) as e:
+        import errno
+        if e.errno == errno.EEXIST:
+            os.remove(dest)
+            os.symlink(src, dest)
+        else:
+            raise e
 
 
 def create_server_keys(keys, suite_srv_dir):
@@ -654,11 +671,15 @@ def create_server_keys(keys, suite_srv_dir):
     # cylc scan requires server to behave as a client, so copy public server
     # key into client public key folder
     client_folder = keys["client_public_key"].key_path
-    server_pub_in_client_folder = f"{client_folder}/server.key"
-    shutil.copyfile(_server_public_full_key_path, server_pub_in_client_folder)
-
+    server_pub_in_client_folder = f"{client_folder}/client.key_host"
+    fake_client_private_key = os.path.join(suite_srv_dir, "client.key_secret")
+    # make_symlink(_server_public_full_key_path, server_pub_in_client_folder)
+    # make_symlink(_server_private_full_key_path, fake_client_private_key)
     # Return file permissions to default settings.
+    shutil.copyfile(_server_private_full_key_path, fake_client_private_key)
+    shutil.copyfile(_server_public_full_key_path, server_pub_in_client_folder)
     os.umask(old_umask)
+
 
 
 def _dump_item(path, item, value):
