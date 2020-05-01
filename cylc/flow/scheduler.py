@@ -296,7 +296,10 @@ class Scheduler(object):
             barrier.wait()
             self.port = self.server.port
             self.pub_port = self.publisher.port
-
+            self.curve_auth.configure_curve(
+                domain='*',
+                location=(self.client_pub_key_dir)
+            )
             self.configure()
             self.profiler.start()
             self.run()
