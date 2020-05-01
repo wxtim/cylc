@@ -16,7 +16,7 @@
         script = false
     [[cleaner]]
         script = """
-cylc__job__poll_grep_suite_log 'b\.1.* failed'
+cylc__job__poll_grep_suite_log '\[b\.1\].* (received)failed'
 # Remove the unhandled failed task.
 cylc remove "$CYLC_SUITE_NAME" 'b.1'
 # Remove waiting c.1
