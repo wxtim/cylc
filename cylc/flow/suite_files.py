@@ -671,7 +671,7 @@ def create_server_keys(keys, suite_srv_dir):
     # cylc scan requires server to behave as a client, so copy public server
     # key into client public key folder
     client_folder = keys["client_public_key"].key_path
-    server_pub_in_client_folder = f"{client_folder}/client.key_host"
+    server_pub_in_client_folder = f"{client_folder}/client_host.key"
     fake_client_private_key = os.path.join(suite_srv_dir, "client.key_secret")
     # make_symlink(_server_public_full_key_path, server_pub_in_client_folder)
     # make_symlink(_server_private_full_key_path, fake_client_private_key)
