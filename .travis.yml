@@ -51,54 +51,15 @@ env:
 unittest: &unittest
   stage: unit-test
   install:
+
     - .travis/install.sh unit-tests
   script:
-    - pycodestyle
-    - .travis/shellchecker
-    - pytest --cov-append --cov=cylc/flow
-  after_success:
-    # Report metrics, such as coverage
-    - coverage combine --append
-    - coverage xml --ignore-errors
-    - bash <(curl -s https://codecov.io/bash)
+    - hostname
+    - hostname -f
+    - python3 -c 'import socket; print(socket.getfqdn())'
+    - python3 -c 'import socket; print(socket.gethostname())'
+    - python3 -c 'from cylc.flow.hostuserutil import get_fqdn_by_host; print(get_fqdn_by_host(None))'
 
-regressiontest: &regressiontest
-  stage: functional-test
-  python:
-    - "3.7"
-  install:
-    - .travis/install.sh functional-tests
-  script:
-    - export PYTHONPATH="${TRAVIS_BUILD_DIR}/.travis"
-    - .travis/coverage-data.sh
-    - coverage run .travis/cover.py
-    - unset PYTHONPATH
-  after_failure:
-    - .travis/after_failure.sh
-  after_success:
-    # Report metrics, such as coverage
-    - coverage combine --append
-    - coverage xml --ignore-errors
-    - bash <(curl -s https://codecov.io/bash)
-
-flakytest: &flakytest
-  stage: sensitive-test
-  python:
-    - "3.7"
-  install:
-    - .travis/install.sh functional-tests
-  script:
-    - export PYTHONPATH="${TRAVIS_BUILD_DIR}/.travis"
-    - .travis/coverage-data.sh
-    - coverage run .travis/cover.py
-    - unset PYTHONPATH
-  after_failure:
-    - .travis/after_failure.sh
-  after_success:
-    # Report metrics, such as coverage
-    - coverage combine --append
-    - coverage xml --ignore-errors
-    - bash <(curl -s https://codecov.io/bash)
 
 jobs:
   include:
@@ -106,27 +67,3 @@ jobs:
   # run unittests at each supported Python version
   - <<: *unittest
     python: "3.7"
-
-  # run regression tests in chunks with the most contemporary
-  # supported Python version
-  - <<: *regressiontest
-    python: "3.7"
-    env: CHUNK="1/4"
-  - <<: *regressiontest
-    python: "3.7"
-    env: CHUNK="2/4"
-  - <<: *regressiontest
-    python: "3.7"
-    env: CHUNK="3/4"
-  - <<: *regressiontest
-    python: "3.7"
-    env: CHUNK="4/4"
-
-  - <<: *flakytest
-    python: "3.7"
-    env: 
-      FLAKYTESTS="./flakytests"
-      CYLC_TEST_DEBUG=true
-
-  # TODO: run shortlist of regression tests with the
-  #       least contemporary Python version
