@@ -107,19 +107,9 @@ def get_option_parser():
 
 @cli_function(get_option_parser)
 def main(parser, options, suite, shutdown_arg=None):
-    # import ptvsd
-
-    # # 5678 is the default attach port in the VS Code debug configurations
-    # print("Waiting for debugger attach")
-    # ptvsd.enable_attach(address=('localhost', 6464), redirect_output=True)
-    # ptvsd.wait_for_attach()
-    # breakpoint()
-
     if shutdown_arg is not None and options.kill:
         parser.error("ERROR: --kill is not compatible with [STOP]")
 
-
-        
     if options.kill and options.now:
         parser.error("ERROR: --kill is not compatible with --now")
 

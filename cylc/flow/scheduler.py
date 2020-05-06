@@ -1722,10 +1722,6 @@ see `COPYING' in the Cylc source distribution.
 
     def shutdown(self, reason):
         """Shutdown the suite."""
-
-        print("+++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print(f"++++++++++++++++++++++++++++++++++ Shutdown called for reason: {reason}")
-
         if isinstance(reason, SchedulerStop):
             LOG.info('Suite shutting down - %s', reason.args[0])
         elif isinstance(reason, SchedulerError):
@@ -1838,14 +1834,6 @@ see `COPYING' in the Cylc source distribution.
 
     def check_auto_shutdown(self):
         """Check if we should do a normal automatic shutdown."""
-        import ptvsd
-
-        # 5678 is the default attach port in the VS Code debug configurations
-        print("Waiting for debugger attach")
-        ptvsd.enable_attach(address=('localhost', 6464), redirect_output=True)
-        ptvsd.wait_for_attach()
-        breakpoint()
-
         if not self.can_auto_stop:
             return False
         can_shutdown = True

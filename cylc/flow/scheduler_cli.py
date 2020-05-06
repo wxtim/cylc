@@ -273,7 +273,7 @@ def scheduler_cli(parser, options, args, is_restart=False):
                 base_cmd = ["run"] + sys.argv[1:]
             # Prevent recursive host selection
             base_cmd.append("--host=localhost")
-            return remote_cylc_cmd([base_cmd], host=host)
+            return remote_cylc_cmd(base_cmd, host=host)
     suite_srv_dir = suite_files.get_suite_srv_dir(reg)
     keys = {
         "client_public_key": KeyInfo(
