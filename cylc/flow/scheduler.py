@@ -1515,6 +1515,8 @@ see `COPYING' in the Cylc source distribution.
             tinit = time()
             has_reloaded = False
 
+            print(f"===========================================main loop 1")
+
             if self.pool.do_reload:
                 self.pool.reload_taskdefs()
                 self.suite_db_mgr.checkpoint("reload-done")
@@ -1591,6 +1593,9 @@ see `COPYING' in the Cylc source distribution.
             await asyncio.sleep(duration)
             # Record latest main loop interval
             self.main_loop_intervals.append(time() - tinit)
+
+            print(f"===========================================main loop 5")
+
             # END MAIN LOOP
 
     async def update_data_structure(self):
@@ -1721,6 +1726,10 @@ see `COPYING' in the Cylc source distribution.
 
     def shutdown(self, reason):
         """Shutdown the suite."""
+
+        print("+++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print(f"++++++++++++++++++++++++++++++++++ Shutdown called for reason: {reason}")
+
         if isinstance(reason, SchedulerStop):
             LOG.info('Suite shutting down - %s', reason.args[0])
         elif isinstance(reason, SchedulerError):

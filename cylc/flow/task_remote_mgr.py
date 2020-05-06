@@ -305,7 +305,7 @@ class TaskRemoteMgr(object):
                 public_key = KeyInfo(
                     KeyType.PUBLIC,
                     KeyOwner.CLIENT,
-                    suite_srv_dir=suite_srv_dir)
+                    suite_srv_dir=suite_srv_dir, platform = host)
                 text_file = open(
                     public_key.full_key_path, "w", encoding='utf8')
                 _ = text_file.write(key)
