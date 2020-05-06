@@ -1515,8 +1515,6 @@ see `COPYING' in the Cylc source distribution.
             tinit = time()
             has_reloaded = False
 
-            print(f"===========================================main loop 1")
-
             if self.pool.do_reload:
                 self.pool.reload_taskdefs()
                 self.suite_db_mgr.checkpoint("reload-done")
@@ -1593,8 +1591,6 @@ see `COPYING' in the Cylc source distribution.
             await asyncio.sleep(duration)
             # Record latest main loop interval
             self.main_loop_intervals.append(time() - tinit)
-
-            print(f"===========================================main loop 5")
 
             # END MAIN LOOP
 
@@ -1842,6 +1838,14 @@ see `COPYING' in the Cylc source distribution.
 
     def check_auto_shutdown(self):
         """Check if we should do a normal automatic shutdown."""
+        import ptvsd
+
+        # 5678 is the default attach port in the VS Code debug configurations
+        print("Waiting for debugger attach")
+        ptvsd.enable_attach(address=('localhost', 6464), redirect_output=True)
+        ptvsd.wait_for_attach()
+        breakpoint()
+
         if not self.can_auto_stop:
             return False
         can_shutdown = True
