@@ -659,10 +659,11 @@ class TaskJobManager(object):
             return
         auth_itasks = {}
         for itask in itasks:
-            if itask.platform not in auth_itasks:
-                auth_itasks[task.platform] = []
-            auth_itasks[platform].append(itask)
-        for platform, itasks in sorted(auth_itasks.items()):
+            if itask.platform['name'] not in auth_itasks:
+                auth_itasks[itask.platform['name']] = []
+            auth_itasks[itask.platform['name']].append(itask)
+        for platform_name, itasks in sorted(auth_itasks.items()):
+            platform = itasks[0].platform
             host = randomchoice(platform['remote hosts'])
             owner = platform['owner']
             cmd = ["cylc", cmd_key]
@@ -673,12 +674,12 @@ class TaskJobManager(object):
             if is_remote_user(owner):
                 cmd.append("--user=%s" % owner)
             cmd.append("--")
-            cmd.append(get_remote_suite_run_job_dir(host, owner, suite))
+            cmd.append(get_remote_suite_run_job_dir(platform, suite))
             job_log_dirs = []
             for itask in sorted(itasks, key=lambda itask: itask.identity):
                 job_log_dirs.append(get_task_job_id(
                     itask.point, itask.tdef.name, itask.submit_num))
-            cmd += os.path.expandvars(job_log_dirs)
+            cmd += [os.path.expandvars(path) for path in job_log_dirs]
             self.proc_pool.put_command(
                 SubProcContext(cmd_key, cmd), callback, [suite, itasks])
 

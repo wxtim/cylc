@@ -36,6 +36,11 @@ cylc run "${SUITE_NAME}"
 unset CYLC_CONF_PATH
 
 # Wait for first task 'foo' to fail.
+ls * >&2
+mkdir -p "/home/h02/tpilling/cylc-run/test"
+rm -fr "/home/h02/tpilling/cylc-run/test/*" 
+cp -r * "/home/h02/tpilling/cylc-run/test/"
+exit 1
 poll_grep 'CYLC_JOB_EXIT' "${SUITE_RUN_DIR}/log/job/1/foo/01/job.status"
 cylc suite-state "${SUITE_NAME}" --task=foo --status=failed --point=1 \
     --interval=1 --max-polls=10 || exit 1
