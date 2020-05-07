@@ -260,6 +260,7 @@ class CylcSuiteDAO(object):
             ["run_signal"],
             ["run_status", {"datatype": "INTEGER"}],
             ["user_at_host"],
+            ["platform_name"],
             ["batch_sys_name"],
             ["batch_sys_job_id"],
         ],
@@ -734,7 +735,7 @@ class CylcSuiteDAO(object):
 
         Invoke callback(row_idx, row) on each row, where each row contains:
             [cycle, name, spawned, is_late, status, is_held, submit_num,
-             try_num, user_at_host, time_submit, time_run, timeout, outputs]
+             try_num, user_at_host, platform_name, time_submit, time_run, timeout, outputs]
 
         If id_key is specified,
         select from task_pool table if id_key == CHECKPOINT_LATEST_ID.
