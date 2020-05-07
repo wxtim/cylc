@@ -17,7 +17,6 @@
 
 # Note: Some modules are NOT imported in the header. Expensive modules are only
 # imported on demand.
-import errno
 from functools import lru_cache
 import os
 import re
@@ -74,6 +73,7 @@ class KeyInfo():
         self.full_key_path = full_key_path
         self.suite_srv_dir = suite_srv_dir
         self.platform = platform
+
         if self.full_key_path is not None:
             self.key_path, self.file_name = os.path.split(self.full_key_path)
         elif self.suite_srv_dir is not None:
@@ -83,7 +83,6 @@ class KeyInfo():
             # Add optional platform name (supports future multiple client keys)
             if key_owner is KeyOwner.CLIENT and self.platform is not None:
                 file_name = file_name + f"_{self.platform}"
-
             if key_type == KeyType.PRIVATE:
                 file_extension = SuiteFiles.Service.PRIVATE_FILE_EXTENSION
             elif key_type == KeyType.PUBLIC:
@@ -654,11 +653,20 @@ def create_server_keys(keys, suite_srv_dir):
 
     # cylc scan requires host to behave as a client, so copy public server
     # key into client public key folder
-    client_folder = keys["client_public_key"].key_path
-    server_pub_in_client_folder = f"{client_folder}/client_host.key"
-    fake_client_private_key = os.path.join(suite_srv_dir, "client.key_secret")
-    shutil.copyfile(_server_private_full_key_path, fake_client_private_key)
-    shutil.copyfile(_server_public_full_key_path, server_pub_in_client_folder)
+
+    host_client_public_keyinfo = KeyInfo(
+        KeyType.PUBLIC,
+        KeyOwner.CLIENT,
+        suite_srv_dir=suite_srv_dir, platform="host")
+    host_client_private_keyinfo = KeyInfo(
+        KeyType.PRIVATE,
+        KeyOwner.CLIENT,
+        suite_srv_dir=suite_srv_dir)
+    shutil.copyfile(
+        _server_private_full_key_path,
+        host_client_public_keyinfo.full_key_path)
+    shutil.copyfile(_server_public_full_key_path,
+                    host_client_private_keyinfo.full_key_path)
     # Return file permissions to default settings.
     os.umask(old_umask)
 
