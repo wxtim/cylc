@@ -297,7 +297,13 @@ class TaskJobManager(object):
             if remote_mode:
                 cmd.append('--remote-mode')
             cmd.append('--')
-            cmd.append(get_remote_suite_run_job_dir(platform, suite))
+            cmd.append(
+                os.path.expandvars(
+                    get_remote_suite_run_job_dir(
+                        platform, suite
+                    )
+                )
+            )
             # Chop itasks into a series of shorter lists if it's very big
             # to prevent overloading of stdout and stderr pipes.
             itasks = sorted(itasks, key=lambda itask: itask.identity)

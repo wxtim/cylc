@@ -73,7 +73,7 @@ def get_location(suite: str, owner: str, host: str):
         ClientError: if the suite is not running.
     """
     try:
-        contact = load_contact_file(suite, owner, host)
+        contact = load_contact_file(suite)
     except SuiteServiceFileError:
         raise SuiteStopped(suite)
 
