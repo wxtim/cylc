@@ -1,5 +1,5 @@
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -357,9 +357,6 @@ class CylcTimeParser(object):
                     continue
                 split_expr = self.OFFSET_REGEX.split(item)
                 expr += split_expr.pop(0)
-                if split_expr[1] == "+":
-                    split_expr.pop(1)
-                expr_offset_item = "".join(split_expr[1:])
                 expr_offset_item = self.duration_parser.parse(item[1:])
                 if item[0] == "-":
                     expr_offset_item *= -1

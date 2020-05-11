@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,10 @@ if ${CYLC_TEST_DEBUG:-false}; then ERR=2; else ERR=1; fi
 # run through the shutdown - restart procedure
 BASE_GLOBALRC="
 [cylc]
-    health check interval = PT15S
+    [[main loop]]
+        plugins = health check, auto restart
+        [[[auto restart]]]
+            interval = PT15S
     [[events]]
         abort on inactivity = True
         abort on timeout = True
@@ -75,7 +78,7 @@ LATEST_TASK=$(cylc suite-state "${SUITE_NAME}" -S succeeded \
 poll_suite_stopped
 FILE=$(cylc cat-log "${SUITE_NAME}" -m p |xargs readlink -f)
 log_scan "${TEST_NAME}-restart" "${FILE}" 20 1 \
-    "Suite server: url=tcp://$(ssh "${CYLC_TEST_HOST}" hostname -f)"
+    "Suite server: url=tcp://$(get_fqdn_by_host "${CYLC_TEST_HOST}")"
 run_ok "${TEST_NAME}-restart-success" cylc suite-state "${SUITE_NAME}" \
     --task="$(printf 'task_foo%02d' $(( LATEST_TASK + 3 )))" \
     --status='succeeded' --point=1 --interval=1 --max-polls=20

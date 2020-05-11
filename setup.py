@@ -2,7 +2,7 @@
 # coding=utf-8
 
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ install_requires = [
     'jinja2==2.11.*',
     'metomi-isodatetime==1!2.0.*',
     'markupsafe==1.1.*',
-    'protobuf==3.11.*',
+    'protobuf==3.12.0rc1',
     'pyzmq==18.1.*',
     'click>=7.0',
     'psutil>=5.6.0',
@@ -65,13 +65,33 @@ tests_require = [
 ]
 
 extra_requires = {
-    'empy': ['EmPy==3.3.*'],
+    'empy': [
+        'EmPy==3.3.*'
+    ],
     'all': [],
-    'report-timings': ['pandas==0.25.*']
+    'report-timings': [
+        'pandas==0.25.*'
+    ],
+    'main_loop-log_data_store': [
+        'pympler',
+        'matplotlib'
+    ],
+    'main_loop-log_main_loop': [
+        'matplotlib'
+    ],
+    'main_loop-log_memory': [
+        'pympler',
+        'matplotlib'
+    ]
 }
-extra_requires['all'] += extra_requires['empy']
-extra_requires['all'] += tests_require
-extra_requires['all'] += extra_requires['report-timings']
+extra_requires['all'] = (
+    tests_require
+    + list({
+        req
+        for reqs in extra_requires.values()
+        for req in reqs
+    })
+)
 
 
 setup(

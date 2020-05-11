@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,8 +30,6 @@ $CYLC_EXT_TRIGGER_ID so that they can use it - e.g. to identify a new data file
 that the external triggering system is responding to.
 
 Use the retry options in case the target suite is down or out of contact.
-
-The suite passphrase must be installed in $HOME/.cylc/<SUITE>/.
 
 Note: to manually trigger a task use 'cylc trigger', not this command."""
 

@@ -1,5 +1,5 @@
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -136,7 +136,6 @@ class TaskRemoteMgr(object):
 
         Call "cylc remote-init" to install suite items to remote:
             ".service/contact": For TCP task communication
-            ".service/passphrase": For TCP task communication
             "python/": if source exists
 
         Return:

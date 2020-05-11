@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,10 @@ export JOKERS="${HOSTNAME}"
 
 BASE_GLOBALRC='
 [cylc]
-    health check interval = PT5S
+    [[main loop]]
+        plugins = health check, auto restart
+        [[[auto restart]]]
+            interval = PT5S
     [[events]]
         abort on inactivity = True
         abort on timeout = True
@@ -106,7 +109,7 @@ for ear in $(seq 1 "${EARS}"); do
     # test the restart procedure
     FILE=$(cylc cat-log "${SUITE_NAME}" -m p |xargs readlink -f)
     log_scan2 "${TEST_NAME_BASE}-${ear}-restart" "${FILE}" 20 1 \
-        "Suite server: url=tcp://$(ssh "${JOKERS}" hostname -f)"
+        "Suite server: url=tcp://$(get_fqdn_by_host "${JOKERS}")"
     sleep 2
 done
 

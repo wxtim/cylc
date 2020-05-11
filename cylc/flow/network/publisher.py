@@ -1,5 +1,5 @@
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ class WorkflowPublisher(ZMQSocketBase):
             [topic, serialize_data(data, serializer)]
         )
 
-    def publish(self, items):
+    async def publish(self, items):
         """Publish topics.
 
         Args:
@@ -96,6 +96,6 @@ class WorkflowPublisher(ZMQSocketBase):
 
         """
         try:
-            self.loop.run_until_complete(gather_coros(self.send_multi, items))
+            await gather_coros(self.send_multi, items)
         except Exception as exc:
             LOG.error('publish: %s', exc)

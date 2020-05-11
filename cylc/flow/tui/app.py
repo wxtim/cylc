@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,10 +31,12 @@ from cylc.flow.exceptions import (
 from cylc.flow.task_state import (
     TASK_STATUSES_ORDERED,
     TASK_STATUS_RUNAHEAD,
-    TASK_STATUS_WAITING,
     TASK_STATUS_SUBMITTED,
     TASK_STATUS_RUNNING,
     TASK_STATUS_FAILED,
+)
+from cylc.flow.tui.data import (
+    QUERY
 )
 import cylc.flow.tui.overlay as overlay
 from cylc.flow.tui import (
@@ -51,9 +53,6 @@ from cylc.flow.tui.tree import (
 from cylc.flow.tui.util import (
     compute_tree,
     dummy_flow,
-    # get_group_state,
-    get_job_icon,
-    get_task_icon,
     get_task_status_summary,
     get_workflow_status_str,
     render_node
@@ -63,51 +62,6 @@ from cylc.flow.tui.util import (
 urwid.set_encoding('utf8')  # required for unicode task icons
 
 TREE_EXPAND_DEPTH = [2]
-
-QUERY = '''
-  query cli($taskStates: [String]){
-    workflows {
-      id
-      name
-      status
-      stateTotals
-      taskProxies(states: $taskStates) {
-        id
-        name
-        cyclePoint
-        state
-        isHeld
-        parents {
-          id
-          name
-        }
-        jobs {
-          id
-          submitNum
-          state
-          host
-          batchSysName
-          batchSysJobId
-          startedTime
-        }
-        task {
-          meanElapsedTime
-        }
-      }
-      familyProxies(states: $taskStates) {
-        id
-        name
-        cyclePoint
-        state
-        isHeld
-        firstParent {
-          id
-          name
-        }
-      }
-    }
-  }
-'''
 
 
 class TuiWidget(urwid.TreeWidget):
@@ -123,7 +77,7 @@ class TuiWidget(urwid.TreeWidget):
     """
 
     # allows leaf nodes to be selectable, otherwise the cursor
-    # will skip rows when the user naviages
+    # will skip rows when the user navigates
     unexpandable_icon = SelectableIcon(' ', 0)
 
     def __init__(self, node, max_depth=None):
@@ -277,6 +231,7 @@ class TuiApp:
         self.loop = None
         self.screen = None
         self.stack = 0
+        self.tree_walker = None
 
         # create the template
         topnode = TuiParentNode(dummy_flow({'id': 'Loading...'}))
@@ -359,7 +314,7 @@ class TuiApp:
                     }
                 }
             )
-        except SuiteStopped as exc:
+        except SuiteStopped:
             self.client = None
             return dummy_flow({
                 'name': self.reg,
@@ -459,7 +414,8 @@ class TuiApp:
         _, old_node = self.listbox._body.get_focus()
 
         # nuke the tree
-        self.listbox._set_body(urwid.TreeWalker(topnode))
+        self.tree_walker = urwid.TreeWalker(topnode)
+        self.listbox._set_body(self.tree_walker)
 
         # get the new focus
         _, new_node = self.listbox._body.get_focus()
@@ -558,6 +514,12 @@ BINDINGS.bind(
     '',
     'Help',
     (TuiApp.open_overlay, overlay.help_info)
+)
+BINDINGS.bind(
+    ('enter',),
+    '',
+    'Context',
+    (TuiApp.open_overlay, overlay.context)
 )
 
 BINDINGS.add_group(

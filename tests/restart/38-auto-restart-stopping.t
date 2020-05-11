@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,10 @@ if ${CYLC_TEST_DEBUG:-false}; then ERR=2; else ERR=1; fi
 # ensure that suites don't get auto stop-restarted if they are already stopping
 BASE_GLOBALRC="
 [cylc]
-    health check interval = PT1S
+    [[main loop]]
+        plugins = health check, auto restart
+        [[[auto restart]]]
+            interval = PT1S
     [[events]]
         abort on inactivity = True
         abort on timeout = True

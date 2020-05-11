@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,6 +51,10 @@ from cylc.flow.tui import (
     JOB_COLOURS,
     JOB_ICON,
     TUI
+)
+from cylc.flow.tui.data import (
+    list_mutations,
+    mutate
 )
 from cylc.flow.tui.util import (
     get_task_icon
@@ -187,4 +191,37 @@ def help_info(app):
     return (
         widget,
         {'width': 60, 'height': 40}
+    )
+
+
+def context(app):
+    value = app.tree_walker.get_focus()[0].get_node().get_value()
+    selection = [value['id_']]  # single selection ATM
+
+    def _mutate(mutation, _):
+        mutate(app.client, mutation, selection)
+        app.close_topmost()
+
+    widget = urwid.ListBox(
+        urwid.SimpleFocusListWalker(
+            [
+                urwid.Text('Action'),
+                urwid.Button(
+                    '(cancel)',
+                    on_press=lambda *_: app.close_topmost()
+                ),
+                urwid.Divider()
+            ] + [
+                urwid.Button(
+                    mutation,
+                    on_press=partial(_mutate, mutation)
+                )
+                for mutation in list_mutations(selection)
+            ]
+        )
+    )
+
+    return (
+        widget,
+        {'width': 30, 'height': 12}
     )

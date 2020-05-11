@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -62,7 +62,10 @@ def main(_, options, suite, func):
     sys.stdin.close()
     res = pclient(func, kwargs, timeout=options.comms_timeout)
     if func in PB_METHOD_MAP:
-        pb_msg = PB_METHOD_MAP[func]()
+        if 'element_type' in kwargs:
+            pb_msg = PB_METHOD_MAP[func][kwargs['element_type']]()
+        else:
+            pb_msg = PB_METHOD_MAP[func]()
         pb_msg.ParseFromString(res)
         res_msg = MessageToDict(pb_msg)
     else:

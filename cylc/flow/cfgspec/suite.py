@@ -1,5 +1,5 @@
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ from metomi.isodatetime.data import Calendar
 
 
 from cylc.flow import LOG
+from cylc.flow.parsec.exceptions import UpgradeError
 from cylc.flow.network.authorisation import Priv
 from cylc.flow.parsec.config import ParsecConfig
 from cylc.flow.parsec.upgrade import upgrader
@@ -56,9 +57,13 @@ SPEC = {
             VDR.V_STRING, '', 'live', 'dummy', 'dummy-local', 'simulation'],
         'force run mode': [
             VDR.V_STRING, '', 'live', 'dummy', 'dummy-local', 'simulation'],
-        'health check interval': [VDR.V_INTERVAL],
         'task event mail interval': [VDR.V_INTERVAL],
         'disable automatic shutdown': [VDR.V_BOOLEAN],
+        'main loop': {
+            '__MANY__': {
+                'interval': [VDR.V_INTERVAL],
+            }
+        },
         'simulation': {
             'disable suite event handlers': [VDR.V_BOOLEAN, True],
         },
@@ -300,6 +305,9 @@ def upg(cfg, descr):
     u.obsolete(
         '8.0.0',
         ['cylc', 'reference test', 'suite shutdown event handler'])
+    u.obsolete(
+        '8.0.0',
+        ['cylc', 'health check interval'])
     u.deprecate(
         '8.0.0',
         ['cylc', 'abort if any task fails'],
@@ -323,28 +331,37 @@ def upg(cfg, descr):
     # and [job] moved up 1 level for example) which should be upgraded here.
     u.upgrade()
 
-    # Upgrader cannot do this type of move.
-    try:
-        keys = set()
-        cfg['scheduling'].setdefault('graph', {})
-        cfg['scheduling']['graph'].update(
-            cfg['scheduling'].pop('dependencies'))
-        graphdict = cfg['scheduling']['graph']
-        for key, value in graphdict.copy().items():
-            if isinstance(value, dict) and 'graph' in value:
-                graphdict[key] = value['graph']
-                keys.add(key)
-        if keys:
-            LOG.warning(
-                "deprecated graph items were automatically upgraded in '%s':",
-                descr)
-            LOG.warning(
-                ' * (8.0.0) %s -> %s - for X in:\n%s',
-                u.show_keys(['scheduling', 'dependencies', 'X', 'graph']),
-                u.show_keys(['scheduling', 'graph', 'X']),
-                '\n'.join(sorted(keys)),
-            )
-
+    # Upgrader cannot do this type of move:
+    try:  # Upgrade cfg['scheduling']['dependencies']['graph']
+        if 'dependencies' in cfg['scheduling']:
+            msg_old = '[scheduling][dependencies][X]graph'
+            msg_new = '[scheduling][graph]X'
+            if 'graph' in cfg['scheduling']:
+                raise UpgradeError(
+                    "Cannot upgrade deprecated item '{0} -> {1}' because "
+                    "{2} already exists".format(msg_old, msg_new, msg_new[:-1])
+                )
+            else:
+                keys = set()
+                cfg['scheduling'].setdefault('graph', {})
+                cfg['scheduling']['graph'].update(
+                    cfg['scheduling'].pop('dependencies')
+                )
+                graphdict = cfg['scheduling']['graph']
+                for key, value in graphdict.copy().items():
+                    if isinstance(value, dict) and 'graph' in value:
+                        graphdict[key] = value['graph']
+                        keys.add(key)
+                if keys:
+                    LOG.warning(
+                        "deprecated graph items were automatically upgraded "
+                        "in '{0}':".format(descr)
+                    )
+                    LOG.warning(
+                        ' * (8.0.0) {0} -> {1} - for X in:\n{2}'.format(
+                            msg_old, msg_new, '\n'.join(sorted(keys))
+                        )
+                    )
     except KeyError:
         pass
 

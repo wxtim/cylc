@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 (This command is for internal use.)
 Install suite service files on a task remote (i.e. a [owner@]host):
     .service/contact: All task -> suite communication methods.
-    .service/passphrase: Direct task -> suite communication only.
 
 Content of items to install from a tar file read from STDIN.
 

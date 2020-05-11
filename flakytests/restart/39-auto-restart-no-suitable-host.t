@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,16 +20,15 @@ set_test_number 5
 
 BASE_GLOBALRC="
 [cylc]
-    health check interval = PT5S
+    [[main loop]]
+        plugins = health check, auto restart
+        [[[auto restart]]]
+            interval = PT5S
     [[events]]
         abort on inactivity = True
         abort on timeout = True
         inactivity = PT2M
         timeout = PT2M
-# FIXME: Handle Travis CI recent change to host identification in Python
-[suite host self-identification]
-    host = ${HOSTNAME}
-    method = hardwired
 "
 #-------------------------------------------------------------------------------
 # test that suites will not attempt to auto stop-restart if there is no
@@ -49,14 +48,14 @@ ${BASE_GLOBALRC}
     run hosts = localhost
 "
 
-cylc run "${SUITE_NAME}"
+cylc run "${SUITE_NAME}" --debug
 poll_suite_running
 
 create_test_globalrc '' "
 ${BASE_GLOBALRC}
 [suite servers]
     run hosts = localhost
-    condemned hosts = ${HOSTNAME}
+    condemned hosts = $(get_fqdn_by_host)
 "
 
 FILE=$(cylc cat-log "${SUITE_NAME}" -m p |xargs readlink -f)

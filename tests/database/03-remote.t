@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ sqlite3 "${DB_FILE}" \
      FROM task_jobs ORDER BY name' \
     >"${NAME}"
 cmp_ok "${NAME}" <<__SELECT__
-20200101T0000Z|t1|1|1|0|0|$(hostname -f)|background
+20200101T0000Z|t1|1|1|0|0|$(get_fqdn_by_host)|background
 20200101T0000Z|t2|1|1|0|0|${CYLC_TEST_HOST}|background
 __SELECT__
 

@@ -1,5 +1,5 @@
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -819,8 +819,6 @@ class TaskJobManager(object):
             # TODO get an explanation here of why the deepcopy is req'd
             job_config = deepcopy(job_conf)
             job_config['logfiles'] = deepcopy(itask.summary['logfiles'])
-            job_config['job_log_dir'] = get_task_job_log(
-                suite, itask.point, itask.tdef.name, itask.submit_num)
             itask.jobs.append(job_config['job_d'])
             self.job_pool.insert_job(job_config)
 

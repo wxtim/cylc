@@ -1,5 +1,5 @@
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,11 +30,6 @@ from cylc.flow.data_store_mgr import DataStoreMgr
 
 
 SERVER_CONTEXT = zmq.Context()
-
-
-def get_secret():
-    """Return string in place of passphrase."""
-    return SECRET
 
 
 class TestSuiteRuntimeClient(CylcWorkflowTestCase):

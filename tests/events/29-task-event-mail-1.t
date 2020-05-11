@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #-------------------------------------------------------------------------------
 # Test event mail, single task event
 . "$(dirname "$0")/test_header"
-if ! mail -V 2>'/dev/null'; then
+if ! command -v mail 2>'/dev/null'; then
     skip_all '"mail" command not available'
 fi
 set_test_number 4

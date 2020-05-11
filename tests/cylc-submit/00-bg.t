@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ elif [[ "${CONFIGURED_SYS_NAME}" == 'at' || "${CONFIGURED_SYS_NAME}" == *-at ]]
 then
     CONFIGURED_SYS_NAME=
     CYLC_TEST_BATCH_SYS_NAME='at'
+    skip_darwin 'atrun hard to configure on Mac OS'
 fi
 if [[ -n "${CONFIGURED_SYS_NAME}" ]]; then
     ITEM_KEY="[test battery][batch systems][$CONFIGURED_SYS_NAME]host"

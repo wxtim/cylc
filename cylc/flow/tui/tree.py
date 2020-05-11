@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -58,6 +58,8 @@ def translate_collapsing(app, old_node, new_node):
     """Transfer the collapse state from one tree to another.
 
     Arguments:
+        app (TuiApp):
+            Tui app instance.
         old_node (MonitorNode):
             Any node in the tree you want to copy the
             collapse/expand state from.

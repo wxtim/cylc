@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -120,6 +120,8 @@
 #         (Remote job tests should really use set_test_remote, below, however).
 #     set_test_remote
 #         set CYLC_TEST_HOST and CYLC_TEST_OWNER for remote job tests.
+#     get_fqdn_by_host [TARGET]
+#         Get a host FQDN using the same mechanism Cylc uses.
 #-------------------------------------------------------------------------------
 set -eu
 
@@ -456,6 +458,12 @@ log_scan () {
             if "${CYLC_TEST_DEBUG:-false}"; then
                 cat "${FILE}" >&2
             fi
+            mkdir -p "${TEST_LOG_DIR}"
+            ERR_FILE="${TEST_LOG_DIR}/${TEST_NAME}.stderr"
+            echo "ERR_FILE=$ERR_FILE" >&2
+            echo "Could not find: ${pattern}" > "${ERR_FILE}"
+            echo -e '\n=======================\n' >> "${ERR_FILE}"
+            cat "${FILE}" >> "${ERR_FILE}"
             skip "$#"
             return 1
         fi
@@ -548,6 +556,12 @@ skip() {
 skip_all() {
     echo "1..0 # SKIP $*"
     exit
+}
+
+skip_darwin() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        skip_all "Skipping (Mac OS/Darwin) $*"
+    fi
 }
 
 ssh_install_cylc() {
@@ -678,6 +692,18 @@ set_test_remote() {
   fi
   export CYLC_TEST_HOST=${CYLC_TEST_HOST:-"localhost"}
   export CYLC_TEST_OWNER=${CYLC_TEST_OWNER:-${USER}}
+}
+
+get_fqdn_by_host() {
+if [[ $# -eq 1 ]]; then
+    TARGET="'$1'"
+else
+    TARGET='None'
+fi
+python -c "
+from cylc.flow.hostuserutil import get_fqdn_by_host
+print(get_fqdn_by_host(${TARGET}))
+"
 }
 
 

@@ -1,5 +1,5 @@
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -89,7 +89,8 @@ def get_option_parser(is_restart):
             argdoc=[SUITE_NAME_ARG_DOC, START_POINT_ARG_DOC])
 
     parser.add_option(
-        "-n", "--no-detach", "--non-daemon", help="Do not daemonize the suite",
+        "-n", "--no-detach", "--non-daemon",
+        help="Do not daemonize the suite (infers --format=plain)",
         action="store_true", dest="no_detach")
 
     parser.add_option(
@@ -207,6 +208,23 @@ def get_option_parser(is_restart):
             "the 'suite servers' global config."
         ),
         metavar="HOST", action="store", dest="host")
+
+    parser.add_option(
+        "--format",
+        help="The format of the output: 'plain'=human readable, 'json'",
+        choices=("plain", "json"),
+        default="plain"
+    )
+
+    parser.add_option(
+        "--main-loop",
+        help=(
+            "Specify an additional plugin to run in the main loop."
+            " These are used in combination with those specified in"
+            " [cylc][main loop]plugins. Can be used multiple times"
+        ),
+        metavar="PLUGIN_NAME", action="append", dest="main_loop"
+    )
 
     parser.set_defaults(stop_point_string=None)
 

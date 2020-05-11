@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,9 +45,6 @@ TUI = """
 """
 
 from cylc.flow.task_state import (
-    TASK_STATUSES_ORDERED,
-    TASK_STATUS_DISPLAY_ORDER,
-    TASK_STATUS_RUNAHEAD,
     TASK_STATUS_WAITING,
     TASK_STATUS_QUEUED,
     TASK_STATUS_EXPIRED,
@@ -94,7 +91,7 @@ TASK_ICONS = {
     f'{TASK_STATUS_RUNNING}:75': '\u25D5',
     f'{TASK_STATUS_SUCCEEDED}': '\u25CF',
     f'{TASK_STATUS_EXPIRED}': '\u25CF',
-    f'{TASK_STATUS_SUBMIT_FAILED}': '\u2297',
+    f'{TASK_STATUS_SUBMIT_FAILED}': '\u2298',
     f'{TASK_STATUS_FAILED}': '\u2297'
 }
 

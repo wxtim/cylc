@@ -1,5 +1,5 @@
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@ import os
 import re
 import shutil
 import stat
-from string import ascii_letters, digits
 import zmq.auth
 
 from cylc.flow import LOG
@@ -137,12 +136,6 @@ class SuiteFiles:
         For details of the fields see ``ContactFileFields``.
         """
 
-        CONTACT2 = 'contact2'
-        """Same as ``CONTACT``, installed on remote platforms."""
-
-        PASSPHRASE = 'passphrase'
-        """The suite authentication token."""
-
         SOURCE = 'source'
         """Symlink to the suite definition (suite dir)."""
 
@@ -216,9 +209,6 @@ REG_DELIM = "/"
 
 NO_TITLE = "No title provided"
 REC_TITLE = re.compile(r"^\s*title\s*=\s*(.*)\s*$")
-
-PASSPHRASE_CHARSET = ascii_letters + digits
-PASSPHRASE_LEN = 20
 
 PS_OPTS = '-wopid,args'
 
@@ -341,109 +331,6 @@ def get_contact_file(reg):
         get_suite_srv_dir(reg), SuiteFiles.Service.CONTACT)
 
 
-def get_auth_item(item, reg, platform=None, content=False):
-    """Locate/load Curve private-key/ ...etc.
-
-    Return file name, or content of file if content=True is set.
-    Files are searched from these locations in order:
-
-    1/  Server Curve ZMQ keys located in suite service directory
-        Client Curve ZMQ keys located in
-            suite service directory (private keys)
-            suite service directory/client_public_keys (public keys)
-
-    2/ For running task jobs, service directory under:
-       a/ $CYLC_SUITE_RUN_DIR for remote jobs.
-       b/ $CYLC_SUITE_RUN_DIR_ON_SUITE_HOST for local jobs or remote jobs
-          with SSH messaging.
-
-    3/ For suite on local user@host. The suite service directory.
-
-    4/ Location under $HOME/.cylc/ for remote suite control from accounts
-       that do not actually need the suite definition directory to be
-       installed:
-       $HOME/.cylc/auth/SUITE_OWNER@SUITE_HOST/SUITE_NAME/
-
-    5/ For remote suites, try locating the file from the suite service
-       directory on remote owner@host via SSH. If content=False, the value
-       of the located file will be dumped under:
-       $HOME/.cylc/auth/SUITE_OWNER@SUITE_HOST/SUITE_NAME/
-
-    """
-
-    if item not in [
-            SuiteFiles.Service.CONTACT,
-            SuiteFiles.Service.CONTACT2] and not isinstance(item, KeyInfo):
-        raise ValueError(f"{item}: item not recognised")
-
-        # 1 (a)
-    if isinstance(item, KeyInfo):
-
-        item_location = _locate_item(item.file_name, item.key_path)
-
-        # TODO: separate key file 'get' into own function
-        # Additional searches below need a file name, not a complex object
-        item = item.file_name
-
-        if item_location:
-            return item_location
-
-    if reg == os.getenv('CYLC_SUITE_NAME'):
-        env_keys = []
-        if 'CYLC_SUITE_RUN_DIR' in os.environ:
-            # 2(a)/ Task messaging call.
-            env_keys.append('CYLC_SUITE_RUN_DIR')
-        elif ContactFileFields.SUITE_RUN_DIR_ON_SUITE_HOST in os.environ:
-            # 2(b)/ Task messaging call via ssh messaging.
-            env_keys.append(ContactFileFields.SUITE_RUN_DIR_ON_SUITE_HOST)
-        for key in env_keys:
-            path = os.path.join(os.environ[key], SuiteFiles.Service.DIRNAME)
-            if content:
-                value = _load_local_item(item, path)
-            else:
-                value = _locate_item(item, path)
-            if value:
-                return value
-    # 3/ Local suite service directory
-    if _is_local_auth_ok(reg, platform):
-        path = get_suite_srv_dir(reg)
-        if content:
-            value = _load_local_item(item, path)
-        else:
-            value = _locate_item(item, path)
-        if value:
-            return value
-    # 4/ Disk cache for remote suites
-    if platform is not None:
-        paths = [_get_cache_dir(reg, platform)]
-        short_host = host.split('.', 1)[0]
-        if short_host != host:
-            paths.append(_get_cache_dir(reg, owner, short_host))
-        for path in paths:
-            if content:
-                value = _load_local_item(item, path)
-            else:
-                value = _locate_item(item, path)
-            if value:
-                return value
-
-    # 5/ Use SSH to load content from remote owner@host
-    # Note: It is not possible to find ".service/contact2" on the suite
-    # host, because it is installed on task host by "cylc remote-init" on
-    # demand.
-    # Commented out as part of platfroms work.
-    # if item != SuiteFiles.Service.CONTACT2:
-        # value = _load_remote_item(item, reg, platform)
-        # if value:
-        #     if not content:
-        #         path = _get_cache_dir(reg, owner, host)
-        #         _dump_item(path, item, value)
-        #         value = os.path.join(path, item)
-        #     return value
-
-    raise SuiteServiceFileError("Couldn't get %s" % item)
-
-
 def get_suite_rc(reg, suite_owner=None):
     """Return the suite.rc path of a suite."""
     return os.path.join(
@@ -489,17 +376,19 @@ def get_suite_srv_dir(reg, suite_owner=None):
     return os.path.join(run_d, SuiteFiles.Service.DIRNAME)
 
 
-def load_contact_file(reg, platform=None, file_base=None):
+def load_contact_file(reg):
     """Load contact file. Return data as key=value dict."""
-    if not file_base:
-        file_base = SuiteFiles.Service.CONTACT
-    file_content = get_auth_item(
-        file_base, reg, platform, content=True)
-    data = {}
-    for line in file_content.splitlines():
-        key, value = [item.strip() for item in line.split("=", 1)]
-        data[key] = value
-    return data
+    file_base = SuiteFiles.Service.CONTACT
+    path = get_suite_srv_dir(reg)
+    file_content = _load_local_item(file_base, path)
+    if file_content:
+        data = {}
+        for line in file_content.splitlines():
+            key, value = [item.strip() for item in line.split("=", 1)]
+            data[key] = value
+        return data
+    else:
+        raise SuiteServiceFileError("Couldn't load contact file")
 
 
 def parse_suite_arg(options, arg):
@@ -636,8 +525,12 @@ def register(reg=None, source=None, redirect=False, rundir=None):
 
 
 def create_auth_files(reg):
-    """Create or renew authentication keys for suite 'reg' in the .service
-     directory."""
+    """Create or renew authentication keys for suite 'reg'.
+     Server Curve ZMQ keys located in suite service directory
+     Client Curve ZMQ keys located in:
+        suite service directory (private keys)
+        suite service directory/client_public_keys (public keys)
+    """
 
     suite_srv_dir = get_suite_srv_dir(reg)
 
@@ -710,14 +603,6 @@ def _dump_item(path, item, value):
     LOG.debug('Generated %s', fname)
 
 
-def _get_cache_dir(reg, platform):
-    """Return the cache directory for remote suite service files."""
-    return os.path.join(
-        os.path.expanduser("~"), ".cylc", "auth"
-        "%s@%s" % (platform['owner'], platform['remote hosts'][0]), reg
-    )
-
-
 def get_suite_title(reg):
     """Return the the suite title without a full file parse
 
@@ -738,43 +623,6 @@ def get_suite_title(reg):
         if match:
             title = match.groups()[0].strip('"\'')
     return title
-
-
-@lru_cache()
-def _is_local_auth_ok(reg, platform):
-    """Return True if it is OK to use local passphrase file.
-
-    Use values in ~/cylc-run/REG/.service/contact to make a judgement.
-    """
-    if is_remote_platform(platform):
-        fname = os.path.join(
-            get_suite_srv_dir(reg), SuiteFiles.Service.CONTACT)
-        data = {}
-        try:
-            for line in open(fname):
-                key, value = (
-                    [item.strip() for item in line.split("=", 1)])
-                data[key] = value
-        except (IOError, ValueError):
-            # No contact file
-            return False
-        else:
-            # Contact file exists, check values match
-            if platform['owner'] is None:
-                owner = get_user()
-            if platform['remote hosts'] is []:
-                host = get_host()
-            host_value = data.get(ContactFileFields.HOST, "")
-            return (
-                reg == data.get(ContactFileFields.NAME) and
-                owner == data.get(ContactFileFields.OWNER) and
-                (
-                    host == host_value or
-                    host == host_value.split(".", 1)[0]  # no domain
-                )
-            )
-    else:
-        return True
 
 
 def _load_local_item(item, path):
@@ -823,44 +671,3 @@ def _load_remote_item(item, reg, platform):
         'item': item
     }
     import shlex
-    command = shlex.split(platform['ssh command'])
-    command += ['-n', owner + '@' + host, script]
-    from subprocess import Popen, PIPE, DEVNULL  # nosec
-    try:
-        proc = Popen(
-            command, stdin=DEVNULL, stdout=PIPE, stderr=PIPE)  # nosec
-    except OSError:
-        if cylc.flow.flags.debug:
-            import traceback
-            traceback.print_exc()
-        return
-    out, err = (f.decode() for f in proc.communicate())
-    ret_code = proc.wait()
-    # Extract passphrase from STDOUT
-    # It should live in the line with the correct prefix
-    content = ""
-    can_read = False
-    for line in out.splitlines(True):
-        if can_read:
-            content += line
-        elif line.strip() == prefix:
-            can_read = True
-    if not content or ret_code:
-        LOG.debug(
-            '$ %(command)s  # code=%(ret_code)s\n%(err)s',
-            {
-                'command': command,
-                # STDOUT may contain passphrase, so not safe to print
-                # 'out': out,
-                'err': err,
-                'ret_code': ret_code,
-            })
-        return
-    return content
-
-
-def _locate_item(item, path):
-    """Locate a service item in "path"."""
-    fname = os.path.join(path, item)
-    if os.path.exists(fname):
-        return fname

@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 . "$(dirname "$0")/test_header"
 
 set_test_number 4
+skip_darwin 'atrun hard to configure on Mac OS'
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
 
 CYLC_TEST_BATCH_SYS=${TEST_NAME_BASE##??-}

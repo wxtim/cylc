@@ -1,5 +1,5 @@
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -229,6 +229,8 @@ def get_scan_items_from_fs(
 
     Walk users' "~/cylc-run/" to get (host, port) from ".service/contact" for
     active, or all (active plus registered but dormant), suites.
+    Note suites run in cylc 7 or less will only be returned as LOG.info
+    statement.
 
     Yields:
         tuple - (reg, host, port, pub_port, api)
@@ -277,21 +279,41 @@ def get_scan_items_from_fs(
                     reg)
             except (SuiteServiceFileError, IOError, TypeError, ValueError):
                 continue
-            yield (
-                reg,
-                contact_data[ContactFileFields.HOST],
-                contact_data[ContactFileFields.PORT],
-                contact_data[ContactFileFields.PUBLISH_PORT],
-                contact_data[ContactFileFields.API]
-            )
-        else:
-            try:
-                source_dir = get_suite_source_dir(reg)
-                title = get_suite_title(reg)
-            except (SuiteServiceFileError, IOError):
-                continue
-            yield (
-                reg,
-                source_dir,
-                title
-            )
+
+            # Choose only suites with .service and matching filter
+            if active_only:
+                # Skip suites running with cylc version < 8 (these suites
+                # do not have PUBLISH_PORT field)
+                try:
+                    contact_data = load_contact_file(reg, owner)
+                except (SuiteServiceFileError, IOError, TypeError) as exc:
+                    LOG.debug(f"Error loading contact file for: {reg}")
+                    continue
+                try:
+                    cylc_version = contact_data[ContactFileFields.VERSION]
+                    major_version = int(cylc_version.split(".", 1)[0])
+                    if (major_version < 8):
+                        LOG.info(f"Omitting \"{reg}\" (cylc-{cylc_version})")
+                        continue
+                except Exception as exc:
+                    LOG.debug(
+                        f"Error getting version from contact file: {exc}")
+                    continue
+                yield (
+                    reg,
+                    contact_data[ContactFileFields.HOST],
+                    contact_data[ContactFileFields.PORT],
+                    contact_data[ContactFileFields.PUBLISH_PORT],
+                    contact_data[ContactFileFields.API]
+                )
+            else:
+                try:
+                    source_dir = get_suite_source_dir(reg)
+                    title = get_suite_title(reg)
+                except (SuiteServiceFileError, IOError):
+                    continue
+                yield (
+                    reg,
+                    source_dir,
+                    title
+                )

@@ -1,6 +1,6 @@
 #!/bin/bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
-# Copyright (C) 2008-2019 NIWA & British Crown (Met Office) & Contributors.
+# Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,10 @@ set_test_number 17
 
 BASE_GLOBALRC="
 [cylc]
-    health check interval = PT5S
+    [[main loop]]
+        plugins = health check, auto restart
+        [[[auto restart]]]
+            interval = PT5S
     [[events]]
         abort on inactivity = True
         abort on timeout = True
@@ -94,7 +97,7 @@ grep_fail "$(job-ps-line bar)" "${TEST_NAME}-ps-2.stdout"
 poll_suite_stopped
 FILE=$(cylc cat-log "${SUITE_NAME}" -m p |xargs readlink -f)
 log_scan "${TEST_NAME}-restart" "${FILE}" 20 1 \
-    "Suite server: url=tcp://$(ssh "${CYLC_TEST_HOST2}" hostname -f)"
+    "Suite server: url=tcp://$(get_fqdn_by_host "${CYLC_TEST_HOST2}")"
 sleep 1
 #-------------------------------------------------------------------------------
 # auto stop-restart - force mode:
