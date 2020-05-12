@@ -6,8 +6,7 @@
     [[root]]
         script = true
     [[bar]]
-        [[[remote]]]
-            host = $(no-such-command)
+        platform = $(no-such-command)
     [[foo]]
         [[[job]]]
             batch system = at
