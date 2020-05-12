@@ -259,7 +259,7 @@ class TaskJobManager(object):
                     'is_manual_submit': itask.is_manual_submit,
                     'try_num': itask.get_try_num(),
                     'time_submit': now_str,
-                    'user_at_host': owner_at_host,
+                    'platform_name': platform['name'],
                     'batch_sys_name': itask.summary['batch_sys_name'],
                 })
                 itask.is_manual_submit = False
