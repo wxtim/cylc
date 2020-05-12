@@ -23,7 +23,7 @@ install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
 
 for I in 13 37 61; do
     create_test_globalrc '' "
-[hosts]
+[job platforms]
     [[localhost]]
         [[[batch systems]]]
             [[[[pbs]]]]
