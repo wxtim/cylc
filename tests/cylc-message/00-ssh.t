@@ -27,7 +27,7 @@ set_test_remote_host
 set_test_number 3
 
 create_test_globalrc '' "
-[hosts]
+[job platforms]
     [[${CYLC_TEST_HOST}]]
         task communication method = ssh"
 
