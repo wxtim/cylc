@@ -45,7 +45,7 @@ def main():
             __doc__,
             argdoc=[
                 ("UUID", "UUID of current suite server process"),
-                ("RUND", "The run directory of the suite")
+                ("RUND", "The run directory of the suite"),
             ],
         )
         parser.add_option(

@@ -232,6 +232,7 @@ class ZMQSocketBase:
                 KeyType.PUBLIC,
                 KeyOwner.SERVER,
                 suite_srv_dir=suite_srv_dir)
+
         else:
             srv_pub_key_info = KeyInfo(
                 KeyType.PUBLIC,
@@ -242,11 +243,11 @@ class ZMQSocketBase:
         self.port = port
         self.socket = self.context.socket(self.pattern)
         self._socket_options()
+
         client_priv_key_info = KeyInfo(
             KeyType.PRIVATE,
             KeyOwner.CLIENT,
             suite_srv_dir=suite_srv_dir)
-
         error_msg = "Failed to find user's private key, so cannot connect."
         try:
             client_public_key, client_priv_key = zmq.auth.load_certificate(
@@ -272,6 +273,7 @@ class ZMQSocketBase:
         except (OSError, ValueError):  # ValueError raised w/ no public key
             raise ClientError(
                 "Failed to load the suite's public key, so cannot connect.")
+
         self.socket.connect(f'tcp://{host}:{port}')
 
     def _socket_options(self):

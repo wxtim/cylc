@@ -296,6 +296,7 @@ class Scheduler(object):
             barrier.wait()
             self.port = self.server.port
             self.pub_port = self.publisher.port
+
             self.configure()
             self.profiler.start()
             self.run()

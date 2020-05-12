@@ -288,13 +288,11 @@ class TaskRemoteMgr(object):
 
     def _remote_init_callback(self, proc_ctx, host, owner, tmphandle, suite):
         """Callback when "cylc remote-init" exits"""
-        import re
         self.ready = True
         try:
             tmphandle.close()
         except OSError:  # E.g. ignore bad unlink, etc
             pass
-
         if proc_ctx.ret_code == 0:
             if "KEYSTART" in proc_ctx.out:
                 regex_result = re.search(
@@ -311,10 +309,10 @@ class TaskRemoteMgr(object):
                 _ = text_file.write(key)
                 text_file.close()
                 os.umask(old_umask)
-
             for status in (REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED):
                 if status in proc_ctx.out:
                     # Good status
+                    LOG.debug(proc_ctx)
                     self.remote_init_map[(host, owner)] = status
                     return
         # Bad status
@@ -344,6 +342,7 @@ class TaskRemoteMgr(object):
                     SuiteFiles.Service.CONTACT)))
 
         if comm_meth in ['zmq']:
+
             suite_srv_dir = get_suite_srv_dir(self.suite)
             server_pub_keyinfo = KeyInfo(
                 KeyType.PUBLIC,

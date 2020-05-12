@@ -18,7 +18,6 @@
 import os
 import zmq
 import tarfile
-from zmq.utils.strtypes import bytes, unicode, b, u
 import sys
 import datetime
 
