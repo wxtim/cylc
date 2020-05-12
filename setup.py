@@ -51,7 +51,8 @@ install_requires = [
     'protobuf==3.12.1',
     'pyzmq==18.1.*',
     'psutil>=5.6.0',
-    'urwid==2.*'
+    'urwid==2.*',
+    'watchdog==0.10.*'
 ]
 tests_require = [
     'codecov>=2.0.0',
