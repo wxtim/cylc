@@ -752,6 +752,7 @@ class CylcSuiteDAO(object):
                 %(task_states)s.submit_num,
                 %(task_jobs)s.try_num,
                 %(task_jobs)s.user_at_host,
+                %(task_jobs)s.platform_name,
                 %(task_jobs)s.time_submit,
                 %(task_jobs)s.time_run,
                 %(task_timeout_timers)s.timeout,
