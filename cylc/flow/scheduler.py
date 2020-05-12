@@ -608,7 +608,6 @@ see `COPYING' in the Cylc source distribution.
         # Re-initialise run directory for user@host for each submitted and
         # running tasks.
         # Note: tasks should all be in the runahead pool at this point.
-
         auths = set()
         for itask in self.pool.get_rh_tasks():
             if itask.state(*TASK_STATUSES_ACTIVE):
@@ -1591,7 +1590,6 @@ see `COPYING' in the Cylc source distribution.
             await asyncio.sleep(duration)
             # Record latest main loop interval
             self.main_loop_intervals.append(time() - tinit)
-
             # END MAIN LOOP
 
     async def update_data_structure(self):

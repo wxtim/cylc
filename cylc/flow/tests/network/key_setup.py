@@ -34,12 +34,20 @@ def setup_keys(suite_name):
             KeyType.PUBLIC,
             KeyOwner.CLIENT,
             suite_srv_dir=suite_srv_dir),
+        "client_private_key": KeyInfo(
+            KeyType.PRIVATE,
+            KeyOwner.CLIENT,
+            suite_srv_dir=suite_srv_dir),
+        "server_public_key": KeyInfo(
+            KeyType.PUBLIC,
+            KeyOwner.SERVER,
+            suite_srv_dir=suite_srv_dir),
         "server_private_key": KeyInfo(
             KeyType.PRIVATE,
             KeyOwner.SERVER,
             suite_srv_dir=suite_srv_dir)
     }
     remove_keys_on_server(server_keys)
-    remove_keys_on_platform(suite_name, suite_srv_dir)
+    remove_keys_on_platform(suite_srv_dir)
     create_server_keys(server_keys, suite_srv_dir)
     create_platform_keys(suite_name, suite_srv_dir)

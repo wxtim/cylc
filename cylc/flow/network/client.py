@@ -109,10 +109,9 @@ class SuiteRuntimeClient(ZMQSocketBase):
             port: Union[int, str] = None,
             context: object = None,
             timeout: Union[float, str] = None,
-            srv_public_key_loc: str = None,
-            scan: bool = False
+            srv_public_key_loc: str = None
     ):
-        super().__init__(zmq.REQ, context=context, scan=scan)
+        super().__init__(zmq.REQ, context=context)
         self.suite = suite
         if port:
             port = int(port)
@@ -173,7 +172,7 @@ class SuiteRuntimeClient(ZMQSocketBase):
             if callable(self.timeout_handler):
                 self.timeout_handler()
             raise ClientTimeout(
-                'Timeout waiting for server response.'
+                'Timeout waitilsng for server response.'
                 'This could be due to network or server issues.'
                 'Check the suite log.'
             )

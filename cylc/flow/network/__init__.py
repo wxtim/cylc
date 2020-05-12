@@ -113,7 +113,7 @@ class ZMQSocketBase:
     """
 
     def __init__(self, pattern, suite=None, bind=False, context=None,
-                 barrier=None, threaded=False, daemon=False, scan=False):
+                 barrier=None, threaded=False, daemon=False):
         self.bind = bind
         if context is None:
             self.context = zmq.asyncio.Context()
@@ -130,7 +130,6 @@ class ZMQSocketBase:
         self.thread = None
         self.loop = None
         self.stopping = False
-        self.scan = scan
 
     def start(self, *args, **kwargs):
         """Start the server/network-component.
@@ -160,10 +159,7 @@ class ZMQSocketBase:
         if self.bind:
             self._socket_bind(*args, **kwargs)
         else:
-            if self.scan is False:
-                self._socket_connect(*args, **kwargs)
-            else:
-                self._socket_scan_connect(*args, **kwargs)
+            self._socket_connect(*args, **kwargs)
 
         # initiate bespoke items
         self._bespoke_start()
@@ -273,58 +269,6 @@ class ZMQSocketBase:
             server_public_key = zmq.auth.load_certificate(
                 srv_pub_key_info.full_key_path)[0]
             self.socket.curve_serverkey = server_public_key
-        except (OSError, ValueError):  # ValueError raised w/ no public key
-            raise ClientError(
-                "Failed to load the suite's public key, so cannot connect.")
-        self.socket.connect(f'tcp://{host}:{port}')
-
-    def _socket_scan_connect(self, host, port, srv_public_key_loc=None):
-        """Connect socket to stub."""
-
-        suite_srv_dir = get_suite_srv_dir(self.suite)
-        srv_priv_key_info = KeyInfo(
-            KeyType.PRIVATE,
-            KeyOwner.SERVER,
-            suite_srv_dir=suite_srv_dir)
-        client_pub_key_info = KeyInfo(
-            KeyType.PUBLIC,
-            KeyOwner.CLIENT,
-            suite_srv_dir=suite_srv_dir)
-
-        self.host = host
-        self.port = port
-        self.socket = self.context.socket(self.pattern)
-        self._socket_options()
-        error_msg = (
-            "Failed to find user's cylc scan private key, so cannot connect.")
-        # give keys time to load
-        array_of_timings = [2, 4]
-        for attempt, delay in enumerate(array_of_timings):
-            try:
-                srv_public_key, srv_priv_key = zmq.auth.load_certificate(
-                    srv_priv_key_info.full_key_path)
-            except (OSError, ValueError):
-                if attempt == len(array_of_timings):
-                    raise ClientError(error_msg)
-                else:
-                    sleep(delay)
-                    continue
-            else:
-                self.socket.curve_publickey = srv_public_key
-                self.socket.curve_secretkey = srv_priv_key
-                break
-
-        # A client can only connect to the server if it knows its public key,
-        # so we grab this from the location it was created on the filesystem:
-        try:
-            # 'load_certificate' will try to load both public & private keys
-            # from a provided file but will return None, not throw an error,
-            # for the latter item if not there (as for all public key files)
-            # so it is OK to use; there is no method to load only the
-            # public key.
-            # client_public_key = zmq.auth.load_certificate(
-            #   client_pub_key_info.full_key_path)[0]
-            self.socket.curve_serverkey = srv_public_key
         except (OSError, ValueError):  # ValueError raised w/ no public key
             raise ClientError(
                 "Failed to load the suite's public key, so cannot connect.")

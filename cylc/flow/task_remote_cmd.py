@@ -39,7 +39,7 @@ REMOTE_INIT_DONE = 'REMOTE INIT DONE'
 REMOTE_INIT_NOT_REQUIRED = 'REMOTE INIT NOT REQUIRED'
 
 
-def remove_keys_on_platform(suite, srvd):
+def remove_keys_on_platform(srvd):
     """Removes platform-held authentication keys"""
     keys = {
         "client_private_key": KeyInfo(
@@ -49,7 +49,7 @@ def remove_keys_on_platform(suite, srvd):
         "client_public_key": KeyInfo(
             KeyType.PUBLIC,
             KeyOwner.CLIENT,
-            suite_srv_dir=srvd),
+            suite_srv_dir=srvd, server_held=False),
         "server_public_key": KeyInfo(
             KeyType.PUBLIC,
             KeyOwner.SERVER,
@@ -62,7 +62,7 @@ def remove_keys_on_platform(suite, srvd):
             os.remove(k.full_key_path)
 
 
-def create_platform_keys(suite, srvd):
+def create_platform_keys(srvd):
     """Create or renew authentication keys for suite 'reg' in the .service
      directory.
      Generate a pair of ZMQ authentication keys"""
@@ -77,7 +77,7 @@ def create_platform_keys(suite, srvd):
     os.umask(old_umask)
 
 
-def remote_init(uuid_str, rund, suite, indirect_comm=None):
+def remote_init(uuid_str, rund, indirect_comm=None):
     """cylc remote-init
 
     Arguments:
@@ -96,8 +96,8 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
             print(REMOTE_INIT_NOT_REQUIRED)
             return
     os.makedirs(srvd, exist_ok=True)
-    remove_keys_on_platform(suite, srvd)
-    create_platform_keys(suite, srvd)
+    remove_keys_on_platform(srvd)
+    create_platform_keys(srvd)
     oldcwd = os.getcwd()
     os.chdir(rund)
     # Extract job.sh from library, for use in job scripts.
@@ -118,7 +118,6 @@ def remote_init(uuid_str, rund, suite, indirect_comm=None):
     keyfile = open(path_to_pub_key)
     print(keyfile.read(), end='KEYEND')
     keyfile.close()
-
     print(REMOTE_INIT_DONE)
     return
 
@@ -144,6 +143,8 @@ def remote_tidy(rund):
         else:
             if cylc.flow.flags.debug:
                 print('Deleted: %s' % fname)
+
+    remove_keys_on_platform(srvd)
     try:
         os.rmdir(srvd)  # remove directory if empty
     except OSError:

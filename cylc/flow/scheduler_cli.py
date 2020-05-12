@@ -28,7 +28,7 @@ from cylc.flow.pathutil import get_suite_run_dir
 from cylc.flow.remote import remrun, remote_cylc_cmd
 from cylc.flow.scheduler import Scheduler
 from cylc.flow import suite_files
-from cylc.flow.suite_files import (KeyType, KeyOwner, KeyInfo)
+from cylc.flow.suite_files import (KeyInfo, KeyOwner, KeyType)
 from cylc.flow.resources import extract_resources
 from cylc.flow.terminal import cli_function
 
@@ -280,6 +280,10 @@ def scheduler_cli(parser, options, args, is_restart=False):
             KeyType.PUBLIC,
             KeyOwner.CLIENT,
             suite_srv_dir=suite_srv_dir, platform=host),
+        "client_private_key": KeyInfo(
+            KeyType.PRIVATE,
+            KeyOwner.CLIENT,
+            suite_srv_dir=suite_srv_dir),
         "server_public_key": KeyInfo(
             KeyType.PUBLIC,
             KeyOwner.SERVER,

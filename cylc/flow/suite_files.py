@@ -17,7 +17,6 @@
 
 # Note: Some modules are NOT imported in the header. Expensive modules are only
 # imported on demand.
-import errno
 from functools import lru_cache
 import os
 import re
@@ -68,7 +67,7 @@ class KeyInfo():
     """
 
     def __init__(self, key_type, key_owner, full_key_path=None,
-                 suite_srv_dir=None, platform=None):
+                 suite_srv_dir=None, platform=None, server_held=True):
         self.key_type = key_type
         self.key_owner = key_owner
         self.full_key_path = full_key_path
@@ -80,7 +79,7 @@ class KeyInfo():
             # Build key filename
             file_name = key_owner.value
 
-            # Add optional platform name (supports future multiple client keys)
+            # Add optional platform name
             if key_owner is KeyOwner.CLIENT and self.platform is not None:
                 file_name = file_name + f"_{self.platform}"
 
@@ -92,14 +91,18 @@ class KeyInfo():
             self.file_name = f"{file_name}{file_extension}"
 
             # Build key path (without filename) for client public keys
-            if key_owner is KeyOwner.CLIENT and key_type is KeyType.PUBLIC:
+            if (key_owner is KeyOwner.CLIENT
+                    and key_type is KeyType.PUBLIC and server_held):
                 temp = f"{key_owner.value}_{key_type.value}_keys"
                 self.key_path = os.path.join(
                     os.path.expanduser("~"),
                     self.suite_srv_dir,
                     temp)
-
             elif (
+                (key_owner is KeyOwner.CLIENT
+                 and key_type is KeyType.PUBLIC
+                 and server_held is False)
+                or
                 (key_owner is KeyOwner.SERVER
                  and key_type is KeyType.PRIVATE)
                 or (key_owner is KeyOwner.CLIENT
@@ -635,6 +638,10 @@ def remove_keys_on_server(keys):
     for k in keys.values():
         if os.path.exists(k.full_key_path):
             os.remove(k.full_key_path)
+    # Remove client public key folder
+    client_public_key_dir = keys["client_public_key"].key_path
+    if os.path.exists(client_public_key_dir):
+        shutil.rmtree(client_public_key_dir)
 
 
 def create_server_keys(keys, suite_srv_dir):
@@ -654,10 +661,9 @@ def create_server_keys(keys, suite_srv_dir):
 
     # cylc scan requires host to behave as a client, so copy public server
     # key into client public key folder
-    client_folder = keys["client_public_key"].key_path
-    server_pub_in_client_folder = f"{client_folder}/client_host.key"
-    fake_client_private_key = os.path.join(suite_srv_dir, "client.key_secret")
-    shutil.copyfile(_server_private_full_key_path, fake_client_private_key)
+    server_pub_in_client_folder = keys["client_public_key"].full_key_path
+    client_host_private_key = keys["client_private_key"].full_key_path
+    shutil.copyfile(_server_private_full_key_path, client_host_private_key)
     shutil.copyfile(_server_public_full_key_path, server_pub_in_client_folder)
     # Return file permissions to default settings.
     os.umask(old_umask)

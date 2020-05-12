@@ -202,7 +202,6 @@ class TaskRemoteMgr(object):
             cmd.append('--indirect-comm=%s' % comm_meth)
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
-        cmd.append(self.suite)
         self.proc_pool.put_command(
             SubProcContext(
                 'remote-init',
@@ -306,15 +305,16 @@ class TaskRemoteMgr(object):
                     KeyType.PUBLIC,
                     KeyOwner.CLIENT,
                     suite_srv_dir=suite_srv_dir, platform=host)
+                old_umask = os.umask(0o177)
                 text_file = open(
                     public_key.full_key_path, "w", encoding='utf8')
                 _ = text_file.write(key)
                 text_file.close()
+                os.umask(old_umask)
 
             for status in (REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED):
                 if status in proc_ctx.out:
                     # Good status
-                    LOG.debug(proc_ctx)
                     self.remote_init_map[(host, owner)] = status
                     return
         # Bad status
