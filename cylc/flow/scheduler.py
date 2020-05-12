@@ -617,12 +617,12 @@ see `COPYING' in the Cylc source distribution.
         auths = set()
         for itask in self.pool.get_rh_tasks():
             if itask.state(*TASK_STATUSES_ACTIVE):
-                auths.add(itask.task_platform)
+                auths.add(itask.platform['name'])
         while auths:
-            for platform in auths.copy():
+            for platform_name in auths.copy():
                 if self.task_job_mgr.task_remote_mgr.remote_init(
-                        platform) is not None:
-                    auths.remove(platform)
+                        platform_name) is not None:
+                    auths.remove(platform_name)
             if auths:
                 sleep(1.0)
                 # Remote init is done via process pool
