@@ -202,9 +202,12 @@ class TaskRemoteMgr(object):
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
         self.proc_pool.put_command(
-            SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
+            SubProcContext(
+                'remote-init',
+                cmd,
+                stdin_files=[tmphandle]),
             self._remote_init_callback,
-            [host, owner, tmphandle])
+            [host, owner, tmphandle, self.suite])
         # None status: Waiting for command to finish
         self.remote_init_map[(host, owner)] = None
         return self.remote_init_map[(host, owner)]
@@ -282,7 +285,7 @@ class TaskRemoteMgr(object):
                 TaskRemoteMgmtError.MSG_SELECT, (cmd_str, None), cmd_str,
                 proc_ctx.ret_code, proc_ctx.out, proc_ctx.err)
 
-    def _remote_init_callback(self, proc_ctx, host, owner, tmphandle):
+    def _remote_init_callback(self, proc_ctx, host, owner, tmphandle, suite):
         """Callback when "cylc remote-init" exits"""
         self.ready = True
         try:
@@ -290,6 +293,21 @@ class TaskRemoteMgr(object):
         except OSError:  # E.g. ignore bad unlink, etc
             pass
         if proc_ctx.ret_code == 0:
+            if "KEYSTART" in proc_ctx.out:
+                regex_result = re.search(
+                    'KEYSTART((.|\n|\r)*)KEYEND', proc_ctx.out)
+                key = regex_result.group(1)
+                suite_srv_dir = get_suite_srv_dir(suite)
+                public_key = KeyInfo(
+                    KeyType.PUBLIC,
+                    KeyOwner.CLIENT,
+                    suite_srv_dir=suite_srv_dir, platform=host)
+                old_umask = os.umask(0o177)
+                text_file = open(
+                    public_key.full_key_path, "w", encoding='utf8')
+                _ = text_file.write(key)
+                text_file.close()
+                os.umask(old_umask)
             for status in (REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED):
                 if status in proc_ctx.out:
                     # Good status
@@ -329,18 +347,9 @@ class TaskRemoteMgr(object):
                 KeyType.PUBLIC,
                 KeyOwner.SERVER,
                 suite_srv_dir=suite_srv_dir)
-            client_pri_keyinfo = KeyInfo(
-                KeyType.PRIVATE,
-                KeyOwner.CLIENT,
-                suite_srv_dir=suite_srv_dir)
             dest_path_srvr_public_key = os.path.join(
                 SuiteFiles.Service.DIRNAME, server_pub_keyinfo.file_name)
             items.append(
                 (server_pub_keyinfo.full_key_path,
                  dest_path_srvr_public_key))
-            dest_path_cli_pri_key = os.path.join(
-                SuiteFiles.Service.DIRNAME, client_pri_keyinfo.file_name)
-            items.append(
-                (client_pri_keyinfo.full_key_path,
-                 dest_path_cli_pri_key))
         return items
