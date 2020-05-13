@@ -25,7 +25,8 @@ def init_flows(tmp_path, running=None, registered=None, un_registered=None):
     for name in (un_registered or []):
         Path(tmp_path, name).mkdir(parents=True, exist_ok=True)
     # chuck a file in there just to be annoying
-    Path(tmp_path, 'this-is-a-random-file').touch()
+    # Path(tmp_path, 'this-is-a-random-file').touch()
+    # TODO - stick this in a separate test
 
 
 @pytest.fixture(scope='session')
@@ -202,3 +203,69 @@ def test_scan_really_nasty_symlinks(run_dir_with_really_nasty_symlinks):
     """It should handle infinite symlinks because users can be really nasty."""
     with pytest.raises(OSError):
         list(scan(run_dir_with_really_nasty_symlinks))
+
+
+def q2lst(queue):
+    ret = []
+    while not queue.empty():
+        ret.append(queue.get())
+    return ret
+
+
+from time import sleep
+
+
+def qscan(queue, timeout=2, step=0.1):
+    elapsed = 0
+    while queue.empty():
+        if elapsed >= timeout:
+            raise Exception('Meh')
+        sleep(step)
+        elapsed += step
+
+
+
+def test_cont_scan_initial(sample_run_dir):
+    """It should pick up flows the same as scan when it starts up."""
+    with continuous_scan(sample_run_dir) as queue:
+        # immediately stop the scan
+        pass
+
+    assert q2lst(queue) == [
+        ('started', 'foo'),
+        ('started', 'bar/pub'),
+        ('stopped', 'baz')
+    ]
+
+
+def test_cont_scan(tmp_path):
+    with continuous_scan(tmp_path) as queue:
+        # queues should start empty
+        assert q2lst(queue) == []
+
+        # create one
+        init_flows(tmp_path, registered=('foo',))
+        assert Path(tmp_path, 'foo/.service').exists()
+        qscan(queue)
+
+        # assert q2lst(queue) == [
+        #     ('created', 'foo')
+        # ]
+
+        # run one
+        init_flows(tmp_path, running=('foo',))
+        assert Path(tmp_path, 'foo/.service/contact').exists()
+        qscan(queue)
+        sleep(1)
+        assert q2lst(queue) == []
+        #     ('started', 'foo')
+        # ]
+
+        return
+
+        assert Path(tmp_path, 'foo').exists()
+        assert Path(tmp_path, 'foo/.service').exists()
+        assert Path(tmp_path, 'foo/.service/contact').exists()
+        return
+
+        assert started.get(timeout=2) == 'foo'
