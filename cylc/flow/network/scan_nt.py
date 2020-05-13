@@ -38,10 +38,8 @@ class FlowScanner(RegexMatchingEventHandler):
     Args:
         observer (watchdog.observers.Observer):
             An observer instance to use for scanning.
-        started (queue.Queue):
-            The queue that newly started flows will be added to.
-        stopped (queue.Queue):
-            The queue that stopped flows will be added to.
+        queue (queue.Queue):
+            Queue for adding events to.
         flow (str):
             For internal use.
         service (bool):
@@ -52,18 +50,20 @@ class FlowScanner(RegexMatchingEventHandler):
     def __init__(
             self,
             observer,
-            started,
-            stopped,
+            queue,
             flow=None,
             service=False,
             **kwargs
     ):
         self.observer = observer
-        self.started = started
-        self.stopped = stopped
+        self.queue = queue
         self.flow = flow
         self.service = service
         RegexMatchingEventHandler.__init__(self, **kwargs)
+
+    def on_any_event(self, event):
+        # TODO: nicify this and build it around this any_event thinggy
+        self.queue.put(('event', *event.key))
 
     def on_created(self, event):
         if not self.flow and event.is_directory:
@@ -71,31 +71,44 @@ class FlowScanner(RegexMatchingEventHandler):
             self.observer.schedule(
                 FlowScanner(
                     self.observer,
-                    self.started,
-                    self.stopped,
+                    self.queue,
                     flow=flow,
                     regexes=['.*service']
                 ),
                 event.src_path
             )
+            # self.created.put(flow)
+            self.queue.put(('created', flow))
         elif self.flow and not self.service:
-                self.observer.schedule(
-                    FlowScanner(
-                        self.observer,
-                        self.started,
-                        self.stopped,
-                        flow=self.flow,
-                        service=True,
-                        regexes=['.*contact']
-                    ),
-                    event.src_path
-                )
+            self.observer.schedule(
+                FlowScanner(
+                    self.observer,
+                    self.queue,
+                    flow=self.flow,
+                    service=True,
+                    regexes=['.*contact']
+                ),
+                event.src_path
+            )
+            # self.created.put(self.flow)
+            self.queue.put('meh')
         elif self.service:
-            self.started.put(self.flow)
+            # self.started.put(self.flow)
+            self.queue.put(('started', self.flow))
+        else:
+            self.queue.put(('error', (self.flow, self.service, event.src_path)))
 
     def on_deleted(self, event):
-        flow = self.flow or Path(event.src_path).name
-        self.stopped.put(flow)
+        self.queue.put(('on_deleted', event))
+        if not self.flow and event.is_directory:
+            # self.removed.put(Path(event.src_path).name)
+            self.queue.put(('removed', Path(event.src_path).name))
+        elif self.flow and not self.service:
+            # self.stopped.put(self.flow)
+            self.queue.put(('stopped', self.flow))
+        elif self.service:
+            # self.stopped.put(self.flow)
+            self.queue.put(('stopped', self.flow))
         # stop the observer observing?
 
 
@@ -103,24 +116,34 @@ class FlowScanner(RegexMatchingEventHandler):
 def continuous_scan(path=None, patterns=None):
     """
     """
+    kwargs = {}
+    if patterns:
+        kwargs['regexes'] = patterns
+    # create the queue
+    queue = Queue()
+    # perform an initial scan
+    for item in scan(path, patterns=patterns, is_active=True):
+        # started.put(item)
+        queue.put(('started', item))
+    for item in scan(path, patterns=patterns, is_active=False):
+        # stopped.put(item)
+        queue.put(('stopped', item))
     try:
-        started = Queue()
-        stopped = Queue()
-        kwargs = {}
-        if patterns:
-            kwargs['regexes'] = patterns
-        event_handler = FlowScanner(observer, started, stopped, **kwargs)
-        observer.schedule(event_handler, path)
+        # boot up the continuous scanner
+        observer = Observer()
+        event_handler = FlowScanner(observer, queue, **kwargs)
+        observer.schedule(event_handler, str(path))
         observer.start()
         print('# started')
-        yield started, stopped
+        yield queue
     finally:
+        # shutdown the continuous scanner
         observer.stop()
         observer.join()
         print('# stopped')
 
 
-# with cont_scan('.') as (started, stopped):
+# with continuous_scan('.') as (started, stopped):
 #     time.sleep(10)
 #     print('started:')
 #     while not started.empty():
@@ -143,6 +166,7 @@ def regex_combine(patterns):
 
 
 def scan(path=None, patterns=None, is_active=None):
+    path = Path(path)
     if patterns:
         patterns = re.compile(regex_combine(patterns))
     service = Path(SuiteFiles.Service.DIRNAME)
