@@ -412,10 +412,9 @@ def main(parser, options, *args, color=False):
                 elif mode == 'tail':
                     conf_key = "err tailer"
             if conf_key is not None:
-                conf = platform["batch systems"]
                 batchview_cmd_tmpl = None
                 try:
-                    batchview_cmd_tmpl = conf[batch_sys_name][conf_key]
+                    batchview_cmd_tmpl = platform[conf_key]
                 except KeyError:
                     pass
                 if batchview_cmd_tmpl is not None:
