@@ -595,21 +595,18 @@ see `COPYING' in the Cylc source distribution.
                 # No start cycle point at which to load cycling tasks.
                 continue
             tdef = self.config.get_taskdef(name)
-            spawn = []
-            for seq in tdef.sequences:
-                point = seq.get_first_point(self.config.start_point)
-                if point is None:
-                    continue
-                spawn.append(point)
-            if not spawn:
-                continue
-            spawn.sort()
-            point = spawn[0]
+            point = sorted([
+                point for point in
+                (seq.get_first_point(self.config.start_point)
+                 for seq in tdef.sequences) if point
+            ])[0]
             parent_points = tdef.get_parent_points(point)
-            if not parent_points or all(x < self.config.start_point for x in parent_points):
+            if not parent_points or all(
+                    x < self.config.start_point for x in parent_points):
                 try:
                     self.pool.add_to_runahead_pool(
-                        TaskProxy(tdef, self.config.start_point, point, is_startup=True))
+                        TaskProxy(tdef, self.config.start_point, point,
+                                  is_startup=True))
                 except TaskProxySequenceBoundsError as exc:
                     # TODO is this needed?
                     LOG.debug(str(exc))
