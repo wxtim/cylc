@@ -74,9 +74,9 @@ def main(parser, options):
     if options.run_dir:
         print(expandvars(forward_lookup()['run directory'])) 
     elif options.site_dir:
-        print(glbl_cfg().SITE_CONF_DIR)
+        print(expandvars(glbl_cfg().SITE_CONF_DIR))
     elif options.user_dir:
-        print(glbl_cfg().USER_CONF_DIR)
+        print(expandvars(glbl_cfg().USER_CONF_DIR))
     else:
         glbl_cfg().idump(
             options.item, sparse=options.sparse, pnative=options.pnative)
