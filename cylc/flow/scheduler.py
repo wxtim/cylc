@@ -849,6 +849,7 @@ see `COPYING' in the Cylc source distribution.
                         get_point(point))
                     results[itask.identity] = self._info_get_task_requisites(
                         itask, list_prereqs=False)
+                    break
         return results, bad_items
 
     def _info_get_task_requisites(self, itask, list_prereqs):

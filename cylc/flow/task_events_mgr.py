@@ -288,21 +288,21 @@ class TaskEventsManager():
 
     def _spawn_children(self, itask, output):
         """Spawn children of output, or all children on succeed/fail"""
-        try:
-            children = itask.children[output]
-        except KeyError:
-            # No children depend on this ouput
-            children = []
-
-        finished = False
         if output in [TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_FAILED]:
-            # Spawn all children
+            # Spawn all children, not just those of the specific output.
             childrens = itask.children.values()
             children = list(chain(*childrens))
-            if not (output == TASK_OUTPUT_FAILED
-                    and not itask.failure_handled):
-                finished = True
-
+            # Succceeded and handled-failed tasks are considered finished.
+            finished = (output == TASK_OUTPUT_SUCCEEDED
+                        or itask.failure_handled)
+        else:
+            # Spawn children of the specific output.
+            finished = False
+            try:
+                children = itask.children[output]
+            except KeyError:
+                # No children depend on this ouput
+                children = []
         for c_name, c_point in children:
             self.pflag = True
             self.spawn_func(itask.tdef.name, itask.point, c_name, c_point,
