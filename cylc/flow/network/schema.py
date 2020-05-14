@@ -611,7 +611,6 @@ class TaskProxy(ObjectType):
     state = String()
     cycle_point = String()
     is_held = Boolean()
-    spawned = Boolean()
     depth = Int()
     job_submits = Int()
     latest_message = String()
@@ -1418,19 +1417,15 @@ class Remove(Mutation, TaskMutation):
 class Spawn(Mutation, TaskMutation):
     class Meta:
         description = sstrip(f'''
-            Spawn children of specified task outputs.
+            Spawn children off of specified task outputs.
 
         ''')
         resolver = partial(mutator, command='spawn_tasks')
 
     class Arguments(TaskMutation.Arguments):
-        failed = Boolean(
-            description='spawn off of task:fail.',
-            default_value=False
-        )
-        non_failed = Boolean(
-            description='spawn off of all non-fail outputs.',
-            default_value=False
+        outputs = List(String,
+            description='Outputs to spawn off of.',
+            default_value=None
         )
 
 

@@ -1121,11 +1121,12 @@ class TaskPool(object):
                 num_removed += 1
         return num_removed
 
-    def spawn_tasks(self, items, failed, non_failed):
+    def spawn_tasks(self, items, outputs):
         """Spawn downstream children of given task outputs on user command.
 
-        TODO allow user-specified specific outputs.
         """
+        if not outputs:
+            outputs = [TASK_OUTPUT_SUCCEEDED]
         n_warnings = 0
         task_items = {}
         select_args = []
@@ -1173,14 +1174,11 @@ class TaskPool(object):
             LOG.info("[%s] - forced spawning", itask)
 
             msgs = []
-            if failed:
-                msgs.append('failed')
-            elif non_failed:
-                for trig, msg, status in itask.state.outputs.get_all():
-                    if trig not in ["submit-failed", "failed", "expired"]:
-                        msgs.append(msg)
-            else:
-                msgs.append('succeeded')
+            for trig, msg, status in itask.state.outputs.get_all():
+                if trig in outputs:
+                    # NON-FAILED CASE:
+                    #if trig not in ["submit-failed", "failed", "expired"]:
+                    msgs.append(msg)
 
             # Now spawn downstream on chosen outputs.
             for msg in msgs:
