@@ -1225,8 +1225,8 @@ see `COPYING' in the Cylc source distribution.
             for itask in self.task_job_mgr.submit_task_jobs(
                     self.suite,
                     itasks,
-                    self.curve_auth,
-                    self.client_pub_key_dir,
+                    curve_auth=self.curve_auth,
+                    client_key_dir=self.client_pub_key_dir,
                     self.config.run_mode('simulation')
             ):
                 LOG.info(

@@ -310,7 +310,8 @@ class TaskRemoteMgr(object):
                     public_key.full_key_path, "w", encoding='utf8')
                 _ = text_file.write(key)
                 text_file.close()
-
+                # fsync for NFS compatibility  
+                os.fsync(text_file)
             for status in (REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED):
                 if status in proc_ctx.out:
                     # Good status
