@@ -1420,7 +1420,7 @@ class Spawn(Mutation, TaskMutation):
             Spawn children off of specified task outputs.
 
         ''')
-        resolver = partial(mutator, command='spawn_tasks')
+        resolver = partial(mutator, command='spawn_downstream_tasks')
 
     class Arguments(TaskMutation.Arguments):
         outputs = List(

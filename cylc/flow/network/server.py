@@ -1143,7 +1143,7 @@ class SuiteRuntimeServer(ZMQSocketBase):
 
     @authorise(Priv.CONTROL)
     @expose
-    def spawn_tasks(self, tasks, outputs):
+    def spawn_downstream_tasks(self, tasks, outputs):
         """Spawn children of specified task outputs.
 
         Args:
@@ -1159,7 +1159,7 @@ class SuiteRuntimeServer(ZMQSocketBase):
 
         """
         self.schd.command_queue.put(
-            ("spawn_tasks", (tasks,),
+            ("spawn_downstream_tasks", (tasks,),
              {'outputs': outputs}))
         return (True, 'Command queued')
 

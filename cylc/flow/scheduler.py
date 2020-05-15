@@ -154,7 +154,7 @@ class Scheduler(object):
         'release_suite',
         'release_tasks',
         'kill_tasks',
-        'spawn_tasks',
+        'spawn_downstream_tasks',
         'trigger_tasks',
         'nudge',
         'reload_suite'
@@ -1941,9 +1941,9 @@ see `COPYING' in the Cylc source distribution.
                 self.proc_pool.process()
                 sleep(self.INTERVAL_MAIN_LOOP_QUICK)
 
-    def command_spawn_tasks(self, items, outputs):
+    def command_spawn_downstream_tasks(self, items, outputs):
         """Force spawn task successors."""
-        return self.pool.spawn_tasks(items, outputs)
+        return self.pool.spawn_downstream_tasks(items, outputs)
 
     def command_take_checkpoints(self, name):
         """Insert current task_pool, etc to checkpoints tables."""
