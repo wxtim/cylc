@@ -595,11 +595,15 @@ see `COPYING' in the Cylc source distribution.
                 # No start cycle point at which to load cycling tasks.
                 continue
             tdef = self.config.get_taskdef(name)
-            point = sorted([
-                point for point in
-                (seq.get_first_point(self.config.start_point)
-                 for seq in tdef.sequences) if point
-            ])[0]
+            try:
+                point = sorted([
+                    point for point in
+                    (seq.get_first_point(self.config.start_point)
+                     for seq in tdef.sequences) if point
+                ])[0]
+            except IndexError:
+                # No points
+                continue
             parent_points = tdef.get_parent_points(point)
             if not parent_points or all(
                     x < self.config.start_point for x in parent_points):
