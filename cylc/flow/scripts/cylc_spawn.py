@@ -34,6 +34,7 @@ from cylc.flow.option_parsers import CylcOptionParser as COP
 from cylc.flow.network.client import SuiteRuntimeClient
 from cylc.flow.terminal import prompt, cli_function
 
+
 def get_option_parser():
     parser = COP(
         __doc__, comms=True, multitask_nocycles=True,

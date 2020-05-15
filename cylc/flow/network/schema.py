@@ -1423,7 +1423,8 @@ class Spawn(Mutation, TaskMutation):
         resolver = partial(mutator, command='spawn_tasks')
 
     class Arguments(TaskMutation.Arguments):
-        outputs = List(String,
+        outputs = List(
+            String,
             description='Outputs to spawn off of.',
             default_value=None
         )
