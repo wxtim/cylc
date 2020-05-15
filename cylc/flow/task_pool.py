@@ -1121,7 +1121,7 @@ class TaskPool(object):
                 num_removed += 1
         return num_removed
 
-    def spawn_tasks(self, items, outputs):
+    def spawn_downstream_tasks(self, items, outputs):
         """Spawn downstream children of given task outputs on user command.
 
         """

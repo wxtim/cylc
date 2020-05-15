@@ -56,7 +56,7 @@ def main(parser, options, suite, *task_globs):
         options.comms_timeout)
 
     pclient(
-        'spawn_tasks',
+        'spawn_downstream_tasks',
         {'tasks': task_globs,
          'outputs': options.outputs})
 
