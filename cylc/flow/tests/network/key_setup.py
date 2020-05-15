@@ -50,4 +50,4 @@ def setup_keys(suite_name):
     remove_keys_on_server(server_keys)
     remove_keys_on_platform(suite_srv_dir)
     create_server_keys(server_keys, suite_srv_dir)
-    create_platform_keys(suite_name, suite_srv_dir)
+    create_platform_keys(suite_srv_dir)
