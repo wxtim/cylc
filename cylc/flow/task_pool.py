@@ -1176,8 +1176,6 @@ class TaskPool(object):
             msgs = []
             for trig, msg, status in itask.state.outputs.get_all():
                 if trig in outputs:
-                    # NON-FAILED CASE:
-                    #if trig not in ["submit-failed", "failed", "expired"]:
                     msgs.append(msg)
 
             # Now spawn downstream on chosen outputs.
