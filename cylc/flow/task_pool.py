@@ -431,7 +431,7 @@ class TaskPool(object):
         self.pool[itask.point][itask.identity] = itask
         self.pool_changed = True
         self.pool_changes.append(itask)
-        LOG.info("[%s] - released to the task pool", itask)
+        LOG.debug("[%s] -released to the task pool", itask)
         del self.runahead_pool[itask.point][itask.identity]
         if not self.runahead_pool[itask.point]:
             del self.runahead_pool[itask.point]
