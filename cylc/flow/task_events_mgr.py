@@ -714,10 +714,9 @@ class TaskEventsManager():
     def _process_message_failed(self, itask, event_time, message):
         """Helper for process_message, handle a failed message.
 
-        Return True if no retries.
+        Return True if no retries (hence go to the failed state).
         """
-        # TODO finished tasks nueue via object init?
-        fail = False
+        no_retries = False
         if event_time is None:
             event_time = get_current_time_string()
         itask.set_summary_time('finished', event_time)
@@ -737,7 +736,7 @@ class TaskEventsManager():
                 self.setup_event_handlers(itask, "failed", message)
             LOG.critical(
                 "[%s] -job(%02d) %s", itask, itask.submit_num, "failed")
-            fail = True
+            no_retries = True
         elif itask.state.reset(TASK_STATUS_RETRYING):
             delay_msg = "retrying in %s" % (
                 itask.try_timers[TASK_STATUS_RETRYING].delay_timeout_as_str())
@@ -749,7 +748,7 @@ class TaskEventsManager():
             self.setup_event_handlers(
                 itask, "retry", "%s, %s" % (self.JOB_FAILED, delay_msg))
         self._reset_job_timers(itask)
-        return fail
+        return no_retries
 
     def _process_message_started(self, itask, event_time):
         """Helper for process_message, handle a started message."""
@@ -805,9 +804,9 @@ class TaskEventsManager():
     def _process_message_submit_failed(self, itask, event_time):
         """Helper for process_message, handle a submit-failed message.
 
-        Return True if no retries.
+        Return True if no retries (hence go to the submit-failed state).
         """
-        fail = False
+        no_retries = False
         LOG.error('[%s] -%s', itask, self.EVENT_SUBMIT_FAILED)
         if event_time is None:
             event_time = get_current_time_string()
@@ -823,7 +822,7 @@ class TaskEventsManager():
                 itask.try_timers[TASK_STATUS_SUBMIT_RETRYING].next() is None):
             # No submission retry lined up: definitive failure.
             # See github #476.
-            fail = True
+            no_retries = True
             if itask.state.reset(TASK_STATUS_SUBMIT_FAILED):
                 self.setup_event_handlers(
                     itask, self.EVENT_SUBMIT_FAILED,
@@ -843,7 +842,7 @@ class TaskEventsManager():
                 itask, self.EVENT_SUBMIT_RETRY,
                 "job %s, %s" % (self.EVENT_SUBMIT_FAILED, delay_msg))
         self._reset_job_timers(itask)
-        return fail
+        return no_retries
 
     def _process_message_submitted(self, itask, event_time):
         """Helper for process_message, handle a submit-succeeded message."""
