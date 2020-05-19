@@ -27,7 +27,7 @@ CYLC_RUN_PID="$!"
 poll_suite_running
 YYYY="$(date +%Y)"
 NEXT1=$(( YYYY + 1 ))
-poll_grep_suite_log -F "[bar.${NEXT1}] - released to the task pool"
+poll_grep_suite_log -F "[bar.${NEXT1}] -released to the task pool"
 
 cylc dump -t "${SUITE_NAME}" | awk '{print $1 $2 $3}' >'log'
 cmp_ok 'log' - <<__END__
