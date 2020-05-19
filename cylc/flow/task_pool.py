@@ -466,16 +466,11 @@ class TaskPool(object):
         anything but succeeded.
 
         """
-        active_points = []
         for point, itasks in sorted(self.get_main_tasks_by_point().items()):
             for itask in itasks:
                 if not itask.state(TASK_STATUS_SUCCEEDED):
-                    active_points.append(point)
-                    break
-        if active_points:
-            return active_points[0]
-        else:
-            return None
+                    return point
+        return None
 
     def housekeep_tasks(self):
         """Remove spent task proxies.
