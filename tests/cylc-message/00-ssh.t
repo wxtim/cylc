@@ -41,7 +41,7 @@ suite_run_ok "${TEST_NAME_BASE}-run" \
 
 run_fail "${TEST_NAME_BASE}-grep-DENIED-suite-log" \
     grep -q "\\[client-connect\\] DENIED .*@${CYLC_TEST_HOST}:cylc-message" \
-    "$(cylc get-global-config --print-run-dir)/${SUITE_NAME}/log/suite/log"
+    "$(eval echo $(cylc get-global-config --print-run-dir))/${SUITE_NAME}/log/suite/log"
 
 purge_suite_remote "${CYLC_TEST_HOST}" "${SUITE_NAME}"
 purge_suite "${SUITE_NAME}"
