@@ -347,18 +347,10 @@ class TaskPool(object):
                     pre.satisfied[k] = sat[k]
 
             # Update parents-finished status from DB
-            pfin = {}
-            for k, v in json.loads(parents_finished).items():
-                pfin[tuple(json.loads(k))] = v
-            for k, v in itask.parents_finished.items():
-                try:
-                    itask.parents_finished[k] = pfin[k]
-                except KeyError:
-                    # P1 = "foo[-P1] => foo"
-                    # Do this: run --hold; stop; restart
-                    # Result: foo will restart held with empty
-                    #   parents-finished dict due to pre-initial deps.
-                    pass
+            itask.parents_finished.update({
+                tuple(json.loads(k)): v
+                for k, v in json.loads(parents_finished).items()
+            })
 
             itask.state.reset(status)
             self.add_to_runahead_pool(itask, is_new=False)
