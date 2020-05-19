@@ -39,7 +39,7 @@ from cylc.flow.task_job_logs import get_task_job_id
 from cylc.flow.task_proxy import TaskProxy
 from cylc.flow.task_state import (
     TASK_STATUSES_ACTIVE, TASK_STATUSES_FAILURE, TASK_STATUSES_NOT_STALLED,
-    TASK_STATUS_WAITING, TASK_STATUS_EXPIRED,
+    TASK_STATUSES_SUCCESS, TASK_STATUS_WAITING, TASK_STATUS_EXPIRED,
     TASK_STATUS_QUEUED, TASK_STATUS_READY, TASK_STATUS_SUBMITTED,
     TASK_STATUS_SUBMIT_FAILED, TASK_STATUS_SUBMIT_RETRYING,
     TASK_STATUS_RUNNING, TASK_STATUS_SUCCEEDED, TASK_STATUS_FAILED,
@@ -468,14 +468,14 @@ class TaskPool(object):
         """
         for point, itasks in sorted(self.get_main_tasks_by_point().items()):
             for itask in itasks:
-                if not itask.state(TASK_STATUS_SUCCEEDED):
+                if not itask.state(*TASK_STATUSES_SUCCESS):
                     return point
         return None
 
     def housekeep_tasks(self):
         """Remove spent task proxies.
 
-        "Finished" = succeeded, or failed so long as :fail is handled.
+        "Finished" = succeeded, expired, or failed with :fail handled.
 
         A | B => C
 
@@ -527,7 +527,7 @@ class TaskPool(object):
                         and all(itask.state.xtriggers.values())):
                     LOG.info("Removing waiting task %s", itask.identity)
                     waiting.append(itask)
-            elif itask.state(TASK_STATUS_SUCCEEDED):
+            elif itask.state(*TASK_STATUSES_SUCCESS):
                 if (all(itask.parents_finished.values())
                         or itask.point < oldest_active_point):
                     LOG.info("Removing succeeded task %s", itask.identity)
