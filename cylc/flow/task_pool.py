@@ -264,6 +264,7 @@ class TaskPool(object):
         """
         if row_idx == 0:
             LOG.info("LOADING task proxies")
+        # Create a task proxy corresponding to this DB entry.
         (cycle, name, is_late, status, satisfied, parents_finished, is_held,
          submit_num, _, user_at_host, time_submit, time_run, timeout,
          outputs_str) = row
@@ -333,13 +334,19 @@ class TaskPool(object):
             LOG.info("+ %s.%s %s%s" % (
                 name, cycle, status, ' (held)' if is_held else ''))
 
+            # Update prerequisite satisfaction status from DB
             sat = {}
             for k, v in json.loads(satisfied).items():
                 sat[tuple(json.loads(k))] = v
+            # TODO (from Oliver's PR review):
+            #   Wait, what, the keys to a JSON dictionary are themselves JSON
+            #     :vomiting_face:!
+            #   This should be converted to its own DB table pre-8.0.0.
             for pre in itask.state.prerequisites:
                 for k, v in pre.satisfied.items():
                     pre.satisfied[k] = sat[k]
 
+            # Update parents-finished status from DB
             pfin = {}
             for k, v in json.loads(parents_finished).items():
                 pfin[tuple(json.loads(k))] = v
