@@ -114,7 +114,7 @@
 #     create_test_globalrc [PRE [POST]]
 #         Create a new global config file $PWD/etc from site flow-tests.rc
 #         with PRE and POST pre- and ap-pended (PRE for top level items with no
-#         section heading).
+#         section heading). PRE and POST are strings.
 #     set_test_remote_host
 #         set CYLC_TEST_HOST from flow-tests.rc, for remote job tests.
 #         (Remote job tests should really use set_test_remote, below, however).
