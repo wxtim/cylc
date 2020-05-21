@@ -801,10 +801,11 @@ class TaskPool(object):
         Otherwise: replace task definitions but copy over existing outputs etc.
 
         TODO: document for users: beware of reloading graph changes that affect
-        current active tasks. We do not update the taskdefs of these as they
-        are already active, but this means they will attempt to spawn children
-        as per the pre-reload graph, not the new graph.
-
+        current active tasks. Such tasks are active with their original defns -
+        including what children they spawn - and it is not possible in general
+        to be sure that new defns are compatible with already-active old tasks.
+        So active tasks attempt to spawn the children that their (pre-reload)
+        defns say they should.
         """
         LOG.info("Reloading task definitions.")
         tasks = self.get_all_tasks()
@@ -1041,11 +1042,16 @@ class TaskPool(object):
         """Spawn a new task proxy and/or update its prerequisites.
 
         """
+        # TODO: is it possible for initial_point to not be defined??
+        #  (see similar check and log message in scheduler.py as well)
         if self.config.initial_point and point < self.config.initial_point:
+            # Only happens on manual trigger prior to FCP
+            # Or future triggers like foo[+P1] => bar, with foo at ICP.
             LOG.warning(
-                'Not spawning %s.%s: behind initial cycle point', name, point)
+                'Not spawning %s.%s: before initial cycle point', name, point)
             return
         elif self.config.final_point and point > self.config.final_point:
+            # Only happens on manual trigger beyond FCP
             LOG.warning(
                 'Not spawning %s.%s: beyond final cycle point', name, point)
             return
@@ -1195,6 +1201,14 @@ class TaskPool(object):
            Match (potentially by state) and trigger existing tasks in the task
            pool, e.g. to allow retriggering a bunch of unhandled failed tasks.
 
+        These are handled separately because we can't reliably tell which is
+        intended from command line arguments alone. Example using one of
+        the allowed arg forms:
+          - trigger any task: CYCLE-POINT/TASK-NAME-GLOB
+          - match and trigger: [CYCLE-POINT-GLOB/]TASK-NAME-GLOB[:TASK-STATE]
+          If the cycle point is definite (not a glob pattern) and the optional
+          :STATE is not used, we can't tell which is intended.
+        TODO: can we unify these somehow?
         """
         if task_pool:
             itasks, bad_items = self.filter_task_proxies(items)
