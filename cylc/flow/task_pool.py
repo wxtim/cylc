@@ -512,10 +512,6 @@ class TaskPool(object):
         waiting = []
         finished = []
         for itask in self.get_tasks():
-            if itask.state.is_held:
-                # TODO - note this prevents removal of held finished tasks.
-                # I'm not sure if that is desirable or not.
-                continue
             if itask.state(TASK_STATUS_WAITING):
                 # TODO - evidence seen that waiting tasks can be released from
                 # the runahead pool and then removed (parents finished) just
