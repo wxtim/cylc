@@ -323,8 +323,11 @@ class SuiteConfig(object):
         # Initial point from suite definition (or CLI override above).
         orig_icp = self.cfg['scheduling']['initial cycle point']
         if orig_icp is None:
-            raise SuiteConfigError(
-                "This suite requires an initial cycle point.")
+            if self.cfg['scheduling']['cycling mode'] == INTEGER_CYCLING_TYPE:
+                orig_icp = '1'
+            else:
+                raise SuiteConfigError(
+                    "This suite requires an initial cycle point.")
         if orig_icp == "now":
             icp = get_current_time_string()
         else:
@@ -337,6 +340,7 @@ class SuiteConfig(object):
             self.options.icp = icp
         self.initial_point = get_point(icp).standardise()
         self.cfg['scheduling']['initial cycle point'] = str(self.initial_point)
+
         if getattr(self.options, 'startcp', None) is not None:
             # Warm start from a point later than initial point.
             if self.options.startcp == "now":
