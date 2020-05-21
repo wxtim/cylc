@@ -303,10 +303,10 @@ class TaskRemoteMgr(object):
                     KeyOwner.CLIENT,
                     suite_srv_dir=suite_srv_dir, platform=host)
                 old_umask = os.umask(0o177)
-                text_file = open(
-                    public_key.full_key_path, "w", encoding='utf8')
-                _ = text_file.write(key)
-                text_file.close()
+                with open(
+                        public_key.full_key_path,
+                        'w', encoding='utf8') as text_file:
+                    text_file.write(key)
                 os.umask(old_umask)
             for status in (REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED):
                 if status in proc_ctx.out:

@@ -56,6 +56,7 @@ from cylc.flow.loggingutil import (
     ReferenceLogFileHandler
 )
 from cylc.flow.network import API
+from cylc.flow.network.authentication import CredentialsProvider
 from cylc.flow.network.server import SuiteRuntimeServer
 from cylc.flow.network.publisher import WorkflowPublisher
 from cylc.flow.parsec.OrderedDict import DictTree
@@ -287,53 +288,6 @@ class Scheduler(object):
                 domain='*',
                 location=(self.client_pub_key_dir)
             )
-
-            # Custom authentication for ZMQ CURVE callback
-            # Required for correct operation where tasks are submitted
-            # after the suite has been started (cylc submit/insert)
-            # This will load new keys only on demand i.e. when a new client
-            # tries to connect.
-            # This is instead of polling the keys folder.
-            class CredentialsProvider(object):
-
-                def __init__(self, authenticator, client_pub_key_dir):
-                    self.auth = authenticator
-                    self.client_pub_key_dir = client_pub_key_dir
-
-                def callback(self, domain, key):
-
-                    if self.auth.certs[domain].get(key):
-                        return True
-                    else:
-                        # Reload keys in public client key folder
-                        # --------------------------------------------------
-                        # Borrowed from from PyZMQ auth/base.py
-                        # Not able to call configure_curve to reload key files
-                        # because of how its front-end API receives the
-                        # command.
-                        # In auth/thread.py they only ensure that such commands
-                        # are processed before then next incoming socket
-                        # connection, which means we would have to reject the
-                        # first attempt a new platform client makes to connect
-                        # and rely on them retrying.
-                        try:
-                            # Direct call to PyZMQ load_certificates to ensure
-                            # encoding is correct.
-                            # Bypassing configure_curve
-                            self.auth.certs[domain] = load_certificates(
-                                self.client_pub_key_dir)
-                        except Exception as e:
-                            LOG.error(
-                                f"Failed to load CURVE certs"
-                                f" from {self.client_pub_key_dir}: {e}")
-
-                        # Check client key again now that we have forced
-                        # key reload
-                        if self.auth.certs[domain].get(key):
-                            return True
-                        else:
-                            return False
-
             # Create new instance of our custom CredentialsProvider and
             # set as the callback for authentication.
             credentials_provider = CredentialsProvider(
@@ -1386,9 +1340,7 @@ see `COPYING' in the Cylc source distribution.
             if itasks:
                 self.is_updated = True
             for itask in self.task_job_mgr.submit_task_jobs(
-                    self.suite,
-                    itasks,
-                    self.config.run_mode('simulation')
+                self.suite, itasks, self.config.run_mode('simulation')
             ):
                 LOG.info(
                     '[%s] -triggered off %s',

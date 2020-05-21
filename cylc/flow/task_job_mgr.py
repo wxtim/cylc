@@ -220,7 +220,6 @@ class TaskJobManager(object):
                             itask.point, itask.tdef.name, itask.submit_num),
                         self.REMOTE_INIT_MSG)
                 continue
-
             # Ensure that localhost background/at jobs are recorded as running
             # on the host name of the current suite host, rather than just
             # "localhost". On suite restart on a different suite host, this
