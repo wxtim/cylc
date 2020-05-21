@@ -824,13 +824,13 @@ class TaskPool(object):
                         or itask.state.is_held
                 ):
                     # Remove orphaned task if it hasn't started running yet.
-                    LOG.warning("[%s] -(task orphaned by suite reload)", itask)
+                    LOG.warning("[%s] -task definition removed", itask)
                     self.remove(itask)
                 else:
                     # Keep active orphaned task, but stop it from spawning.
                     itask.children = {}
-                    LOG.warning(
-                        "[%s] -neutered (orphaned by reload)", itask)
+                    LOG.warning("[%s] -will not spawn children"
+                                " (task definition removed)", itask)
             else:
                 self.remove(itask, '(suite definition reload)')
                 new_task = self.add_to_runahead_pool(TaskProxy(
