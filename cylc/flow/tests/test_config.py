@@ -22,6 +22,7 @@ from pathlib import Path
 
 from cylc.flow.config import SuiteConfig
 from cylc.flow.cycling import loader
+from cylc.flow.exceptions import SuiteConfigError
 
 
 def get_test_inheritance_quotes():
@@ -214,6 +215,20 @@ class TestSuiteConfig(object):
                         ['MAINFAM_major1_minor10'])
                 assert 'goodbye_0_major1_minor10' in \
                        config.runtime['descendants']['SOMEFAM']
+
+    def test_missing_initial_cycle_point(self):
+        """Test that validation fails when the initial cycle point is
+        missing for datetime cycling"""
+        mocked_config = Mock()
+        mocked_config.cfg = {
+            'scheduling': {
+                'cycling mode': None,
+                'initial cycle point': None
+            }
+        }
+        with pytest.raises(SuiteConfigError) as exc:
+            SuiteConfig.process_initial_cycle_point(mocked_config)
+        assert "This suite requires an initial cycle point" in str(exc.value)
 
     def test_integer_cycling_default_initial_point(self, cycling_mode):
         """Test that the initial cycle point defaults to 1 for integer cycling
