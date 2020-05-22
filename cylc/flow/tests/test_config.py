@@ -21,7 +21,7 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from pathlib import Path
 
 from cylc.flow.config import SuiteConfig
-from cylc.flow.parsec.OrderedDict import OrderedDictWithDefaults
+from cylc.flow.cycling import loader
 
 
 def get_test_inheritance_quotes():
@@ -215,22 +215,20 @@ class TestSuiteConfig(object):
                 assert 'goodbye_0_major1_minor10' in \
                        config.runtime['descendants']['SOMEFAM']
 
-    def test_integer_cycling_default_initial_point(self):
+    def test_integer_cycling_default_initial_point(self, cycling_mode):
         """Test that the initial cycle point defaults to 1 for integer cycling
         mode."""
+        cycling_mode()  # This is a pytest fixture; sets integer cycling mode
         mocked_config = Mock()
         mocked_config.cfg = {
             'scheduling': {
                 'cycling mode': 'integer',
                 'initial cycle point': None
-                # 'graph': {
-                #     'P1': 'foo'
-                # }
             }
         }
         SuiteConfig.process_initial_cycle_point(mocked_config)
-        # assert mocked_config.cfg['scheduling']['initial cycle point'] ==
-        # assert mocked_config.initial_point ==
+        assert mocked_config.cfg['scheduling']['initial cycle point'] == '1'
+        assert mocked_config.initial_point == loader.get_point(1)
 
 
 def test_queue_config_repeated(caplog, tmp_path):
