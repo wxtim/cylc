@@ -512,7 +512,8 @@ class TaskPool(object):
         waiting = []
         finished = []
         for itask in self.get_tasks():
-            if itask.state(TASK_STATUS_WAITING):
+            if itask.state(TASK_STATUS_WAITING) and not itask.state.is_held:
+                # (Leave held waiting tasks - they could run when released.)
                 # TODO - evidence seen that waiting tasks can be released from
                 # the runahead pool and then removed (parents finished) just
                 # after the suite stop command is processed. They should not
