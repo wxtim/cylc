@@ -75,8 +75,8 @@ done
 grep_ok "Added task: 'one'" "${LOG_FILE}"
 grep_ok "Added task: 'add'" "${LOG_FILE}"
 grep_ok "Added task: 'boo'" "${LOG_FILE}"
-grep_ok "\\[bar.*\\].*orphaned" "${LOG_FILE}"
-grep_ok "\\[bol.*\\].*orphaned" "${LOG_FILE}"
+grep_ok "\\[bar.*\\].*task definition removed" "${LOG_FILE}"
+grep_ok "\\[bol.*\\].*task definition removed" "${LOG_FILE}"
 
 run_ok "${TEST_NAME_BASE}-stop" \
     cylc stop --max-polls=10 --interval=2 "${SUITE_NAME}"
