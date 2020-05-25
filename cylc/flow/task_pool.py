@@ -87,8 +87,34 @@ class TaskPool(object):
         self.hold_point = None
         self.held_future_tasks = []
 
+        self.stop_task_id = None
+        self.stop_task_finished = False
+
         self.orphans = []
         self.task_name_list = self.config.get_task_name_list()
+
+    def set_stop_task(self, task_id):
+        """Set stop after a task."""
+        name = TaskID.split(task_id)[0]
+        if name in self.config.get_task_name_list():
+            task_id = TaskID.get_standardised_taskid(task_id)
+            LOG.info("Setting stop task: " + task_id)
+            self.stop_task_id = task_id
+            self.stop_task_finished = False
+            self.suite_db_mgr.put_suite_stop_task(task_id)
+        else:
+            LOG.warning("Requested stop task name does not exist: %s" % name)
+
+    def stop_task_done(self):
+        """Return True if stop task has succeeded."""
+        if self.stop_task_id is not None and self.stop_task_finished:
+            LOG.info("Stop task %s finished" % self.stop_task_id)
+            self.stop_task_id = None
+            self.stop_task_finished = False
+            self.suite_db_mgr.delete_suite_stop_task()
+            return True
+        else:
+            return False
 
     def assign_queues(self):
         """self.myq[taskname] = qfoo"""
@@ -514,6 +540,15 @@ class TaskPool(object):
         LOG.debug("[%s] -%s", itask, msg)
         if itask.tdef.max_future_prereq_offset is not None:
             self.set_max_future_offset()
+
+        # Update DB task_states table for final state of this task.
+        self.suite_db_mgr.put_update_task_states(
+            itask,
+            {
+                "time_updated": itask.state.time_updated,
+                "status": itask.state.status
+            }
+        )
         del itask
 
     def get_all_tasks(self):
@@ -1014,6 +1049,8 @@ class TaskPool(object):
         if p_finished:
             # Finished tasks can be removed immediately.
             self.remove(itask, 'finished')
+            if itask.identity == self.stop_task_id:
+                self.stop_task_finished = True
 
         for c_name, c_point in children:
             self.task_events_mgr.pflag = True  # TODO: still needed in SoD?
