@@ -515,33 +515,8 @@ class TaskPool(object):
             self.remove(itask)
         return removed
 
-    def remove(self, itask, reason=None):
-        """Remove a task from the pool."""
-        try:
-            del self.runahead_pool[itask.point][itask.identity]
-        except KeyError:
-            pass
-        else:
-            if not self.runahead_pool[itask.point]:
-                del self.runahead_pool[itask.point]
-            self.rhpool_changed = True
-            return
-
-        # remove from queue
-        if itask.tdef.name in self.myq:  # A reload can remove a task
-            del self.queues[self.myq[itask.tdef.name]][itask.identity]
-        del self.pool[itask.point][itask.identity]
-        if not self.pool[itask.point]:
-            del self.pool[itask.point]
-        self.pool_changed = True
-        msg = "task proxy removed"
-        if reason:
-            msg += " (%s)" % reason
-        LOG.debug("[%s] -%s", itask, msg)
-        if itask.tdef.max_future_prereq_offset is not None:
-            self.set_max_future_offset()
-
-        # Update DB task_states table for final state of this task.
+    def db_update_final_task_state(self, itask):
+        """Update DB task_states table for final state of this task."""
         self.suite_db_mgr.put_update_task_states(
             itask,
             {
@@ -549,6 +524,45 @@ class TaskPool(object):
                 "status": itask.state.status
             }
         )
+
+    def remove(self, itask, reason=""):
+        """Remove a task from the pool."""
+
+        msg = "task proxy removed"
+        if reason:
+            msg += " (%s)" % reason
+
+        try:
+            del self.runahead_pool[itask.point][itask.identity]
+        except KeyError:
+            # Not in runahead pool.
+            pass
+        else:
+            # In runahead pool.
+            if not self.runahead_pool[itask.point]:
+                del self.runahead_pool[itask.point]
+            self.rhpool_changed = True
+            self.db_update_final_task_state(itask)
+            LOG.debug("[%s] -%s", itask, msg)
+            del itask
+            return
+
+        try:
+            del self.pool[itask.point][itask.identity]
+        except KeyError:
+            # Not in main pool (forced spawn uses temporary non-pool tasks)
+            return
+
+        # In main pool: remove from pool and queues.
+        if itask.tdef.max_future_prereq_offset is not None:
+            self.set_max_future_offset()
+        if not self.pool[itask.point]:
+            del self.pool[itask.point]
+        self.pool_changed = True
+        if itask.tdef.name in self.myq:  # A reload can remove a task
+            del self.queues[self.myq[itask.tdef.name]][itask.identity]
+        self.db_update_final_task_state(itask)
+        LOG.debug("[%s] -%s", itask, msg)
         del itask
 
     def get_all_tasks(self):
@@ -1170,12 +1184,11 @@ class TaskPool(object):
 
             # This the upstream target task:
             itask = TaskProxy(taskdef, self.config.initial_point, point)
-            LOG.info("[%s] - forced spawning", itask)
-
             # Spawn downstream on selected outputs.
-            for trig, msg, status in itask.state.outputs.get_all():
+            for trig, out, status in itask.state.outputs.get_all():
                 if trig in outputs:
-                    self.spawn_and_update_children(itask, msg)
+                    LOG.info('Forced spawning on %s:%s', itask.identity, out)
+                    self.spawn_and_update_children(itask, out)
 
     def remove_tasks(self, items):
         """Remove tasks from the pool."""
