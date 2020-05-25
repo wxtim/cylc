@@ -919,6 +919,10 @@ class TaskPool(object):
         """
         if self.is_held:
             return False
+        # Suicide triggers might remove (submit-)failed tasks that cause a
+        # stall before shutdown. E.g.: flakytests/events/01-task/suite.rc.
+        # TODO: now calling this twice, uncessary??
+        self.remove_suiciding_tasks()
         can_be_stalled = False
         for itask in self.get_tasks():
             if (
