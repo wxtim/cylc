@@ -23,7 +23,7 @@
 #
 # DESCRIPTION
 #     Interface for constructing tests under a TAP harness (the "prove"
-#     command).
+#     command)
 #
 # FUNCTIONS
 #     set_test_number N
