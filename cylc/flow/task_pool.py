@@ -463,7 +463,7 @@ class TaskPool(object):
 
         Used for removing succeeded tasks where alternate paths join (these
         have at least one parent that will never be satisfied). Active includes
-        anything but succeeded.
+        anything but succeeded and expired.
 
         """
         for point, itasks in sorted(self.get_main_tasks_by_point().items()):
@@ -502,8 +502,7 @@ class TaskPool(object):
         """
         oldest_active_point = self._get_oldest_active_point()
         if oldest_active_point is None:
-            # No active tasks
-            # Keep the most recent active tasks in the pool.
+            # No active tasks; keep the most recent active tasks in the pool.
             LOG.warning("Workflow stalled!")
             return False
 
@@ -513,11 +512,9 @@ class TaskPool(object):
         finished = []
         for itask in self.get_tasks():
             if itask.state(TASK_STATUS_WAITING) and not itask.state.is_held:
-                # (Leave held waiting tasks - they could run when released.)
-                # TODO - evidence seen that waiting tasks can be released from
-                # the runahead pool and then removed (parents finished) just
-                # after the suite stop command is processed. They should not
-                # run in this situation, but should not be removed.
+                # Leave held waiting tasks - they might be able to run when
+                # released. Otherwise it should not be possible for a fully
+                # satisfied waiting task to end up at this point in the code.
                 if (len(itask.state.prerequisites) > 0
                         and all(itask.parents_finished.values())
                         and all(itask.state.external_triggers.values())
