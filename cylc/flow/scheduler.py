@@ -522,8 +522,6 @@ see `COPYING' in the Cylc source distribution.
             self.suite_db_mgr,
             self.task_events_mgr,
             self.job_pool)
-        # SoD: nasty hack, find a better way.
-        self.task_events_mgr.spawn_func = self.pool.spawn
 
         self.profiler.log_memory("scheduler.py: before load_tasks")
         if self.is_restart:
@@ -1376,7 +1374,7 @@ see `COPYING' in the Cylc source distribution.
         if self.pool.remove_suiciding_tasks():
             self.is_updated = True
 
-        if self.pool.housekeep_tasks():
+        if self.pool.housekeep_waiting_tasks():
             self.is_updated = True
         self.broadcast_mgr.expire_broadcast(self.pool.get_min_point())
         self.xtrigger_mgr.housekeep()

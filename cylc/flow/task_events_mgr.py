@@ -148,12 +148,9 @@ class TaskEventsManager():
         self.mail_footer = None
         self.next_mail_time = None
         self.event_timers = {}
+        # To be set by the task pool:
         self.spawn_func = None
-        # Set pflag = True to stimulate task dependency negotiation whenever a
-        # task changes state in such a way that others could be affected. The
-        # flag should only be turned off again after use in
-        # Scheduler.process_tasks, to ensure that dependency negotiation occurs
-        # when required.
+        # pflag was set to True to stimulate dependency negotiation in SoS.
         self.pflag = False
 
     @staticmethod
@@ -286,28 +283,6 @@ class TaskEventsManager():
             elif ctx.ctx_type == self.HANDLER_JOB_LOGS_RETRIEVE:
                 self._process_job_logs_retrieval(schd_ctx, ctx, id_keys)
 
-    def _spawn_children(self, itask, output):
-        """Spawn children of output, or all children on succeed/fail"""
-        if output in [TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_FAILED]:
-            # Spawn all children, not just those of the specific output.
-            childrens = itask.children.values()
-            children = list(chain(*childrens))
-            # Succceeded and handled-failed tasks are considered finished.
-            finished = (output == TASK_OUTPUT_SUCCEEDED
-                        or itask.failure_handled)
-        else:
-            # Spawn children of the specific output.
-            finished = False
-            try:
-                children = itask.children[output]
-            except KeyError:
-                # No children depend on this ouput
-                children = []
-        for c_name, c_point in children:
-            self.pflag = True
-            self.spawn_func(itask.tdef.name, itask.point, c_name, c_point,
-                            output, finished=finished)
-
     def process_message(
         self,
         itask,
@@ -392,10 +367,10 @@ class TaskEventsManager():
             ):
                 return True
             self._process_message_started(itask, event_time)
-            self._spawn_children(itask, TASK_OUTPUT_STARTED)
+            self.spawn_func(itask, TASK_OUTPUT_STARTED)
         elif message == TASK_OUTPUT_SUCCEEDED:
             self._process_message_succeeded(itask, event_time)
-            self._spawn_children(itask, TASK_OUTPUT_SUCCEEDED)
+            self.spawn_func(itask, TASK_OUTPUT_SUCCEEDED)
         elif message == TASK_OUTPUT_FAILED:
             if (
                     flag == self.FLAG_RECEIVED
@@ -404,7 +379,7 @@ class TaskEventsManager():
                 return True
             if self._process_message_failed(
                     itask, event_time, self.JOB_FAILED):
-                self._spawn_children(itask, TASK_OUTPUT_FAILED)
+                self.spawn_func(itask, TASK_OUTPUT_FAILED)
         elif message == self.EVENT_SUBMIT_FAILED:
             if (
                     flag == self.FLAG_RECEIVED
@@ -412,7 +387,7 @@ class TaskEventsManager():
             ):
                 return True
             if self._process_message_submit_failed(itask, event_time):
-                self._spawn_children(itask, TASK_OUTPUT_SUBMIT_FAILED)
+                self.spawn_func(itask, TASK_OUTPUT_SUBMIT_FAILED)
         elif message == TASK_OUTPUT_SUBMITTED:
             if (
                     flag == self.FLAG_RECEIVED
@@ -420,7 +395,7 @@ class TaskEventsManager():
             ):
                 return True
             self._process_message_submitted(itask, event_time)
-            self._spawn_children(itask, TASK_OUTPUT_SUBMITTED)
+            self.spawn_func(itask, TASK_OUTPUT_SUBMITTED)
         elif message.startswith(FAIL_MESSAGE_PREFIX):
             # Task received signal.
             if (
@@ -434,7 +409,7 @@ class TaskEventsManager():
                 itask, {"run_signal": signal})
             if self._process_message_failed(
                     itask, event_time, self.JOB_FAILED):
-                self._spawn_children(itask, TASK_OUTPUT_FAILED)
+                self.spawn_func(itask, TASK_OUTPUT_FAILED)
         elif message.startswith(ABORT_MESSAGE_PREFIX):
             # Task aborted with message
             if (
@@ -447,7 +422,7 @@ class TaskEventsManager():
             self.suite_db_mgr.put_update_task_jobs(
                 itask, {"run_signal": aborted_with})
             if self._process_message_failed(itask, event_time, aborted_with):
-                self._spawn_children(itask, TASK_OUTPUT_FAILED)
+                self.spawn_func(itask, TASK_OUTPUT_FAILED)
         elif message.startswith(VACATION_MESSAGE_PREFIX):
             # Task job pre-empted into a vacation state
             self._db_events_insert(itask, "vacated", message)
@@ -467,10 +442,9 @@ class TaskEventsManager():
         elif completed_trigger:
             # Message of an as-yet unreported custom task output.
             # No state change.
-            self.pflag = True
             self.suite_db_mgr.put_update_task_outputs(itask)
             self.setup_event_handlers(itask, completed_trigger, message)
-            self._spawn_children(itask, msg0)
+            self.spawn_func(itask, msg0)
         else:
             # Unhandled messages. These include:
             #  * general non-output/progress messages
