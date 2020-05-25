@@ -43,7 +43,8 @@ from cylc.flow.task_state import (
     TASK_STATUS_QUEUED, TASK_STATUS_READY, TASK_STATUS_SUBMITTED,
     TASK_STATUS_SUBMIT_FAILED, TASK_STATUS_SUBMIT_RETRYING,
     TASK_STATUS_RUNNING, TASK_STATUS_SUCCEEDED, TASK_STATUS_FAILED,
-    TASK_STATUS_RETRYING, TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_FAILED)
+    TASK_STATUS_RETRYING, TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_FAILED,
+    TASK_OUTPUT_EXPIRED)
 from cylc.flow.wallclock import get_current_time_string
 
 
@@ -58,6 +59,8 @@ class TaskPool(object):
         self.stop_point = config.final_point
         self.suite_db_mgr = suite_db_mgr
         self.task_events_mgr = task_events_mgr
+        # TODO: a better a better way to spawn off of task events?:
+        self.task_events_mgr.spawn_func = self.spawn_and_update_children
         self.job_pool = job_pool
 
         self.do_reload = False
@@ -448,94 +451,42 @@ class TaskPool(object):
                     all(x < self.config.start_point for x in parent_points)):
                 # Auto-spawn next instance of tasks with no parents at the next
                 # point (or with all parents before the suite start point).
-                self.spawn(itask.tdef.name, itask.point,
-                           itask.tdef.name, next_point)
+                self.spawn_get(itask.tdef.name, next_point)
             else:
-                # Autos-spawn next instance of tasks with absolute triggers.
-                abs_triggers = itask.tdef.get_abs_triggers(next_point)
-                for trig in abs_triggers:
-                    self.spawn(trig.task_name, trig.get_point(next_point),
-                               itask.tdef.name, next_point, trig.output,
-                               finished=True)
+                # Auto-spawn next instance of tasks with absolute triggers.
+                for trig in itask.tdef.get_abs_triggers(next_point):
+                    p_name = trig.task_name
+                    p_point = trig.get_point(next_point)
+                    c_task = self.spawn_get(p_name, next_point)
+                    if c_task is not None:
+                        # Update downstream prerequisites directly.
+                        # TODO: USE PROXY METHOD
+                        c_task.state.satisfy_me(
+                            set([(p_name, str(p_point), trig.output)]))
+                        # TODO: USE PROXY METHOD
+                        c_task.parents_finished[(p_name, str(p_point))] = True
 
-    def _get_oldest_active_point(self):
-        """Return oldest point with active tasks, or None.
+    def housekeep_waiting_tasks(self):
+        """Remove waiting tasks if their parents are all finished.
 
-        Used for removing succeeded tasks where alternate paths join (these
-        have at least one parent that will never be satisfied). Active includes
-        anything but succeeded and expired.
-
-        """
-        for point, itasks in sorted(self.get_main_tasks_by_point().items()):
-            for itask in itasks:
-                if not itask.state(*TASK_STATUSES_SUCCESS):
-                    return point
-        return None
-
-    def housekeep_tasks(self):
-        """Remove spent task proxies.
-
-        "Finished" = succeeded, expired, or failed with :fail handled.
-
-        A | B => C
-
-        Finished tasks can be removed if all of their parents are finished (any
-        earlier could result in reflow, if a parent executes later).
-
-        For finished tasks whose parents do not finish (A and B might be on
-        alternate paths!) we use cycle point housekeeping: remove if the
-        active pool has move on past the point that could trigger the parent.
-
-        A & B => C
-
-        Waiting tasks can be removed if all of their parents have finished (at
-        which point nothing can happen to satisfy them). (Except for tasks with
-        no prerequisites and/or waiting on xtriggers).
-
-        Unhandled failed tasks and their downstream waiting children are kept
-        in the pool for two reasons:
-        - to keep the n=0 window focused on failed tasks
-        - the waiting children retain the state of any other prerequisites so
-          they are ready to go if the parent gets successfully retriggered.
-          (otherwise the other prerequisites belong to the "previous flow").
+        These can't be automatically satisfied anymore, even if they also have
+        unsatisfied clock or other external triggers. But avoid removing:
+        - held waiting tasks (these may run once released)
+        - waiting tasks with no parents (i.e. just clock or external triggers)
 
         """
-        oldest_active_point = self._get_oldest_active_point()
-        if oldest_active_point is None:
-            # No active tasks; keep the most recent active tasks in the pool.
-            LOG.warning("Workflow stalled!")
-            return False
-
-        # TODO - adjust oldest_active_point for intercycle and future triggers!
-
-        waiting = []
-        finished = []
-        for itask in self.get_tasks():
-            if itask.state(TASK_STATUS_WAITING) and not itask.state.is_held:
-                # Leave held waiting tasks - they might be able to run when
-                # released. Otherwise it should not be possible for a fully
-                # satisfied waiting task to end up at this point in the code.
-                if (len(itask.state.prerequisites) > 0
-                        and all(itask.parents_finished.values())
-                        and all(itask.state.external_triggers.values())
-                        and all(itask.state.xtriggers.values())):
-                    LOG.info("Removing waiting task %s", itask.identity)
-                    waiting.append(itask)
-            elif itask.state(*TASK_STATUSES_SUCCESS):
-                if (all(itask.parents_finished.values())
-                        or itask.point < oldest_active_point):
-                    LOG.info("Removing succeeded task %s", itask.identity)
-                    finished.append(itask)
-            elif itask.state(TASK_STATUS_FAILED):
-                if (all(itask.parents_finished.values())
-                        and itask.failure_handled):
-                    LOG.info("Removing failed task %s", itask.identity)
-                    finished.append(itask)
-
+        remove_me = []
         removed = False
-        for itask in chain(finished, waiting):
+        for itask in self.get_tasks():
+            if (itask.state(TASK_STATUS_WAITING)
+                    and not itask.state.is_held
+                    and itask.parents_finished
+                    and all(itask.parents_finished.values())):
+                LOG.info("Removed %s (stuck waiting)", itask.identity)
+                remove_me.append(itask)
+                removed = True
+        for itask in remove_me:
             self.remove(itask)
-            removed = True
         return removed
 
     def remove(self, itask, reason=None):
@@ -823,15 +774,14 @@ class TaskPool(object):
                         or itask.state.is_held
                 ):
                     # Remove orphaned task if it hasn't started running yet.
-                    LOG.warning("[%s] -task definition removed", itask)
-                    self.remove(itask)
+                    self.remove(itask, 'task definition removed')
                 else:
                     # Keep active orphaned task, but stop it from spawning.
                     itask.children = {}
                     LOG.warning("[%s] -will not spawn children"
                                 " (task definition removed)", itask)
             else:
-                self.remove(itask, '(suite definition reload)')
+                self.remove(itask, 'suite definition reload')
                 new_task = self.add_to_runahead_pool(TaskProxy(
                     self.config.get_taskdef(itask.tdef.name),
                     self.config.initial_point, itask.point,
@@ -1035,11 +985,49 @@ class TaskPool(object):
             )
             for itask in self.get_tasks())
 
-    def spawn(self, up_name, up_point, name, point, message=None,
-              finished=False, go=False):
-        """Spawn a new task proxy and/or update its prerequisites.
+    def spawn_and_update_children(self, itask, output):
+        """Spawn children of itask:output if not already spawned.
+
+        Update relevant prerequisites and parent-finished status of children.
 
         """
+        if output in [TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_EXPIRED,
+                      TASK_OUTPUT_FAILED]:
+            # Spawn all children, to record parent finished status.
+            childrens = itask.children.values()
+            children = list(chain(*childrens))
+            if (output == TASK_OUTPUT_FAILED and not itask.failure_handled):
+                p_finished = False
+            else:
+                p_finished = True
+        else:
+            # Spawn children of the specific output.
+            p_finished = False
+            try:
+                children = itask.children[output]
+            except KeyError:
+                # No children depend on this ouput
+                children = []
+
+        p_name = itask.tdef.name
+        p_point = itask.point
+        if p_finished:
+            # Finished tasks can be removed immediately.
+            self.remove(itask, 'finished')
+
+        for c_name, c_point in children:
+            self.task_events_mgr.pflag = True  # TODO: still needed in SoD?
+            c_task = self.spawn_get(c_name, c_point)
+            # Update downstream prerequisites directly.
+            # TODO: USE PROXY METHOD
+            if c_task is not None:
+                c_task.state.satisfy_me(set([(p_name, str(p_point), output)]))
+                if p_finished:
+                    # TODO: USE PROXY METHOD
+                    c_task.parents_finished[(p_name, str(p_point))] = True
+ 
+    def spawn_get(self, name, point):
+        """Return proxy name.point after spawning if necessary, or None."""
         # TODO: is it possible for initial_point to not be defined??
         #  (see similar check and log message in scheduler.py as well)
         if self.config.initial_point and point < self.config.initial_point:
@@ -1053,51 +1041,37 @@ class TaskPool(object):
             LOG.warning(
                 'Not spawning %s.%s: beyond final cycle point', name, point)
             return
-        itask = None
-        for jtask in self.get_all_tasks():
-            if jtask.tdef.name == name and jtask.point == point:
-                itask = jtask
-                # Already spawned.
-                break
-        if itask is None:
-            for tname in self.config.get_task_name_list():
-                if tname == name:
-                    key = (name, str(point))
-                    submit_nums = (
-                        self.suite_db_mgr.pri_dao.select_submit_nums([key]))
-                    submit_num = submit_nums.get(key, 0)
-                    itask = TaskProxy(
-                        self.config.get_taskdef(tname),
-                        self.config.initial_point, point,
-                        submit_num=submit_num)
-                    LOG.info('[%s.%s] spawned %s.%s (%s)',
-                             up_name, up_point, name, point, message)
-                    break
-        if itask is None:
-            # (After reload removes a child task definition?)
-            LOG.info('[%s.%s] no task found to spawn %s.%s (%s)',
-                     up_name, up_point, name, point, message)
-            return
-        if go:
-            itask.state.reset(TASK_STATUS_WAITING)
-            itask.state.set_prerequisites_all_satisfied()
-        elif message is not None:
-            # Update downstream prerequisites directly
-            itask.state.satisfy_me(set([(up_name, str(up_point), message)]))
-            LOG.info('[%s.%s] updated prereqs %s.%s (%s)',
-                     up_name, up_point, name, point, message)
-        if finished:
-            LOG.info('[%s.%s] parent %s.%s finished (%s)',
-                     name, point, up_name, up_point, message)
-            itask.parents_finished[(up_name, str(up_point))] = True
 
-        self.add_to_runahead_pool(itask)
+        # Find existing proxy if already spawned.
+        for itask in self.get_all_tasks():
+            if itask.tdef.name == name and itask.point == point:
+                return itask
+
+        # Else spawn a new one if possible.
+        for tname in self.config.get_task_name_list():
+            if tname == name:
+                key = (name, str(point))
+                submit_nums = (
+                    self.suite_db_mgr.pri_dao.select_submit_nums([key]))
+                submit_num = submit_nums.get(key, 0)
+                if submit_num != 0:
+                    # Conditional reflow prevention!
+                    LOG.warning(
+                        'Not spawning %s.%s (already spawned)', name, point)
+                    return None
+                itask = TaskProxy(
+                    self.config.get_taskdef(tname),
+                    self.config.initial_point, point,
+                    submit_num=submit_num)
+                LOG.info('Spawned %s.%s', name, point)
+                self.add_to_runahead_pool(itask)
+                return itask
+
+        LOG.warning('Failed to spawn %s.%s', name, point)
+        return None
 
     def remove_suiciding_tasks(self):
-        """Remove any tasks that have suicide-triggered.
-
-        Return the number of removed tasks.
-        """
+        """Remove tasks that suicide-triggered, return the number removed."""
         num_removed = 0
         for itask in self.get_all_tasks():
             if (itask.state.suicide_prerequisites and
@@ -1116,9 +1090,8 @@ class TaskPool(object):
         return num_removed
 
     def spawn_downstream_tasks(self, items, outputs):
-        """Spawn downstream children of given task outputs on user command.
-
-        """
+        """Spawn downstream children of given task outputs on user command."""
+        # TODO CHANGE NAME force_spawn_children?
         if not outputs:
             outputs = [TASK_OUTPUT_SUCCEEDED]
         n_warnings = 0
@@ -1160,30 +1133,18 @@ class TaskPool(object):
 
             # This the upstream target task:
             itask = TaskProxy(taskdef, self.config.initial_point, point)
-
             LOG.info("[%s] - forced spawning", itask)
 
-            msgs = []
+            # Spawn downstream on selected outputs.
             for trig, msg, status in itask.state.outputs.get_all():
                 if trig in outputs:
-                    msgs.append(msg)
-
-            # Now spawn downstream on chosen outputs.
-            for msg in msgs:
-                try:
-                    children = itask.children[msg]
-                except KeyError:
-                    pass
-                else:
-                    for child_name, child_point in children:
-                        self.spawn(itask.tdef.name, itask.point,
-                                   child_name, child_point, msg)
+                    self.spawn_and_update_children(itask, msg)
 
     def remove_tasks(self, items):
         """Remove tasks from the pool."""
         itasks, bad_items = self.filter_task_proxies(items)
         for itask in itasks:
-            self.remove(itask, 'by request')
+            self.remove(itask, 'request')
         return len(bad_items)
 
     def trigger_tasks(self, items, back_out=False, task_pool=False):
@@ -1265,9 +1226,12 @@ class TaskPool(object):
                     select_args.append((taskdef.name, point_str))
 
             for name, point_str in select_args:
-                self.spawn(
-                    'None', 'None', name,
-                    get_point(point_str).standardise(), go=True)
+                # Spawn and set ready to trigger.
+                itask = self.spawn_get(name, get_point(point_str).standardise())
+                if itask is not None:
+                    itask.state.reset(TASK_STATUS_WAITING)
+                    itask.state.set_prerequisites_all_satisfied()
+
         return n_warnings
 
     def sim_time_check(self, message_queue):
@@ -1322,7 +1286,10 @@ class TaskPool(object):
             msg = 'Task expired (skipping job).'
             LOG.warning('[%s] -%s', itask, msg)
             self.task_events_mgr.setup_event_handlers(itask, "expired", msg)
+            # TODO succeeded and expired states are useless due to immediate
+            # removal under all circumstances (unhandled failed is still used).
             itask.state.reset(TASK_STATUS_EXPIRED, is_held=False)
+            self.remove(itask, 'expired')
             return True
         return False
 

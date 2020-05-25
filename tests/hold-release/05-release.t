@@ -63,7 +63,7 @@ cylc release ${CYLC_SUITE_NAME} 'holdrelease.1'
     [[stop]]
         inherit = STOP
         script = """
-        cylc__job__poll_grep_suite_log 'Removing succeeded task dog1.1'
+        cylc__job__poll_grep_suite_log 'Removed dog1.1 (finished)'
         cylc stop "${CYLC_SUITE_NAME}"
         """
 __SUITERC__
