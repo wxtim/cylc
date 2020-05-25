@@ -58,7 +58,6 @@ suite_run_ok "${TEST_NAME_BASE}-run" cylc run "${SUITE_NAME}" --no-detach -a
 dumpdbtables
 cmp_ok 'noautoshutdown.out' <<<"no_auto_shutdown|1"
 cmp_ok 'taskpool.out' <<'__OUT__'
-1|t_i02|succeeded
 1|t_i03|waiting
 __OUT__
 
@@ -71,9 +70,7 @@ contains_ok 'log.edited' <<__LOG__
 + no auto shutdown = True
 Suite shutting down - Abort on suite inactivity is set
 __LOG__
-cmp_ok 'taskpool.out' <<'__OUT__'
-1|t_i10|succeeded
-__OUT__
+cmp_ok 'taskpool.out' <'/dev/null'
 
 purge_suite "${SUITE_NAME}"
 exit

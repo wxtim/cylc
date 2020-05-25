@@ -38,9 +38,7 @@ if ! wait "${SUITE_PID}"; then
 fi
 sqlite3 "${SUITE_RUN_DIR}/log/db" \
     'SELECT * FROM task_pool ORDER BY cycle, name' >'task-pool.out'
-cmp_ok 'task-pool.out' <<__OUT__
-1|t1|succeeded|{}|{}|0
-__OUT__
+cmp_ok 'task-pool.out' </dev/null
 
 purge_suite "${SUITE_NAME}"
 exit

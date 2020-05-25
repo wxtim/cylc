@@ -40,13 +40,11 @@ suite_run_ok "${TEST_NAME}" cylc restart --debug --no-detach "${SUITE_NAME}"
 grep_ok "submit_failed_task|20130923T0000Z|1|1|submit-failed" \
     "${TEST_DIR}/pre-restart-db"
 contains_ok "${TEST_DIR}/post-restart-db" <<'__DB_DUMP__'
-shutdown|20130923T0000Z|1|1|succeeded
 submit_failed_task|20130923T0000Z|1|1|submit-failed
 __DB_DUMP__
 "${TEST_SOURCE_DIR}/bin/ctb-select-task-states" "${SUITE_RUN_DIR}" \
     > "${TEST_DIR}/db"
 contains_ok "${TEST_DIR}/db" <<'__DB_DUMP__'
-finish|20130923T0000Z|1|1|succeeded
 submit_failed_task|20130923T0000Z|1|1|submit-failed
 __DB_DUMP__
 #-------------------------------------------------------------------------------

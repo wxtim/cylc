@@ -76,7 +76,6 @@ cmp_ok 'cylc-ls-checkpoints.out' <<'__OUT__'
 1|nh7|submit-failed|0
 1|nh8|submit-failed|0
 1|nh9|submit-failed|0
-1|stopper|succeeded|0
 __OUT__
 
 purge_suite "${SUITE_NAME}"

@@ -79,7 +79,6 @@ suite_run_ok "${TEST_NAME_BASE}-run" \
 dumpdbtables
 cmp_ok 'stopcp.out' <<<'stopcp|2018'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2015|t1|succeeded
 2016|t1|waiting
 __OUT__
 
@@ -88,7 +87,6 @@ suite_run_ok "${TEST_NAME_BASE}-restart-1" \
 dumpdbtables
 cmp_ok 'stopcp.out' <'/dev/null'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2018|t1|succeeded
 2019|t1|waiting
 __OUT__
 
@@ -97,7 +95,6 @@ suite_run_ok "${TEST_NAME_BASE}-restart-2" \
 dumpdbtables
 cmp_ok 'stopcp.out' <<<'stopcp|2021'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2019|t1|succeeded
 2020|t1|waiting
 __OUT__
 
@@ -106,7 +103,6 @@ suite_run_ok "${TEST_NAME_BASE}-restart-3" \
 dumpdbtables
 cmp_ok 'stopcp.out' <'/dev/null'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2021|t1|succeeded
 2022|t1|waiting
 __OUT__
 
@@ -114,9 +110,7 @@ suite_run_ok "${TEST_NAME_BASE}-restart-4" \
     cylc restart "${SUITE_NAME}" --no-detach
 dumpdbtables
 cmp_ok 'stopcp.out' <'/dev/null'
-cmp_ok 'taskpool.out' <<'__OUT__'
-2025|t1|succeeded
-__OUT__
+cmp_ok 'taskpool.out' <'/dev/null'
 
 purge_suite "${SUITE_NAME}"
 exit

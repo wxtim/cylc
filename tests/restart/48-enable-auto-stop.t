@@ -61,7 +61,6 @@ suite_run_ok "${TEST_NAME_BASE}-run" \
 dumpdbtables
 cmp_ok 'noautoshutdown.out' <<<"no_auto_shutdown|0"
 cmp_ok 'taskpool.out' <<'__OUT__'
-1|t_i2|succeeded
 1|t_i3|waiting
 __OUT__
 
@@ -73,9 +72,7 @@ cut -d ' ' -f 4- "${SUITE_RUN_DIR}/log/suite/log" >'log.edited'
 contains_ok 'log.edited' <<__LOG__
 + no auto shutdown = False
 __LOG__
-cmp_ok 'taskpool.out' <<'__OUT__'
-1|t_i5|succeeded
-__OUT__
+cmp_ok 'taskpool.out' <'/dev/null'
 
 purge_suite "${SUITE_NAME}"
 exit
