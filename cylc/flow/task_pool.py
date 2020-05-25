@@ -1123,12 +1123,11 @@ class TaskPool(object):
             outputs = [TASK_OUTPUT_SUCCEEDED]
         n_warnings = 0
         task_items = {}
-        select_args = []
         for item in items:
             point_str, name_str = self._parse_task_item(item)[:2]
             if point_str is None:
                 LOG.warning(
-                    "%s: task ID for insert must contain cycle point" % (item))
+                    "%s: task ID for spawning must contain cycle point" % (item))
                 n_warnings += 1
                 continue
             try:
@@ -1145,9 +1144,7 @@ class TaskPool(object):
                 continue
             for taskdef in taskdefs:
                 task_items[(taskdef.name, point_str)] = taskdef
-                select_args.append((taskdef.name, point_str))
-        submit_nums = self.suite_db_mgr.pri_dao.select_submit_nums(
-            select_args)
+
         for key, taskdef in sorted(task_items.items()):
             # Check that the cycle point is on one of the tasks sequences.
             point = get_point(key[1])
@@ -1160,7 +1157,6 @@ class TaskPool(object):
                     self.ERR_PREFIX_TASK_NOT_ON_SEQUENCE, taskdef.name,
                     key[1]))
                 continue
-            submit_num = submit_nums.get(key, 0)
 
             # This the upstream target task:
             itask = TaskProxy(taskdef, self.config.initial_point, point)
