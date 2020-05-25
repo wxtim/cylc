@@ -40,8 +40,7 @@ from cylc.flow import main_loop
 from cylc.flow.broadcast_mgr import BroadcastMgr
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.config import SuiteConfig
-from cylc.flow.cycling.loader import (get_point, standardise_point_string,
-                                      get_interval)
+from cylc.flow.cycling.loader import get_point, get_interval
 from cylc.flow.daemonize import daemonize
 from cylc.flow.exceptions import (
     CylcError,
@@ -217,10 +216,8 @@ class Scheduler(object):
         self._profile_update_times = {}
 
         self.stop_mode = None
-
-        # TODO - stop task should be held by the task pool.
-        self.stop_task = None
         self.stop_clock_time = None  # When not None, in Unix time
+        self.restored_stop_task_id = None
 
         self.suite_timer_timeout = 0.0
         self.suite_timer_active = False
@@ -526,6 +523,8 @@ see `COPYING' in the Cylc source distribution.
         self.profiler.log_memory("scheduler.py: before load_tasks")
         if self.is_restart:
             self.load_tasks_for_restart()
+            if self.restored_stop_task_id is not None:
+                self.pool.set_stop_task(self.restored_stop_task_id)
         else:
             self.load_tasks_for_run()
         if self.options.stopcp:
@@ -616,7 +615,7 @@ see `COPYING' in the Cylc source distribution.
     def load_tasks_for_restart(self):
         """Load tasks for restart."""
         if self.options.startcp:
-            self.config.start_point = self.get_standardised_point(
+            self.config.start_point = TaskID.get_standardised_point(
                 self.options.startcp)
         self.suite_db_mgr.pri_dao.select_broadcast_states(
             self.broadcast_mgr.load_db_broadcast_states,
@@ -753,30 +752,6 @@ see `COPYING' in the Cylc source distribution.
             name = TaskID.split(name_or_id)[0]
         return name in self.config.get_task_name_list()
 
-    @staticmethod
-    def get_standardised_point_string(point_string):
-        """Return a standardised point string.
-
-        Used to process incoming command arguments.
-        """
-        try:
-            point_string = standardise_point_string(point_string)
-        except PointParsingError as exc:
-            # (This is only needed to raise a clearer error message).
-            raise ValueError(
-                "Invalid cycle point: %s (%s)" % (point_string, exc))
-        return point_string
-
-    def get_standardised_point(self, point_string):
-        """Return a standardised point."""
-        return get_point(self.get_standardised_point_string(point_string))
-
-    def get_standardised_taskid(self, task_id):
-        """Return task ID with standardised cycle point."""
-        name, point_string = TaskID.split(task_id)
-        return TaskID.get(
-            name, self.get_standardised_point_string(point_string))
-
     def info_get_task_jobfile_path(self, task_id):
         """Return task job file path."""
         name, point = TaskID.split(task_id)
@@ -888,7 +863,7 @@ see `COPYING' in the Cylc source distribution.
 
     def info_ping_task(self, task_id, exists_only=False):
         """Return True if task exists and running."""
-        task_id = self.get_standardised_taskid(task_id)
+        task_id = TaskID.get_standardised_taskid(task_id)
         return self.pool.ping_task(task_id, exists_only)
 
     def command_stop(
@@ -908,7 +883,7 @@ see `COPYING' in the Cylc source distribution.
 
         # schedule shutdown after tasks pass provided cycle point
         if cycle_point:
-            point = self.get_standardised_point(cycle_point)
+            point = TaskID.get_standardised_point(cycle_point)
             if self.pool.set_stop_point(point):
                 self.options.stopcp = str(point)
                 self.suite_db_mgr.put_suite_stop_cycle_point(
@@ -926,9 +901,9 @@ see `COPYING' in the Cylc source distribution.
 
         # schedule shutdown after task succeeds
         if task:
-            task_id = self.get_standardised_taskid(task)
+            task_id = TaskID.get_standardised_taskid(task)
             if TaskID.is_valid_id(task_id):
-                self.set_stop_task(task_id)
+                self.pool.set_stop_task(task_id)
             else:
                 # TODO: yield warning
                 pass
@@ -958,7 +933,7 @@ see `COPYING' in the Cylc source distribution.
     def command_set_stop_after_point(self, point_string):
         """Set stop after ... point."""
         # TODO: deprecated by command_stop()
-        stop_point = self.get_standardised_point(point_string)
+        stop_point = TaskID.get_standardised_point(point_string)
         if self.pool.set_stop_point(stop_point):
             self.options.stopcp = str(stop_point)
             self.suite_db_mgr.put_suite_stop_cycle_point(self.options.stopcp)
@@ -982,9 +957,9 @@ see `COPYING' in the Cylc source distribution.
     def command_set_stop_after_task(self, task_id):
         """Set stop after a task."""
         # TODO: deprecate
-        task_id = self.get_standardised_taskid(task_id)
+        task_id = TaskID.get_standardised_taskid(task_id)
         if TaskID.is_valid_id(task_id):
-            self.set_stop_task(task_id)
+            self.pool.set_stop_task(task_id)
 
     def command_release(self, ids=None):
         if ids:
@@ -1029,7 +1004,7 @@ see `COPYING' in the Cylc source distribution.
         if tasks:
             self.pool.hold_tasks(tasks)
         if time:
-            point = self.get_standardised_point(time)
+            point = TaskID.get_standardised_point(time)
             self.hold_suite(point)
             LOG.info(
                 'The suite will pause when all tasks have passed %s', point)
@@ -1049,7 +1024,7 @@ see `COPYING' in the Cylc source distribution.
     def command_hold_after_point_string(self, point_string):
         """Hold tasks AFTER this point (itask.point > point)."""
         # TODO: deprecated by command_hold()
-        point = self.get_standardised_point(point_string)
+        point = TaskID.get_standardised_point(point_string)
         self.hold_suite(point)
         LOG.info(
             "The suite will pause when all tasks have passed %s" % point)
@@ -1232,8 +1207,10 @@ see `COPYING' in the Cylc source distribution.
         This currently includes:
         * Initial/Final cycle points.
         * Start/Stop Cycle points.
+        * Stop task.
         * Suite UUID.
         * A flag to indicate if the suite should be held or not.
+
         """
         if row_idx == 0:
             LOG.info('LOADING suite parameters')
@@ -1296,7 +1273,7 @@ see `COPYING' in the Cylc source distribution.
                     value,
                     time2str(value))
         elif key == self.suite_db_mgr.KEY_STOP_TASK:
-            self.stop_task = value
+            self.restored_stop_task_id = value
             LOG.info('+ stop task = %s', value)
 
     def _load_template_vars(self, _, row):
@@ -1426,7 +1403,7 @@ see `COPYING' in the Cylc source distribution.
         # Can suite shut down automatically?
         if self.stop_mode is None and (
             self.stop_clock_done() or
-            self.stop_task_done() or
+            self.pool.stop_task_done() or
             self.check_auto_shutdown()
         ):
             self._set_stop(StopMode.AUTO)
@@ -1825,17 +1802,6 @@ see `COPYING' in the Cylc source distribution.
         self.stop_clock_time = unix_time
         self.suite_db_mgr.put_suite_stop_clock_time(self.stop_clock_time)
 
-    def set_stop_task(self, task_id):
-        """Set stop after a task."""
-        name = TaskID.split(task_id)[0]
-        if name in self.config.get_task_name_list():
-            task_id = self.get_standardised_taskid(task_id)
-            LOG.info("Setting stop task: " + task_id)
-            self.stop_task = task_id
-            self.suite_db_mgr.put_suite_stop_task(self.stop_task)
-        else:
-            LOG.warning("Requested stop task name does not exist: %s" % name)
-
     def stop_clock_done(self):
         """Return True if wall clock stop time reached."""
         if self.stop_clock_time is None:
@@ -1850,16 +1816,6 @@ see `COPYING' in the Cylc source distribution.
         else:
             LOG.debug(
                 "stop time=%d; current time=%d", self.stop_clock_time, now)
-            return False
-
-    def stop_task_done(self):
-        """Return True if stop task has succeeded."""
-        if self.stop_task and self.pool.task_succeeded(self.stop_task):
-            LOG.info("Stop task %s finished" % self.stop_task)
-            self.stop_task = None
-            self.suite_db_mgr.delete_suite_stop_task()
-            return True
-        else:
             return False
 
     def check_auto_shutdown(self):

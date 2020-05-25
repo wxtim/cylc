@@ -490,6 +490,11 @@ class SuiteDatabaseManager(object):
         self._put_update_task_x(
             CylcSuiteDAO.TABLE_TASK_JOBS, itask, set_args)
 
+    def put_update_task_states(self, itask, set_args):
+        """Put UPDATE statement for task_jobs table."""
+        self._put_update_task_x(
+            CylcSuiteDAO.TABLE_TASK_STATES, itask, set_args)
+
     def put_update_task_outputs(self, itask):
         """Put UPDATE statement for task_outputs table."""
         items = {}
