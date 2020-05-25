@@ -31,7 +31,7 @@ generated reference version.
         script = "true" # no sleep
         [[[environment]]]
             BCAST = ${BCAST:-(not set)}
-            BCASTLOG = ${CYLC_SUITE_DEF_PATH}/broadcast.log
+            BCASTLOG = ${CYLC_SUITE_SHARE_DIR}/broadcast.log
     [[prep]]
         pre-script = "rm -f $BCASTLOG"
         script = """
