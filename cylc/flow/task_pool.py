@@ -483,7 +483,7 @@ class TaskPool(object):
                 for trig in itask.tdef.get_abs_triggers(next_point):
                     p_name = trig.task_name
                     p_point = trig.get_point(next_point)
-                    c_task = self.spawn_get(p_name, next_point)
+                    c_task = self.spawn_get(itask.tdef.name, next_point)
                     if c_task is not None:
                         # Update downstream prerequisites directly.
                         # TODO: USE PROXY METHOD
