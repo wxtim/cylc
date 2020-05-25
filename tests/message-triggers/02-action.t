@@ -32,10 +32,9 @@ TEST_NAME="${TEST_NAME_BASE}-run"
 suite_run_ok "${TEST_NAME}" cylc run --no-detach "${SUITE_NAME}"
 
 # Check that final task pool indicates bar and baz ran
+# TODO: some final null task pool tests would be better on task_states table!
 TEST_NAME=${TEST_NAME_BASE}-cmp-task-pool
 sqlite3 "${SUITE_RUN_DIR}/log/db" 'select cycle, name, status from task_pool;' > task-pool.log
-cmp_ok task-pool.log - << __END__
-1|baz|succeeded
-__END__
+cmp_ok task-pool.log - <'/dev/null'
 
 purge_suite "${SUITE_NAME}"

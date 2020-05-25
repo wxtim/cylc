@@ -32,9 +32,7 @@ cmp_json 'sqlite3.out' 'sqlite3.out' <<<'{"hello": "hello"}'
 
 sqlite3 "${SUITE_RUN_DIR}/log/db" \
     'SELECT * FROM task_pool' >'task-pool.out'
-cmp_ok 'task-pool.out' <<'__OUT__'
-1|t2|succeeded|{"[\"t1\", \"1\", \"hello\"]": "satisfied naturally"}|{"[\"t1\", \"1\"]": true}|0
-__OUT__
+cmp_ok 'task-pool.out' <'/dev/null'
 
 purge_suite "${SUITE_NAME}"
 exit

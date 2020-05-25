@@ -63,7 +63,7 @@ cylc release ${CYLC_SUITE_NAME} 'holdrelease.1'
     [[stop]]
         inherit = STOP
         script = """
-        cylc__job__poll_grep_suite_log 'Removed dog1.1 (finished)'
+        cylc__job__poll_grep_suite_log '\[dog1\.1\] -task proxy removed (finished)'
         cylc stop "${CYLC_SUITE_NAME}"
         """
 __SUITERC__
@@ -79,7 +79,6 @@ sqlite3 "${SUITE_RUN_DIR}/log/db" \
     'SELECT cycle, name, status, is_held FROM task_pool' > task-pool.out
 cmp_ok task-pool.out <<__OUT__
 1|dog2|waiting|1
-1|stop|succeeded|0
 __OUT__
 
 purge_suite "${SUITE_NAME}"

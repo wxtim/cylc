@@ -32,14 +32,13 @@ suite_run_ok "${TEST_NAME_BASE}-run" cylc run --hold "${SUITE_NAME}"
 cylc release "${SUITE_NAME}" foo.1
 # foo.1 should run and spawn bar.1 as waiting
 
-poll_grep_suite_log '\[foo\.1\] spawned bar\.1'
+poll_grep_suite_log 'Spawned bar\.1'
 
 sqlite3 "${SUITE_RUN_DIR}/log/db" \
     'SELECT cycle, name, status, is_held FROM task_pool' > task-pool.out
 
 cmp_ok task-pool.out <<__OUT__
 1|bar|waiting|1
-1|foo|succeeded|0
 __OUT__
 
 cylc stop --max-polls=10 --interval=2 "${SUITE_NAME}"

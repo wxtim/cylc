@@ -44,9 +44,7 @@ MY_CYCLE="$(sqlite3 "${SUITE_RUN_DIR}/log/db" 'SELECT cycle FROM task_pool')"
 suite_run_ok "${TEST_NAME_BASE}-restart-now" \
     cylc restart --debug --no-detach "${SUITE_NAME}"
 sqlite3 "${SUITE_RUN_DIR}/log/db" 'SELECT cycle, name, status FROM task_pool' >'task_pool.out'
-cmp_ok 'task_pool.out' <<__OUT__
-${MY_CYCLE}|foo|succeeded
-__OUT__
+cmp_ok 'task_pool.out' <'/dev/null'
 
 # Tests:
 # "cylc run --icp=now SUITE"
@@ -59,9 +57,7 @@ for ICP in 'now' 'next(T00)' 'previous(T00)'; do
     suite_run_ok "${TEST_NAME_BASE}-restart-icp-now" \
         cylc restart --debug --no-detach "${SUITE_NAME}"
     sqlite3 "${SUITE_RUN_DIR}/log/db" 'SELECT cycle, name, status FROM task_pool' >'task_pool.out'
-    cmp_ok 'task_pool.out' <<__OUT__
-${MY_CYCLE}|foo|succeeded
-__OUT__
+    cmp_ok 'task_pool.out' <'/dev/null'
 done
 
 purge_suite "${SUITE_NAME}"

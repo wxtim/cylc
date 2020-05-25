@@ -50,9 +50,7 @@ __DB_DUMP__
 suite_run_ok "${TEST_NAME_BASE}-restart" \
     cylc restart --debug --no-detach "${SUITE_NAME}"
 sqlite3 "${SUITE_RUN_DIR}/log/db" 'SELECT * FROM task_pool' >'sqlite3.out'
-cmp_ok 'sqlite3.out' <<'__DB_DUMP__'
-1|t1|succeeded|{}|{}|0
-__DB_DUMP__
+cmp_ok 'sqlite3.out' </dev/null
 #-------------------------------------------------------------------------------
 purge_suite "${SUITE_NAME}"
 exit

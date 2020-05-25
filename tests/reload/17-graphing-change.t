@@ -27,7 +27,7 @@ install_suite "${TEST_NAME_BASE}" 'graphing-change'
 LOG_FILE="${SUITE_RUN_DIR}/log/suite/log"
 
 # start suite in held mode
-run_ok "${TEST_NAME_BASE}-add-run" cylc run --hold "${SUITE_NAME}"
+run_ok "${TEST_NAME_BASE}-add-run" cylc run --debug --hold "${SUITE_NAME}"
 
 # change the suite.rc file
 cp "${TEST_SOURCE_DIR}/graphing-change/suite-1.rc" \

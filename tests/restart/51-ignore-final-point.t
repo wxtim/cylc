@@ -69,7 +69,6 @@ suite_run_ok "${TEST_NAME_BASE}-run" \
 dumpdbtables
 cmp_ok 'fcp.out' <<<'fcp|2018'
 cmp_ok 'taskpool.out' <<'__OUT__'
-2015|t1|succeeded
 2016|t1|waiting
 __OUT__
 
@@ -77,17 +76,13 @@ suite_run_ok "${TEST_NAME_BASE}-restart-1" \
     cylc restart "${SUITE_NAME}" --no-detach
 dumpdbtables
 cmp_ok 'fcp.out' <<<'fcp|2018'
-cmp_ok 'taskpool.out' <<'__OUT__'
-2018|t1|succeeded
-__OUT__
+cmp_ok 'taskpool.out' <'/dev/null'
 
 suite_run_ok "${TEST_NAME_BASE}-restart-2" \
     cylc restart "${SUITE_NAME}" --no-detach
 dumpdbtables
 cmp_ok 'fcp.out' <<<'fcp|2018'
-cmp_ok 'taskpool.out' <<'__OUT__'
-2018|t1|succeeded
-__OUT__
+cmp_ok 'taskpool.out' <'/dev/null'
 
 # TODO - UNDER SOD THE PREVIOUS STOP POINT CAN'T BE OVERRIDDEN ON RESTART
 # UNLESS WE SPAWN INTO THE RUNAHEAD POOL BEYOND THE STOP POINT (PROBABLY A GOOD
@@ -96,9 +91,7 @@ suite_run_ok "${TEST_NAME_BASE}-restart-3" \
     cylc restart "${SUITE_NAME}" --no-detach --ignore-final-cycle-point
 dumpdbtables
 cmp_ok 'fcp.out' <'/dev/null'
-cmp_ok 'taskpool.out' <<'__OUT__'
-2018|t1|succeeded
-__OUT__
+cmp_ok 'taskpool.out' <'/dev/null'
 
 purge_suite "${SUITE_NAME}"
 exit

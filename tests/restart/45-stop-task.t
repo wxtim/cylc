@@ -62,7 +62,6 @@ suite_run_ok "${TEST_NAME_BASE}-run" cylc run "${SUITE_NAME}" --no-detach
 dumpdbtables
 cmp_ok 'stoptask.out' <<<'stop_task|t_i5.1'
 cmp_ok 'taskpool.out' <<'__OUT__'
-1|t_i2|succeeded
 1|t_i3|waiting
 __OUT__
 
@@ -71,7 +70,6 @@ suite_run_ok "${TEST_NAME_BASE}-restart-1" \
 dumpdbtables
 cmp_ok 'stoptask.out' <'/dev/null'
 cmp_ok 'taskpool.out' <<'__OUT__'
-1|t_i5|succeeded
 1|t_i6|waiting
 __OUT__
 
@@ -79,9 +77,7 @@ suite_run_ok "${TEST_NAME_BASE}-restart-2" \
     cylc restart "${SUITE_NAME}" --no-detach
 dumpdbtables
 cmp_ok 'stoptask.out' <'/dev/null'
-cmp_ok 'taskpool.out' <<'__OUT__'
-1|t_i8|succeeded
-__OUT__
+cmp_ok 'taskpool.out' <'/dev/null'
 
 purge_suite "${SUITE_NAME}"
 exit
