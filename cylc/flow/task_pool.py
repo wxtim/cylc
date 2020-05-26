@@ -55,6 +55,7 @@ from cylc.flow.task_state import (
 from cylc.flow.wallclock import get_current_time_string
 from cylc.flow.platform_lookup import forward_lookup
 
+
 class TaskPool(object):
     """Task pool of a suite."""
 
@@ -340,9 +341,10 @@ class TaskPool(object):
         """
         if row_idx == 0:
             LOG.info("LOADING task proxies")
-        (cycle, name, spawned, is_late, status, is_held, submit_num, _,
-        platform_name, time_submit, time_run, timeout,
-         outputs_str) = row
+        (
+            cycle, name, spawned, is_late, status, is_held, submit_num, _,
+            platform_name, time_submit, time_run, timeout, outputs_str
+        ) = row
         try:
             itask = TaskProxy(
                 self.config.get_taskdef(name),

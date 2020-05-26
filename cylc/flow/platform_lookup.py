@@ -36,9 +36,10 @@ def forward_lookup(platform_name=None):
 
     Returns:
         platform (dict):
-            object containing settings for a platform, loaded from Global Config
+            object containing settings for a platform, loaded from
+            Global Config.
 
-    TODO: 
+    TODO:
         - Refactor testing for this method. Ideally including a method
           example.
         - Work out what to do with cases where localhost not set.
@@ -58,8 +59,6 @@ def forward_lookup(platform_name=None):
             platform_data = platforms[platform_name]
             platform_data['name'] = platform_name
             return platform_data
-
-    
 
     raise PlatformLookupError(
         f"No matching platform \"{platform_name}\" found")

@@ -1172,7 +1172,8 @@ see `COPYING' in the Cylc source distribution.
             load_type = "run"
         file_name = os.path.expandvars(
             get_suite_run_rc_dir(
-            self.suite, f"{time_str}-{load_type}.rc")
+                self.suite, f"{time_str}-{load_type}.rc"
+            )
         )
         with open(file_name, "wb") as handle:
             handle.write(b"# cylc-version: %s\n" % CYLC_VERSION.encode())
