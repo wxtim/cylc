@@ -831,10 +831,9 @@ see `COPYING' in the Cylc source distribution.
 
     def _info_get_task_requisites(self, itask, list_prereqs):
         extras = {}
-        now = time()
         if itask.tdef.clocktrigger_offset is not None:
             extras['Clock trigger time reached'] = (
-                itask.is_waiting_clock_done(now))
+                itask.is_waiting_clock_done())
             extras['Triggers at'] = time2str(
                 itask.clock_trigger_time)
         for trig, satisfied in itask.state.external_triggers.items():
@@ -1709,15 +1708,14 @@ see `COPYING' in the Cylc source distribution.
 
         broadcast_mgr = self.task_events_mgr.broadcast_mgr
         broadcast_mgr.add_ext_triggers(self.ext_trigger_queue)
-        now = time()
         for itask in self.pool.get_tasks():
             # External trigger matching and task expiry must be done
             # regardless, so they need to be in separate "if ..." blocks.
             if broadcast_mgr.match_ext_trigger(itask):
                 process = True
-            if self.pool.set_expired_task(itask, now):
+            if self.pool.set_expired_task(itask, time()):
                 process = True
-            if itask.is_ready(now):
+            if itask.is_ready():
                 process = True
         if (
             self.config.run_mode('simulation') and

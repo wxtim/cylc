@@ -16,6 +16,8 @@
 
 """Provide a class to represent a task proxy in a running suite."""
 
+from time import time
+
 from metomi.isodatetime.timezone import get_local_time_zone
 
 import cylc.flow.cycling.iso8601
@@ -412,7 +414,7 @@ class TaskProxy(object):
             p_next = min(adjusted)
         return p_next
 
-    def is_ready(self, now):
+    def is_ready(self):
         """Am I in a pre-run state but ready to run?
 
         Queued tasks are not counted as they've already been deemed ready.
@@ -423,10 +425,10 @@ class TaskProxy(object):
         if self.state.is_held:
             return False
         if self.state.status in self.try_timers:
-            return self.try_timers[self.state.status].is_delay_done(now)
+            return self.try_timers[self.state.status].is_delay_done()
         return (
             self.state(TASK_STATUS_WAITING)
-            and self.is_waiting_clock_done(now)
+            and self.is_waiting_clock_done()
             and self.is_waiting_prereqs_done())
 
     def reset_manual_trigger(self):
@@ -458,7 +460,7 @@ class TaskProxy(object):
             self.summary[event_key + '_time'] = float(str2time(time_str))
         self.summary[event_key + '_time_string'] = time_str
 
-    def is_waiting_clock_done(self, now):
+    def is_waiting_clock_done(self):
         """Is this task done waiting for its clock trigger time?
 
         Return True if there is no clock trigger or when clock trigger is done.
@@ -469,7 +471,7 @@ class TaskProxy(object):
             self.clock_trigger_time = (
                 self.get_point_as_seconds() +
                 self.get_offset_as_seconds(self.tdef.clocktrigger_offset))
-        return now >= self.clock_trigger_time
+        return time() >= self.clock_trigger_time
 
     def is_task_prereqs_not_done(self):
         """Is this task waiting on other-task prerequisites?"""

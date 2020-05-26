@@ -493,12 +493,9 @@ class TaskPool(object):
                         c_task.parents_finished[(p_name, str(p_point))] = True
 
     def housekeep_waiting_tasks(self):
-        """Remove waiting tasks if their parents are all finished.
+        """Remove waiting tasks that can no longer be satisfied automatically.
 
-        These can't be automatically satisfied anymore, even if they also have
-        unsatisfied clock or other external triggers. But avoid removing:
-        - held waiting tasks (these may run once released)
-        - waiting tasks with no parents (i.e. just clock or external triggers)
+        Parents all satisfied, no unsatisfied external triggers, and not held.
 
         """
         remove_me = []
@@ -507,7 +504,10 @@ class TaskPool(object):
             if (itask.state(TASK_STATUS_WAITING)
                     and not itask.state.is_held
                     and itask.parents_finished
-                    and all(itask.parents_finished.values())):
+                    and all(itask.parents_finished.values())
+                    and all(itask.state.external_triggers.values())
+                    and all(itask.state.xtriggers.values())
+                    and itask.is_waiting_clock_done()):
                 LOG.info("Removed %s (stuck waiting)", itask.identity)
                 remove_me.append(itask)
                 removed = True
@@ -653,9 +653,8 @@ class TaskPool(object):
         an initially unqueued task that is queue-limited.
 
         Return the tasks that are dequeued.
-        """
 
-        now = time()
+        """
         ready_tasks = []
         qconfig = self.config.cfg['scheduling']['queues']
 
@@ -664,7 +663,7 @@ class TaskPool(object):
             for itask in list(self.queues[queue].values()):
                 if not itask.state(TASK_STATUS_QUEUED):
                     # only need to check that unqueued tasks are ready
-                    if itask.is_ready(now):
+                    if itask.is_ready():
                         # queue the task
                         itask.state.reset(TASK_STATUS_QUEUED)
                         itask.reset_manual_trigger()
