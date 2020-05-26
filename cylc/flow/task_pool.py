@@ -89,6 +89,8 @@ class TaskPool(object):
 
         self.stop_task_id = None
         self.stop_task_finished = False
+        self.abort_task_failed = False
+        self.expected_failed_tasks = self.config.get_expected_failed_tasks()
 
         self.orphans = []
         self.task_name_list = self.config.get_task_name_list()
@@ -1023,26 +1025,21 @@ class TaskPool(object):
     def check_abort_on_task_fails(self):
         """Check whether suite should abort on task failure.
 
-        Return True if:
-        * There are failed tasks and `abort if any task fails` is specified.
-        * There are unexpected failed tasks in a reference test.
+        Return True if a task failed and `abort if any task fails` is set.
         """
-        expected_failed_tasks = self.config.get_expected_failed_tasks()
-        if expected_failed_tasks is None:
-            return False
-        return any(
-            (
-                itask.state.status in TASK_STATUSES_FAILURE
-                and itask.identity not in expected_failed_tasks
-            )
-            for itask in self.get_tasks())
+        return self.abort_task_failed
 
     def spawn_and_update_children(self, itask, output):
         """Spawn children of itask:output if not already spawned.
 
         Update relevant prerequisites and parent-finished status of children.
-
+        Also set a the abort-on-task-failed flag if necessary.
         """
+        if output == TASK_OUTPUT_FAILED:
+            if (self.expected_failed_tasks is not None
+                    and itask.identity not in self.expected_failed_tasks):
+                self.abort_task_failed = True
+
         if output in [TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_EXPIRED,
                       TASK_OUTPUT_FAILED]:
             # Spawn all children, to record parent finished status.
