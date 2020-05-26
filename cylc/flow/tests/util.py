@@ -21,7 +21,7 @@ from pathlib import Path
 from shutil import rmtree
 from tempfile import mkdtemp
 from unittest import TestCase
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, Mock, MagicMock
 
 from cylc.flow.cfgspec.globalcfg import SPEC
 from cylc.flow.config import SuiteConfig
@@ -101,6 +101,7 @@ class CylcWorkflowTestCase(TestCase):
         self.suite_config = create_suite_config(
             self.workflow_directory, self.suite_name, self.suiterc)
         assert self.suite_config
+        self.suite_config.get_expected_failed_tasks = lambda: None
 
         # Scheduler
         self.scheduler = mocked_scheduler
@@ -126,7 +127,7 @@ class CylcWorkflowTestCase(TestCase):
         self.task_pool = TaskPool(
             self.suite_config,
             suite_db_mgr=self.suite_db_mgr,
-            task_events_mgr=None,
+            task_events_mgr=MagicMock(),
             job_pool=self.job_pool)
         self.scheduler.pool = self.task_pool
 
