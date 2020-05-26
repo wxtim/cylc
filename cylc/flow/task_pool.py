@@ -59,7 +59,7 @@ class TaskPool(object):
         self.stop_point = config.final_point
         self.suite_db_mgr = suite_db_mgr
         self.task_events_mgr = task_events_mgr
-        # TODO: a better a better way to spawn off of task events?:
+        # TODO find a cleaner way to spawn off of task events:
         self.task_events_mgr.spawn_func = self.spawn_and_update_children
         self.job_pool = job_pool
 
@@ -1079,7 +1079,7 @@ class TaskPool(object):
                 if p_finished:
                     # TODO: USE PROXY METHOD
                     c_task.parents_finished[(p_name, str(p_point))] = True
- 
+
     def spawn_get(self, name, point):
         """Return proxy name.point after spawning if necessary, or None."""
         # TODO: is it possible for initial_point to not be defined??
@@ -1154,7 +1154,7 @@ class TaskPool(object):
             point_str, name_str = self._parse_task_item(item)[:2]
             if point_str is None:
                 LOG.warning(
-                    "%s: task ID for spawning must contain cycle point" % (item))
+                    "%s: task to spawn must have a cycle point" % (item))
                 n_warnings += 1
                 continue
             try:
@@ -1280,7 +1280,8 @@ class TaskPool(object):
 
             for name, point_str in select_args:
                 # Spawn and set ready to trigger.
-                itask = self.spawn_get(name, get_point(point_str).standardise())
+                itask = self.spawn_get(
+                    name, get_point(point_str).standardise())
                 if itask is not None:
                     itask.state.reset(TASK_STATUS_WAITING)
                     itask.state.set_prerequisites_all_satisfied()
