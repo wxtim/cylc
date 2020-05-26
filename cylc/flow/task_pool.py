@@ -494,29 +494,6 @@ class TaskPool(object):
                         # TODO: USE PROXY METHOD
                         c_task.parents_finished[(p_name, str(p_point))] = True
 
-    def housekeep_waiting_tasks(self):
-        """Remove waiting tasks that can no longer be satisfied automatically.
-
-        Parents all satisfied, no unsatisfied external triggers, and not held.
-
-        """
-        remove_me = []
-        removed = False
-        for itask in self.get_tasks():
-            if (itask.state(TASK_STATUS_WAITING)
-                    and not itask.state.is_held
-                    and itask.parents_finished
-                    and all(itask.parents_finished.values())
-                    and all(itask.state.external_triggers.values())
-                    and all(itask.state.xtriggers.values())
-                    and itask.is_waiting_clock_done()):
-                LOG.info("Removed %s (stuck waiting)", itask.identity)
-                remove_me.append(itask)
-                removed = True
-        for itask in remove_me:
-            self.remove(itask)
-        return removed
-
     def db_update_final_task_state(self, itask):
         """Update DB task_states table for final state of this task."""
         self.suite_db_mgr.put_update_task_states(
@@ -1076,6 +1053,16 @@ class TaskPool(object):
                 if p_finished:
                     # TODO: USE PROXY METHOD
                     c_task.parents_finished[(p_name, str(p_point))] = True
+                    # Remove if all parents are finished but prerequisites are
+                    # not satisfied, regardless of clock and external triggers.
+                    # TODO test for waiting is not necessary here?
+                    if(
+                            c_task.state(TASK_STATUS_WAITING)
+                            and all(c_task.parents_finished.values())
+                            and not all(pre.is_satisfied()
+                                        for pre in c_task.state.prerequisites)
+                    ):
+                        self.remove(c_task, 'stuck waiting')
 
     def spawn_get(self, name, point):
         """Return proxy name.point after spawning if necessary, or None."""

@@ -1350,8 +1350,6 @@ see `COPYING' in the Cylc source distribution.
         if self.pool.remove_suiciding_tasks():
             self.is_updated = True
 
-        if self.pool.housekeep_waiting_tasks():
-            self.is_updated = True
         self.broadcast_mgr.expire_broadcast(self.pool.get_min_point())
         self.xtrigger_mgr.housekeep()
         self.suite_db_mgr.put_xtriggers(self.xtrigger_mgr.sat_xtrig)
