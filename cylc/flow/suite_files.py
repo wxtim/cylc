@@ -368,7 +368,7 @@ def get_suite_srv_dir(reg, suite_owner=None):
         suite_owner = get_user()
     run_d = os.getenv("CYLC_SUITE_RUN_DIR")
     if (
-        not run_d or 
+        not run_d or
         os.getenv("CYLC_SUITE_NAME") != reg or
         os.getenv("CYLC_SUITE_OWNER") != suite_owner
     ):
@@ -641,7 +641,7 @@ def _load_remote_item(item, reg, platform):
     else:
         host = platform['remote hosts'][0]
         owner = platfom['owner']
-    
+
     if not is_remote(host, owner):
         return
     if host is None:
