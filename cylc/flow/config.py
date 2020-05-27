@@ -310,14 +310,21 @@ class SuiteConfig(object):
         self.cfg = self.pcfg.get(sparse=False)
         self.mem_log("config.py: after get(sparse=False)")
 
+        # Get the original suite run time zone if restart:
+        cycle_point_tz = getattr(self.options, 'cycle_point_tz', None)
         if self.cfg['cylc'].get('cycle point time zone') is None:
-            # Get the original suite run time zone if restart.
-            # This must be done before call to init_cyclers(self.cfg)
-            cycle_point_tz = getattr(self.options, 'cp_tz', None)
             if cycle_point_tz is None:
                 # Not a restart
                 cycle_point_tz = get_local_time_zone_format()
+            # This must be set before call to init_cyclers(self.cfg):
             self.cfg['cylc']['cycle point time zone'] = cycle_point_tz
+        elif cycle_point_tz is not None:
+            LOG.warning(
+                "Specified cycle point time zone {0} is different to the "
+                "stored cycle point time zone {1} from initial run."
+                .format(self.cfg['cylc'].get('cycle point time zone'),
+                        cycle_point_tz)
+            )
 
         # after the call to init_cyclers, we can start getting proper points.
         init_cyclers(self.cfg)
