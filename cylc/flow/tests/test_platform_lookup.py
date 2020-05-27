@@ -69,16 +69,23 @@ PLATFORMS_WITH_RE = {
     }
 }
 
+
 @pytest.mark.parametrize(
     "PLATFORMS, platform, expected",
     [
-        (PLATFORMS_WITH_RE, "nutmeg", {"batch system": "slurm", "name": "nutmeg"}),
+        (PLATFORMS_WITH_RE, "nutmeg", {
+            "batch system": "slurm", "name": "nutmeg"
+        }),
         (PLATFORMS_WITH_RE, "vld798", "vld798"),
         (PLATFORMS_WITH_RE, "vld56", "vld56"),
         (
             PLATFORMS_NO_UNIQUE,
             "sugar",
-            {"login hosts": "localhost", "batch system": "slurm", "name": "sugar"},
+            {
+                "login hosts": "localhost",
+                "batch system": "slurm",
+                "name": "sugar"
+            },
         ),
         (
             PLATFORMS,
@@ -89,11 +96,18 @@ PLATFORMS_WITH_RE = {
                 "name": "localhost",
             },
         ),
-        (PLATFORMS, "laptop22", {"batch system": "background", "name": "laptop22"}),
+        (PLATFORMS, "laptop22", {
+            "batch system": "background"
+            "name": "laptop22"
+        }),
         (
             PLATFORMS,
             "hpc1-bg",
-            {"remote hosts": "hpc1", "batch system": "background", "name": "hpc1-bg"},
+            {
+                "remote hosts": "hpc1",
+                "batch system": "background",
+                "name": "hpc1-bg"
+            },
         ),
         (PLATFORMS_WITH_RE, "hpc2", {"login hosts": "hpc3", "name": "hpc2"}),
     ],
