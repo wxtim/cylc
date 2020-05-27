@@ -210,15 +210,15 @@ class TaskEventsManager():
         """Return a host setting from suite then global configuration."""
         overrides = self.broadcast_mgr.get_broadcast(itask.identity)
         if skey in overrides and overrides[skey].get(key) is not None:
-            return overrides[skey][key]
-        elif itask.tdef.rtconfig[skey].get(key) is not None:
-            return itask.tdef.rtconfig[skey][key]
+            ret = overrides[skey][key]
+        elif itask.tdef.rtconfig[skey].get(key) not in (None, []):
+            ret = itask.tdef.rtconfig[skey][key]
         else:
             try:
                 return itask.platform[key]
             except (KeyError, ItemNotFoundError):
-                pass
-        return default
+                ret = default
+        return ret
 
     def process_events(self, schd_ctx):
         """Process task events that were created by "setup_event_handlers".

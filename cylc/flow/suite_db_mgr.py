@@ -291,10 +291,10 @@ class SuiteDatabaseManager(object):
             {"key": "cylc_version", "value": CYLC_VERSION},
             {"key": "UTC_mode", "value": get_utc_mode()},
         ])
-        if schd.config.cfg['cylc']['cycle point format']:
+        if schd.config.cycle_point_dump_format is not None:
             self.db_inserts_map[self.TABLE_SUITE_PARAMS].append({
                 "key": "cycle_point_format",
-                "value": schd.config.cfg['cylc']['cycle point format']})
+                "value": schd.config.cycle_point_dump_format})
         if schd.pool.is_held:
             self.db_inserts_map[self.TABLE_SUITE_PARAMS].append({
                 "key": self.KEY_HOLD, "value": 1})
@@ -355,19 +355,18 @@ class SuiteDatabaseManager(object):
 
     def put_task_event_timers(self, task_events_mgr):
         """Put statements to update the task_action_timers table."""
-        if task_events_mgr.event_timers:
-            self.db_deletes_map[self.TABLE_TASK_ACTION_TIMERS].append({})
-            for key, timer in task_events_mgr.event_timers.items():
-                key1, point, name, submit_num = key
-                self.db_inserts_map[self.TABLE_TASK_ACTION_TIMERS].append({
-                    "name": name,
-                    "cycle": point,
-                    "ctx_key": json.dumps((key1, submit_num,)),
-                    "ctx": self._namedtuple2json(timer.ctx),
-                    "delays": json.dumps(timer.delays),
-                    "num": timer.num,
-                    "delay": timer.delay,
-                    "timeout": timer.timeout})
+        self.db_deletes_map[self.TABLE_TASK_ACTION_TIMERS].append({})
+        for key, timer in task_events_mgr.event_timers.items():
+            key1, point, name, submit_num = key
+            self.db_inserts_map[self.TABLE_TASK_ACTION_TIMERS].append({
+                "name": name,
+                "cycle": point,
+                "ctx_key": json.dumps((key1, submit_num,)),
+                "ctx": self._namedtuple2json(timer.ctx),
+                "delays": json.dumps(timer.delays),
+                "num": timer.num,
+                "delay": timer.delay,
+                "timeout": timer.timeout})
 
     def put_xtriggers(self, sat_xtrig):
         """Put statements to update external triggers table."""
