@@ -1230,7 +1230,8 @@ class SuiteRuntimeServer(ZMQSocketBase):
 
     @authorise(Priv.CONTROL)
     @expose
-    def trigger_tasks(self, tasks, back_out=False, task_pool=False):
+    def trigger_tasks(
+            self, tasks, back_out=False, task_pool=False, reflow=False):
         """Trigger submission of task jobs where possible.
 
         Args:
@@ -1240,6 +1241,8 @@ class SuiteRuntimeServer(ZMQSocketBase):
                 Abort e.g. in the event of a rejected trigger-edit.
             task_pool (bool, optional):
                 Target task pool instead of abstract tasks.
+            reflow (bool, optional):
+                Start new flow(s) from triggered tasks.
 
         Returns:
             tuple: (outcome, message)
@@ -1252,7 +1255,7 @@ class SuiteRuntimeServer(ZMQSocketBase):
         """
         self.schd.command_queue.put(
             ("trigger_tasks", (tasks,),
-             {"back_out": back_out, "task_pool": task_pool}))
+             {"back_out": back_out, "task_pool": task_pool, "reflow": reflow}))
         return (True, 'Command queued')
 
     # UIServer Data Commands

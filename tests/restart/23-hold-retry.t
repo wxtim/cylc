@@ -24,9 +24,9 @@ run_ok "${TEST_NAME_BASE}-validate" cylc validate "${SUITE_NAME}"
 suite_run_ok "${TEST_NAME_BASE}-run" \
     cylc run --debug --no-detach "${SUITE_NAME}"
 sqlite3 "${SUITE_RUN_DIR}/log/db" \
-    'SELECT * FROM task_pool ORDER BY cycle, name' >'task-pool.out'
+    'SELECT cycle, name, status FROM task_pool ORDER BY cycle, name' >'task-pool.out'
 cmp_ok 'task-pool.out' <<__OUT__
-1|t1|retrying|{}|{}|1
+1|t1|retrying
 __OUT__
 cylc restart "${SUITE_NAME}" --debug --no-detach 1>'out' 2>&1 &
 SUITE_PID=$!

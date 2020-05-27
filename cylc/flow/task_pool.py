@@ -19,6 +19,7 @@
 """
 
 from fnmatch import fnmatchcase
+from uuid import uuid4
 import json
 from time import time
 from queue import Queue, Empty
@@ -48,6 +49,10 @@ from cylc.flow.task_state import (
 from cylc.flow.wallclock import get_current_time_string
 
 
+def get_flow_num():
+    return str(uuid4())
+
+
 class TaskPool(object):
     """Task pool of a suite."""
 
@@ -60,7 +65,7 @@ class TaskPool(object):
         self.suite_db_mgr = suite_db_mgr
         self.task_events_mgr = task_events_mgr
         # TODO find a cleaner way to spawn off of task events:
-        self.task_events_mgr.spawn_func = self.spawn_and_update_children
+        self.task_events_mgr.spawn_func = self.spawn_on_output
         self.job_pool = job_pool
 
         self.do_reload = False
@@ -176,11 +181,12 @@ class TaskPool(object):
         self.rhpool_changed = True
 
         # add row to "task_states" table
-        if is_new and itask.submit_num == 0:
+        if is_new:
             self.suite_db_mgr.put_insert_task_states(itask, {
                 "time_created": get_current_time_string(),
                 "time_updated": get_current_time_string(),
-                "status": itask.state.status})
+                "status": itask.state.status,
+                "flow_num": itask.flow_num})
             if itask.state.outputs.has_custom_triggers():
                 self.suite_db_mgr.put_insert_task_outputs(itask)
         return itask
@@ -287,7 +293,7 @@ class TaskPool(object):
         return released
 
     def load_db_task_pool_for_restart(self, row_idx, row):
-        """Load a task from previous task pool.
+        """Load a task from DB task pool/states/jobs tables.
 
         Output completion status is loaded from the DB, and tasks recorded
         as submitted or running are polled to confirm their true status.
@@ -296,14 +302,15 @@ class TaskPool(object):
         if row_idx == 0:
             LOG.info("LOADING task proxies")
         # Create a task proxy corresponding to this DB entry.
-        (cycle, name, is_late, status, satisfied, parents_finished, is_held,
-         submit_num, _, user_at_host, time_submit, time_run, timeout,
+        (cycle, name, flow_num, is_late, status, satisfied, parents_finished,
+         is_held, submit_num, _, user_at_host, time_submit, time_run, timeout,
          outputs_str) = row
         try:
             itask = TaskProxy(
                 self.config.get_taskdef(name),
                 self.config.initial_point,
                 get_point(cycle),
+                flow_num,
                 is_held=is_held,
                 submit_num=submit_num,
                 is_late=bool(is_late))
@@ -479,13 +486,15 @@ class TaskPool(object):
                     all(x < self.config.start_point for x in parent_points)):
                 # Auto-spawn next instance of tasks with no parents at the next
                 # point (or with all parents before the suite start point).
-                self.spawn_get(itask.tdef.name, next_point)
+                self.get_or_spawn_task(
+                    itask.tdef.name, next_point, flow_num=itask.flow_num)
             else:
                 # Auto-spawn next instance of tasks with absolute triggers.
                 for trig in itask.tdef.get_abs_triggers(next_point):
                     p_name = trig.task_name
                     p_point = trig.get_point(next_point)
-                    c_task = self.spawn_get(itask.tdef.name, next_point)
+                    c_task = self.get_or_spawn_task(
+                        itask.tdef.name, next_point, flow_num=itask.flow_num)
                     if c_task is not None:
                         # Update downstream prerequisites directly.
                         # TODO: USE PROXY METHOD
@@ -493,16 +502,6 @@ class TaskPool(object):
                             set([(p_name, str(p_point), trig.output)]))
                         # TODO: USE PROXY METHOD
                         c_task.parents_finished[(p_name, str(p_point))] = True
-
-    def db_update_final_task_state(self, itask):
-        """Update DB task_states table for final state of this task."""
-        self.suite_db_mgr.put_update_task_states(
-            itask,
-            {
-                "time_updated": itask.state.time_updated,
-                "status": itask.state.status
-            }
-        )
 
     def remove(self, itask, reason=""):
         """Remove a task from the pool."""
@@ -515,32 +514,29 @@ class TaskPool(object):
             del self.runahead_pool[itask.point][itask.identity]
         except KeyError:
             # Not in runahead pool.
-            pass
+            try:
+                del self.pool[itask.point][itask.identity]
+            except KeyError:
+                # Not in main pool (forced spawn uses temporary non-pool tasks)
+                return
+            else:
+                # In main pool: remove from pool and queues.
+                if not self.pool[itask.point]:
+                    del self.pool[itask.point]
+                self.pool_changed = True
+                if itask.tdef.name in self.myq:  # A reload can remove a task
+                    del self.queues[self.myq[itask.tdef.name]][itask.identity]
+                if itask.tdef.max_future_prereq_offset is not None:
+                    self.set_max_future_offset()
         else:
             # In runahead pool.
             if not self.runahead_pool[itask.point]:
                 del self.runahead_pool[itask.point]
             self.rhpool_changed = True
-            self.db_update_final_task_state(itask)
-            LOG.debug("[%s] -%s", itask, msg)
-            del itask
-            return
 
-        try:
-            del self.pool[itask.point][itask.identity]
-        except KeyError:
-            # Not in main pool (forced spawn uses temporary non-pool tasks)
-            return
-
-        # In main pool: remove from pool and queues.
-        if itask.tdef.max_future_prereq_offset is not None:
-            self.set_max_future_offset()
-        if not self.pool[itask.point]:
-            del self.pool[itask.point]
-        self.pool_changed = True
-        if itask.tdef.name in self.myq:  # A reload can remove a task
-            del self.queues[self.myq[itask.tdef.name]][itask.identity]
-        self.db_update_final_task_state(itask)
+        # Event-driven final update of task_states table.
+        # TODO: need same for data store, which is still task pool driven!
+        self.suite_db_mgr.put_update_task_state(itask)
         LOG.debug("[%s] -%s", itask, msg)
         del itask
 
@@ -571,20 +567,6 @@ class TaskPool(object):
         results = self.pool_changes
         self.pool_changes = []
         return results
-
-    def get_main_tasks_by_point(self):
-        """Return a map of main pool tasks by cycle point."""
-        point_itasks = {}
-        for point, itask_id_map in self.pool.items():
-            point_itasks[point] = list(itask_id_map.values())
-        return point_itasks
-
-    def get_rh_tasks_by_point(self):
-        """Return a map of runahead pool tasks by cycle point."""
-        point_itasks = {}
-        for point, itask_id_map in self.runahead_pool.items():
-            point_itasks[point] = list(itask_id_map.values())
-        return point_itasks
 
     def get_tasks_by_point(self, incl_runahead):
         """Return a map of task proxies by cycle point."""
@@ -782,6 +764,7 @@ class TaskPool(object):
         to be sure that new defns are compatible with already-active old tasks.
         So active tasks attempt to spawn the children that their (pre-reload)
         defns say they should.
+
         """
         LOG.info("Reloading task definitions.")
         tasks = self.get_all_tasks()
@@ -809,11 +792,12 @@ class TaskPool(object):
                                 " (task definition removed)", itask)
             else:
                 self.remove(itask, 'suite definition reload')
-                new_task = self.add_to_runahead_pool(TaskProxy(
-                    self.config.get_taskdef(itask.tdef.name),
-                    self.config.initial_point, itask.point,
-                    itask.state.status, stop_point=itask.stop_point,
-                    submit_num=itask.submit_num))
+                new_task = self.add_to_runahead_pool(
+                    TaskProxy(
+                        self.config.get_taskdef(itask.tdef.name),
+                        self.config.initial_point, itask.point, itask.flow_num,
+                        itask.state.status, stop_point=itask.stop_point,
+                        submit_num=itask.submit_num))
                 itask.copy_to_reload_successor(new_task)
                 LOG.info('[%s] -reloaded task definition', itask)
                 if itask.state(*TASK_STATUSES_ACTIVE):
@@ -1006,17 +990,21 @@ class TaskPool(object):
         """
         return self.abort_task_failed
 
-    def spawn_and_update_children(self, itask, output):
-        """Spawn children of itask:output if not already spawned.
+    def spawn_on_output(self, itask, output):
+        """Update children of itask:output, spawning if not already in pool.
 
-        Update relevant prerequisites and parent-finished status of children.
-        Also set a the abort-on-task-failed flag if necessary.
+        Also:
+        - update parent-finished status.
+        - set a the abort-on-task-failed flag if necessary.
+
+        If not itask.reflow update existing children but don't spawn them.
         """
         if output == TASK_OUTPUT_FAILED:
             if (self.expected_failed_tasks is not None
                     and itask.identity not in self.expected_failed_tasks):
                 self.abort_task_failed = True
 
+        # Determine the children of task:output.
         if output in [TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_EXPIRED,
                       TASK_OUTPUT_FAILED]:
             # Spawn all children, to record parent finished status.
@@ -1035,20 +1023,26 @@ class TaskPool(object):
                 # No children depend on this ouput
                 children = []
 
+        # Record parent name and point, then remove it if finished.
         p_name = itask.tdef.name
         p_point = itask.point
         if p_finished:
-            # Finished tasks can be removed immediately.
             self.remove(itask, 'finished')
             if itask.identity == self.stop_task_id:
                 self.stop_task_finished = True
 
         for c_name, c_point in children:
-            self.task_events_mgr.pflag = True  # TODO: still needed in SoD?
-            c_task = self.spawn_get(c_name, c_point)
+            # self.task_events_mgr.pflag = True  # TODO: still needed in SoD?
+            if itask.reflow:
+                c_task = self.get_or_spawn_task(
+                    c_name, c_point, flow_num=itask.flow_num)
+            else:
+                # Don't spawn, but update existing children.
+                c_task = self.get_task(c_name, c_point)
+
             # Update downstream prerequisites directly.
-            # TODO: USE PROXY METHOD
             if c_task is not None:
+                # TODO: USE PROXY METHOD
                 c_task.state.satisfy_me(set([(p_name, str(p_point), output)]))
                 if p_finished:
                     # TODO: USE PROXY METHOD
@@ -1064,49 +1058,67 @@ class TaskPool(object):
                     ):
                         self.remove(c_task, 'stuck waiting')
 
-    def spawn_get(self, name, point):
-        """Return proxy name.point after spawning if necessary, or None."""
+    def get_or_spawn_task(self, name, point, flow_num=None, reflow=True):
+        """What it says on the tin."""
+        return (self.get_task(name, point)
+                or self.spawn_task(name, point, flow_num, reflow))
+
+    def get_task(self, name, point):
+        """Return existing task proxy name.point, or None."""
+        for itask in self.get_all_tasks():
+            if itask.tdef.name == name and itask.point == point:
+                return itask
+        LOG.debug('Task %s.%s not found in task pool.', name, point)
+        return None
+
+    def spawn_task(self, name, point, flow_num=None, reflow=True):
+        """Spawn name.point and add to runahead pool. Return it, or None.
+        """
+        # Don't spawn outside of graph limits.
         # TODO: is it possible for initial_point to not be defined??
-        #  (see similar check and log message in scheduler.py as well)
+        # (see also the similar check + log message in scheduler.py)
         if self.config.initial_point and point < self.config.initial_point:
-            # Only happens on manual trigger prior to FCP
-            # Or future triggers like foo[+P1] => bar, with foo at ICP.
-            LOG.warning(
+            # Attempted manual trigger prior to FCP
+            # or future triggers like foo[+P1] => bar, with foo at ICP.
+            LOG.debug(
                 'Not spawning %s.%s: before initial cycle point', name, point)
             return
         elif self.config.final_point and point > self.config.final_point:
             # Only happens on manual trigger beyond FCP
-            LOG.warning(
+            LOG.debug(
                 'Not spawning %s.%s: beyond final cycle point', name, point)
             return
 
-        # Find existing proxy if already spawned.
-        for itask in self.get_all_tasks():
-            if itask.tdef.name == name and itask.point == point:
-                return itask
+        if name not in self.config.get_task_name_list():
+            LOG.debug('No task definition %s', name)
+            return None
 
-        # Else spawn a new one if possible.
-        for tname in self.config.get_task_name_list():
-            if tname == name:
-                key = (name, str(point))
-                submit_nums = (
-                    self.suite_db_mgr.pri_dao.select_submit_nums([key]))
-                submit_num = submit_nums.get(key, 0)
-                if submit_num != 0:
-                    # Conditional reflow prevention!
-                    LOG.warning(
-                        'Not spawning %s.%s (already spawned)', name, point)
-                    return None
-                itask = TaskProxy(
-                    self.config.get_taskdef(tname),
-                    self.config.initial_point, point,
-                    submit_num=submit_num)
-                LOG.info('Spawned %s.%s', name, point)
-                self.add_to_runahead_pool(itask)
-                return itask
+        # Determine submit number.
+        snums = self.suite_db_mgr.pri_dao.select_submit_nums(name, str(point))
+        try:
+            submit_num = max(snums.values())
+        except ValueError:
+            # Task never spawned in any flow.
+            submit_num = 0
 
-        LOG.warning('Failed to spawn %s.%s', name, point)
-        return None
+        if flow_num in snums:
+            # Task already spawned in this flow; avoid conditional reflow.
+            LOG.warning('Not spawning %s.%s (already spawned)', name, point)
+            return None
+
+        # Spawn and add to runhead pool.
+        itask = TaskProxy(
+            self.config.get_taskdef(name),
+            self.config.initial_point, point, flow_num, 
+            submit_num=submit_num, reflow=reflow)
+        msg = "Spawned %s.%s"
+        if flow_num is None:
+            # Manual trigger: new flow
+            msg += " (new flow)"
+
+        self.add_to_runahead_pool(itask)
+        LOG.info(msg, name, point)
+        return itask
 
     def remove_suiciding_tasks(self):
         """Remove tasks that suicide-triggered, return the number removed."""
@@ -1170,12 +1182,13 @@ class TaskPool(object):
                 continue
 
             # This the upstream target task:
-            itask = TaskProxy(taskdef, self.config.initial_point, point)
+            itask = TaskProxy(taskdef, self.config.initial_point, point,
+                              get_flow_num())
             # Spawn downstream on selected outputs.
             for trig, out, status in itask.state.outputs.get_all():
                 if trig in outputs:
                     LOG.info('Forced spawning on %s:%s', itask.identity, out)
-                    self.spawn_and_update_children(itask, out)
+                    self.spawn_on_output(itask, out)
 
     def remove_tasks(self, items):
         """Remove tasks from the pool."""
@@ -1184,7 +1197,8 @@ class TaskPool(object):
             self.remove(itask, 'request')
         return len(bad_items)
 
-    def trigger_tasks(self, items, back_out=False, task_pool=False):
+    def trigger_tasks(
+            self, items, back_out=False, task_pool=False, reflow=False):
         """Forced task triggering.
 
         task_pool=False:
@@ -1192,8 +1206,10 @@ class TaskPool(object):
         task_pool=True:
            Match (potentially by state) and trigger existing tasks in the task
            pool, e.g. to allow retriggering a bunch of unhandled failed tasks.
+        reflow=False:
+           Start new flows from triggered tasks.
 
-        These are handled separately because we can't reliably tell which is
+        Task pool or not handled separately as we can't reliably tell which is
         intended from command line arguments alone. Example using one of
         the allowed arg forms:
           - trigger any task: CYCLE-POINT/TASK-NAME-GLOB
@@ -1224,6 +1240,8 @@ class TaskPool(object):
                     n_warnings += 1
                     continue
                 itask.manual_trigger = True
+                # Set reflow here: task may have been set up with "cylc spawn".
+                itask.reflow = reflow
                 if not itask.state(
                         TASK_STATUS_QUEUED,
                         is_held=False
@@ -1264,8 +1282,9 @@ class TaskPool(object):
 
             for name, point_str in select_args:
                 # Spawn and set ready to trigger.
-                itask = self.spawn_get(
-                    name, get_point(point_str).standardise())
+                point = get_point(point_str).standardise()
+                itask = (self.get_task(name, point) or
+                         self.spawn_task(name, point, reflow=reflow))
                 if itask is not None:
                     itask.state.reset(TASK_STATUS_WAITING)
                     itask.state.set_prerequisites_all_satisfied()

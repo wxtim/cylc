@@ -127,6 +127,10 @@ class TaskProxy(object):
             task failure is handled (by children)
         .parents_finished (dict)
             graph parents: {(name, point): finished(T/F)}
+        .flow_num (str(uuid))
+            flow number
+        .reflow (bool)
+            flow on from outputs
 
     Arguments:
         tdef (cylc.flow.taskdef.TaskDef):
@@ -178,17 +182,21 @@ class TaskProxy(object):
         'children',
         'failure_handled',
         'parents_finished',
+        'flow_num',
+        'reflow',
     ]
 
     def __init__(
-            self, tdef, initial_point, start_point, status=TASK_STATUS_WAITING,
-            is_held=False, stop_point=None,
-            is_startup=False, submit_num=0, is_late=False):
+            self, tdef, initial_point, start_point, flow_num,
+            status=TASK_STATUS_WAITING, is_held=False, stop_point=None,
+            is_startup=False, submit_num=0, is_late=False, reflow=True):
         self.tdef = tdef
         if submit_num is None:
             submit_num = 0
         self.submit_num = submit_num
         self.jobs = []
+        self.flow_num = flow_num
+        self.reflow = reflow
 
         if is_startup:
             # adjust up to the first on-sequence cycle point

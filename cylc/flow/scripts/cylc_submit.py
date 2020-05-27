@@ -50,6 +50,7 @@ from cylc.flow.suite_db_mgr import SuiteDatabaseManager
 from cylc.flow.broadcast_mgr import BroadcastMgr
 from cylc.flow.hostuserutil import get_user
 from cylc.flow.job_pool import JobPool
+from cylc.flow.task_pool import get_flow_num
 from cylc.flow.resources import extract_resources
 from cylc.flow.suite_files import get_suite_rc, get_suite_srv_dir
 from cylc.flow.task_id import TaskID
@@ -118,7 +119,8 @@ def main(parser, options, suite, *task_ids):
         for taskdef in taskdefs:
             itasks.append(TaskProxy(
                 taskdef, config.initial_point,
-                get_point(point_str).standardise(), is_startup=True))
+                get_point(point_str).standardise(), get_flow_num(),
+                is_startup=True))
 
     # Initialise job submit environment
     make_suite_run_tree(suite)

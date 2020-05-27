@@ -83,7 +83,7 @@ from cylc.flow.task_events_mgr import TaskEventsManager
 from cylc.flow.task_id import TaskID
 from cylc.flow.task_job_logs import JOB_LOG_JOB, get_task_job_log
 from cylc.flow.task_job_mgr import TaskJobManager
-from cylc.flow.task_pool import TaskPool
+from cylc.flow.task_pool import TaskPool, get_flow_num
 from cylc.flow.task_proxy import TaskProxy
 from cylc.flow.task_state import (
     TASK_STATUSES_ACTIVE,
@@ -587,6 +587,7 @@ see `COPYING' in the Cylc source distribution.
         task_list = self.filter_initial_task_list(
             self.config.get_task_name_list())
 
+        flow_num = get_flow_num()
         for name in task_list:
             if self.config.start_point is None:
                 # No start cycle point at which to load cycling tasks.
@@ -607,7 +608,7 @@ see `COPYING' in the Cylc source distribution.
                 try:
                     self.pool.add_to_runahead_pool(
                         TaskProxy(tdef, self.config.start_point, point,
-                                  is_startup=True))
+                                  flow_num, is_startup=True))
                 except TaskProxySequenceBoundsError as exc:
                     # TODO is this needed?
                     LOG.debug(str(exc))
@@ -818,12 +819,13 @@ see `COPYING' in the Cylc source distribution.
             # TODO: currently assuming bad_items is a list of task IDs at valid
             # cycle points. TODO: make it clear that these are not live tasks.
             name, point = TaskID.split(task_id)
+            flow_num = get_flow_num()
             for tname in self.config.get_task_name_list():
                 if tname == name:
                     itask = TaskProxy(
                         self.config.get_taskdef(name),
                         self.config.initial_point,
-                        get_point(point))
+                        get_point(point), flow_num)
                     results[itask.identity] = self._info_get_task_requisites(
                         itask, list_prereqs=False)
                     break
@@ -1343,9 +1345,9 @@ see `COPYING' in the Cylc source distribution.
             for itask in self.task_job_mgr.submit_task_jobs(
                 self.suite, itasks, self.config.run_mode('simulation')
             ):
-                LOG.info(
-                    '[%s] -triggered off %s',
-                    itask, itask.state.get_resolved_dependencies())
+                # TODO log itask.flow_num here (beware effect on ref tests)
+                LOG.info('[%s] -triggered off %s',
+                         itask, itask.state.get_resolved_dependencies())
 
         if self.pool.remove_suiciding_tasks():
             self.is_updated = True
@@ -1868,9 +1870,10 @@ see `COPYING' in the Cylc source distribution.
         """Is the suite paused?"""
         return self.pool.is_held
 
-    def command_trigger_tasks(self, items, back_out=False, task_pool=False):
+    def command_trigger_tasks(
+            self, items, back_out=False, task_pool=False, reflow=False):
         """Trigger tasks."""
-        return self.pool.trigger_tasks(items, back_out, task_pool)
+        return self.pool.trigger_tasks(items, back_out, task_pool, reflow)
 
     def command_dry_run_tasks(self, items, check_syntax=True):
         """Dry-run tasks, e.g. edit run."""
