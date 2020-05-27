@@ -479,13 +479,13 @@ class TaskEventsManager():
         Check whether to process/skip message.
         Return True if `.process_message` should contine, False otherwise.
         """
-        logfmt = r'[%s] status=%s: %s%s at %s for job(%02d)'
+        logfmt = r'[%s] status=%s: %s%s at %s for job(%02d) flow(%s)'
         if flag == self.FLAG_RECEIVED and submit_num != itask.submit_num:
             # Ignore received messages from old jobs
             LOG.warning(
                 logfmt + r' != current job(%02d)',
                 itask, itask.state, self.FLAG_RECEIVED_IGNORED, message,
-                event_time, submit_num, itask.submit_num)
+                event_time, submit_num, itask.flow_label, itask.submit_num)
             return False
         if itask.state.status in (
             TASK_STATUS_SUBMIT_RETRYING, TASK_STATUS_RETRYING
@@ -494,11 +494,11 @@ class TaskEventsManager():
             LOG.warning(
                 logfmt,
                 itask, itask.state, self.FLAG_POLLED_IGNORED, message,
-                event_time, submit_num)
+                event_time, submit_num, itask.flow_label)
             return False
         LOG.log(
-            self.LEVELS.get(severity, INFO),
-            logfmt, itask, itask.state, flag, message, event_time, submit_num)
+            self.LEVELS.get(severity, INFO), logfmt, itask, itask.state, flag,
+            message, event_time, submit_num, itask.flow_label)
         return True
 
     def setup_event_handlers(self, itask, event, message):

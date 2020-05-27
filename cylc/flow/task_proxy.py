@@ -127,6 +127,10 @@ class TaskProxy(object):
             task failure is handled (by children)
         .parents_finished (dict)
             graph parents: {(name, point): finished(T/F)}
+        .flow_label (str)
+            flow label
+        .reflow (bool)
+            flow on from outputs
 
     Arguments:
         tdef (cylc.flow.taskdef.TaskDef):
@@ -178,17 +182,21 @@ class TaskProxy(object):
         'children',
         'failure_handled',
         'parents_finished',
+        'flow_label',
+        'reflow',
     ]
 
     def __init__(
-            self, tdef, initial_point, start_point, status=TASK_STATUS_WAITING,
-            is_held=False, stop_point=None,
-            is_startup=False, submit_num=0, is_late=False):
+            self, tdef, initial_point, start_point, flow_label,
+            status=TASK_STATUS_WAITING, is_held=False, stop_point=None,
+            is_startup=False, submit_num=0, is_late=False, reflow=True):
         self.tdef = tdef
         if submit_num is None:
             submit_num = 0
         self.submit_num = submit_num
         self.jobs = []
+        self.flow_label = flow_label
+        self.reflow = reflow
 
         if is_startup:
             # adjust up to the first on-sequence cycle point
@@ -227,7 +235,8 @@ class TaskProxy(object):
             'job_hosts': {},
             'execution_time_limit': None,
             'batch_sys_name': None,
-            'submit_method_id': None
+            'submit_method_id': None,
+            'flow_label': None
         }
 
         self.local_job_file_path = None
@@ -383,6 +392,7 @@ class TaskProxy(object):
         ret['submit_num'] = self.submit_num
         ret['state'] = self.state.status
         ret['is_held'] = self.state.is_held
+        ret['flow_label'] = self.flow_label
         ntimes = len(self.tdef.elapsed_times)
         if ntimes:
             ret['mean_elapsed_time'] = (

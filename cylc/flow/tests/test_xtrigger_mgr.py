@@ -21,6 +21,7 @@ from cylc.flow.cycling.iso8601 import ISO8601Point, ISO8601Sequence, init
 from cylc.flow.subprocctx import SubFuncContext
 from cylc.flow.subprocpool import SubProcPool
 from cylc.flow.task_proxy import TaskProxy
+from cylc.flow.task_pool import FlowLabelMgr
 from cylc.flow.taskdef import TaskDef
 from cylc.flow.xtrigger_mgr import XtriggerManager, RE_STR_TMPL
 
@@ -144,8 +145,8 @@ def test_housekeeping_with_xtrigger_satisfied(xtrigger_mgr):
     sequence = ISO8601Sequence('P1D', '2019')
     tdef.xtrig_labels[sequence] = ["get_name"]
     start_point = ISO8601Point('2019')
-    itask = TaskProxy(tdef=tdef, initial_point=start_point,
-                      start_point=start_point)
+    itask = TaskProxy(
+        tdef, start_point, start_point, FlowLabelMgr().get_new_label())
     xtrigger_mgr.collate([itask])
     # pretend the function has been activated
     xtrigger_mgr.active.append(xtrig.get_signature())
@@ -191,8 +192,8 @@ def test_satisfy_xtrigger(xtrigger_mgr_procpool_broadcast):
     init()
     start_point = ISO8601Point('2019')
     # create task proxy
-    itask = TaskProxy(tdef=tdef, initial_point=start_point,
-                      start_point=start_point)
+    itask = TaskProxy(
+        tdef, start_point, start_point, FlowLabelMgr().get_new_label())
 
     # we start with no satisfied xtriggers, and nothing active
     assert len(xtrigger_mgr_procpool_broadcast.sat_xtrig) == 0
@@ -247,8 +248,8 @@ def test_collate(xtrigger_mgr):
     sequence = ISO8601Sequence('P1D', '20190101T00Z')
     tdef.xtrig_labels[sequence] = ["get_name"]
     start_point = ISO8601Point('2019')
-    itask = TaskProxy(tdef=tdef, initial_point=start_point,
-                      start_point=start_point)
+    itask = TaskProxy(
+        tdef, start_point, start_point, FlowLabelMgr().get_new_label())
     itask.state.xtriggers["get_name"] = get_name
 
     xtrigger_mgr.collate([itask])
@@ -274,8 +275,8 @@ def test_collate(xtrigger_mgr):
     tdef.xtrig_labels[sequence] = ["wall_clock"]
     start_point = ISO8601Point('20000101T0000+05')
     # create task proxy
-    itask = TaskProxy(tdef=tdef, initial_point=start_point,
-                      start_point=start_point)
+    itask = TaskProxy(
+        tdef, start_point, start_point, FlowLabelMgr().get_new_label())
 
     xtrigger_mgr.collate([itask])
     assert not xtrigger_mgr.all_xtrig
@@ -356,8 +357,8 @@ def test_check_xtriggers(xtrigger_mgr_procpool):
     sequence = ISO8601Sequence('P1D', '2019')
     tdef1.xtrig_labels[sequence] = ["get_name"]
     start_point = ISO8601Point('2019')
-    itask1 = TaskProxy(tdef=tdef1, initial_point=start_point,
-                       start_point=start_point)
+    itask1 = TaskProxy(
+        tdef1, start_point, start_point, FlowLabelMgr().get_new_label())
     itask1.state.xtriggers["get_name"] = False  # satisfied?
 
     # add a clock xtrigger
@@ -381,8 +382,8 @@ def test_check_xtriggers(xtrigger_mgr_procpool):
     init()
     start_point = ISO8601Point('20000101T0000+05')
     # create task proxy
-    itask2 = TaskProxy(tdef=tdef2, initial_point=start_point,
-                       start_point=start_point)
+    itask2 = TaskProxy(
+        tdef2, start_point, start_point, FlowLabelMgr().get_new_label())
 
     xtrigger_mgr_procpool.check_xtriggers([itask1, itask2])
     # won't be satisfied, as it is async, we are are not calling callback

@@ -72,6 +72,11 @@ def get_option_parser():
         action="store_true", default=False, dest="task_pool")
 
     parser.add_option(
+        "-r", "--reflow",
+        help="Start a new flow from the triggered task.",
+        action="store_true", default=False, dest="reflow")
+
+    parser.add_option(
         "-e", "--edit",
         help="Manually edit the job script before running it.",
         action="store_true", default=False, dest="edit_run")
@@ -206,7 +211,8 @@ def main(parser, options, suite, *task_globs):
         {
             'tasks': task_globs,
             'back_out': aborted,
-            'task_pool': options.task_pool
+            'task_pool': options.task_pool,
+            'reflow': options.reflow
         }
     )
 

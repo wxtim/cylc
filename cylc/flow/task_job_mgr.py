@@ -897,6 +897,7 @@ class TaskJobManager(object):
             'remote_suite_d': rtconfig['remote']['suite definition directory'],
             'script': scripts[1],
             'submit_num': itask.submit_num,
+            'flow_label': itask.flow_label,
             'suite_name': suite,
             'task_id': itask.identity,
             'try_num': itask.get_try_num(),

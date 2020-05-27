@@ -587,6 +587,7 @@ see `COPYING' in the Cylc source distribution.
         task_list = self.filter_initial_task_list(
             self.config.get_task_name_list())
 
+        flow_label = self.pool.flow_label_mgr.get_new_label()
         for name in task_list:
             if self.config.start_point is None:
                 # No start cycle point at which to load cycling tasks.
@@ -607,7 +608,7 @@ see `COPYING' in the Cylc source distribution.
                 try:
                     self.pool.add_to_runahead_pool(
                         TaskProxy(tdef, self.config.start_point, point,
-                                  is_startup=True))
+                                  flow_label, is_startup=True))
                 except TaskProxySequenceBoundsError as exc:
                     # TODO is this needed?
                     LOG.debug(str(exc))
@@ -823,7 +824,7 @@ see `COPYING' in the Cylc source distribution.
                     itask = TaskProxy(
                         self.config.get_taskdef(name),
                         self.config.initial_point,
-                        get_point(point))
+                        get_point(point), flow_label="_")
                     results[itask.identity] = self._info_get_task_requisites(
                         itask, list_prereqs=False)
                     break
@@ -1343,9 +1344,9 @@ see `COPYING' in the Cylc source distribution.
             for itask in self.task_job_mgr.submit_task_jobs(
                 self.suite, itasks, self.config.run_mode('simulation')
             ):
-                LOG.info(
-                    '[%s] -triggered off %s',
-                    itask, itask.state.get_resolved_dependencies())
+                # TODO log itask.flow_label here (beware effect on ref tests)
+                LOG.info('[%s] -triggered off %s',
+                         itask, itask.state.get_resolved_dependencies())
 
         if self.pool.remove_suiciding_tasks():
             self.is_updated = True
@@ -1868,9 +1869,10 @@ see `COPYING' in the Cylc source distribution.
         """Is the suite paused?"""
         return self.pool.is_held
 
-    def command_trigger_tasks(self, items, back_out=False, task_pool=False):
+    def command_trigger_tasks(
+            self, items, back_out=False, task_pool=False, reflow=False):
         """Trigger tasks."""
-        return self.pool.trigger_tasks(items, back_out, task_pool)
+        return self.pool.trigger_tasks(items, back_out, task_pool, reflow)
 
     def command_dry_run_tasks(self, items, check_syntax=True):
         """Dry-run tasks, e.g. edit run."""

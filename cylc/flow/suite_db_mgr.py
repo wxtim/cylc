@@ -376,10 +376,29 @@ class SuiteDatabaseManager(object):
                 "signature": sig,
                 "results": json.dumps(res)})
 
-    def put_task_pool(self, pool):
-        """Put statements to update the task_pool table in runtime database.
+    def put_update_task_state(self, itask):
+        """Update task_states table for current state of itask.
 
-        Update the task_pool table and the task_action_timers table.
+        For final event-driven update before removing finished tasks.
+        No need to update task_pool table as finished tasks are immediately
+        removed from the pool.
+        """
+        set_args = {
+            "time_updated": itask.state.time_updated,
+            "status": itask.state.status}
+        where_args = {
+            "cycle": str(itask.point),
+            "name": itask.tdef.name,
+            "flow_label": itask.flow_label,
+            "submit_num": itask.submit_num,
+        }
+        self.db_updates_map.setdefault(self.TABLE_TASK_STATES, [])
+        self.db_updates_map[self.TABLE_TASK_STATES].append(
+            (set_args, where_args))
+
+    def put_task_pool(self, pool):
+        """Update various task tables for current pool, in runtime database.
+
         Queue delete (everything) statements to wipe the tables, and queue the
         relevant insert statements for the current tasks in the pool.
         """
@@ -401,6 +420,7 @@ class SuiteDatabaseManager(object):
             self.db_inserts_map[self.TABLE_TASK_POOL].append({
                 "name": itask.tdef.name,
                 "cycle": str(itask.point),
+                "flow_label": itask.flow_label,
                 "status": itask.state.status,
                 "satisfied": json.dumps(satisfied),
                 "parents_finished": json.dumps(parents_finished),
@@ -441,6 +461,7 @@ class SuiteDatabaseManager(object):
                 where_args = {
                     "cycle": str(itask.point),
                     "name": itask.tdef.name,
+                    "flow_label": itask.flow_label
                 }
                 self.db_updates_map.setdefault(self.TABLE_TASK_STATES, [])
                 self.db_updates_map[self.TABLE_TASK_STATES].append(
@@ -490,11 +511,6 @@ class SuiteDatabaseManager(object):
         self._put_update_task_x(
             CylcSuiteDAO.TABLE_TASK_JOBS, itask, set_args)
 
-    def put_update_task_states(self, itask, set_args):
-        """Put UPDATE statement for task_jobs table."""
-        self._put_update_task_x(
-            CylcSuiteDAO.TABLE_TASK_STATES, itask, set_args)
-
     def put_update_task_outputs(self, itask):
         """Put UPDATE statement for task_outputs table."""
         items = {}
@@ -511,6 +527,8 @@ class SuiteDatabaseManager(object):
             "name": itask.tdef.name}
         if "submit_num" not in set_args:
             where_args["submit_num"] = itask.submit_num
+        if "flow_label" not in set_args:
+            where_args["flow_label"] = itask.flow_label
         self.db_updates_map.setdefault(table_name, [])
         self.db_updates_map[table_name].append((set_args, where_args))
 

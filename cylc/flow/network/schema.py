@@ -1451,6 +1451,7 @@ class Trigger(Mutation, TaskMutation):
     class Arguments(TaskMutation.Arguments):
         back_out = Boolean()
         task_pool = Boolean()
+        reflow = Boolean()
 
 
 # Mutation declarations
