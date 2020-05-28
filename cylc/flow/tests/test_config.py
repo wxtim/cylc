@@ -19,7 +19,7 @@ import pytest
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from pathlib import Path
 from cylc.flow.config import SuiteConfig
-from cylc.flow.tests.util import set_up_globalrc
+from cylc.flow.tests.util import set_up_globalrc, mock_glbl_cfg
 
 
 def get_test_inheritance_quotes():
@@ -88,9 +88,10 @@ def get_test_inheritance_quotes():
 class TestSuiteConfig(object):
     """Test class for the Cylc SuiteConfig object."""
 
-    def test_xfunction_imports(self, set_up_globalrc):
+    def test_xfunction_imports(self, mock_glbl_cfg):
         """Test for a suite configuration with valid xtriggers"""
-        set_up_globalrc(
+        mock_glbl_cfg(
+            'cylc.flow.platform_lookup.glbl_cfg',
             '''
             [job platforms]
             [[localhost]]
@@ -120,8 +121,16 @@ class TestSuiteConfig(object):
                 config = suite_config
                 assert 'tree' in config.xtrigger_mgr.functx_map
 
-    def test_xfunction_import_error(self):
+    def test_xfunction_import_error(self, mock_glbl_cfg):
         """Test for error when a xtrigger function cannot be imported."""
+        mock_glbl_cfg(
+            'cylc.flow.platform_lookup.glbl_cfg',
+            '''
+            [job platforms]
+            [[localhost]]
+            remote hosts = localhost
+            '''
+        )
         with TemporaryDirectory() as temp_dir:
             python_dir = Path(os.path.join(temp_dir, "lib", "python"))
             python_dir.mkdir(parents=True)
@@ -145,8 +154,16 @@ class TestSuiteConfig(object):
                     SuiteConfig(suite="caiman_suite", fpath=f.name)
                 assert "not found" in str(excinfo.value)
 
-    def test_xfunction_attribute_error(self):
+    def test_xfunction_attribute_error(self, mock_glbl_cfg):
         """Test for error when a xtrigger function cannot be imported."""
+        mock_glbl_cfg(
+            'cylc.flow.platform_lookup.glbl_cfg',
+            '''
+            [job platforms]
+            [[localhost]]
+            remote hosts = localhost
+            '''
+        )
         with TemporaryDirectory() as temp_dir:
             python_dir = Path(os.path.join(temp_dir, "lib", "python"))
             python_dir.mkdir(parents=True)
@@ -170,8 +187,16 @@ class TestSuiteConfig(object):
                     SuiteConfig(suite="capybara_suite", fpath=f.name)
                 assert "not found" in str(excinfo.value)
 
-    def test_xfunction_not_callable(self):
+    def test_xfunction_not_callable(self, mock_glbl_cfg):
         """Test for error when a xtrigger function is not callable."""
+        mock_glbl_cfg(
+            'cylc.flow.platform_lookup.glbl_cfg',
+            '''
+            [job platforms]
+            [[localhost]]
+            remote hosts = localhost
+            '''
+        )
         with TemporaryDirectory() as temp_dir:
             python_dir = Path(os.path.join(temp_dir, "lib", "python"))
             python_dir.mkdir(parents=True)
@@ -195,7 +220,7 @@ class TestSuiteConfig(object):
                     SuiteConfig(suite="suite_with_not_callable", fpath=f.name)
                 assert "callable" in str(excinfo.value)
 
-    def test_family_inheritance_and_quotes(self):
+    def test_family_inheritance_and_quotes(self, mock_glbl_cfg):
         """Test that inheritance does not ignore items, if not all quoted.
 
         For example:
@@ -205,6 +230,14 @@ class TestSuiteConfig(object):
 
         See bug #2700 for more/
         """
+        mock_glbl_cfg(
+            'cylc.flow.platform_lookup.glbl_cfg',
+            '''
+            [job platforms]
+            [[localhost]]
+            remote hosts = localhost
+            '''
+        )
         template_vars = {}
         for content in get_test_inheritance_quotes():
             with NamedTemporaryFile() as tf:
