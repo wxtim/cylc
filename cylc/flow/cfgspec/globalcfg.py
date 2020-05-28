@@ -319,7 +319,7 @@ with Conf('flow.rc', desc='''
                 sourcing ``~/.bashrc`` (or ``~/.cshrc``) to set up the
                 environment.
             ''')
-            Conf('remote hosts', VDR.V_STRING_LIST)
+            Conf('remote hosts', VDR.V_STRING_LIST, ['localhost'])
             Conf('cylc executable', VDR.V_STRING, 'cylc', desc='''
                 The ``cylc`` executable on a remote host.
 
