@@ -35,8 +35,8 @@ run_ok "${TEST_NAME_BASE}-validate" cylc validate ${OPT_SET} "${SUITE_NAME}"
 # shellcheck disable=SC2086
 suite_run_fail "${TEST_NAME_BASE}-run" \
     cylc run --no-detach ${OPT_SET} "${SUITE_NAME}"
-SRVD="$(eval echo $(cylc get-global-config --print-run-dir))/${SUITE_NAME}/.service"
-LOGD="$(eval echo $(cylc get-global-config --print-run-dir))/${SUITE_NAME}/log"
+SRVD="$RUN_DIR/${SUITE_NAME}/.service"
+LOGD="$RUN_DIR/${SUITE_NAME}/log"
 grep_ok \
     "${SRVD}/contact: contact file corrupted/modified and may be left" \
     "${LOGD}/suite/log"

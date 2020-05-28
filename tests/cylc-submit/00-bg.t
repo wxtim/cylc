@@ -82,7 +82,7 @@ run_ok "${TEST_NAME_BASE}" \
     "--set=CYLC_TEST_HOST=${CYLC_TEST_HOST}" \
     "--set=CYLC_TEST_BATCH_SYS_NAME=${CYLC_TEST_BATCH_SYS_NAME}" \
     "${SUITE_NAME}" 'foo.1'
-SUITE_DIR="$(eval echo $(cylc get-global-config --print-run-dir))/${SUITE_NAME}"
+SUITE_DIR="$RUN_DIR/${SUITE_NAME}"
 if [[ -n "${SSH}" ]]; then
     SUITE_DIR="${SUITE_DIR#"${HOME}/"}"
     ST_FILE="${SUITE_DIR}/log/job/1/foo/01/job.status"
