@@ -114,9 +114,8 @@ def remote_init(uuid_str, rund, indirect_comm=None):
                 ContactFileFields.COMMS_PROTOCOL_2, indirect_comm))
     path_to_pub_key = os.path.join(srvd, "client.key")
     print("KEYSTART", end='')
-    keyfile = open(path_to_pub_key)
-    print(keyfile.read(), end='KEYEND')
-    keyfile.close()
+    with open(path_to_pub_key) as keyfile:
+        print(keyfile.read(), end='KEYEND')
     print(REMOTE_INIT_DONE)
     return
 
