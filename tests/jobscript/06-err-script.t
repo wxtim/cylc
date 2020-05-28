@@ -29,10 +29,10 @@ run_fail "${TEST_NAME_BASE}-grep-02" \
 for I in 13 37 61; do
     create_test_globalrc '' "
 [job platforms]
-    [[localhost]]
-        [[[batch systems]]]
-            [[[[pbs]]]]
-                job name length maximum = ${I}"
+    [[pbshost]]
+        remote hosts = localhost
+        batch system = pbs
+        job name length maximum = ${I}"
     run_ok "${TEST_NAME_BASE}-${I}" cylc jobscript "${SUITE_NAME}" \
         "abcdefghijklmnopqrstuvwxyz_0123456789.1"
     contains_ok "${TEST_NAME_BASE}-${I}.stdout" <<__OUT__
