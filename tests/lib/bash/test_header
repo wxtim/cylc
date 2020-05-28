@@ -689,6 +689,17 @@ create_test_globalrc() {
     if [[ -f "${SITE_TESTS_CONF_FILE}" ]]; then
         cat "${SITE_TESTS_CONF_FILE}" >>'etc/flow.rc'
     fi
+    # Add some standard platforms to flowtext
+    cat <<__PLATFORMS__ >> 'etc/flow.rc'
+[job platforms]
+[[localhost]]
+  remote hosts = localhost
+  ssh command = ssh -oBatchMode=yes -oConnectTimeout=8 -oStrictHostKeyChecking=no
+[[slurmtest]]
+  remote hosts = localhost
+  batch system = slurm
+  ssh command = ssh -oBatchMode=yes -oConnectTimeout=8 -oStrictHostKeyChecking=no
+__PLATFORMS__
     # (flow.rc items add-to or override earlier items)
     if [[ -f "${USER_TESTS_CONF_FILE}" ]]; then
         cat "${USER_TESTS_CONF_FILE}" >>'etc/flow.rc'
