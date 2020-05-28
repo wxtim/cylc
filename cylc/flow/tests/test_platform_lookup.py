@@ -74,7 +74,8 @@ PLATFORMS_WITH_RE = {
     "PLATFORMS, platform, expected",
     [
         (PLATFORMS_WITH_RE, "nutmeg", {
-            "batch system": "slurm", "name": "nutmeg"
+            "batch system": "slurm",
+            "name": "nutmeg"
         }),
         (PLATFORMS_WITH_RE, "vld798", "vld798"),
         (PLATFORMS_WITH_RE, "vld56", "vld56"),
@@ -97,7 +98,7 @@ PLATFORMS_WITH_RE = {
             },
         ),
         (PLATFORMS, "laptop22", {
-            "batch system": "background"
+            "batch system": "background",
             "name": "laptop22"
         }),
         (
