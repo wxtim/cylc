@@ -19,6 +19,7 @@ import pytest
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from pathlib import Path
 from cylc.flow.config import SuiteConfig
+from cylc.flow.tests.util import set_up_globalrc
 
 
 def get_test_inheritance_quotes():
@@ -87,8 +88,15 @@ def get_test_inheritance_quotes():
 class TestSuiteConfig(object):
     """Test class for the Cylc SuiteConfig object."""
 
-    def test_xfunction_imports(self):
+    def test_xfunction_imports(self, set_up_globalrc):
         """Test for a suite configuration with valid xtriggers"""
+        set_up_globalrc(
+            '''
+            [job platforms]
+            [[localhost]]
+            remote hosts = localhost
+            '''
+        )
         with TemporaryDirectory() as temp_dir:
             python_dir = Path(os.path.join(temp_dir, "lib", "python"))
             python_dir.mkdir(parents=True)
