@@ -18,6 +18,7 @@ import pytest
 
 from cylc.flow.batch_sys_handlers.pbs import BATCH_SYS_HANDLER
 
+
 # TODO - fix these tests to work with platforms
 # @pytest.mark.skip
 @pytest.mark.parametrize(
