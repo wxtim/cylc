@@ -479,6 +479,8 @@ class TaskPool(object):
         if itask.tdef.sequential:
             # implicit prev-instance parent
             return
+        if not itask.reflow:
+            return
         next_point = itask.next_point()
         if next_point is not None:
             parent_points = itask.tdef.get_parent_points(next_point)
@@ -1109,7 +1111,7 @@ class TaskPool(object):
         # Spawn and add to runhead pool.
         itask = TaskProxy(
             self.config.get_taskdef(name),
-            self.config.initial_point, point, flow_num, 
+            self.config.initial_point, point, flow_num,
             submit_num=submit_num, reflow=reflow)
         msg = "Spawned %s.%s"
         if flow_num is None:
