@@ -1242,8 +1242,6 @@ class TaskPool(object):
                     n_warnings += 1
                     continue
                 itask.manual_trigger = True
-                # Set reflow here: task may have been set up with "cylc spawn".
-                itask.reflow = reflow
                 if not itask.state(
                         TASK_STATUS_QUEUED,
                         is_held=False
@@ -1283,12 +1281,18 @@ class TaskPool(object):
                     select_args.append((taskdef.name, point_str))
 
             for name, point_str in select_args:
-                # Spawn and set ready to trigger.
                 point = get_point(point_str).standardise()
-                itask = (self.get_task(name, point) or
-                         self.spawn_task(name, point, reflow=reflow))
+                # Already in pool? Keep same flow number.
+                itask = self.get_task(name, point)
+                if itask is None:
+                    # Spawn with new flow number.
+                    itask = self.spawn_task(
+                        name, point, flow_num=get_flow_num(), reflow=reflow)
                 if itask is not None:
+                    # (If None, spawner reports cycle bounds errors).
+                    itask.manual_trigger = True
                     itask.state.reset(TASK_STATUS_WAITING)
+                    LOG.critical('setting %s', itask)
                     itask.state.set_prerequisites_all_satisfied()
 
         return n_warnings
