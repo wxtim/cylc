@@ -24,10 +24,10 @@ install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
 for I in 13 37 61; do
     create_test_globalrc '' "
 [job platforms]
-    [[localhost]]
-        [[[batch systems]]]
-            [[[[pbs]]]]
-                job name length maximum = ${I}"
+    [[pbshost]]
+        remote hosts = localhost
+        batch system = pbs
+        job name length maximum = ${I}"
     run_ok "${TEST_NAME_BASE}-${I}" cylc jobscript "${SUITE_NAME}" \
         "abcdefghijklmnopqrstuvwxyz_0123456789.1"
     contains_ok "${TEST_NAME_BASE}-${I}.stdout" <<__OUT__

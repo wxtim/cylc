@@ -7,5 +7,4 @@
         R1 = abcdefghijklmnopqrstuvwxyz_0123456789
 [runtime]
     [[abcdefghijklmnopqrstuvwxyz_0123456789]]
-        [[[job]]]
-            batch system = pbs
+        platform = pbshost
