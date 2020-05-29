@@ -5,8 +5,8 @@
         R1 = foo
 [runtime]
     [[foo]]
+        platform = sgeplat
         [[[job]]]
-            batch system = sge
             execution time limit = PT10M
         [[[directives]]]
             -V =
