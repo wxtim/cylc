@@ -46,9 +46,9 @@ def forward_lookup(platform_name=None, platforms=None):
         - Work out what to do with cases where localhost not set.
     """
     if platforms is None:
-        platforms = glbl_cfg().get(['job platforms'], sparse=False)
+        platforms = glbl_cfg().get(['job platforms'])
 
-    if platform_name is None or platform_name is 'localhost':
+    if platform_name is None:
         platform_data = platforms['localhost']
         platform_data['name'] = 'localhost'
         return platform_data
