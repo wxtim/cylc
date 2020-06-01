@@ -95,6 +95,9 @@ SLURM when task name has a percent `%` character.
 [#3543](https://github.com/cylc/cylc-flow/pull/3543) - fixed pipe polling
 issue observed on darwin (BSD) which could cause Cylc to hang.
 
+[#3632](https://github.com/cylc/cylc-flow/pull/3632) - Fix a bug that was causing
+`UTC mode` specified in global config to be pretty much ignored.
+
 -------------------------------------------------------------------------------
 ## __cylc-8.0a1 (2019-09-18)__
 
