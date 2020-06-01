@@ -658,7 +658,6 @@ mock_smtpd_kill() {  # Logic borrowed from Rose
 
 reftest() {
     local TEST_NAME="${1:-${TEST_NAME_BASE}}"
-    echo ${CYLC_CONF_PATH}/flow.rc>&2
     install_suite "$@"
     run_ok "${TEST_NAME}-validate" cylc validate "${SUITE_NAME}"
     suite_run_ok "${TEST_NAME}-run" \
