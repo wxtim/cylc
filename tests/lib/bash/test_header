@@ -755,6 +755,7 @@ print(get_fqdn_by_host(${TARGET}))
 PATH="${CYLC_REPO_DIR}/bin:${PATH}"
 
 RUN_DIR="$(eval echo "$(cylc get-global-config --print-run-dir --color=never)")"
+export RUN_DIR
 TEST_NAME_BASE="$(basename "$0" '.t')"
 TEST_SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEST_DIR="$(mktemp -d)"
