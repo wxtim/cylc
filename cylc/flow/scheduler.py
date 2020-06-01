@@ -474,7 +474,8 @@ see `COPYING' in the Cylc source distribution.
             raise ValueError('this suite requires the %s run mode' % reqmode)
 
         if not self.is_restart:
-            # Will save suite time zone in database:
+            # Set suite params that would otherwise be loaded from database:
+            self.options.utc_mode = get_utc_mode()
             self.options.cycle_point_tz = (
                 self.config.cfg['cylc']['cycle point time zone'])
 
@@ -1269,6 +1270,10 @@ see `COPYING' in the Cylc source distribution.
         elif key == self.suite_db_mgr.KEY_STOP_TASK:
             self.stop_task = value
             LOG.info('+ stop task = %s', value)
+        elif key == self.suite_db_mgr.KEY_UTC_MODE:
+            value = bool(int(value))
+            self.options.utc_mode = value
+            LOG.info('+ UTC mode = %s' % value)
         elif key == self.suite_db_mgr.KEY_CYCLE_POINT_TIME_ZONE:
             self.options.cycle_point_tz = value
             LOG.info('+ cycle point time zone = %s' % value)
