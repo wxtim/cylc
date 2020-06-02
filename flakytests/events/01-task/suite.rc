@@ -57,9 +57,8 @@ cylc task message -p WARNING 'this is a user-defined warning message'
         [[[events]]]
             submission failed handler = {{ HANDLER }}
             submission retry handler = {{ HANDLER }}
-        [[[remote]]]
-            host = NOHOST.NODOMAIN
-
+        [[[job]]]
+            submission retry delays = PT3S
      [[baz]]
         # submitted, submission timeout, started, failed
         init-script = """
