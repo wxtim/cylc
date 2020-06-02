@@ -21,6 +21,12 @@
 set_test_number 3
 #-------------------------------------------------------------------------------
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
+create_test_globalrc '
+[job platforms]
+    [[test platform]]
+        remote hosts = localhost
+        submission retry delays = PT3S
+'
 #-------------------------------------------------------------------------------
 run_ok "${TEST_NAME_BASE}-validate" cylc validate "${SUITE_NAME}"
 suite_run_ok "${TEST_NAME_BASE}-run" \
