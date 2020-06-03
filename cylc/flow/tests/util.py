@@ -202,10 +202,10 @@ def mock_glbl_cfg(tmp_path, monkeypatch):
     """
     def _mock(pypath, global_rc):
         nonlocal tmp_path, monkeypatch
-        tmp_path = tmp_path / 'flow.rc'
-        tmp_path.write_text(global_rc)
+        file_path = tmp_path / 'flow.rc'
+        file_path.write_text(global_rc)
         glbl_cfg = ParsecConfig(SPEC)
-        glbl_cfg.loadcfg(tmp_path)
+        glbl_cfg.loadcfg(file_path)
 
         def _inner(cached=False):
             nonlocal glbl_cfg
