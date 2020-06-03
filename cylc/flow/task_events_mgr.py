@@ -135,7 +135,7 @@ class TaskEventsManager():
     NON_UNIQUE_EVENTS = ('warning', 'critical', 'custom')
 
     def __init__(self, suite, proc_pool, suite_db_mgr,
-                 broadcast_mgr, job_pool):
+                 broadcast_mgr, job_pool, timestamp):
         self.suite = suite
         self.suite_url = None
         self.suite_cfg = {}
@@ -152,6 +152,7 @@ class TaskEventsManager():
         self.spawn_func = None
         # pflag was set to True to stimulate dependency negotiation in SoS.
         self.pflag = False
+        self.timestamp = timestamp
 
     @staticmethod
     def check_poll_time(itask, now=None):
@@ -479,13 +480,17 @@ class TaskEventsManager():
         Check whether to process/skip message.
         Return True if `.process_message` should contine, False otherwise.
         """
-        logfmt = r'[%s] status=%s: %s%s at %s for job(%02d) flow(%s)'
+        if self.timestamp:
+            timestamp = " at %s " % event_time
+        else:
+            timestamp = ""
+        logfmt = r'[%s] status=%s: %s%s%s for job(%02d) flow(%s)'
         if flag == self.FLAG_RECEIVED and submit_num != itask.submit_num:
             # Ignore received messages from old jobs
             LOG.warning(
                 logfmt + r' != current job(%02d)',
                 itask, itask.state, self.FLAG_RECEIVED_IGNORED, message,
-                event_time, submit_num, itask.flow_label, itask.submit_num)
+                timestamp, submit_num, itask.flow_label, itask.submit_num)
             return False
         if itask.state.status in (
             TASK_STATUS_SUBMIT_RETRYING, TASK_STATUS_RETRYING
@@ -494,11 +499,11 @@ class TaskEventsManager():
             LOG.warning(
                 logfmt,
                 itask, itask.state, self.FLAG_POLLED_IGNORED, message,
-                event_time, submit_num, itask.flow_label)
+                timestamp, submit_num, itask.flow_label)
             return False
         LOG.log(
             self.LEVELS.get(severity, INFO), logfmt, itask, itask.state, flag,
-            message, event_time, submit_num, itask.flow_label)
+            message, timestamp, submit_num, itask.flow_label)
         return True
 
     def setup_event_handlers(self, itask, event, message):
