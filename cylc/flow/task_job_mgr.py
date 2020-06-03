@@ -211,7 +211,8 @@ class TaskJobManager(object):
         # Submit task jobs for each (host, owner) group
         done_tasks = bad_tasks
         for (host, owner), itasks in sorted(auth_itasks.items()):
-            is_init = self.task_remote_mgr.remote_init(host, owner)
+            is_init = self.task_remote_mgr.remote_init(
+                host, owner, curve_auth, client_pub_key_dir)
             if is_init is None:
                 # Remote is waiting to be initialised
                 for itask in itasks:
@@ -221,13 +222,6 @@ class TaskJobManager(object):
                             itask.point, itask.tdef.name, itask.submit_num),
                         self.REMOTE_INIT_MSG)
                 continue
-
-            # configure_curve must be called every time certificates are added
-            # or removed, in order to update the Authenticator's state
-            curve_auth.configure_curve(
-                domain='*',
-                location=(client_pub_key_dir)
-            )
             # Ensure that localhost background/at jobs are recorded as running
             # on the host name of the current suite host, rather than just
             # "localhost". On suite restart on a different suite host, this

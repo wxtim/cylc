@@ -126,7 +126,7 @@ class TaskRemoteMgr(object):
             if value is not None:
                 del self.remote_host_str_map[key]
 
-    def remote_init(self, host, owner):
+    def remote_init(self, host, owner, curve_auth, client_pub_key_dir):
         """Initialise a remote [owner@]host if necessary.
 
         Create UUID file on suite host ".service/uuid" for remotes to identify
@@ -207,7 +207,8 @@ class TaskRemoteMgr(object):
                 cmd,
                 stdin_files=[tmphandle]),
             self._remote_init_callback,
-            [host, owner, tmphandle, self.suite])
+            [host, owner, tmphandle, self.suite,
+             curve_auth, client_pub_key_dir])
         # None status: Waiting for command to finish
         self.remote_init_map[(host, owner)] = None
         return self.remote_init_map[(host, owner)]
@@ -285,7 +286,9 @@ class TaskRemoteMgr(object):
                 TaskRemoteMgmtError.MSG_SELECT, (cmd_str, None), cmd_str,
                 proc_ctx.ret_code, proc_ctx.out, proc_ctx.err)
 
-    def _remote_init_callback(self, proc_ctx, host, owner, tmphandle, suite):
+    def _remote_init_callback(
+            self, proc_ctx, host, owner, tmphandle,
+            suite, curve_auth, client_pub_key_dir):
         """Callback when "cylc remote-init" exits"""
         self.ready = True
         try:
@@ -308,6 +311,11 @@ class TaskRemoteMgr(object):
                         'w', encoding='utf8') as text_file:
                     text_file.write(key)
                 os.umask(old_umask)
+                # configure_curve must be called every time certificates are
+                # added or removed, in order to update the Authenticator's
+                # state.
+                curve_auth.configure_curve(
+                    domain='*', location=(client_pub_key_dir))
             for status in (REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED):
                 if status in proc_ctx.out:
                     # Good status
