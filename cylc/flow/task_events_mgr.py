@@ -1018,13 +1018,10 @@ class TaskEventsManager():
                 default=[900]))  # Default 15 minute intervals
             if itask.summary[self.KEY_EXECUTE_TIME_LIMIT]:
                 time_limit = itask.summary[self.KEY_EXECUTE_TIME_LIMIT]
-                try:
-                    host_conf = itask.platform['batch system']
-                    batch_sys_conf = host_conf[itask.summary['batch_sys_name']]
-                except (TypeError, KeyError):
-                    batch_sys_conf = {}
-                time_limit_delays = batch_sys_conf.get(
-                    'execution time limit polling intervals', [60, 120, 420])
+                time_limit_delays = itask.platform.get(
+                    'execution time limit polling intervals')
+                if not time_limit_delays:
+                    time_limit_delays = [60, 120, 420]
                 timeout = time_limit + sum(time_limit_delays)
                 # Remove excessive polling before time limit
                 while sum(delays) > time_limit:
