@@ -1094,7 +1094,7 @@ class TaskPool(object):
         return (self.get_task(name, point, flow_label)
                 or self.spawn_task(name, point, flow_label, reflow, parent_id))
 
-    def get_task(self, name, point, flow_label):
+    def get_task(self, name, point, flow_label=None):
         """Return existing task proxy name.point, or None.
         
         Merge flow labels if task is found.
@@ -1532,6 +1532,13 @@ class TaskPool(object):
                     LOG.warning(self.ERR_PREFIX_TASKID_MATCH + item)
                     bad_items.append(item)
         return itasks, bad_items
+
+    def reflow(self, flow_label, stop=False):
+        if stop:
+            for itask in self.get_all_tasks():
+                # Don't use match_label(); we don't want to stop merged flows.
+                if itask.flow_label == flow_label:
+                    itask.reflow = False
 
     @staticmethod
     def _parse_task_item(item):

@@ -1300,6 +1300,27 @@ class Stop(Mutation):
     result = GenericScalar()
 
 
+class Reflow(Mutation):
+    class Meta:
+        description = sstrip(f'''
+            Manage reflows.
+        ''')
+        resolver = partial(mutator, command='reflow')
+
+    class Arguments:
+        workflows = List(WorkflowID, required=True)
+        stop = Boolean(
+            description='Stop reflow.',
+            default_value=False
+        )
+        label = String(
+            description='The flow label.',
+            required=True
+        )
+
+    result = GenericScalar()
+
+
 class Checkpoint(Mutation):
     class Meta:
         description = 'Tell the suite to checkpoint its current state.'
@@ -1470,6 +1491,7 @@ class Mutations(ObjectType):
     set_verbosity = SetVerbosity.Field(
         description=SetVerbosity._meta.description)
     stop = Stop.Field(description=Stop._meta.description)
+    reflow = Reflow.Field(description=Reflow._meta.description)
     checkpoint = Checkpoint.Field(
         description=Checkpoint._meta.description)
 

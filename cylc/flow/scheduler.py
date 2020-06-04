@@ -867,6 +867,9 @@ see `COPYING' in the Cylc source distribution.
         task_id = TaskID.get_standardised_taskid(task_id)
         return self.pool.ping_task(task_id, exists_only)
 
+    def command_reflow(self, flow_label, stop=False):
+        self.pool.reflow(flow_label, stop=stop)
+ 
     def command_stop(
             self,
             mode=None,

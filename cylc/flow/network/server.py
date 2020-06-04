@@ -1210,6 +1210,26 @@ class SuiteRuntimeServer(ZMQSocketBase):
 
     @authorise(Priv.CONTROL)
     @expose
+    def reflow(self, flow_label, stop=False):
+        """Manage reflows.
+
+        Args:
+            name (str): The checkpoint name
+
+        Returns:
+            tuple: (outcome, message)
+
+            outcome (bool)
+                True if command successfully queued.
+            message (str)
+                Information about outcome.
+
+        """
+        self.schd.command_queue.put(("reflow", (flow_label,), {'stop': stop}))
+        return (True, 'Command queued')
+
+    @authorise(Priv.CONTROL)
+    @expose
     def take_checkpoints(self, name):
         """Checkpoint current task pool.
 
