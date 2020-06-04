@@ -162,7 +162,7 @@ def construct_ssh_cmd(
         raw_cmd, user=None, host=None, forward_x11=False, stdin=False,
         ssh_cmd=None, ssh_login_shell=None, ssh_cylc=None, set_UTC=False,
         allow_flag_opts=False
-    ):
+):
     """Append a bare command with further options required to run via ssh.
 
     Arguments:

@@ -31,11 +31,10 @@ from time import time
 from random import choice as randchoice
 
 from cylc.flow import LOG
-from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.exceptions import TaskRemoteMgmtError
 import cylc.flow.flags
 from cylc.flow.hostuserutil import (
-    is_remote, is_remote_host, is_remote_user, is_remote_platform
+    is_remote_host, is_remote_platform
 )
 from cylc.flow.pathutil import get_remote_suite_run_dir
 from cylc.flow.subprocctx import SubProcContext
@@ -49,7 +48,7 @@ from cylc.flow.suite_files import (
 from cylc.flow.task_remote_cmd import (
     FILE_BASE_UUID, REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED)
 from cylc.flow.platform_lookup import forward_lookup
-from cylc.flow.remote import construct_ssh_cmd, construct_platform_ssh_cmd
+from cylc.flow.remote import construct_platform_ssh_cmd
 
 
 REC_COMMAND = re.compile(r'(`|\$\()\s*(.*)\s*([`)])$')
@@ -131,7 +130,7 @@ class TaskRemoteMgr(object):
             if value is not None:
                 del self.remote_host_str_map[key]
 
-    def remote_init(self, platform):
+    def remote_init(self, platform_name):
         """Initialise a remote platform if necessary.
 
         Create UUID file on a platform ".service/uuid" for remotes to identify
@@ -140,6 +139,10 @@ class TaskRemoteMgr(object):
         Call "cylc remote-init" to install suite items to remote:
             ".service/contact": For TCP task communication
             "python/": if source exists
+
+        Args:
+            platform_name (str):
+                The name of the platform to be initialized.
 
         Return:
             REMOTE_INIT_NOT_REQUIRED:
@@ -153,10 +156,15 @@ class TaskRemoteMgr(object):
                 If waiting for remote init command to complete
 
         """
-        platform = forward_lookup(platform)
+        # get the platform from the platform_name
+        platform = forward_lookup(platform_name)
 
+        # If task is running locally we can skip the rest of this function
         if self.single_task_mode or not is_remote_platform(platform):
             return REMOTE_INIT_NOT_REQUIRED
+
+        # See if a previous failed attempt to initialize this platform has
+        # occured.
         try:
             status = self.remote_init_map[platform['name']]
         except KeyError:
@@ -167,17 +175,16 @@ class TaskRemoteMgr(object):
             return status
 
         # Determine what items to install
-
         comm_meth = platform['task communication method']
+
         # TODO pick a more elegant host picking method
+        # Additionally these lines should probably become deprecated as this
+        # function should not need to have this information exposed.
         host = randchoice(platform['remote hosts'])
         owner = platform['owner']
-        owner_at_host = 'localhost'
-        if host:
-            owner_at_host = host
-        if owner:
-            owner_at_host = owner + '@' + owner_at_host
-        LOG.debug('comm_meth[%s]=%s' % (owner_at_host, comm_meth))
+
+        # Get a list of files and folders to install;
+        # if nothing needs install say so to remote_init_map and return.
         items = self._remote_init_items(comm_meth)
 
         # Create a TAR archive with the service files,
@@ -195,7 +202,8 @@ class TaskRemoteMgr(object):
         )
         if not os.path.exists(uuid_fname):
             open(uuid_fname, 'wb').write(str(self.uuid_str).encode())
-        # Build the command
+
+        # Build the remote-init command to be run over ssh
         cmd = ['remote-init']
         if cylc.flow.flags.debug:
             cmd.append('--debug')
@@ -204,8 +212,9 @@ class TaskRemoteMgr(object):
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(platform, self.suite))
 
-        # use construct ssh cmd
+        # Create the ssh command
         cmd = construct_platform_ssh_cmd(cmd, platform)
+
         self.proc_pool.put_command(
             SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
             self._remote_init_callback,
@@ -288,7 +297,9 @@ class TaskRemoteMgr(object):
                 TaskRemoteMgmtError.MSG_SELECT, (cmd_str, None), cmd_str,
                 proc_ctx.ret_code, proc_ctx.out, proc_ctx.err)
 
-    def _remote_init_callback(self, proc_ctx, host, owner, platform, tmphandle):
+    def _remote_init_callback(
+        self, proc_ctx, host, owner, platform, tmphandle
+    ):
         """Callback when "cylc remote-init" exits"""
         self.ready = True
         try:
