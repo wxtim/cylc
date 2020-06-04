@@ -49,6 +49,7 @@ from cylc.flow.suite_files import (
 from cylc.flow.task_remote_cmd import (
     FILE_BASE_UUID, REMOTE_INIT_DONE, REMOTE_INIT_NOT_REQUIRED)
 from cylc.flow.platform_lookup import forward_lookup
+from cylc.flow.remote import construct_ssh_cmd, construct_platform_ssh_cmd
 
 
 REC_COMMAND = re.compile(r'(`|\$\()\s*(.*)\s*([`)])$')
@@ -131,9 +132,9 @@ class TaskRemoteMgr(object):
                 del self.remote_host_str_map[key]
 
     def remote_init(self, platform):
-        """Initialise a remote [owner@]host if necessary.
+        """Initialise a remote platform if necessary.
 
-        Create UUID file on suite host ".service/uuid" for remotes to identify
+        Create UUID file on a platform ".service/uuid" for remotes to identify
         shared file system with suite host.
 
         Call "cylc remote-init" to install suite items to remote:
@@ -195,21 +196,20 @@ class TaskRemoteMgr(object):
         if not os.path.exists(uuid_fname):
             open(uuid_fname, 'wb').write(str(self.uuid_str).encode())
         # Build the command
-        cmd = ['cylc', 'remote-init']
-        if is_remote_host(host):
-            cmd.append('--host=%s' % host)
-        if is_remote_user(owner):
-            cmd.append('--user=%s' % owner)
+        cmd = ['remote-init']
         if cylc.flow.flags.debug:
             cmd.append('--debug')
         if comm_meth in ['ssh']:
             cmd.append('--indirect-comm=%s' % comm_meth)
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(platform, self.suite))
+
+        # use construct ssh cmd
+        cmd = construct_platform_ssh_cmd(cmd, platform)
         self.proc_pool.put_command(
             SubProcContext('remote-init', cmd, stdin_files=[tmphandle]),
             self._remote_init_callback,
-            [host, owner, tmphandle])
+            [host, owner, platform, tmphandle])
         # None status: Waiting for command to finish
         self.remote_init_map[platform['name']] = None
         return self.remote_init_map[platform['name']]
@@ -234,6 +234,9 @@ class TaskRemoteMgr(object):
         # Issue all SSH commands in parallel
         procs = {}
         for platform, init_with_contact in self.remote_init_map.items():
+            platform = forward_lookup(platform)
+            host = randchoice(platform['remote hosts'])
+            owner = platform['owner']
             if init_with_contact != REMOTE_INIT_DONE:
                 continue
             cmd = ['timeout', '10', 'cylc', 'remote-tidy']
@@ -241,7 +244,7 @@ class TaskRemoteMgr(object):
                 cmd.append('--host=%s' % host)
             if cylc.flow.flags.debug:
                 cmd.append('--debug')
-            cmd.append(get_remote_suite_run_dir(host, owner, self.suite))
+            cmd.append(get_remote_suite_run_dir(platform, self.suite))
             procs[(host, owner)] = (
                 cmd,
                 Popen(cmd, stdout=PIPE, stderr=PIPE, stdin=DEVNULL))
@@ -285,7 +288,7 @@ class TaskRemoteMgr(object):
                 TaskRemoteMgmtError.MSG_SELECT, (cmd_str, None), cmd_str,
                 proc_ctx.ret_code, proc_ctx.out, proc_ctx.err)
 
-    def _remote_init_callback(self, proc_ctx, host, owner, tmphandle):
+    def _remote_init_callback(self, proc_ctx, host, owner, platform, tmphandle):
         """Callback when "cylc remote-init" exits"""
         self.ready = True
         try:
