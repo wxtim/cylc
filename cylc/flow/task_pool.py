@@ -53,7 +53,7 @@ class FlowLabelMgr(object):
     """
     Manage flow labels consisting of a string of one or more letters [a-zA-Z].
 
-    Flow labels are task attributes, representing the flow the task belongs to,
+    Flow labels are task attributes representing the flow the task belongs to,
     passed down to spawned children. If a new flow is started, a new single
     character label is chosen randomly. This allows for 52 simultaneous flows
     (which should be more than enough) with labels that are easy to work with.
@@ -65,21 +65,42 @@ class FlowLabelMgr(object):
     component labels, e.g. if flow "a" merges with flow "b" the merged result
     is "ab" (or "ba", it doesn't matter which).
 
+    TODO: make str vs set args are vars clear.
     """
     def __init__(self):
         """Store available and used labels."""
         self.avail = set(ascii_letters)
-        self.used = set()
+        self.inuse = set()
  
+    def get_num_inuse(self):
+        """Return the number of labels currently in use."""
+        return len(list(self.inuse))
+
+    def make_avail(self, labels):
+        """Return labels (set) to the pool of available labels."""
+        LOG.info("Returning unmerged flow label(s) %s", labels)
+        for label in labels:
+            try:
+                self.inuse.remove(label)
+            except KeyError:
+                pass
+            self.avail.add(label)
+
     def get_new_label(self):
         """Return a new label, or None if we've run out."""
         try:
             label = self.avail.pop()
         except KeyError:
             return None
-        self.used.add(label)
+        self.inuse.add(label)
         return label
  
+    @staticmethod
+    def get_common_labels(labels):
+        """Return list of common labels."""
+        set_labels = [set(l) for l in labels]
+        return set.intersection(*set_labels)
+
     @staticmethod
     def merge_labels(lab1, lab2):
         """Return the label representing both lab1 and lab2.
@@ -91,6 +112,13 @@ class FlowLabelMgr(object):
         labs1 = set(list(lab1))
         labs2 = set(list(lab2))
         return ''.join(labs1.union(labs2))
+
+    @staticmethod
+    def unmerge_labels(prune, target):
+        """Unmerge prune from target."""
+        for char in list(prune):
+            target = target.replace(char, '')
+        return target
 
     @staticmethod
     def match_labels(lab1, lab2):
@@ -1535,11 +1563,43 @@ class TaskPool(object):
 
     def reflow(self, flow_label, stop=False):
         if stop:
+            # Stop tasks belong to flow_label from continuing.
             for itask in self.get_all_tasks():
                 # Don't use match_label(); we don't want to stop merged flows.
                 if itask.flow_label == flow_label:
                     itask.reflow = False
 
+    def prune_flow_labels(self):
+        """Remove any redundant merged flow labels.
+
+        Note this iterates the task pool twice but it can be called
+        infrequently and doesn't do anything if there is only one flow.
+
+        """
+        print("PRUEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+        if self.flow_label_mgr.get_num_inuse() == 1:
+            # Nothing to do.
+            return
+        # Gather all current labels.
+        labels = []
+        for itask in self.get_all_tasks():
+            labels.append(itask.flow_label)
+        # Find any labels common to all tasks.
+        common = self.flow_label_mgr.get_common_labels(labels)
+        # And prune them back to just one.
+        num = len(list(common))
+        if num <= 1:
+            return
+        LOG.debug('Redundant flow labels: %s', common)
+        to_prune = []
+        while num > 1:
+            to_prune.append(common.pop())
+            num -= 1
+        for itask in self.get_all_tasks():
+            itask.flow_label = self.flow_label_mgr.unmerge_labels(
+                to_prune, itask.flow_label)
+        self.flow_label_mgr.make_avail(to_prune)
+ 
     @staticmethod
     def _parse_task_item(item):
         """Parse point/name:state or name.point:state syntax."""
