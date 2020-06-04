@@ -1047,6 +1047,10 @@ see `COPYING' in the Cylc source distribution.
         """Reload suite configuration."""
         LOG.info("Reloading the suite definition.")
         old_tasks = set(self.config.get_task_name_list())
+        # Things that can't change on suite reload:
+        pri_dao = self.suite_db_mgr.get_pri_dao()
+        pri_dao.select_suite_params(self._load_suite_params)
+
         self.suite_db_mgr.checkpoint("reload-init")
         self.load_suiterc(is_reload=True)
         self.broadcast_mgr.linearized_ancestors = (
