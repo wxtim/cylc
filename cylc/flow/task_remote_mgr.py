@@ -211,7 +211,6 @@ class TaskRemoteMgr(object):
             cmd.append('--indirect-comm=%s' % comm_meth)
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(platform, self.suite))
-
         # Create the ssh command
         cmd = construct_platform_ssh_cmd(cmd, platform)
 

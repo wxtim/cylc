@@ -190,6 +190,7 @@ def construct_ssh_cmd(
         necessary to directly execute the bare command on a given host via ssh.
     """
     # If ssh cmd isn't given use the default from localhost settings.
+    # breakpoint()
     if ssh_cmd is None:
         command = shlex.split(forward_lookup()['ssh command'])
     else:
