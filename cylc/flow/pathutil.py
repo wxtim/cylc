@@ -47,10 +47,8 @@ def get_remote_suite_work_dir(platform, suite, *args):
 
 def get_suite_run_dir(suite, *args):
     """Return local suite run directory, join any extra args."""
-    return os.path.expandvars(
-        os.path.join(
-            forward_lookup()['run directory'], suite, *args
-        )
+    return os.path.join(
+        forward_lookup()['run directory'], suite, *args
     )
 
 
@@ -67,7 +65,7 @@ def get_suite_run_log_dir(suite, *args):
 def get_suite_run_log_name(suite):
     """Return suite run log file path."""
     path = get_suite_run_dir(suite, 'log', 'suite', 'log')
-    return os.path.expandvars(path)
+    return path
 
 
 def get_suite_run_rc_dir(suite, *args):
@@ -82,19 +80,15 @@ def get_suite_run_pub_db_name(suite):
 
 def get_suite_run_share_dir(suite, *args):
     """Return local suite work/share directory, join any extra args."""
-    return os.path.expandvars(
-        os.path.join(
-            forward_lookup()['work directory'], suite, 'share', *args
-        )
+    return os.path.join(
+        forward_lookup()['work directory'], suite, 'share', *args
     )
 
 
 def get_suite_run_work_dir(suite, *args):
     """Return local suite work/work directory, join any extra args."""
-    return os.path.expandvars(
-        os.path.join(
+    return os.path.join(
             forward_lookup()['work directory'], suite, 'work', *args
-        )
     )
 
 
@@ -108,7 +102,7 @@ def make_suite_run_tree(suite):
     cfg = glbl_cfg().get()
     # Roll archive
     archlen = cfg['run directory rolling archive length']
-    dir_ = get_suite_run_dir(suite)
+    dir_ = os.path.expandvars(get_suite_run_dir(suite))
     for i in range(archlen, -1, -1):  # archlen...0
         if i > 0:
             dpath = dir_ + '.' + str(i)
@@ -131,6 +125,5 @@ def make_suite_run_tree(suite):
         get_suite_run_work_dir(suite),
     ):
         if dir_:
-            dir_ = os.path.expandvars(dir_)
             os.makedirs(dir_, exist_ok=True)
             LOG.debug('%s: directory created', dir_)
