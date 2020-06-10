@@ -102,7 +102,7 @@ def make_suite_run_tree(suite):
     cfg = glbl_cfg().get()
     # Roll archive
     archlen = cfg['run directory rolling archive length']
-    dir_ = os.path.expandvars(get_suite_run_dir(suite))
+    dir_ = get_suite_run_dir(suite)
     for i in range(archlen, -1, -1):  # archlen...0
         if i > 0:
             dpath = dir_ + '.' + str(i)
@@ -125,5 +125,6 @@ def make_suite_run_tree(suite):
         get_suite_run_work_dir(suite),
     ):
         if dir_:
+            dir_ = os.path.expandvars(dir_)
             os.makedirs(dir_, exist_ok=True)
             LOG.debug('%s: directory created', dir_)
