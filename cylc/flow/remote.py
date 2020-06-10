@@ -147,7 +147,7 @@ def construct_platform_ssh_cmd(raw_cmd, platform, **kwargs):
     Args:
         All as `construct_ssh_cmd` except for user and host.
     """
-    return construct_ssh_cmd(
+    ret = construct_ssh_cmd(
         raw_cmd,
         user=platform['owner'],
         host=randomchoice(platform['remote hosts']),
@@ -156,6 +156,10 @@ def construct_platform_ssh_cmd(raw_cmd, platform, **kwargs):
         ssh_login_shell=platform['use login shell'],
         **kwargs
     )
+
+    LOG.critical(f"SSH command constructed: {ret}")
+
+    return ret
 
 
 def construct_ssh_cmd(
@@ -308,8 +312,7 @@ def remote_cylc_cmd(
 def remrun(dry_run=False, forward_x11=False, abort_if=None,
            set_rel_local=False):
     """Short for RemoteRunner().execute(...)"""
-    return RemoteRunner().execute(
-        dry_run, forward_x11, abort_if, set_rel_local)
+    return False
 
 
 class RemoteRunner(object):
