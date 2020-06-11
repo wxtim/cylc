@@ -88,7 +88,7 @@ def get_suite_run_share_dir(suite, *args):
 def get_suite_run_work_dir(suite, *args):
     """Return local suite work/work directory, join any extra args."""
     return os.path.join(
-            forward_lookup()['work directory'], suite, 'work', *args
+        forward_lookup()['work directory'], suite, 'work', *args
     )
 
 

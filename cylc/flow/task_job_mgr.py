@@ -294,12 +294,12 @@ class TaskJobManager(object):
                     ('user', owner, is_remote_user)]:
                 if test_func(value):
                     remote_mode = True
+            if remote_mode:
+                cmd.append('--remote-mode')
             cmd.append('--')
             cmd.append(
-                os.path.expandvars(
-                    get_remote_suite_run_job_dir(
-                        platform, suite
-                    )
+                get_remote_suite_run_job_dir(
+                    platform, suite
                 )
             )
             # Chop itasks into a series of shorter lists if it's very big
@@ -324,6 +324,10 @@ class TaskJobManager(object):
                                 itask.submit_num))
                     job_log_dirs.append(get_task_job_id(
                         itask.point, itask.tdef.name, itask.submit_num))
+                    stdin_files = [
+                        os.path.expandvars(path) for path in stdin_files
+                    ]
+
                     # The job file is now (about to be) used: reset the file
                     # write flag so that subsequent manual retrigger will
                     # generate a new job file.
