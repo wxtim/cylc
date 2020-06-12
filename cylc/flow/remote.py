@@ -157,7 +157,7 @@ def construct_platform_ssh_cmd(raw_cmd, platform, **kwargs):
         **kwargs
     )
 
-    LOG.critical(f"SSH command constructed: {ret}")
+    LOG.debug(f"SSH command constructed: {ret}")
 
     return ret
 

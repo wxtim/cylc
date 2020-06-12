@@ -327,7 +327,6 @@ class TaskJobManager(object):
                     stdin_files = [
                         os.path.expandvars(path) for path in stdin_files
                     ]
-
                     # The job file is now (about to be) used: reset the file
                     # write flag so that subsequent manual retrigger will
                     # generate a new job file.
@@ -336,6 +335,13 @@ class TaskJobManager(object):
                     if itask.state.outputs.has_custom_triggers():
                         self.suite_db_mgr.put_update_task_outputs(itask)
                 cmd = construct_platform_ssh_cmd(cmd, platform)
+                # TODO At the moment this is crudely replacing the host and
+                # sshing into localhost which seems crude and hack-y.
+                # We should be able to run this without the ssh but I have
+                # Been struggling.
+                if not remote_mode:
+                    cmd[3] = os.environ['HOSTNAME']
+                    LOG.critical(cmd[3])
                 self.proc_pool.put_command(
                     SubProcContext(
                         self.JOBS_SUBMIT,

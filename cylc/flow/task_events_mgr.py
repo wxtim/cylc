@@ -84,7 +84,7 @@ def log_task_job_activity(ctx, suite, point, name, submit_num=None):
     job_activity_log = get_task_job_activity_log(
         suite, point, name, submit_num)
     try:
-        with open(job_activity_log, "ab") as handle:
+        with open(os.path.expandvars(job_activity_log), "ab") as handle:
             handle.write((ctx_str + '\n').encode())
     except IOError as exc:
         # This happens when there is no job directory, e.g. if job host
