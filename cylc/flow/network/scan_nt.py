@@ -72,7 +72,10 @@ def scan(path=None, patterns=None, is_active=None):
                 continue
 
             # we have a hit
-            yield name
+            yield {
+                'name': name,
+                'path': path,
+            }
         else:
             # we may have a nested flow, lets see...
             stack.extend([
@@ -96,6 +99,11 @@ def pipe(fcn):
 def filter_name(obj, pattern):
     if pattern.match(obj['name']):
         return obj
+
+
+@pipe
+def is_active(obj, is_active):
+    obj['contact']
 
 
 from textwrap import dedent
