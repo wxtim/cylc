@@ -127,6 +127,10 @@
 #         (Remote job tests should really use set_test_remote, below, however).
 #     set_test_remote
 #         set CYLC_TEST_HOST and CYLC_TEST_OWNER for remote job tests.
+#     set_test_platform
+#         set CYLC_TEST_PLATFORM for remote job tests
+#         # TODO delete set_test_remote once all it's tests are no longer used
+#         or skipped.
 #     get_fqdn_by_host [TARGET]
 #         Get a host FQDN using the same mechanism Cylc uses.
 #-------------------------------------------------------------------------------
@@ -735,6 +739,20 @@ set_test_remote() {
   fi
   export CYLC_TEST_HOST=${CYLC_TEST_HOST:-"localhost"}
   export CYLC_TEST_OWNER=${CYLC_TEST_OWNER:-${USER}}
+}
+
+set_test_platform() {
+  # For remote job tests, define CYLC_TEST_PLATFORM from global
+  # config '[test battery]remote platform', defaulting to localhost.
+  # Skip all tests if is not defined.
+  # Call immediately after sourcing the test header, for skip_all to work.
+  # TODO - esure that this platform exists and raise a sensible error if not.
+  CYLC_TEST_PLATFORM="$( \
+      cylc get-global-config -i '[test battery]remote platform' 2>'/dev/null')"
+  if [[ -z "${CYLC_TEST_HOST}${CYLC_TEST_OWNER}" ]]; then
+      skip_all '"[test battery]remote platform": not defined'
+  fi
+  export CYLC_TEST_PLATFORM=${CYLC_TEST_PLATFORM:-"localhost"}
 }
 
 get_fqdn_by_host() {
