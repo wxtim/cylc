@@ -512,7 +512,8 @@ purge_suite_platform() {
         CMD="${CMD} && rmdir -p '${DIRNAME}'"
     fi
     # Pick the first host from the platform
-    HOST=$(cylc get-global --item "[job platforms][${PLATFORM}]remote hosts" | awk -F ',' '{print $1}')
+    HOSTS=$(cylc get-global --item "[job platforms][${PLATFORM}]remote hosts")
+    HOST=$(echo "$HOSTS" | awk -F ',' '{print $1}')
     # CMD is part of this function
     # shellcheck disable=SC2029
     ssh -n -oBatchMode=yes -oConnectTimeout=5 "${HOST}" "${CMD}" \
@@ -770,9 +771,9 @@ set_test_platform() {
       cylc get-global-config -i '[test battery]remote platform' 2>'/dev/null')"
   # This is ugly, but some tests require these variables for direct ssh-ing.
   CYLC_TEST_HOST="$( \
-      cylc get-global --item '[job platforms][${PLATFORM}]remote hosts' | awk -F ',' '{print $1}')"
+      cylc get-global --item "[job platforms][${CYLC_TEST_PLATFORM}]remote hosts" | awk -F ',' '{print $1}')"
   CYLC_TEST_OWNER="$( \
-      cylc get-global --item '[job platforms][${PLATFORM}]owner')"
+      cylc get-global --item "[job platforms][${CYLC_TEST_PLATFORM}]owner")"
   if [[ -z "${CYLC_TEST_PLATFORM}" ]]; then
       skip_all '"[test battery]remote platform": not defined'
   fi
