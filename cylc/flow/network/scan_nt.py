@@ -17,6 +17,7 @@
 import asyncio
 import functools
 from pathlib import Path
+import re
 
 from pkg_resources import (
     parse_requirements,
@@ -41,17 +42,6 @@ from cylc.flow.suite_files import (
 
 SERVICE = Path(SuiteFiles.Service.DIRNAME)
 CONTACT = Path(SuiteFiles.Service.CONTACT)
-
-
-def regex_combine(patterns):
-    """Join regex patterns.
-
-    Examples:
-        >>> regex_combine(['a', 'b', 'c'])
-        '(a|b|c)'
-
-    """
-    return rf'({"|".join(patterns)})'
 
 
 async def dir_is_flow(listing):
@@ -118,6 +108,16 @@ async def scan(run_dir=None):
                     await stack.put(subdir)
 
 
+def regex_joiner(pipe):
+    """Pre process arguments for filter_name."""
+    @functools.wraps(pipe)
+    def _regex_joiner(*patterns):
+        pipe.args = (re.compile(rf'({"|".join(patterns)})'),)
+        return pipe
+    return _regex_joiner
+
+
+@regex_joiner
 @Pipe
 async def filter_name(flow, pattern):
     """Filter flows by name.
@@ -125,8 +125,9 @@ async def filter_name(flow, pattern):
     Args:
         flow (dict):
             Flow information dictionary, provided by scan through the pipe.
-        pattern (re.Pattern):
-            Compiled regex that flow names must match.
+        *pattern (str):
+            One or more regex patterns as strings.
+            This will return True if any of the patterns match.
 
     """
     return bool(pattern.match(flow['name']))

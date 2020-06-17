@@ -214,11 +214,24 @@ def test_scan_really_nasty_symlinks(run_dir_with_really_nasty_symlinks):
         list(scan(run_dir_with_really_nasty_symlinks))
 
 
+def test_filter_name_preprocess():
+    """It should combine provided patterns and compile them."""
+    pipe = filter_name('^f', '^c')
+    assert pipe.args[0] == re.compile('(^f|^c)')
+
+
 @pytest.mark.asyncio
 async def test_filter_name():
     """It should filter flows by registration name."""
-    assert await filter_name.func({'name': 'foo'}, re.compile('^f'))
-    assert not await filter_name.func({'name': 'foo'}, re.compile('^b'))
+    pipe = filter_name('^f')
+    assert await pipe.func(
+        {'name': 'foo'},
+        *pipe.args
+    )
+    assert not await pipe.func(
+        {'name': 'bar'},
+        *pipe.args
+    )
 
 
 @pytest.mark.asyncio
