@@ -218,8 +218,11 @@ from cylc.flow.suite_files import load_contact_file
 
 
 @Pipe
-def contact_info(obj):
-    obj.update(load_contact_file(obj['name']))
+async def contact_info(obj):
+    obj.update(
+        load_contact_file(obj['name'], path=obj['path'])
+    )
+    return obj
 
 
 from textwrap import dedent

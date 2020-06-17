@@ -212,12 +212,14 @@ def test_scan_really_nasty_symlinks(run_dir_with_really_nasty_symlinks):
 
 @pytest.mark.asyncio
 async def test_filter_name():
+    """It should filter flows by registration name."""
     assert await filter_name.func({'name': 'foo'}, re.compile('^f'))
     assert not await filter_name.func({'name': 'foo'}, re.compile('^b'))
 
 
 @pytest.mark.asyncio
 async def test_is_active(sample_run_dir):
+    """It should filter flows by presence of a contact file."""
     # running flows
     assert await is_active.func(
         {'path': sample_run_dir / 'foo'},
@@ -237,7 +239,7 @@ async def test_is_active(sample_run_dir):
         {'path': sample_run_dir / 'qux'},
         True
     )
-    # non-existant flows
+    # non-existent flows
     assert not await is_active.func(
         {'path': sample_run_dir / 'elephant'},
         True
@@ -246,13 +248,25 @@ async def test_is_active(sample_run_dir):
 
 @pytest.mark.asyncio
 async def test_contact_info(tmp_path):
+    """It should load info from the contact file."""
+    # create a dummy flow
     Path(tmp_path, 'foo', SRV_DIR).mkdir(parents=True)
-    open(
-        Path(tmp_path, 'foo', SRV_DIR, CONTACT),
-        'w+'
-    ).write(dedent('''
-        foo=1
-        bar=2
-        baz=3
-    '''))
-    assert await contact_info.func({'name': 'foo'}) == {}
+    # write a contact file with some junk in it
+    with open(Path(tmp_path, 'foo', SRV_DIR, CONTACT), 'w+') as contact:
+        contact.write(dedent('''
+            foo=1
+            bar=2
+            baz=3
+        ''').strip())
+    # create a flow dict as returned by scan
+    flow = {
+        'name': 'foo',
+        'path': tmp_path / 'foo'
+    }
+    # ensure the contact fields get added to the flow dict
+    assert await contact_info.func(flow) == {
+        **flow,
+        'foo': '1',
+        'bar': '2',
+        'baz': '3'
+    }
