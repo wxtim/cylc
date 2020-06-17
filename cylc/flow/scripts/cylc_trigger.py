@@ -151,7 +151,6 @@ def main(parser, options, suite, *task_globs):
             time.sleep(1)
 
         # Make a pre-edit copy to allow a post-edit diff.
-        print(f'>>> V')
         jobfile_copy_path = "%s.ORIG" % jobfile_path
         print(f'{jobfile_path}:{jobfile_copy_path}')
         shutil.copy(jobfile_path, jobfile_copy_path)
