@@ -260,7 +260,6 @@ class Scheduler(object):
         if self.is_restart:
             self.suite_db_mgr.restart_upgrade()
         try:
-            breakpoint()
             if not self.options.no_detach:
                 daemonize(self)
             self._setup_suite_logger()
