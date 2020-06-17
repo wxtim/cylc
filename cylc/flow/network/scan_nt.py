@@ -48,7 +48,17 @@ def regex_combine(patterns):
 
 
 async def dir_is_flow(listing):
-    """Return True if a Path contains a flow at the top level."""
+    """Return True if a Path contains a flow at the top level.
+
+    Args:
+        listing (list):
+            A listing of the directory in question as a list of
+            ``pathlib.Path`` objects.
+
+    Returns:
+        bool - True if the listing indicates that this is a flow directory.
+
+    """
     listing = [
         path.name
         for path in listing
@@ -61,6 +71,21 @@ async def dir_is_flow(listing):
 
 @Pipe
 async def scan(run_dir=None):
+    """List flows installed on the filesystem.
+
+    This is an async generator so use and async for to extract results::
+
+        async for flow in scan(directory):
+            print(flow['name'])
+
+    Args:
+        directory (pathlib.Path):
+            The directory to scan, defaults to the cylc run directory.
+
+    Yields:
+        dict - Dictionary containing information about the flow.
+
+    """
     if not run_dir:
         run_dir = Path(
             glbl_cfg().get_host_item('run directory').replace('$HOME', '~')
