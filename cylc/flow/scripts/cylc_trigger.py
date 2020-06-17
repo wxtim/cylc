@@ -81,36 +81,28 @@ def get_option_parser():
 
 @cli_function(get_option_parser)
 def main(parser, options, suite, *task_globs):
-    print(f"OPTIONS {options}, \nPARSER {parser}0")
     """CLI for "cylc trigger"."""
     msg = 'Trigger task(s) %s in %s' % (task_globs, suite)
-    print("gargfivuahfnrguafrgoui")
     prompt(msg, options.force)
-    print("OI")
 
     pclient = SuiteRuntimeClient(
         suite, options.owner, options.host, options.port,
         options.comms_timeout)
-    print('yan')
 
     aborted = False
-    print('tan')
     if options.edit_run:
-        print('tethera')
         task_id = task_globs[0]
         # Check that TASK is a unique task.
         success, msg = pclient(
             'ping_task',
             {'task_id': task_id, 'exists_only': True}
         )
-        print('quad')
         # Get the job filename from the suite server program - the task cycle
         # point may need standardising to the suite cycle point format.
         jobfile_path = pclient(
             'get_task_jobfile_path', {'task_id': task_id})
         if not jobfile_path:
             raise UserInputError('task not found')
-        print(f'<<< R {jobfile_path}')
         jobfile_path = jobfile_path
         # Note: localhost time and file system time may be out of sync,
         #       so the safe way to detect whether a new file is modified
@@ -122,20 +114,17 @@ def main(parser, options, suite, *task_globs):
             old_mtime = os.stat(jobfile_path).st_mtime
         except OSError:
             old_mtime = None
-        print('<<< S')
         # Tell the suite server program to generate the job file.
         pclient(
             'dry_run_tasks',
             {'tasks': [task_id], 'check_syntax': False}
         )
-        print('<<< T')
         # Wait for the new job file to be written. Use mtime because the same
         # file could potentially exist already, left from a previous run.
         jobfile_path = os.path.expandvars(jobfile_path)
         count = 0
         MAX_TRIES = 10
         while True:
-            print(f'<<< U -- > {count}')
 
             count += 1
             try:
@@ -152,9 +141,7 @@ def main(parser, options, suite, *task_globs):
 
         # Make a pre-edit copy to allow a post-edit diff.
         jobfile_copy_path = "%s.ORIG" % jobfile_path
-        print(f'{jobfile_path}:{jobfile_copy_path}')
         shutil.copy(jobfile_path, jobfile_copy_path)
-        print(f">>> W")
         # Edit the new job file.
         if options.geditor:
             editor = glbl_cfg().get(['editors', 'gui'])
