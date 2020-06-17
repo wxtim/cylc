@@ -15,7 +15,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import asyncio
+import functools
 from pathlib import Path
+
+from pkg_resources import (
+    parse_requirements,
+    parse_version
+)
 
 from cylc.flow import LOG
 from cylc.flow.async_util import (
@@ -27,6 +33,7 @@ from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.network.client import (
     SuiteRuntimeClient, ClientError, ClientTimeout)
 from cylc.flow.suite_files import (
+    ContactFileFields,
     SuiteFiles,
     load_contact_file
 )
@@ -145,6 +152,9 @@ async def is_active(flow, is_active):
 async def contact_info(flow):
     """Read information from the contact file.
 
+    Requires:
+        * is_active(True)
+
     Args:
         flow (dict):
             Flow information dictionary, provided by scan through the pipe.
@@ -154,6 +164,40 @@ async def contact_info(flow):
         load_contact_file(flow['name'], path=flow['path'])
     )
     return flow
+
+
+def requirement_parser(pipe):
+    """Pre-process arguments for cylc_version.
+
+    This way we parse the requirement once when we assemble the pipe
+    rather than for each call
+
+    """
+    @functools.wraps(pipe)
+    def _requirement_parser(req_string):
+        nonlocal pipe
+        for req in parse_requirements(f'cylc_flow {req_string}'):
+            pipe.args = (req,)
+        return pipe
+    return _requirement_parser
+
+
+@requirement_parser
+@Pipe
+async def cylc_version(flow, requirement):
+    """Filter by cylc version.
+
+    Requires:
+        * contact_info
+
+    Args:
+        flow (dict):
+            Flow information dictionary, provided by scan through the pipe.
+        requirement (str):
+            Requirement specifier in pkg_resources format e.g. > 8, < 9
+
+    """
+    return parse_version(flow[ContactFileFields.VERSION]) in requirement
 
 
 @Pipe

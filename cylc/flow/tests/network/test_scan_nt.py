@@ -7,12 +7,16 @@ from textwrap import dedent
 import pytest
 
 from cylc.flow.network.scan_nt import (
+    cylc_version,
     scan,
     filter_name,
     is_active,
     contact_info
 )
-from cylc.flow.suite_files import SuiteFiles
+from cylc.flow.suite_files import (
+    ContactFileFields,
+    SuiteFiles
+)
 
 
 SRV_DIR = Path(SuiteFiles.Service.DIRNAME)
@@ -243,6 +247,23 @@ async def test_is_active(sample_run_dir):
     assert not await is_active.func(
         {'path': sample_run_dir / 'elephant'},
         True
+    )
+
+
+@pytest.mark.asyncio
+async def test_cylc_version():
+    version = ContactFileFields.VERSION
+
+    pipe = cylc_version('>= 8.0a1, < 9')
+    assert await pipe.func(
+        {version: '8.0a1'},
+        *pipe.args
+    )
+
+    pipe = cylc_version('>= 8.0a1, < 9')
+    assert not await pipe.func(
+        {version: '7.8.4'},
+        *pipe.args
     )
 
 
