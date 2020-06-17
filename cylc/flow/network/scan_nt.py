@@ -14,20 +14,21 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from contextlib import contextmanager
 from pathlib import Path
 import re
-import time
-from queue import Queue
 
-from watchdog.observers import Observer
-from watchdog.events import RegexMatchingEventHandler
-
+from cylc.flow import LOG
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
-from cylc.flow.suite_files import SuiteFiles
+from cylc.flow.network.client import (
+    SuiteRuntimeClient, ClientError, ClientTimeout)
+from cylc.flow.suite_files import (
+    SuiteFiles,
+    load_contact_file
+)
 
 
-__all__ = ('scan')
+SERVICE = Path(SuiteFiles.Service.DIRNAME)
+CONTACT = Path(SuiteFiles.Service.CONTACT)
 
 
 class Pipe:
@@ -155,15 +156,19 @@ def regex_combine(patterns):
     return rf'({"|".join(patterns)})'
 
 
-def scan(path=None, patterns=None, is_active=None):
-    path = Path(path)
-    if patterns:
-        patterns = re.compile(regex_combine(patterns))
-    service = Path(SuiteFiles.Service.DIRNAME)
-    contact = Path(SuiteFiles.Service.CONTACT)
-    run_dir = path or Path(
-        glbl_cfg().get_host_item('run directory').replace('$HOME', '~')
-    ).expanduser()
+def dir_is_flow(path):
+    """Return True if a Path contains a flow at the top level."""
+    return (
+        (path / SERVICE).exists()
+    )
+
+
+@Pipe
+async def scan(run_dir=None):
+    if not run_dir:
+        run_dir = Path(
+            glbl_cfg().get_host_item('run directory').replace('$HOME', '~')
+        ).expanduser()
     stack = [
         subdir
         for subdir in run_dir.iterdir()
@@ -171,21 +176,8 @@ def scan(path=None, patterns=None, is_active=None):
     ]
     for path in stack:
         name = str(path.relative_to(run_dir))
-        if (path / service).exists():
+        if dir_is_flow(path):
             # this is a flow directory
-
-            # check if it's name matches the patterns if provided
-            if patterns and not patterns.fullmatch(name):
-                continue
-
-            # check if the suite state matches is_active
-            if (
-                    is_active is not None
-                    and (path / service / contact).exists() != is_active
-            ):
-                continue
-
-            # we have a hit
             yield {
                 'name': name,
                 'path': path,
@@ -200,54 +192,88 @@ def scan(path=None, patterns=None, is_active=None):
 
 
 @Pipe
-async def filter_name(obj, pattern):
-    return pattern.match(obj['name'])
+async def filter_name(flow, pattern):
+    """Filter flows by name.
 
+    Args:
+        flow (dict):
+            Flow information dictionary, provided by scan through the pipe.
+        pattern (re.Pattern):
+            Compiled regex that flow names must match.
 
-SERVICE = Path(SuiteFiles.Service.DIRNAME)
-CONTACT = Path(SuiteFiles.Service.CONTACT)
-
-
-@Pipe
-async def is_active(obj, is_active):
-    obj['contact'] = obj['path'] / SERVICE / CONTACT
-    return obj['contact'].exists() == is_active
-
-
-from cylc.flow.suite_files import load_contact_file
+    """
+    return bool(pattern.match(flow['name']))
 
 
 @Pipe
-async def contact_info(obj):
-    obj.update(
-        load_contact_file(obj['name'], path=obj['path'])
+async def is_active(flow, is_active):
+    """Filter flows by the presence of a contact file.
+
+    Args:
+        flow (dict):
+            Flow information dictionary, provided by scan through the pipe.
+        is_active (bool):
+            True to filter for running flows.
+            False to filter for stopped and unregistered flows.
+
+    """
+    flow['contact'] = flow['path'] / SERVICE / CONTACT
+    return flow['contact'].exists() == is_active
+
+
+@Pipe
+async def contact_info(flow):
+    """Read information from the contact file.
+
+    Args:
+        flow (dict):
+            Flow information dictionary, provided by scan through the pipe.
+
+    """
+    flow.update(
+        load_contact_file(flow['name'], path=flow['path'])
     )
-    return obj
+    return flow
 
 
-from textwrap import dedent
+@Pipe
+async def query(flow, fields):
+    """Obtain information from a GraphQL request to the flow.
 
-from cylc.flow.network.client import (
-    SuiteRuntimeClient, ClientError, ClientTimeout)
+    Args:
+        flow (dict):
+            Flow information dictionary, provided by scan through the pipe.
+        fields (list):
+            List of GraphQL fields on the `Workflow` object to request from
+            the flow.
 
-
-# async def state_info(reg, fields):
-#     query = f'query {{ workflows(ids: ["{reg}"]) {{ {"\n".join(fields)} }} }}'
-#     client = SuiteRuntimeClient(reg)
-#     try:
-#         ret = await client(
-#             'graphql',
-#             {
-#                 'request_string': query,
-#                 'variables': {}
-#             }
-#         )
-#     except ClientTimeout as exc:
-#         LOG.exception(
-#             "Timeout: name:%s, host:%s, port:%s", reg, host, port)
-#         return {}
-#     except ClientError as exc:
-#         LOG.exception("ClientError")
-#         return {}
-#     else:
-#         return ret
+    """
+    field_str = '\n'.join(fields)
+    query = f'query {{ workflows(ids: ["{flow["name"]}"]) {{ {field_str} }} }}'
+    client = SuiteRuntimeClient(
+        flow['name'],
+        # use contact_info data if present for efficiency
+        host=flow.get('CYLC_SUITE_HOST'),
+        port=flow.get('CYLC_SUITE_PORT')
+    )
+    try:
+        ret = await client(
+            'graphql',
+            {
+                'request_string': query,
+                'variables': {}
+            }
+        )
+    except ClientTimeout:
+        LOG.exception(
+            f'Timeout: name: {flow["name"]}, '
+            f'host: {client.host}, '
+            f'port: {client.port}'
+        )
+        return False
+    except ClientError as exc:
+        LOG.exception(exc)
+        return False
+    else:
+        breakpoint()
+        return ret
