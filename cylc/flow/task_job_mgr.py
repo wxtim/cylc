@@ -344,6 +344,7 @@ class TaskJobManager(object):
                 # sshing into localhost which seems crude and hack-y.
                 # We should be able to run this without the ssh but I have
                 # Been struggling.
+                # breakpoint()
                 self.proc_pool.put_command(
                     SubProcContext(
                         self.JOBS_SUBMIT,

@@ -20,6 +20,13 @@
 #-------------------------------------------------------------------------------
 set_test_number 3
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
+create_test_globalrc "" "
+[job platforms]
+   [[localhost]]
+        tail command template = $PWD/bin/my-tailer.sh %(filename)s
+"
+# set -x
+# cylc get-global --item "[job platforms][localhost]tail command template" >&2
 #-------------------------------------------------------------------------------
 TEST_NAME="${TEST_NAME_BASE}-validate"
 run_ok "${TEST_NAME}" cylc validate "${SUITE_NAME}"
@@ -27,16 +34,15 @@ run_ok "${TEST_NAME}" cylc validate "${SUITE_NAME}"
 # Run detached.
 suite_run_ok "${TEST_NAME_BASE}-run" cylc run "${SUITE_NAME}"
 #-------------------------------------------------------------------------------
-create_test_globalrc "" "
-[job platforms]
-   [[localhost]]
-        tail command template = $PWD/bin/my-tailer.sh %(filename)s"
+
 #-------------------------------------------------------------------------------
+echo "yan>>>" >&2
 cylc suite-state "${SUITE_NAME}" -t 'foo' -p '1' -S 'start' --interval=1
 sleep 1
-
+echo "tan>>>" >&2
 TEST_NAME=${TEST_NAME_BASE}-cat-log
 cylc cat-log "${SUITE_NAME}" -f o -m t foo.1 > "${TEST_NAME}.out"
+echo "tethera>>>" >&2
 grep_ok "HELLO from foo 1" "${TEST_NAME}.out"
 #-------------------------------------------------------------------------------
 cylc stop --kill --max-polls=20 --interval=1 "${SUITE_NAME}"
