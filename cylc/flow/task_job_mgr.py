@@ -236,7 +236,6 @@ class TaskJobManager(object):
             # allows the restart logic to correctly poll the status of the
             # background/at jobs that may still be running on the previous
             # suite host.
-            owner = platform['owner']
             host = randomchoice(platform['remote hosts'])
             if (
                 self.batch_sys_mgr.is_job_local_to_host(
@@ -248,6 +247,7 @@ class TaskJobManager(object):
             else:
                 owner_at_host = host
             # Persist
+            owner = platform['owner']
             if owner:
                 owner_at_host = owner + '@' + owner_at_host
             now_str = get_current_time_string()
@@ -293,6 +293,8 @@ class TaskJobManager(object):
                     ('host', host, is_remote_host),
                     ('user', owner, is_remote_user)]:
                 if test_func(value):
+                    # TODO: review question - why have these lines been removed?
+                    # if they are not needed then can the for loop go?
                     remote_mode = True
             if remote_mode:
                 cmd.append('--remote-mode')
@@ -319,14 +321,15 @@ class TaskJobManager(object):
                 for itask in itasks_batch:
                     if remote_mode:
                         stdin_files.append(
-                            get_task_job_job_log(
-                                suite, itask.point, itask.tdef.name,
-                                itask.submit_num))
+                            os.path.expandvars(
+                                get_task_job_job_log(
+                                    suite, itask.point, itask.tdef.name,
+                                    itask.submit_num
+                                )
+                            )
+                        )
                     job_log_dirs.append(get_task_job_id(
                         itask.point, itask.tdef.name, itask.submit_num))
-                    stdin_files = [
-                        os.path.expandvars(path) for path in stdin_files
-                    ]
                     # The job file is now (about to be) used: reset the file
                     # write flag so that subsequent manual retrigger will
                     # generate a new job file.
@@ -383,6 +386,7 @@ class TaskJobManager(object):
                             ignore_errors=True)
         else:
             rmtree(job_file_dir, ignore_errors=True)
+
         os.makedirs(job_file_dir, exist_ok=True)
         target = os.path.join(task_log_dir, NN)
         source = os.path.basename(job_file_dir)
@@ -678,7 +682,6 @@ class TaskJobManager(object):
         """
         if not itasks:
             return
-
         # sort itasks into lists based upon where they were run.
         auth_itasks = {}
         for itask in itasks:
