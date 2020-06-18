@@ -18,8 +18,8 @@
 # Test kill local jobs.
 . "$(dirname "$0")/test_header"
 #-------------------------------------------------------------------------------
-set_test_number 10
 skip_all "TODO fix after dealing with rmeote init"
+set_test_number 10
 #-------------------------------------------------------------------------------
 create_test_globalrc '
 [job platfroms]
