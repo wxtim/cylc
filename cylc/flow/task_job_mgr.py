@@ -708,7 +708,6 @@ class TaskJobManager(object):
             job_log_dirs = []
             if remote_mode:
                 cmd = construct_ssh_cmd(cmd, owner, host)
-            LOG.critical(f"submitting cmd = {cmd}")
             for itask in sorted(itasks, key=lambda itask: itask.identity):
                 job_log_dirs.append(get_task_job_id(
                     itask.point, itask.tdef.name, itask.submit_num))
