@@ -66,7 +66,7 @@ class Pipe:
         coros = self.__iter__()
         gen = next(coros)
         coros = list(coros)
-        async for item in gen.func():
+        async for item in gen.func(*gen.args, **gen.kwargs):
             for coro in coros:
                 ret = await coro.func(item, *coro.args, **coro.kwargs)
                 if ret is False:

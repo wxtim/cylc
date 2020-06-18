@@ -42,6 +42,7 @@ from cylc.flow.suite_files import (
 
 SERVICE = Path(SuiteFiles.Service.DIRNAME)
 CONTACT = Path(SuiteFiles.Service.CONTACT)
+SUITERC = Path(SuiteFiles.SUITE_RC)
 
 
 async def dir_is_flow(listing):
@@ -56,13 +57,15 @@ async def dir_is_flow(listing):
         bool - True if the listing indicates that this is a flow directory.
 
     """
-    listing = [
+    listing = {
         path.name
         for path in listing
-    ]
+    }
     return (
-        SERVICE in listing
-        or 'suite.rc' in listing
+        SERVICE.name in listing
+        or SUITERC.name in listing  # cylc7 flow definition file name
+        or 'flow.cylc' in listing  # cylc8 flow definition file name
+        or 'log' in listing
     )
 
 

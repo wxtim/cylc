@@ -115,103 +115,71 @@ def run_dir_with_really_nasty_symlinks():
     rmtree(tmp_path)
 
 
-def test_scan(sample_run_dir):
+async def listify(async_gen):
+    ret = []
+    async for item in async_gen:
+        ret.append(item['name'])
+    ret.sort()
+    return ret
+
+
+@pytest.mark.asyncio
+async def test_scan(sample_run_dir):
     """It should list all flows."""
-    assert list(sorted(scan(sample_run_dir))) == [
+    assert await listify(
+        scan(sample_run_dir)
+    ) == [
         'bar/pub',
         'baz',
         'foo'
     ]
 
 
-def test_scan_filter_active(sample_run_dir):
-    """It should filter flows by suite state."""
-    assert list(sorted(
-        scan(sample_run_dir, is_active=True)
-    )) == [
-        'bar/pub',
-        'foo'
-    ]
-    assert list(sorted(
-        scan(sample_run_dir, is_active=False)
-    )) == [
-        'baz'
-    ]
-
-
-def test_scan_filter_name(sample_run_dir):
-    """It should filter flows using regex patterns."""
-    assert list(sorted(
-        scan(sample_run_dir, patterns=['.*'])
-    )) == [
-        'bar/pub',
-        'baz',
-        'foo'
-    ]
-    assert list(sorted(
-        scan(sample_run_dir, patterns=['bar.*'])
-    )) == [
-        'bar/pub',
-    ]
-    assert list(sorted(
-        scan(sample_run_dir, patterns=['bar/pub'])
-    )) == [
-        'bar/pub',
-    ]
-    assert list(sorted(scan(
-        sample_run_dir, patterns=['bar/pub'])
-    )) == [
-        'bar/pub',
-    ]
-    assert list(sorted(scan(
-        sample_run_dir, patterns=['bar/pub', 'foo'])
-    )) == [
-        'bar/pub',
-        'foo'
-    ]
-
-
-def test_scan_horrible_mess(badly_messed_up_run_dir):
+@pytest.mark.asyncio
+async def test_scan_horrible_mess(badly_messed_up_run_dir):
     """It shouldn't be effected by erroneous cylc files/dirs.
 
-    How could you end up with a .service dir in cylc-run, well misuse of 
+    How could you end up with a .service dir in cylc-run, well misuse of
     Cylc7 can result in this situation so this test ensures Cylc7 suites
     can't mess up a Cylc8 scan.
 
     """
-    assert list(sorted(
+    assert await listify(
         scan(badly_messed_up_run_dir)
-    )) == [
+    ) == [
         'foo'
     ]
 
 
-def test_scan_symlinks(run_dir_with_symlinks):
+@pytest.mark.asyncio
+async def test_scan_symlinks(run_dir_with_symlinks):
     """It should follow symlinks to flows in other dirs."""
-    assert list(sorted(
+    assert await listify(
         scan(run_dir_with_symlinks)
-
-    )) == [
+    ) == [
         'bar/baz',
         'foo'
     ]
 
 
-def test_scan_nasty_symlinks(run_dir_with_nasty_symlinks):
+@pytest.mark.asyncio
+async def test_scan_nasty_symlinks(run_dir_with_nasty_symlinks):
     """It should handle strange symlinks because users can be nasty."""
-    assert list(sorted(
+    assert await listify(
         scan(run_dir_with_nasty_symlinks)
 
-    )) == [
+    ) == [
         'bar',  # well you got what you asked for
         'foo'
     ]
 
 
-def test_scan_really_nasty_symlinks(run_dir_with_really_nasty_symlinks):
+@pytest.mark.asyncio
+async def test_scan_really_nasty_symlinks(run_dir_with_really_nasty_symlinks):
     """It should handle infinite symlinks because users can be really nasty."""
     with pytest.raises(OSError):
-        list(scan(run_dir_with_really_nasty_symlinks))
+        async for flow in scan(run_dir_with_really_nasty_symlinks):
+            pass
 
 
 def test_filter_name_preprocess():
