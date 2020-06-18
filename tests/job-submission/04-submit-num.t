@@ -18,14 +18,14 @@
 # Test usage of CYLC_TASK_SUBMIT_NUMBER.
 . "$(dirname "$0")/test_header"
 #-------------------------------------------------------------------------------
+skip_all "TODO fix after dealing with remote init"
 set_test_number 2
 create_test_globalrc '
 [job platforms]
-[[mongoose]]
-remote hosts = localhost
-batch system = slurm
+    [[mongoose]]
+        remote hosts = localhost
+        batch system = slurm
 '
-skip_all "TODO fix after dealing with remote init"
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
 #-------------------------------------------------------------------------------
 TEST_NAME="${TEST_NAME_BASE}-validate"
