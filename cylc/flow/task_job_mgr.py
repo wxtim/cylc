@@ -695,7 +695,7 @@ class TaskJobManager(object):
         # Go through each list of itasks and carry out commands as required.
         for (platform_n, host, owner), itasks in sorted(auth_itasks.items()):
             platform = forward_lookup(platform_n)
-            if platform['remote hosts'][0] == os.environ['HOSTNAME']:
+            if is_remote_host(platform['remote hosts'][0]):
                 remote_mode = True
                 cmd = [cmd_key]
             else:
