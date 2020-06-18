@@ -54,6 +54,7 @@ messaging."""
 
 import sys
 from cylc.flow.remote import remrun, remote_cylc_cmd, watch_and_kill
+
 # Disallow remote re-invocation of edit mode (result: "ssh HOST vim <file>").
 if remrun(abort_if='edit', forward_x11=True):
     sys.exit(0)
@@ -70,7 +71,7 @@ from subprocess import Popen, PIPE
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.exceptions import UserInputError
 import cylc.flow.flags
-from cylc.flow.hostuserutil import is_remote_platform
+from cylc.flow.hostuserutil import is_remote_platform, get_host_from_platform
 from cylc.flow.option_parsers import CylcOptionParser as COP
 from cylc.flow.pathutil import (
     get_remote_suite_run_job_dir,
@@ -422,7 +423,7 @@ def main(parser, options, *args, color=False):
                             and live_job_id is None)
         if log_is_remote and (not log_is_retrieved or options.force_remote):
             logpath = os.path.normpath(get_remote_suite_run_job_dir(
-                host, user,
+                platform,
                 suite_name, point, task, options.submit_num, options.filename))
             tail_tmpl = platform["tail command template"]
             # Reinvoke the cat-log command on the remote account.
@@ -436,6 +437,8 @@ def main(parser, options, *args, color=False):
             cmd.append(suite_name)
             is_edit_mode = (mode == 'edit')
             try:
+                host = get_host_from_platform(platform)
+                user = os.getusername()
                 proc = remote_cylc_cmd(
                     cmd, user, host, capture_process=is_edit_mode,
                     manage=(mode == 'tail'))

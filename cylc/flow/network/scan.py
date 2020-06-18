@@ -23,7 +23,6 @@ import sys
 import socket
 from cylc.flow import LOG
 
-from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.exceptions import SuiteServiceFileError
 import cylc.flow.flags
 from cylc.flow.hostuserutil import is_remote_host, get_host_ip_by_name
@@ -189,11 +188,11 @@ async def scan_one(reg, host, port, pub_port, api, timeout=None, methods=None):
         # information as we can before the suite rejects us
         try:
             msg = await client.async_request(method)
-        except ClientTimeout as exc:
+        except ClientTimeout:
             LOG.exception(
                 "Timeout: name:%s, host:%s, port:%s", reg, host, port)
             return (reg, host, port, pub_port, api, MSG_TIMEOUT)
-        except ClientError as exc:
+        except ClientError:
             LOG.exception("ClientError")
             return (reg, host, port, pub_port, api, result or None)
         else:

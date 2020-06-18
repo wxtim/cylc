@@ -28,7 +28,6 @@ from subprocess import Popen, PIPE, DEVNULL
 import sys
 from time import sleep
 
-from cylc.flow import LOG
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 import cylc.flow.flags
 from cylc.flow.hostuserutil import is_remote

@@ -304,7 +304,7 @@ def get_host_from_platform(platform, method=None):
 
     """
     if method is None:
-        return istask.platform['remote hosts'][0]
+        return platform['remote hosts'][0]
     else:
         raise NotImplementedError(
             f'method {method} is not a valid input for get_host_from_platform'

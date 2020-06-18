@@ -55,7 +55,7 @@ from cylc.flow.task_outputs import (
     TASK_OUTPUT_FAILED)
 from cylc.flow.platform_lookup import forward_lookup
 from cylc.flow.task_remote_mgr import (
-    REMOTE_INIT_FAILED, TaskRemoteMgmtError, TaskRemoteMgr)
+    REMOTE_INIT_FAILED, TaskRemoteMgr)
 from cylc.flow.task_state import (
     TASK_STATUSES_ACTIVE, TASK_STATUS_READY, TASK_STATUS_SUBMITTED,
     TASK_STATUS_RUNNING, TASK_STATUS_SUCCEEDED, TASK_STATUS_FAILED,
@@ -293,7 +293,8 @@ class TaskJobManager(object):
                     ('host', host, is_remote_host),
                     ('user', owner, is_remote_user)]:
                 if test_func(value):
-                    # TODO: review question - why have these lines been removed?
+                    # TODO: review question - why have these lines been
+                    # removed?
                     # if they are not needed then can the for loop go?
                     remote_mode = True
             if remote_mode:
