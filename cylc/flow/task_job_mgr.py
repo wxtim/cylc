@@ -316,6 +316,12 @@ class TaskJobManager(object):
             LOG.debug(
                 '%s ... # will invoke in batches, sizes=%s',
                 cmd, [len(b) for b in itasks_batches])
+            # TODO work out why we needed to remove the 'cylc' when
+            # we used the remote command but not the local.
+            if remote_mode:
+                cmd = construct_platform_ssh_cmd(cmd, platform)
+            else:
+                cmd = ['cylc'] + cmd
             for i, itasks_batch in enumerate(itasks_batches):
                 stdin_files = []
                 job_log_dirs = []
@@ -338,12 +344,7 @@ class TaskJobManager(object):
                     itask.state.reset(TASK_STATUS_READY)
                     if itask.state.outputs.has_custom_triggers():
                         self.suite_db_mgr.put_update_task_outputs(itask)
-                # TODO work out why we needed to remove the 'cylc' when
-                # we used the remote command but not the local.
-                if remote_mode:
-                    cmd = construct_platform_ssh_cmd(cmd, platform)
-                else:
-                    cmd = ['cylc'] + cmd
+
                 # TODO At the moment this is crudely replacing the host and
                 # sshing into localhost which seems crude and hack-y.
                 # We should be able to run this without the ssh but I have
