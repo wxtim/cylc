@@ -7,9 +7,9 @@
         R1=foo
 
 [runtime]
-{% if "CYLC_TEST_PLATFORM" in environ %}
+{% if "CYLC_REMOTE_PLATFORM" in environ %}
     [[root]]
-        platform = {{ environ['CYLC_TEST_PLATFORM'] }}
+        platform = {{ environ['CYLC_REMOTE_PLATFORM'] }}
 {% endif %}
     [[foo]]
         script="""

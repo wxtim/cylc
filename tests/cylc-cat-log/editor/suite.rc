@@ -17,4 +17,4 @@ jumped over
 the lazy dog
 __END__
 """
-        platform = {{ CYLC_TEST_PLATFORM | default('localhost') }}
+        platform = {{ CYLC_REMOTE_PLATFORM | default('localhost') }}

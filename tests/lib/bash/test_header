@@ -128,7 +128,7 @@
 #     set_test_remote
 #         set CYLC_TEST_HOST and CYLC_TEST_OWNER for remote job tests.
 #     require_remote_platform
-#         set CYLC_TEST_PLATFORM for remote job tests
+#         set CYLC_REMOTE_PLATFORM for remote job tests
 #         # TODO delete set_test_remote once all it's tests are no longer used
 #         or skipped.
 #     get_fqdn_by_host [TARGET]
@@ -764,26 +764,26 @@ set_test_remote() {
 }
 
 require_remote_platform() {
-    # For remote job tests, define CYLC_TEST_PLATFORM from global
+    # For remote job tests, define CYLC_REMOTE_PLATFORM from global
     # config '[test battery]remote platform'.
     # Skip all tests if is not defined.
     # Call immediately after sourcing the test header, for skip_all to work.
-    CYLC_TEST_PLATFORM="$(
+    CYLC_REMOTE_PLATFORM="$(
         cylc get-global-config -i '[test battery]remote platform' 2>'/dev/null'
     )"
-    if [[ -z "${CYLC_TEST_PLATFORM}" ]]; then
+    if [[ -z "${CYLC_REMOTE_PLATFORM}" ]]; then
         skip_all '"[test battery]remote platform": not defined'
     fi
     # This is ugly, but some tests require these variables for direct ssh-ing.
     CYLC_TEST_HOST="$(
         cylc get-global --item \
-            "[job platforms][${CYLC_TEST_PLATFORM}]remote hosts" \
+            "[job platforms][${CYLC_REMOTE_PLATFORM}]remote hosts" \
             | awk -F ',' '{print $1}'
     )"
     if [[ -z "${CYLC_TEST_HOST}" ]]; then
         skip_all '"[test battery]remote platform": not configured'
     fi
-    export CYLC_TEST_PLATFORM
+    export CYLC_REMOTE_PLATFORM
     export CYLC_TEST_HOST
 }
 
