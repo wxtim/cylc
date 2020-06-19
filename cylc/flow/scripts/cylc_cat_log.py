@@ -62,6 +62,7 @@ if remrun(abort_if='edit', forward_x11=True):
 import os
 import shlex
 from contextlib import suppress
+from getpass import getuser
 from glob import glob
 from shlex import quote
 from stat import S_IRUSR
@@ -438,7 +439,7 @@ def main(parser, options, *args, color=False):
             is_edit_mode = (mode == 'edit')
             try:
                 host = get_host_from_platform(platform)
-                user = os.getusername()
+                user = getuser()
                 proc = remote_cylc_cmd(
                     cmd, user, host, capture_process=is_edit_mode,
                     manage=(mode == 'tail'))
