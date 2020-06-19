@@ -18,7 +18,7 @@
 # Test "cylc cat-log" with a custom remote tail command.
 export CYLC_TEST_IS_GENERIC=false
 . "$(dirname "$0")/test_header"
-set_test_platform
+require_remote_platform
 #-------------------------------------------------------------------------------
 set_test_number 4
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"

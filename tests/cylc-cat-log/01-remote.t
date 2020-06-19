@@ -19,7 +19,7 @@
 export CYLC_TEST_IS_GENERIC=false
 . "$(dirname "$0")/test_header"
 #-------------------------------------------------------------------------------
-set_test_platform
+require_remote_platform
 set_test_number 14
 create_test_globalrc "" "
 [job platforms]
