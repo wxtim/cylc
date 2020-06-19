@@ -63,7 +63,7 @@ from cylc.flow.command_polling import Poller
 from cylc.flow.task_state import TASK_STATUSES_ORDERED
 from cylc.flow.terminal import cli_function
 from cylc.flow.cycling.util import add_offset
-from cylc.flow.platform_lookup import forward_lookup
+from cylc.flow.platforms import forward_lookup
 
 from metomi.isodatetime.parsers import TimePointParser
 

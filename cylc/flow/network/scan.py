@@ -28,7 +28,7 @@ import cylc.flow.flags
 from cylc.flow.hostuserutil import is_remote_host, get_host_ip_by_name
 from cylc.flow.network.client import (
     SuiteRuntimeClient, ClientError, ClientTimeout)
-from cylc.flow.platform_lookup import forward_lookup
+from cylc.flow.platforms import forward_lookup
 from cylc.flow.suite_files import (
     ContactFileFields,
     SuiteFiles,

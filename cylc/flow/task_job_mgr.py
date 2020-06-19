@@ -31,7 +31,6 @@ from shutil import rmtree
 from time import time
 import traceback
 from copy import deepcopy
-from random import choice as randomchoice
 
 from cylc.flow.parsec.util import pdeepcopy, poverride
 
@@ -53,7 +52,7 @@ from cylc.flow.task_job_logs import (
 from cylc.flow.task_outputs import (
     TASK_OUTPUT_SUBMITTED, TASK_OUTPUT_STARTED, TASK_OUTPUT_SUCCEEDED,
     TASK_OUTPUT_FAILED)
-from cylc.flow.platform_lookup import forward_lookup
+from cylc.flow.platforms import forward_lookup, get_host_from_platform
 from cylc.flow.task_remote_mgr import (
     REMOTE_INIT_FAILED, TaskRemoteMgr)
 from cylc.flow.task_state import (
@@ -236,7 +235,7 @@ class TaskJobManager(object):
             # allows the restart logic to correctly poll the status of the
             # background/at jobs that may still be running on the previous
             # suite host.
-            host = randomchoice(platform['remote hosts'])
+            host = get_host_from_platform(platform)
             if (
                 self.batch_sys_mgr.is_job_local_to_host(
                     itask.summary['batch_sys_name']
@@ -902,7 +901,7 @@ class TaskJobManager(object):
         # itask.platform is going to get boring...
         platform = itask.platform
         # TODO - use a better algorithm for picking host
-        host = randomchoice(platform['remote hosts'])
+        host = get_host_from_platform(platform)
         owner = platform['owner']
 
         if owner:

@@ -25,7 +25,7 @@ from unittest import mock
 
 import cylc.flow.flags
 from cylc.flow.job_file import JobFileWriter
-from cylc.flow.platform_lookup import forward_lookup
+from cylc.flow.platforms import forward_lookup
 
 # List of tilde variable inputs
 # input value, expected output value

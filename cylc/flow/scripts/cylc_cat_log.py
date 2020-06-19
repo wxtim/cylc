@@ -71,7 +71,7 @@ from subprocess import Popen, PIPE
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.exceptions import UserInputError
 import cylc.flow.flags
-from cylc.flow.hostuserutil import is_remote_platform, get_host_from_platform
+from cylc.flow.hostuserutil import is_remote_platform
 from cylc.flow.option_parsers import CylcOptionParser as COP
 from cylc.flow.pathutil import (
     get_remote_suite_run_job_dir,
@@ -83,7 +83,7 @@ from cylc.flow.task_id import TaskID
 from cylc.flow.task_job_logs import (
     JOB_LOG_OUT, JOB_LOG_ERR, JOB_LOG_OPTS, NN, JOB_LOGS_LOCAL)
 from cylc.flow.terminal import cli_function
-from cylc.flow.platform_lookup import forward_lookup
+from cylc.flow.platforms import forward_lookup, get_host_from_platform
 
 
 # Immortal tail-follow processes on job hosts can be cleaned up by killing
