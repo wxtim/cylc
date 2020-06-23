@@ -122,9 +122,6 @@
 #         Create a new global config file $PWD/etc from site flow-tests.rc
 #         with PRE and POST pre- and ap-pended (PRE for top level items with no
 #         section heading). PRE and POST are strings.
-#     set_test_remote_host
-#         set CYLC_TEST_HOST from flow-tests.rc, for remote job tests.
-#         (Remote job tests should really use set_test_remote, below, however).
 #     set_test_remote
 #         set CYLC_TEST_HOST and CYLC_TEST_OWNER for remote job tests.
 #     require_remote_platform
@@ -731,20 +728,6 @@ __PLATFORMS__
     fi
     echo "$POST" >>'etc/flow.rc'
     export CYLC_CONF_PATH="${PWD}/etc"
-}
-
-set_test_remote_host() {
-  # For remote job tests, define CYLC_TEST_HOST from global config '[test
-  # battery]remote host', skipping tests if not defined. Call immediately after
-  # sourcing the test header, for skip_all to work.
-  # TODO - these tests should be modified to use set_test_remote() instead, to
-  # allow full remote job tests with another user account on the suite host.
-  CYLC_TEST_HOST="$( \
-      cylc get-global-config -i '[test battery]remote host' 2>'/dev/null')"
-  if [[ -z "${CYLC_TEST_HOST}" ]]; then
-      skip_all '"[test battery]remote host": not defined'
-  fi
-  export CYLC_TEST_HOST
 }
 
 set_test_remote() {
