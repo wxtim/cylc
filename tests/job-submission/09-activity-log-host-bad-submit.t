@@ -23,7 +23,7 @@ skip_darwin 'atrun hard to configure on Mac OS'
 require_remote_platform
 set_test_number 2
 
-create_global_rc '' "
+create_test_globalrc '' "
 [job platforms]
     [[${CYLC_REMOTE_PLATFORM}]]
         batch system = at
