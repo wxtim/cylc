@@ -730,10 +730,14 @@ class TaskJobManager(object):
         except KeyError:
             retry = True
         if retry:
+            if rtconfig['job']['submission retry delays']:
+                submit_delays = rtconfig['job']['submission retry delays']
+            else:
+                submit_delays = itask.platform['submission retry delays']
             for key, delays in [
                     (
                         TASK_STATUS_SUBMIT_RETRYING,
-                        itask.platform['submission retry delays']
+                        submit_delays
                     ),
                     (
                         TASK_STATUS_RETRYING,
