@@ -728,12 +728,18 @@ class TaskJobManager(object):
             no_retry = (
                 rtconfig[itask.tdef.run_mode + ' mode']['disable retries'])
         except KeyError:
-            no_retry = False
-        if not no_retry:
-            for key, cfg_key in [
-                    (TASK_STATUS_SUBMIT_RETRYING, 'submission retry delays'),
-                    (TASK_STATUS_RETRYING, 'execution retry delays')]:
-                delays = rtconfig['job'][cfg_key]
+            retry = True
+        if retry:
+            for key, delays in [
+                    (
+                        TASK_STATUS_SUBMIT_RETRYING,
+                        itask.platform['submission retry delays']
+                    ),
+                    (
+                        TASK_STATUS_RETRYING,
+                        rtconfig['job']['execution retry delays']
+                    )
+            ]:
                 if delays is None:
                     delays = []
                 try:
