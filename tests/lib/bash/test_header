@@ -516,7 +516,7 @@ purge_suite_platform() {
         CMD="${CMD} && rmdir -p '${DIRNAME}'"
     fi
     # Pick the first host from the platform
-    HOSTS=$(cylc get-global --item "[job platforms][${PLATFORM}]remote hosts" >&2)
+    HOSTS=$(cylc get-global --item "[job platforms][${PLATFORM}]remote hosts")
     HOST=$(echo "$HOSTS" | awk -F ',' '{print $1}')
     # CMD is part of this function
     # shellcheck disable=SC2029
