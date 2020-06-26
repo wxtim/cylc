@@ -722,9 +722,6 @@ create_test_globalrc() {
         cat "${USER_TESTS_CONF_FILE}" >>'etc/flow.rc'
     fi
     echo "$POST" >>'etc/flow.rc'
-    echo "CYLC FLOW----------------">&2
-    cat 'etc/flow.rc'>&2
-    echo "----------------">&2
 
     export CYLC_CONF_PATH="${PWD}/etc"
 }
