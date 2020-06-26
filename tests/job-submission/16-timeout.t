@@ -26,12 +26,13 @@ set_test_number 4
 
 create_test_globalrc "
 process pool timeout = PT10S
+" "
 [job platforms]
     [[unicorn]]
         remote hosts = localhost
         batch system = at
-        batch submit command template = sleep 30
-" ""
+        batch submit command template = sleep 30"
+
 
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
 
