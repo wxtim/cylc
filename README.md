@@ -14,7 +14,7 @@ forecasting systems at [NIWA](https://www.niwa.co.nz), however Cylc is a
 general workflow engine; it is not specialized to forecasting in any way.
 
 ### Python 2 or Python 3 ?
-
+  
 Currently in the source code repository:
  - **master branch:** Python 3, ZeroMQ network layer, *no GUI* -  **Cylc-8 Work In Progress**
  - **7.8.x branch:** Python 2, Cherrypy network layer, PyGTK GUI - **Cylc-7 Maintenance**
