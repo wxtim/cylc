@@ -40,6 +40,7 @@ from cylc.flow.suite_files import (
     load_contact_file,
     get_suite_srv_dir
 )
+from cylc.flow.platforms import platform_from_name, get_host_from_platform
 
 API = 5  # cylc API version
 
@@ -78,8 +79,12 @@ def get_location(suite: str):
     except SuiteServiceFileError:
         raise SuiteStopped(suite)
 
-    host = contact[ContactFileFields.HOST]
-    host = get_fqdn_by_host(host)
+    platform = contact[ContactFileFields.PLATFORM]
+    host = get_fqdn_by_host(
+        get_host_from_platform(
+            platform_from_name(platform)
+        )
+    )
     port = int(contact[ContactFileFields.PORT])
     pub_port = int(contact[ContactFileFields.PUBLISH_PORT])
     return host, port, pub_port

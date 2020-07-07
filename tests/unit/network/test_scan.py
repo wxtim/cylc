@@ -160,7 +160,7 @@ class TestScan(TestCase):
                 self.pwentry('/bin/bash', 'root', homedir),
             ]
             mocked_contact_file_fields.API = 'api'
-            mocked_contact_file_fields.HOST = 'host'
+            mocked_contact_file_fields.PLATFORM = 'host'
             mocked_contact_file_fields.PORT = 'port'
             mocked_contact_file_fields.PUBLISH_PORT = 'pub_port'
             mocked_contact_file_fields.VERSION = 'version'
@@ -209,7 +209,7 @@ class TestScan(TestCase):
                 self.pwentry('/bin/bash', 'root', homedir), ]
 
             mocked_contact_file_fields.API = 'api'
-            mocked_contact_file_fields.HOST = 'host'
+            mocked_contact_file_fields.PLATFORM = 'host'
             mocked_contact_file_fields.PORT = 'port'
             mocked_contact_file_fields.PUBLISH_PORT = 'pub_port'
             mocked_contact_file_fields.VERSION = 'version'

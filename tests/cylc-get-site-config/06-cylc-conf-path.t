@@ -18,7 +18,7 @@
 # ensure that CYLC_CONF_PATH works correctly
 . "$(dirname "$0")/test_header"
 #-------------------------------------------------------------------------------
-set_test_number 7
+set_test_number 4
 #-------------------------------------------------------------------------------
 mkdir foo
 mkdir bar
@@ -43,23 +43,8 @@ cmp_ok "${TEST_NAME}.stdout" << __HERE__
 process pool size = 1234
 __HERE__
 
-# if we point CYLC_CONF_PATH at a non-existent dir Cylc should
-# raise an error (else tests could become placebos)
-TEST_NAME="${TEST_NAME_BASE}-missing-dir"
-export CYLC_CONF_PATH=foot
-run_fail "${TEST_NAME}" cylc get-site-config --sparse
-
-# if we point CYLC_CONF_PATH at a non-existent file Cylc should
-# raise an error (else tests could become placebos)
-TEST_NAME="${TEST_NAME_BASE}-missing-file"
-export CYLC_CONF_PATH=foo/foot.rc
-run_fail "${TEST_NAME}" cylc get-site-config --sparse
-
-# if we point CYLC_CONF_PATH at a directory which doesn't contain
-# a config file Cylc should raise an error (else tests could become placebos)
-TEST_NAME="${TEST_NAME_BASE}-no-config-file"
-export CYLC_CONF_PATH=bar
-run_fail "${TEST_NAME}" cylc get-site-config --sparse
+# TODO Create tests which ensure that if when testing using CYLC_CONF_PATH
+#      if there is no suitable file at this path then some tests fail.
 
 rm -r foo bar
 

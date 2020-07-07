@@ -80,6 +80,8 @@ Run the first quarter of the test battery
 Re-run failed tests
   run-functional-tests --state=save
   run-functional-tests --state=failed
+Run only functional tests with a dependency on remote platforms
+  run-functional-tests --remote-only
 eof
 }
 
@@ -87,6 +89,7 @@ eof
 PROVE_ARGS=()
 TESTS=()
 PROVIDE_TESTBASE=true
+REMOTE_ONLY=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --help|-h)
@@ -101,6 +104,10 @@ while [[ $# -gt 0 ]]; do
                 PROVIDE_TESTBASE=false
             fi
             PROVE_ARGS+=("$1")
+            shift
+            ;;
+        --remote-only)
+            REMOTE_ONLY=true
             shift
             ;;
         -j|-a)
@@ -118,14 +125,22 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
 # base dir
 cd "$(dirname "$0")/../.." || exit 1
 export CYLC_REPO_DIR="${PWD}"
 
 # default test base
 if [[ ${#TESTS[@]} -eq 0 ]]; then
-    TESTS=('tests/functional')
+    if [[ $REMOTE_ONLY == true ]]; then
+      # If remote mode is activated add a list of remote tests to
+      # the tests array.
+      while read -r line; do
+        TESTS+=( "$line" )
+      done < "$(grep -lr require_remote_platform tests/functional/* | grep ".*.t$")"
+      echo "Only running :"  "${TESTS[@]}"
+    else
+      TESTS=('tests/functional')
+    fi
 fi
 
 # handle chunking
@@ -146,6 +161,7 @@ fi
 # (we rely on path comparisons in many tests)
 TMPDIR="$(realpath "${TMPDIR:-/tmp}")"
 export TMPDIR
+
 
 # test environment
 export CYLC_TEST_RUN_GENERIC=${CYLC_TEST_RUN_GENERIC:-true}
