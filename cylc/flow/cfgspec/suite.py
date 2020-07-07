@@ -1262,7 +1262,7 @@ def upg(cfg, descr):
 
     # TODO - uncomment this fn so that we actually use the host to platform
     # upgrader
-    # cfg = host_to_platform(cfg)
+    cfg = host_to_platform_upgrader(cfg)
 
 
 def host_to_platform_upgrader(cfg):
@@ -1363,8 +1363,8 @@ def host_to_platform_upgrader(cfg):
             except PlatformLookupError as exc:
                 raise PlatformLookupError(f"for task {task_name}: {exc}")
             else:
-                # Set platform in config
                 cfg['runtime'][task_name].update({'platform': platform})
+                # TODO - Add inverted commas aroudn "{platform}"
                 LOG.warning(f"Platform {platform} auto selected from ")
                 # Remove deprecated items from config
                 for old_spec_item in forbidden_with_platform:
@@ -1379,6 +1379,7 @@ def host_to_platform_upgrader(cfg):
                     LOG.warning(
                         f"Cylc 7 {old_spec_item} removed."
                     )
+            breakpoint()
     return cfg
 
 
