@@ -873,15 +873,9 @@ class TaskJobManager(object):
         # itask.platform is going to get boring...
         platform = itask.platform
         host = get_host_from_platform(platform)
-        owner = platform['owner']
 
-        if owner:
-            owner_at_host = f"{owner}@{host}"
-        else:
-            owner_at_host = host
-
-        itask.summary['host'] = owner_at_host
-        itask.summary['job_hosts'][itask.submit_num] = owner_at_host
+        itask.summary['host'] = host
+        itask.summary['job_hosts'][itask.submit_num] = host
 
         itask.summary['batch_sys_name'] = platform['batch system']
         for name in rtconfig['extra log files']:
