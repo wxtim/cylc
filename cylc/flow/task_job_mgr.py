@@ -669,18 +669,16 @@ class TaskJobManager(object):
         # sort itasks into lists based upon where they were run.
         auth_itasks = {}
         for itask in itasks:
-            # retrieve owner and host used last time
-            host = itask.summary['job_hosts'][max(itask.summary['job_hosts'])]
-            owner = ''
-            if 'owner' in itask.summary:
-                owner = itask.summary['owner']
-            platform_name = itask.platform['name']
-            if (platform_name, host, owner) not in auth_itasks:
-                auth_itasks[(platform_name, host, owner)] = []
-            auth_itasks[(platform_name, host, owner)].append(itask)
+            # retrieve platform used last time
+            platform_n = itask.summary['platforms_used'][max(
+                itask.summary['platforms_used']
+            )]
+            if (platform_n) not in auth_itasks:
+                auth_itasks[platform_n] = []
+            auth_itasks[platform_n].append(itask)
 
         # Go through each list of itasks and carry out commands as required.
-        for (platform_n, host, owner), itasks in sorted(auth_itasks.items()):
+        for platform_n, itasks in sorted(auth_itasks.items()):
             platform = platform_from_name(platform_n)
             if is_remote_platform(platform):
                 remote_mode = True
@@ -872,16 +870,8 @@ class TaskJobManager(object):
         """Helper for self._prep_submit_task_job."""
         # itask.platform is going to get boring...
         platform = itask.platform
-        host = get_host_from_platform(platform)
-        owner = platform['owner']
 
-        if owner:
-            owner_at_host = f"{owner}@{host}"
-        else:
-            owner_at_host = host
-
-        itask.summary['host'] = owner_at_host
-        itask.summary['job_hosts'][itask.submit_num] = owner_at_host
+        itask.summary['platforms_used'][itask.submit_num] = platform['name']
 
         itask.summary['batch_sys_name'] = platform['batch system']
         for name in rtconfig['extra log files']:
