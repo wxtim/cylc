@@ -439,6 +439,7 @@ def main(parser, options, *args, color=False):
                 user = getuser()
                 proc = remote_cylc_cmd(
                     cmd, user, host, capture_process=is_edit_mode,
+                    ssh_login_shell=platform['use login shell'],
                     manage=(mode == 'tail'))
             except KeyboardInterrupt:
                 # Ctrl-C while tailing.

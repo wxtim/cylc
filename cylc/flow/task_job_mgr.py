@@ -60,7 +60,7 @@ from cylc.flow.task_state import (
     TASK_STATUS_RUNNING, TASK_STATUS_SUCCEEDED, TASK_STATUS_FAILED,
     TASK_STATUS_SUBMIT_RETRYING, TASK_STATUS_RETRYING)
 from cylc.flow.wallclock import get_current_time_string, get_utc_mode
-from cylc.flow.remote import construct_platform_ssh_cmd, construct_ssh_cmd
+from cylc.flow.remote import construct_platform_ssh_cmd
 
 
 class TaskJobManager(object):
@@ -670,17 +670,16 @@ class TaskJobManager(object):
         auth_itasks = {}
         for itask in itasks:
             # retrieve owner and host used last time
-            host = itask.summary['job_hosts'][max(itask.summary['job_hosts'])]
-            owner = ''
-            if 'owner' in itask.summary:
-                owner = itask.summary['owner']
-            platform_name = itask.platform['name']
-            if (platform_name, host, owner) not in auth_itasks:
-                auth_itasks[(platform_name, host, owner)] = []
-            auth_itasks[(platform_name, host, owner)].append(itask)
+            platform_n = itask.summary['platforms_used'][
+                max(itask.summary['platforms_used'])
+            ]
+            platform_n = itask.platform['name']
+            if platform_n not in auth_itasks:
+                auth_itasks[platform_n] = []
+            auth_itasks[platform_n].append(itask)
 
         # Go through each list of itasks and carry out commands as required.
-        for (platform_n, host, owner), itasks in sorted(auth_itasks.items()):
+        for platform_n, itasks in sorted(auth_itasks.items()):
             platform = platform_from_name(platform_n)
             if is_remote_platform(platform):
                 remote_mode = True
@@ -694,7 +693,7 @@ class TaskJobManager(object):
             cmd.append(get_remote_suite_run_job_dir(platform, suite))
             job_log_dirs = []
             if remote_mode:
-                cmd = construct_ssh_cmd(cmd, owner, host)
+                cmd = construct_platform_ssh_cmd(cmd, platform)
             for itask in sorted(itasks, key=lambda itask: itask.identity):
                 job_log_dirs.append(get_task_job_id(
                     itask.point, itask.tdef.name, itask.submit_num))

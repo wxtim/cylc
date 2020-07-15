@@ -1194,7 +1194,7 @@ class Scheduler:
         contact_data = {
             fields.API:
                 str(API),
-            fields.HOST:
+            fields.PLATFORM:
                 self.host,
             fields.NAME:
                 self.suite,

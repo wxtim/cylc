@@ -296,7 +296,7 @@ def get_scan_items_from_fs(
                     continue
                 yield (
                     reg,
-                    contact_data[ContactFileFields.HOST],
+                    contact_data[ContactFileFields.PLATFORM],
                     contact_data[ContactFileFields.PORT],
                     contact_data[ContactFileFields.PUBLISH_PORT],
                     contact_data[ContactFileFields.API]

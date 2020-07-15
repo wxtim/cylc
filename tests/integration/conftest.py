@@ -36,6 +36,8 @@ from .utils.flow_tools import (
     _run_flow
 )
 
+from cylc.flow.platforms import platform_from_name
+
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
@@ -79,7 +81,7 @@ def _pytest_passed(request):
 def run_dir(request):
     """The cylc run directory for this host."""
     path = _expanduser(
-        glbl_cfg().get_host_item('run directory')
+        platform_from_name()['run directory']
     )
     path.mkdir(exist_ok=True)
     yield path
