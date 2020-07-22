@@ -18,6 +18,8 @@
 import os
 import re
 
+from pathlib import Path
+
 from cylc.flow import LOG
 from cylc.flow import __version__ as CYLC_VERSION
 from cylc.flow.hostuserutil import get_user_home, is_remote_user

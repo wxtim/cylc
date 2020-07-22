@@ -85,7 +85,7 @@ class TaskProxy(object):
                 Latest job exit time.
             finished_time_string (str):
                 Latest job exit time as string.
-            job_hosts (dict):
+            platforms_used (dict):
                 Jobs' owner@host by submit number.
             label (str):
                 The .point attribute as string.
@@ -221,7 +221,7 @@ class TaskProxy(object):
             'finished_time': None,
             'finished_time_string': None,
             'logfiles': [],
-            'job_hosts': {},
+            'platforms_used': {},
             'execution_time_limit': None,
             'batch_sys_name': None,
             'submit_method_id': None
