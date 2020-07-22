@@ -89,7 +89,6 @@ eof
 PROVE_ARGS=()
 TESTS=()
 PROVIDE_TESTBASE=true
-REMOTE_ONLY=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --help|-h)
