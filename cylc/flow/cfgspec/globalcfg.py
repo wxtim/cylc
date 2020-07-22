@@ -15,7 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Cylc site and user configuration file spec."""
 
-from pathlib import Path
 import os
 import re
 
@@ -687,8 +686,8 @@ class GlobalConfig(ParsecConfig):
     _DEFAULT = None
     _HOME = os.getenv('HOME') or get_user_home()
     CONF_BASENAME = "flow.rc"
-    SITE_CONF_DIR = Path(os.sep, 'etc', 'cylc', 'flow', CYLC_VERSION)
-    USER_CONF_DIR = Path(_HOME, '.cylc', 'flow', CYLC_VERSION)
+    SITE_CONF_DIR = os.path.join(os.sep, 'etc', 'cylc', 'flow', CYLC_VERSION)
+    USER_CONF_DIR = os.path.join(_HOME, '.cylc', 'flow', CYLC_VERSION)
 
     @classmethod
     def get_inst(cls, cached=True):
@@ -734,7 +733,7 @@ class GlobalConfig(ParsecConfig):
             for conf_dir, conf_type in [
                     (self.SITE_CONF_DIR, upgrader.SITE_CONFIG),
                     (self.USER_CONF_DIR, upgrader.USER_CONFIG)]:
-                fname = conf_dir / self.CONF_BASENAME
+                fname = os.path.join(conf_dir, self.CONF_BASENAME)
                 if not os.access(fname, os.F_OK | os.R_OK):
                     continue
                 try:
