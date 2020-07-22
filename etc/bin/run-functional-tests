@@ -107,7 +107,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --remote-only)
-            REMOTE_ONLY=true
+            export CYLC_TEST_RUN_GENERIC=false
             shift
             ;;
         -j|-a)
@@ -131,16 +131,7 @@ export CYLC_REPO_DIR="${PWD}"
 
 # default test base
 if [[ ${#TESTS[@]} -eq 0 ]]; then
-    if [[ $REMOTE_ONLY == true ]]; then
-      # If remote mode is activated add a list of remote tests to
-      # the tests array.
-      while read -r line; do
-        TESTS+=( "$line" )
-      done < "$(grep -lr require_remote_platform tests/functional/* | grep ".*.t$")"
-      echo "Only running :"  "${TESTS[@]}"
-    else
-      TESTS=('tests/functional')
-    fi
+  TESTS=('tests/functional')
 fi
 
 # handle chunking
