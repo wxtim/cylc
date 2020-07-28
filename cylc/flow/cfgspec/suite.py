@@ -1260,9 +1260,7 @@ def upg(cfg, descr):
     except KeyError:
         pass
 
-    # TODO - uncomment this fn so that we actually use the host to platform
-    # upgrader
-    # cfg = host_to_platform(cfg)
+    cfg = host_to_platform_upgrader(cfg)
 
 
 def host_to_platform_upgrader(cfg):
@@ -1341,7 +1339,7 @@ def host_to_platform_upgrader(cfg):
                 'host' in task_spec_remote and
                 REC_COMMAND.match(task_spec['remote']['host'])
             ):
-                LOG.debug(
+                LOG.warning(
                     f"The host setting of '{task_name}' is a function: "
                     f"Cylc will try to upgrade this task on job submission."
                 )
