@@ -33,7 +33,7 @@ from cylc.flow import LOG
 from cylc.flow.exceptions import TaskRemoteMgmtError
 import cylc.flow.flags
 from cylc.flow.hostuserutil import (
-    is_remote_host, is_remote_platform
+    is_remote_platform, is_remote_platform_n
 )
 from cylc.flow.pathutil import get_remote_suite_run_dir
 from cylc.flow.subprocctx import SubProcContext
@@ -60,47 +60,48 @@ class TaskRemoteMgr(object):
     def __init__(self, suite, proc_pool):
         self.suite = suite
         self.proc_pool = proc_pool
-        # self.remote_host_str_map = {host_str: host|TaskRemoteMgmtError|None}
-        self.remote_host_str_map = {}
+        # self.remote_platform_n_map =
+        #       {platform_n: host|TaskRemoteMgmtError|None}
+        self.remote_platform_n_map = {}
         # self.remote_init_map = {(host, owner): status, ...}
         self.remote_init_map = {}
         self.single_task_mode = False
         self.uuid_str = None
         self.ready = False
 
-    def remote_host_select(self, host_str):
-        """Evaluate a task host string.
+    def platform_n_from_subshell(self, platform_n):
+        """Evaluate a platform name string.
 
         Arguments:
-            host_str (str):
+            platform_n (str):
                 An explicit host name, a command in back-tick or $(command)
                 format, or an environment variable holding a hostname.
 
         Return (str):
-            None if evaluate of host_str is still taking place.
-            'localhost' if host_str is not defined or if the evaluated host
+            None if evaluate of platform_n is still taking place.
+            'localhost' if platform_n is not defined or if the evaluated host
             name is equivalent to 'localhost'.
             Otherwise, return the evaluated host name on success.
 
         Raise TaskRemoteMgmtError on error.
 
         """
-        if not host_str:
+        if not platform_n:
             return 'localhost'
 
         # Host selection command: $(command) or `command`
-        match = REC_COMMAND.match(host_str)
+        match = REC_COMMAND.match(platform_n)
         if match:
             cmd_str = match.groups()[1]
-            if cmd_str in self.remote_host_str_map:
+            if cmd_str in self.remote_platform_n_map:
                 # Command recently launched
-                value = self.remote_host_str_map[cmd_str]
+                value = self.remote_platform_n_map[cmd_str]
                 if isinstance(value, TaskRemoteMgmtError):
                     raise value  # command failed
                 elif value is None:
                     return  # command not yet ready
                 else:
-                    host_str = value  # command succeeded
+                    platform_n = value  # command succeeded
             else:
                 # Command not launched (or already reset)
                 self.proc_pool.put_command(
@@ -108,26 +109,26 @@ class TaskRemoteMgr(object):
                         'remote-host-select',
                         ['bash', '-c', cmd_str],
                         env=dict(os.environ)),
-                    self._remote_host_select_callback, [cmd_str])
-                self.remote_host_str_map[cmd_str] = None
-                return self.remote_host_str_map[cmd_str]
+                    self._platform_n_from_subshell_callback, [cmd_str])
+                self.remote_platform_n_map[cmd_str] = None
+                return self.remote_platform_n_map[cmd_str]
 
         # Environment variable substitution
-        host_str = os.path.expandvars(host_str)
+        platform_n = os.path.expandvars(platform_n)
         # Remote?
-        if is_remote_host(host_str):
-            return host_str
+        if is_remote_platform_n(platform_n):
+            return platform_n
         else:
             return 'localhost'
 
-    def remote_host_select_reset(self):
+    def platform_n_from_subshell_reset(self):
         """Reset remote host select results.
 
         This is normally called after the results are consumed.
         """
-        for key, value in list(self.remote_host_str_map.copy().items()):
+        for key, value in list(self.remote_platform_n_map.copy().items()):
             if value is not None:
-                del self.remote_host_str_map[key]
+                del self.remote_platform_n_map[key]
 
     def remote_init(self, platform_name, curve_auth, client_pub_key_dir):
         """Initialise a remote [owner@]host if necessary.
@@ -285,17 +286,17 @@ class TaskRemoteMgr(object):
                     (host, owner), ' '.join(quote(item) for item in cmd),
                     proc.returncode, out, err))
 
-    def _remote_host_select_callback(self, proc_ctx, cmd_str):
+    def _platform_n_from_subshell_callback(self, proc_ctx, cmd_str):
         """Callback when host select command exits"""
         self.ready = True
         if proc_ctx.ret_code == 0 and proc_ctx.out:
             # Good status
             LOG.debug(proc_ctx)
-            self.remote_host_str_map[cmd_str] = proc_ctx.out.splitlines()[0]
+            self.remote_platform_n_map[cmd_str] = proc_ctx.out.splitlines()[0]
         else:
             # Bad status
             LOG.error(proc_ctx)
-            self.remote_host_str_map[cmd_str] = TaskRemoteMgmtError(
+            self.remote_platform_n_map[cmd_str] = TaskRemoteMgmtError(
                 TaskRemoteMgmtError.MSG_SELECT, (cmd_str, None), cmd_str,
                 proc_ctx.ret_code, proc_ctx.out, proc_ctx.err)
 

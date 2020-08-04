@@ -201,7 +201,7 @@ class TaskJobManager(object):
         prepared_tasks, bad_tasks = self.prep_submit_task_jobs(suite, itasks)
 
         # Reset consumed host selection results
-        self.task_remote_mgr.remote_host_select_reset()
+        self.task_remote_mgr.platform_n_from_subshell_reset()
 
         if not prepared_tasks:
             return bad_tasks
@@ -805,10 +805,9 @@ class TaskJobManager(object):
         # Determine platform to be used now, just before job submission,
         # because dynamic platform selection `$(echo platformX)` may be used.
         try:
-            platform_n = self.task_remote_mgr.remote_host_select(
+            platform_n = self.task_remote_mgr.platform_n_from_subshell(
                 rtconfig['platform']
             )
-            platform = platform_from_name(platform_n)
         except (PlatformLookupError, TaskRemoteMgmtError) as exc:
             # Submit number not yet incremented
             itask.submit_num += 1
@@ -822,7 +821,7 @@ class TaskJobManager(object):
             if platform_n is None:  # platform select not ready
                 itask.set_summary_message(self.REMOTE_SELECT_MSG)
                 return
-            itask.platform = platform
+            itask.platform = platform_from_name(platform_n)
             # Submit number not yet incremented
             itask.submit_num += 1
             # Retry delays, needed for the try_num
