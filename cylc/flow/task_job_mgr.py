@@ -61,7 +61,7 @@ from cylc.flow.task_state import (
     TASK_STATUS_SUBMIT_RETRYING, TASK_STATUS_RETRYING)
 from cylc.flow.wallclock import get_current_time_string, get_utc_mode
 from cylc.flow.remote import construct_platform_ssh_cmd
-from cylc.flow.exceptions import PlatformLookupError
+from cylc.flow.exceptions import PlatformLookupError, TaskRemoteMgmtError
 
 
 class TaskJobManager(object):
@@ -802,11 +802,14 @@ class TaskJobManager(object):
         else:
             rtconfig = itask.tdef.rtconfig
 
-        # Determine task host settings now, just before job submission,
-        # because dynamic host selection may be used.
+        # Determine platform to be used now, just before job submission,
+        # because dynamic platform selection `$(echo platformX)` may be used.
         try:
-            platform = platform_from_name(rtconfig['platform'])
-        except PlatformLookupError as exc:
+            platform_n = self.task_remote_mgr.remote_host_select(
+                rtconfig['platform']
+            )
+            platform = platform_from_name(platform_n)
+        except (PlatformLookupError, TaskRemoteMgmtError) as exc:
             # Submit number not yet incremented
             itask.submit_num += 1
             itask.summary['platforms_used'][itask.submit_num] = ''
@@ -816,10 +819,9 @@ class TaskJobManager(object):
                 suite, itask, '(remote host select)', exc)
             return False
         else:
-            # Re-instate when remote host selection upgraded
-            # if task_host is None:  # host select not ready
-            #     itask.set_summary_message(self.REMOTE_SELECT_MSG)
-            #     return
+            if platform_n is None:  # platform select not ready
+                itask.set_summary_message(self.REMOTE_SELECT_MSG)
+                return
             itask.platform = platform
             # Submit number not yet incremented
             itask.submit_num += 1
