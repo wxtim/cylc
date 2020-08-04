@@ -51,6 +51,7 @@ from contextlib import suppress
 from time import time
 
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
+from cylc.flow.platforms import platform_from_name
 
 
 class HostUtil(object):
@@ -227,6 +228,12 @@ class HostUtil(object):
                 return True
         return False
 
+    def _is_remote_platform_n(self, platform_n):
+        """Wrapper for `_is_remote_platform` which first gets a platform from
+        a platform name.
+        """
+        return self._is_remote_platform(platform_from_name(platform_n))
+
 
 def get_host_ip_by_name(target):
     """Shorthand for HostUtil.get_inst().get_host_ip_by_name(target)."""
@@ -261,6 +268,11 @@ def get_user_home():
 def is_remote_platform(platform):
     """Shorthand for HostUtil.get_inst()._is_remote_platform(host, owner)."""
     return HostUtil.get_inst()._is_remote_platform(platform)
+
+
+def is_remote_platform_n(platform_n):
+    """Shorthand for HostUtil.get_inst()._is_remote_platform_n(host, owner)."""
+    return HostUtil.get_inst()._is_remote_platform_n(platform_n)
 
 
 def is_remote_host(name):
