@@ -113,6 +113,7 @@ class TestSuiteConfig(object):
             suite_rc = Path(temp_dir, "suite.rc")
             with suite_rc.open(mode="w") as f:
                 f.write("""
+    [runtime]
     [scheduling]
         initial cycle point = 2018-01-01
         [[xtriggers]]
@@ -146,6 +147,7 @@ class TestSuiteConfig(object):
             suite_rc = Path(temp_dir, "suite.rc")
             with suite_rc.open(mode="w") as f:
                 f.write("""
+    [runtime]
     [scheduling]
         initial cycle point = 2018-01-01
         [[xtriggers]]
@@ -179,6 +181,7 @@ class TestSuiteConfig(object):
             suite_rc = Path(temp_dir, "suite.rc")
             with suite_rc.open(mode="w") as f:
                 f.write("""
+    [runtime]
     [scheduling]
         initial cycle point = 2018-01-01
         [[xtriggers]]
@@ -212,6 +215,7 @@ class TestSuiteConfig(object):
             suite_rc = Path(temp_dir, "suite.rc")
             with suite_rc.open(mode="w") as f:
                 f.write("""
+    [runtime]
     [scheduling]
         initial cycle point = 2018-01-01
         [[xtriggers]]
