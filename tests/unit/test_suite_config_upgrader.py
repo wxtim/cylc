@@ -27,6 +27,8 @@ Tests
     - Forbidden items not set
         - nowt happens
 - Platform not set
+    - Host not set:
+        - set platform == localhost
     - Host == Function
         - Log Message
     - Host !- Function
@@ -78,8 +80,13 @@ def test_platform_and_harmless_old_items__doesnothing(get_task_conf):
     """
     config = get_task_conf
     config['runtime']['sometask'].update({'execution time limt': 42})
-    assert host_to_platform_upgrader(get_task_conf) == \
+    assert host_to_platform_upgrader(config) == \
         get_task_conf
+
+
+def test_noplatform_no_old_items(get_task_conf):
+    conf = host_to_platform_upgrader(get_task_conf)
+    assert conf['runtime']['sometask']['platform'] == 'localhost'
 
 
 def test_noplatform_hostfunction__logsdebug(caplog, get_task_conf):
@@ -108,7 +115,7 @@ def test_noplatform_hostname__selectplatform(
         '''
         [platforms]
             [[saffron]]
-                remote hosts = saff01
+                hosts = saff01
                 batch system = slurm
         '''
     )

@@ -1267,32 +1267,43 @@ def host_to_platform_upgrader(cfg):
     """Upgrade a config with host settings to a config with platform settings
     if it is appropriate to do so.
 
-                       +-------------------------------+
-                       | Is platform set in this       |
-                       | [runtime][TASK]?              |
-                       +-------------------------------+
-                          |YES                      |NO
-                          |                         |
-    +---------------------v---------+      +--------+--------------+
-    | Are any forbidden items set   |      | host == $(function)?  |
-    | in any [runtime][TASK]        |      +-+---------------------+
-    | [job] or [remote] section     |     NO |          |YES
-    |                               |        |  +-------v------------------+
-    +-------------------------------+        |  | Log - evaluate at task   |
-              |YES            |NO            |  | submit                   |
-              |               +-------+      |  |                          |
-              |                       |      |  +--------------------------+
-    +---------v---------------------+ |      |
-    | FAIL LOUDLY                   | |    +-v-----------------------------+
-    +-------------------------------+ |    | * Run platform_from_job_info()|
-                                      |    | * handle reverse lookup fail  |
-                                      |    | * add platform                |
-                                      |    | * delete forbidden settings   |
-                                      |    +-------------------------------+
-                                      |
-                                      |    +-------------------------------+
-                                      +----> Return without changes        |
-                                           +-------------------------------+
+                   +-------------------------------+
+                   | Is platform set in this       |
+                   | [runtime][TASK]?              |
+                   +-------------------------------+
+                      |YES                      |NO
+                      |                         |
++---------------------v---------+      +--------+--------------+
+| Are any forbidden items set   |      | host == $(function)?  |
+| in any [runtime][TASK]        |      +-+---------------------+
+| [job] or [remote] section     |     NO |          |YES
+|                               |        |  +-----+-v------------------+
++-------------------------------+        |  | Log + evaluate at task   |
+          |YES            |NO            |  | submit                   |
+          |               +-------+      |  |                          |
+          |                       |      |  +--------------------------+
++---------v---------------------+ |      |
+| FAIL LOUDLY                   | |    +-+-----------------------------+
++-------------------------------+ |    | Are there any Cylc 7 Forbidden|
+                                  |    | with patforms items?          |
+                                  |    +-------------------------------+
+                                  |      |YES                  |NO
+                                  |      |      +--------------v-------+
+                                  |      |      |  Platforms =         |
+                                  |      |      |    'localhost'       |
+                                  |      |      +----------------------+
+                                  |      |
+                                  |    +-v-----------------------------+
+                                  |    | * Run platform_from_job_info()|
+                                  |    | * handle reverse lookup fail  |
+                                  |    | * add platform                |
+                                  |    | * delete forbidden settings   |
+                                  |    +-------------------------------+
+                                  |
+                                  |    +-------------------------------+
+                                  +----> Return without changes        |
+                                       +-------------------------------+
+
 
     Args (cfg):
         config object to be upgraded
@@ -1317,9 +1328,8 @@ def host_to_platform_upgrader(cfg):
                         f" logic should not be used. Task {task_name} "
                         f"set platform and item in {forbidden_with_platform}"
                     )
-
-        elif 'platform' in task_spec:
-            # Return config unchanged
+            # If none of the forbidden items are present
+            # return config unchanged.
             continue
 
         else:
@@ -1332,6 +1342,22 @@ def host_to_platform_upgrader(cfg):
                 task_spec_remote = task_spec['remote']
             else:
                 task_spec_remote = {}
+
+            # Deal with case where there are neither forbidden nor
+            # platform settings given, so platform = 'localhost'
+            platform_is_localhost = True
+            if task_spec_job or task_spec_remote:
+                platform_is_localhost = False
+            else:
+                for section, key in forbidden_with_platform:
+                    if (
+                        (section == 'job' and key in task_spec_job) or
+                        (section == 'remote' and key in task_spec_remote)
+                    ):
+                        platform_is_localhost = False
+            if platform_is_localhost:
+                cfg['runtime'][task_name]['platform'] = 'localhost'
+                continue
 
             # Deal with case where host is a function and we cannot auto
             # upgrade at the time of loading the config.
