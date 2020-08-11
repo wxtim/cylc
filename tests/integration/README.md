@@ -1,12 +1,13 @@
-# Integration Tests
+# Integration Tests
 
 This directory contains Cylc integration tests.
 
-## How To Run These Tests
+## How To Run These Tests
 
 ```console
 $ pytest tests/i
-$ pytest tests/i -n 5  # run up to 5 tests in parallel
+$ pytest tests/i -n 5  # run up to 5 tests in parallel
+$ pytest tests/i --dist=no -n0  # turn off xdist (allows --pdb etc)
 ```
 
 ## What Are Integration Tests
@@ -23,7 +24,7 @@ The general approach is:
 Integration tests aren't end-to-end tests, they focus on targeted interactions
 and behaviour and may do a bit of monkeypatching to achieve that result.
 
-## Guidelines
+## Guidelines
 
 Don't write functional tests here:
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
@@ -37,7 +37,7 @@ create_test_globalrc "" "
     [platforms]
         [[test-slurm]]
             batch system = $CYLC_TEST_BATCH_SYS
-            remote hosts = $CYLC_TEST_BATCH_TASK_HOST
+            hosts = $CYLC_TEST_BATCH_TASK_HOST
 "
 
 

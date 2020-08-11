@@ -80,7 +80,7 @@ with Conf(
         ''')
 
     with Conf('cylc'):
-        Conf('UTC mode', VDR.V_BOOLEAN, False)
+        Conf('UTC mode', VDR.V_BOOLEAN)
         Conf('cycle point format', VDR.V_CYCLE_POINT_FORMAT)
         Conf('cycle point num expanded year digits', VDR.V_INTEGER, 0)
         Conf('cycle point time zone', VDR.V_CYCLE_POINT_TIME_ZONE)
@@ -268,24 +268,6 @@ with Conf(
             It allows up to ``N`` (default 3)
             consecutive cycle points to be active at any time, adjusted up if
             necessary for any future triggering.
-        ''')
-        Conf('spawn to max active cycle points', VDR.V_BOOLEAN, desc='''
-            Allows tasks to spawn out to
-            :cylc:conf:`[..]max active cycle points`,
-            removing restriction that a task
-            has to have submitted before its successor can be spawned.
-
-            .. warning::
-               This should be used with care given the potential impact of
-               additional task proxies in terms of memory and cpu for the
-               cylc server program. Also, use of the setting may highlight
-               any issues with suite design relying on the default behaviour
-               where downstream tasks would otherwise be waiting on ones
-               upstream submitting and the suite would have stalled e.g. a
-               housekeeping task at a later cycle deleting an earlier cycle's
-               data before that cycle has had chance to run where previously
-               the task would not have been spawned until its predecessor had
-               been submitted.
         ''')
 
         with Conf('queues', desc='''
@@ -1285,32 +1267,43 @@ def host_to_platform_upgrader(cfg):
     """Upgrade a config with host settings to a config with platform settings
     if it is appropriate to do so.
 
-                       +-------------------------------+
-                       | Is platform set in this       |
-                       | [runtime][TASK]?              |
-                       +-------------------------------+
-                          |YES                      |NO
-                          |                         |
-    +---------------------v---------+      +--------+--------------+
-    | Are any forbidden items set   |      | host == $(function)?  |
-    | in any [runtime][TASK]        |      +-+---------------------+
-    | [job] or [remote] section     |     NO |          |YES
-    |                               |        |  +-------v------------------+
-    +-------------------------------+        |  | Log - evaluate at task   |
-              |YES            |NO            |  | submit                   |
-              |               +-------+      |  |                          |
-              |                       |      |  +--------------------------+
-    +---------v---------------------+ |      |
-    | FAIL LOUDLY                   | |    +-v-----------------------------+
-    +-------------------------------+ |    | * Run platform_from_job_info()|
-                                      |    | * handle reverse lookup fail  |
-                                      |    | * add platform                |
-                                      |    | * delete forbidden settings   |
-                                      |    +-------------------------------+
-                                      |
-                                      |    +-------------------------------+
-                                      +----> Return without changes        |
-                                           +-------------------------------+
+                   +-------------------------------+
+                   | Is platform set in this       |
+                   | [runtime][TASK]?              |
+                   +-------------------------------+
+                      |YES                      |NO
+                      |                         |
++---------------------v---------+      +--------+--------------+
+| Are any forbidden items set   |      | host == $(function)?  |
+| in any [runtime][TASK]        |      +-+---------------------+
+| [job] or [remote] section     |     NO |          |YES
+|                               |        |  +-----+-v------------------+
++-------------------------------+        |  | Log + evaluate at task   |
+          |YES            |NO            |  | submit                   |
+          |               +-------+      |  |                          |
+          |                       |      |  +--------------------------+
++---------v---------------------+ |      |
+| FAIL LOUDLY                   | |    +-+-----------------------------+
++-------------------------------+ |    | Are there any Cylc 7 Forbidden|
+                                  |    | with patforms items?          |
+                                  |    +-------------------------------+
+                                  |      |YES                  |NO
+                                  |      |      +--------------v-------+
+                                  |      |      |  Platforms =         |
+                                  |      |      |    'localhost'       |
+                                  |      |      +----------------------+
+                                  |      |
+                                  |    +-v-----------------------------+
+                                  |    | * Run platform_from_job_info()|
+                                  |    | * handle reverse lookup fail  |
+                                  |    | * add platform                |
+                                  |    | * delete forbidden settings   |
+                                  |    +-------------------------------+
+                                  |
+                                  |    +-------------------------------+
+                                  +----> Return without changes        |
+                                       +-------------------------------+
+
 
     Args (cfg):
         config object to be upgraded
@@ -1335,9 +1328,8 @@ def host_to_platform_upgrader(cfg):
                         f" logic should not be used. Task {task_name} "
                         f"set platform and item in {forbidden_with_platform}"
                     )
-
-        elif 'platform' in task_spec:
-            # Return config unchanged
+            # If none of the forbidden items are present
+            # return config unchanged.
             continue
 
         else:
@@ -1350,6 +1342,22 @@ def host_to_platform_upgrader(cfg):
                 task_spec_remote = task_spec['remote']
             else:
                 task_spec_remote = {}
+
+            # Deal with case where there are neither forbidden nor
+            # platform settings given, so platform = 'localhost'
+            platform_is_localhost = True
+            if task_spec_job or task_spec_remote:
+                platform_is_localhost = False
+            else:
+                for section, key in forbidden_with_platform:
+                    if (
+                        (section == 'job' and key in task_spec_job) or
+                        (section == 'remote' and key in task_spec_remote)
+                    ):
+                        platform_is_localhost = False
+            if platform_is_localhost:
+                cfg['runtime'][task_name]['platform'] = 'localhost'
+                continue
 
             # Deal with case where host is a function and we cannot auto
             # upgrade at the time of loading the config.

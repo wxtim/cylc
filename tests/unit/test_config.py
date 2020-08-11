@@ -99,7 +99,7 @@ class TestSuiteConfig(object):
             '''
             [platforms]
                 [[localhost]]
-                    remote hosts = localhost
+                    hosts = localhost
             '''
         )
         with TemporaryDirectory() as temp_dir:
@@ -113,6 +113,7 @@ class TestSuiteConfig(object):
             suite_rc = Path(temp_dir, "suite.rc")
             with suite_rc.open(mode="w") as f:
                 f.write("""
+    [runtime]
     [scheduling]
         initial cycle point = 2018-01-01
         [[xtriggers]]
@@ -132,7 +133,7 @@ class TestSuiteConfig(object):
             '''
             [platforms]
                 [[localhost]]
-                    remote hosts = localhost
+                    hosts = localhost
             '''
         )
         with TemporaryDirectory() as temp_dir:
@@ -146,6 +147,7 @@ class TestSuiteConfig(object):
             suite_rc = Path(temp_dir, "suite.rc")
             with suite_rc.open(mode="w") as f:
                 f.write("""
+    [runtime]
     [scheduling]
         initial cycle point = 2018-01-01
         [[xtriggers]]
@@ -165,7 +167,7 @@ class TestSuiteConfig(object):
             '''
             [platforms]
                 [[localhost]]
-                    remote hosts = localhost
+                    hosts = localhost
             '''
         )
         with TemporaryDirectory() as temp_dir:
@@ -179,6 +181,7 @@ class TestSuiteConfig(object):
             suite_rc = Path(temp_dir, "suite.rc")
             with suite_rc.open(mode="w") as f:
                 f.write("""
+    [runtime]
     [scheduling]
         initial cycle point = 2018-01-01
         [[xtriggers]]
@@ -198,7 +201,7 @@ class TestSuiteConfig(object):
             '''
             [platforms]
                 [[localhost]]
-                    remote hosts = localhost
+                    hosts = localhost
             '''
         )
         with TemporaryDirectory() as temp_dir:
@@ -212,6 +215,7 @@ class TestSuiteConfig(object):
             suite_rc = Path(temp_dir, "suite.rc")
             with suite_rc.open(mode="w") as f:
                 f.write("""
+    [runtime]
     [scheduling]
         initial cycle point = 2018-01-01
         [[xtriggers]]
@@ -239,7 +243,7 @@ class TestSuiteConfig(object):
             '''
             [platforms]
                 [[localhost]]
-                    remote hosts = localhost
+                    hosts = localhost
             '''
         )
         template_vars = {}

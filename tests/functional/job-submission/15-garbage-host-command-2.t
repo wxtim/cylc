@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
@@ -23,7 +23,7 @@ set_test_number 2
 create_test_globalrc "
 [platforms]
     [[test platform]]
-        remote hosts = $(my-host-select)
+        hosts = $(my-host-select)
 "
 
 install_suite "${TEST_NAME_BASE}"

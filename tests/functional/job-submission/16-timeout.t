@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
@@ -29,7 +29,7 @@ process pool timeout = PT10S
 " "
 [platforms]
     [[unicorn]]
-        remote hosts = localhost
+        hosts = localhost
         batch system = at
         batch submit command template = sleep 30"
 

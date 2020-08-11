@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
@@ -29,7 +29,7 @@ set_test_number 3
 create_test_globalrc '' "
 [platforms]
     [[${CYLC_REMOTE_PLATFORM}-ssh]]
-        remote hosts = ${CYLC_TEST_HOST}
+        hosts = ${CYLC_TEST_HOST}
         communication method = ssh
 "
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # THIS FILE IS PART OF THE CYLC SUITE ENGINE.
 # Copyright (C) NIWA & British Crown (Met Office) & Contributors.
 #
@@ -28,7 +28,7 @@ CYLC_TEST_BATCH_SYS=${TEST_NAME_BASE##??-}
 create_test_globalrc "" "
 [platforms]
 [[hydra]]
-remote hosts = localhost
+hosts = localhost
 batch system = ${CYLC_TEST_BATCH_SYS}
 "
 

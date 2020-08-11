@@ -85,7 +85,7 @@ START_POINT_ARG_DOC = (
 
 
 @lru_cache()
-def get_option_parser(is_restart):
+def get_option_parser(is_restart, add_std_opts=False):
     """Parse CLI for "cylc run" or "cylc restart"."""
     if is_restart:
         parser = COP(RESTART_DOC, jset=True, argdoc=[SUITE_NAME_ARG_DOC])
@@ -235,6 +235,13 @@ def get_option_parser(is_restart):
     )
 
     parser.set_defaults(stop_point_string=None)
+    if add_std_opts:
+        # This is for the API wrapper for integration tests. Otherwise (CLI
+        # use) "standard options" are added later in options.parse_args().
+        # They should really be added in options.__init__() but that requires a
+        # bit of refactoring because option clashes are handled bass-ackwards
+        # ("overrides" are added before standard options).
+        parser.add_std_options()
 
     return parser
 
@@ -248,8 +255,10 @@ DEFAULT_OPTS = {
 }
 
 
-RunOptions = Options(get_option_parser(False), DEFAULT_OPTS)
-RestartOptions = Options(get_option_parser(True), DEFAULT_OPTS)
+RunOptions = Options(
+    get_option_parser(is_restart=False, add_std_opts=True), DEFAULT_OPTS)
+RestartOptions = Options(
+    get_option_parser(is_restart=True, add_std_opts=True), DEFAULT_OPTS)
 
 
 def _auto_register():
@@ -387,15 +396,15 @@ def _distribute(host, is_restart):
     # Check whether a run host is explicitly specified, else select one.
     if not host:
         host = select_suite_host()[0]
-    if host:
-        if is_remote_host(host):
-            if is_restart:
-                base_cmd = ["restart"] + sys.argv[1:]
-            else:
-                base_cmd = ["run"] + sys.argv[1:]
-            # Prevent recursive host selection
-            base_cmd.append("--host=localhost")
-            return remote_cylc_cmd(base_cmd, host=host)
+    if is_remote_host(host):
+        if is_restart:
+            base_cmd = ["restart"] + sys.argv[1:]
+        else:
+            base_cmd = ["run"] + sys.argv[1:]
+        # Prevent recursive host selection
+        base_cmd.append("--host=localhost")
+        remote_cylc_cmd(base_cmd, host=host)
+        sys.exit(0)
 
 
 async def _setup(parser, options, reg, is_restart, scheduler):
