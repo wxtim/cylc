@@ -43,6 +43,9 @@ create_test_globalrc "" "
         batch system = pbs
 "
 
+#-------------------------------------------------------------------------------
+# Tests of upgrader passing.
+
 cat > suite.rc <<'__HEREDOC__'
 [scheduling]
     [[graph]]
@@ -61,8 +64,24 @@ cat > suite.rc <<'__HEREDOC__'
 
     [[baz]]
         [[[remote]]]
-            host = $(she sells shell scripts on the sea shore)
+            host = $(she scripts shell scripts on the sea shore)
 __HEREDOC__
+
+TEST_NAME=${TEST_NAME_BASE}
+run_ok "${TEST_NAME}" cylc validate -v suite.rc
+
+declare -A GREPTESTS
+GREPTESTS['host=>platform']='platform \"beeblebrox\" .* task \"foo\"'
+GREPTESTS['host-and-batch-sys=>platform']='platform \"trillian\" .* task \"bar\"'
+GREPTESTS['host_is_fn=>warn-upg-on-submit']="The host setting of 'baz' is a function"
+
+for task in "${!GREPTESTS[@]}"; do
+    ln -s "${TEST_NAME}.stderr" "${TEST_NAME}.${task}."
+    grep_ok "${GREPTESTS[$task]}" "${TEST_NAME}.${task}."
+done
+
+#-------------------------------------------------------------------------------
+# Tests of upgrader failing
 
 cat > suite-fail-no-platform.rc <<'__HEREDOC__'
 [scheduling]
@@ -87,31 +106,12 @@ cat > suite-fail-mixed-syntax.rc <<'__HEREDOC__'
             host = zaph3
 __HEREDOC__
 
-
-#-------------------------------------------------------------------------------
-# Tests of upgrader passing.
-TEST_NAME=${TEST_NAME_BASE}
-run_ok "${TEST_NAME}" cylc validate -v suite.rc
-
-declare -A GREPTESTS
-GREPTESTS['host=>platform']='platform \"beeblebrox\" .* task \"foo\"'
-GREPTESTS['host-and-batch-sys=>platform']='platform \"trillian\" .* task \"bar\"'
-GREPTESTS['host_is_fn=>warn-upg-on-submit']="The host setting of 'baz' is a function"
-
-for task in ${!GREPTESTS[@]}; do
-    ln -s "${TEST_NAME}.stderr" "${TEST_NAME}.${task}."
-    grep_ok "${GREPTESTS[$task]}" "${TEST_NAME}.${task}."
-done
-
-#-------------------------------------------------------------------------------
-# Tests of upgrader failing
 declare -A FAILS
 FAILS['no-platform']='PlatformLookupError: for task qux: No platform found'
 FAILS['mixed-syntax']='PlatformLookupError.* Task wibble set platform and item'
 
-for cause in ${!FAILS[@]}; do
+for cause in "${!FAILS[@]}"; do
     run_fail "${TEST_NAME}.fail-${cause}" cylc validate -v "suite-fail-$cause.rc"
-    # tail -n 8  "${TEST_NAME}.fail-${cause}.stderr">&2
     grep_ok "${FAILS[$cause]}" "${TEST_NAME}.fail-${cause}.stderr"
 done
 exit
