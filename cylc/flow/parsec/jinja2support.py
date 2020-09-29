@@ -185,6 +185,24 @@ def jinja2environment(dir_=None):
     return env
 
 
+def get_rose_vars(dir_=None):
+    """Load Jinja2 Vars from rose-suite.conf in dir_
+
+    Args:
+        dir_(string of Pathlib.path object):
+            Search for a ``rose-suite.conf`` file in this location.
+
+    Returns:
+        If no ``rose-suite.conf`` file found then None.
+        Else return a dictionary of evaluated key value pairs from
+        the ``rose-suite.conf``
+
+    TODO: Everything
+    """
+    ...
+    # return dictionary_eval_key_value_pairs or None
+
+
 def get_error_location():
     """Extract template line number from end of traceback.
 
