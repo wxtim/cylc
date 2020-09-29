@@ -107,3 +107,22 @@ def test_pymoduleloader_invalid_module(tmp_path):
         module_loader = PyModuleLoader()
         with pytest.raises(jinja2.TemplateNotFound):
             module_loader.load(environment=env, name='no way jose')
+
+
+def test_get_rosedirs(tmp_path):
+    """Function returns dict of [jinja2:suite.rc] items
+
+    Also check that function does _not_ return [env] section items.
+    """
+    with open(tmp_path / 'rose-suite.conf', 'w+') as testfh:
+        testfh.write(
+            "[env]\n"
+            "TIMS_ENV_VAR=Jelly\n"
+            "[jinja2:suite.rc]\n"
+            "TIMS_JINJA2_ENV=64\n"
+            "Another_Jinja2_var=IceCream\n"
+        )
+    assert get_rose_vars(tmp_path / 'rose-suite.conf') == {
+        'Another_Jinja2_var': 'IceCream',
+        'TIMS_JINJA2_ENV': '64'
+    }

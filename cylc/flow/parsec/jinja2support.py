@@ -197,10 +197,19 @@ def get_rose_vars(dir_=None):
         Else return a dictionary of evaluated key value pairs from
         the ``rose-suite.conf``
 
-    TODO: Everything
+    TODO:
+        - Make it load from ConfigTreeRather than config.
+        - If made a non-poc PR then move imports to top of module.
     """
-    ...
-    # return dictionary_eval_key_value_pairs or None
+    if dir_ is None:
+        return None
+
+    from metomi.rose.config import ConfigLoader
+    # Load the jinja2 section of the config
+    config = ConfigLoader().load(str(dir_)).value['jinja2:suite.rc']
+    # Walk through the jinja2 section getting key=value pairs.
+    config = dict([(item[0][1], item[1].value) for item in config.walk()])
+    return config
 
 
 def get_error_location():
