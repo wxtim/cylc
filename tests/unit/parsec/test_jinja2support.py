@@ -113,8 +113,25 @@ def test_get_rosedirs(tmp_path):
     """Function returns dict of [jinja2:suite.rc] items
 
     Also check that function does _not_ return [env] section items.
+
+    Creates:
+    .
+    `--tmp_path
+        |-- rose-suite.conf
+        `-- opt
+            |-- rose-suite-gravy.conf
+            `-- rose-suite-chips.conf
+
+    Scenarios tested:
+        - Read in a basic rose-suite.conf file. Ensure we don't return env,
+          just jinja2.
+        - Get optional config name from an environment variable.
+        - Get optional config name from command line option.
+        - Get optional config name from an explicit over-ride string.
     """
     with open(tmp_path / 'rose-suite.conf', 'w+') as testfh:
+        # The [env] section is there to make sure I don't load it with
+        # the jinja2 method.
         testfh.write(
             "[env]\n"
             "TIMS_ENV_VAR=Jelly\n"
@@ -122,7 +139,44 @@ def test_get_rosedirs(tmp_path):
             "TIMS_JINJA2_ENV=64\n"
             "Another_Jinja2_var=IceCream\n"
         )
-    assert get_rose_vars(tmp_path / 'rose-suite.conf') == {
+
+    opt_dir = tmp_path / 'opt'
+    opt_dir.mkdir()
+    with open(opt_dir / 'rose-suite-gravy.conf', 'w+') as testfh:
+        testfh.write(
+            "[jinja2:suite.rc]\n"
+            "TIMS_JINJA2_ENV=42\n"
+            "Another_Jinja2_var=Peas\n"
+        )
+
+    with open(opt_dir / 'rose-suite-chips.conf', 'w+') as testfh:
+        testfh.write(
+            "[jinja2:suite.rc]\n"
+            "TIMS_JINJA2_ENV=99\n"
+            "Another_Jinja2_var=Chips\n"
+        )
+
+    assert get_rose_vars(tmp_path) == {
         'Another_Jinja2_var': 'IceCream',
         'TIMS_JINJA2_ENV': '64'
+    }
+
+    os.environ['ROSE_SUITE_OPT_CONF_KEYS'] = "gravy"
+    assert get_rose_vars(tmp_path) == {
+        'Another_Jinja2_var': 'Peas',
+        'TIMS_JINJA2_ENV': '42'
+    }
+
+    from types import SimpleNamespace
+    options = SimpleNamespace()
+    options.opt_conf_keys = ["chips"]
+    assert get_rose_vars(tmp_path, options) == {
+        'Another_Jinja2_var': 'Chips',
+        'TIMS_JINJA2_ENV': '99'
+    }
+
+    options.defines = ["[jinja2:suite.rc]TIMS_JINJA2_ENV=Curry_Sauce"]
+    assert get_rose_vars(tmp_path, options) == {
+        'Another_Jinja2_var': 'Chips',
+        'TIMS_JINJA2_ENV': 'Curry_Sauce'
     }

@@ -185,12 +185,14 @@ def jinja2environment(dir_=None):
     return env
 
 
-def get_rose_vars(dir_=None):
+def get_rose_vars(dir_=None, opts=None):
     """Load Jinja2 Vars from rose-suite.conf in dir_
 
     Args:
         dir_(string of Pathlib.path object):
             Search for a ``rose-suite.conf`` file in this location.
+        opts:
+            Some sort of options object.
 
     Returns:
         If no ``rose-suite.conf`` file found then None.
@@ -204,9 +206,35 @@ def get_rose_vars(dir_=None):
     if dir_ is None:
         return None
 
+    # Only here for Proof of Concept work
     from metomi.rose.config import ConfigLoader
+    from metomi.rose.config_tree import ConfigTreeLoader
+    import shlex
+
+    # Optional configurations
+    opt_conf_keys = []
+    # Set as environment variables
+    opt_conf_keys_env = os.getenv("ROSE_SUITE_OPT_CONF_KEYS")
+    if opt_conf_keys_env:
+        opt_conf_keys += shlex.split(opt_conf_keys_env)
+    # ... or as command line options
+    if 'opt_conf_keys' in dir(opts) and opts.opt_conf_keys:
+        opt_conf_keys += opts.opt_conf_keys
+
+    # Optional definitions
+    redefinitions = []
+    if 'defines' in dir(opts) and opts.defines:
+        redefinitions = opts.defines
+
+    config_tree = ConfigTreeLoader().load(
+        str(dir_),
+        'rose-suite.conf',
+        opt_keys=opt_conf_keys,
+        defines=redefinitions
+    )
+
     # Load the jinja2 section of the config
-    config = ConfigLoader().load(str(dir_)).value['jinja2:suite.rc']
+    config = config_tree.node.value['jinja2:suite.rc']
     # Walk through the jinja2 section getting key=value pairs.
     config = dict([(item[0][1], item[1].value) for item in config.walk()])
     return config
