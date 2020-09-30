@@ -182,6 +182,10 @@ def jinja2environment(dir_=None):
     env.globals['environ'] = os.environ
     env.globals['raise'] = raise_helper
     env.globals['assert'] = assert_helper
+
+    # Insert key/value pairs from rose-suite.conf into jinja2 env.
+    for key, value in get_rose_vars(dir_).items():
+        env.globals[key] = value
     return env
 
 
@@ -226,6 +230,7 @@ def get_rose_vars(dir_=None, opts=None):
     if 'defines' in dir(opts) and opts.defines:
         redefinitions = opts.defines
 
+    # Load the actual config tree
     config_tree = ConfigTreeLoader().load(
         str(dir_),
         'rose-suite.conf',
@@ -233,7 +238,7 @@ def get_rose_vars(dir_=None, opts=None):
         defines=redefinitions
     )
 
-    # Load the jinja2 section of the config
+    # Get the jinja2 section of the config
     config = config_tree.node.value['jinja2:suite.rc']
     # Walk through the jinja2 section getting key=value pairs.
     config = dict([(item[0][1], item[1].value) for item in config.walk()])

@@ -1,0 +1,19 @@
+#!jinja2
+[meta]
+    title = "Tim's simplest ever Cylc Suite with Rose variables"
+
+[scheduling]
+    initial cycle point = {{ICP}}
+    final cycle point = {{FCP}}
+    cycling mode = integer
+    [[dependencies]]
+        [[[R1]]]
+            graph = {{TASK1}} => {{TASK2}} => {{TASK3}}
+
+[runtime]
+    [[root]]
+        script = echo "This task is ${CYLC_TASK_ID}"
+
+    [[{{TASK1}}]]
+    [[{{TASK2}}]]
+    [[{{TASK3}}]]
