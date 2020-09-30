@@ -1,6 +1,13 @@
 #!jinja2
 [meta]
-    title = "Tim's simplest ever Cylc Suite with Rose variables"
+    title = "Add jinja2 vars from a rose-suite.conf"
+    description = """
+    Natively, in Cylc!
+    """
+
+[cylc]
+    [[parameters]]
+        member = {{ MEMBERS }}
 
 [scheduling]
     initial cycle point = {{ICP}}
@@ -8,12 +15,12 @@
     cycling mode = integer
     [[dependencies]]
         [[[R1]]]
-            graph = {{TASK1}} => {{TASK2}} => {{TASK3}}
+            graph = {{TASK1}} => {{TASK2}}<member> => {{TASK3}}
 
 [runtime]
     [[root]]
         script = echo "This task is ${CYLC_TASK_ID}"
 
     [[{{TASK1}}]]
-    [[{{TASK2}}]]
+    [[{{TASK2}}<member>]]
     [[{{TASK3}}]]
