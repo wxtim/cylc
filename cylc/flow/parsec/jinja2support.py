@@ -184,8 +184,9 @@ def jinja2environment(dir_=None):
     env.globals['assert'] = assert_helper
 
     # Insert key/value pairs from rose-suite.conf into jinja2 env.
+    from ast import literal_eval
     for key, value in get_rose_vars(dir_).items():
-        env.globals[key] = value
+        env.globals[key] = literal_eval(value)
     return env
 
 
