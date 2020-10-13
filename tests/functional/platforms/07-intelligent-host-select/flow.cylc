@@ -1,0 +1,38 @@
+[meta]
+title = "Try out scenarios for intelligent host selection."
+description = """
+Tasks
+- goodhost: a control to check that everything works
+- badhost is always going to fail
+- mixedhost contains some hosts that will and won't fail
+"""
+intended global.cylc settings = """
+[platforms]
+  [[exvcylcdev01]]
+    hosts = exvcylcdev01
+  [[badhostplatform]]
+    hosts = wooble
+  [[mixedhostplatform]]
+    hosts = wooble, exvcylcdev
+"""
+
+[cylc]
+    [[events]]
+        abort on stalled = True
+
+[scheduling]
+    [[dependencies]]
+        R1 = mixedhost
+[runtime]
+    [[root]]
+        script = true
+        [[[remote]]]
+            retrieve job logs = True
+    [[goodhost]]
+        platform = exvcylcdev01
+    [[badhost]]
+        platform = badhostplatform
+    [[mixedhost]]
+        platform = mixedhostplatform
+
+
