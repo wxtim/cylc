@@ -338,7 +338,9 @@ def platform_from_job_info(platforms, job, remote):
     raise PlatformLookupError('No platform found matching your task')
 
 
-def get_host_from_platform(platform, method=None):
+def get_host_from_platform(
+    platform, method=None, badhosts=[], badplatforms=[]
+):
     """Placeholder for a more sophisticated function which returns a host
     given a platform dictionary.
 
@@ -360,14 +362,22 @@ def get_host_from_platform(platform, method=None):
             - Random Selection with check for host availability
 
     """
-    if method is None or method == 'random':
-        return random.choice(platform['hosts'])
-    elif method == 'first':
-        return platform['hosts'][0]
+    goodhosts = list(set(platform['hosts']) - set(badhosts))
+
+    if goodhosts:
+        if method is None or method == 'random':
+            return random.choice(goodhosts)
+        elif method == 'first':
+            return goodhosts[0]
+        else:
+            raise NotImplementedError(
+                f'method {method} is not a valid input for '
+                'get_host_from_platform'
+            )
     else:
         raise NotImplementedError(
-            f'method {method} is not a valid input for get_host_from_platform'
-        )
+                f'No hosts left!'
+            )
 
 
 def fail_if_platform_and_host_conflict(task_conf, task_name, warn_only=False):

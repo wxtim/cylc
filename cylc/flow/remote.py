@@ -136,7 +136,7 @@ def run_cmd(
             return True
 
 
-def construct_platform_ssh_cmd(raw_cmd, platform, **kwargs):
+def construct_platform_ssh_cmd(raw_cmd, platform, badhosts=[], **kwargs):
     """A wrapper around `construct_ssh_cmd` allowing us to pass a platform
     object rather than a user and host.
 
@@ -145,7 +145,7 @@ def construct_platform_ssh_cmd(raw_cmd, platform, **kwargs):
     """
     ret = construct_ssh_cmd(
         raw_cmd,
-        host=get_host_from_platform(platform),
+        host=get_host_from_platform(platform, badhosts=badhosts),
         ssh_cmd=platform['ssh command'],
         ssh_cylc=platform['cylc executable'],
         ssh_login_shell=platform['use login shell'],

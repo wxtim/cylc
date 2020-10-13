@@ -224,7 +224,7 @@ class TaskJobManager:
             is_init = self.task_remote_mgr.remote_init(
                 platform_name, curve_auth, client_pub_key_dir
             )
-            if is_init is None:
+            if is_init is None or is_init:
                 # Remote is waiting to be initialised
                 for itask in itasks:
                     itask.set_summary_message(self.REMOTE_INIT_MSG)

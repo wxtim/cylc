@@ -51,6 +51,7 @@ from cylc.flow.remote import construct_platform_ssh_cmd
 
 
 REMOTE_INIT_FAILED = 'REMOTE INIT FAILED'
+REMOTE_INIT_255 = 'REMOTE INIT 255'
 
 
 class TaskRemoteMgr:
@@ -63,6 +64,8 @@ class TaskRemoteMgr:
         self.remote_command_map = {}
         # self.remote_init_map = {(host, owner): status, ...}
         self.remote_init_map = {}
+        # list of hosts which have returned a 255 code
+        self.badhosts = []
         self.single_task_mode = False
         self.uuid_str = None
         self.ready = False
@@ -171,6 +174,7 @@ class TaskRemoteMgr:
 
         """
         # get the platform from the platform_name
+
         platform = get_platform(platform_name)
 
         # If task is running locally we can skip the rest of this function
@@ -179,14 +183,15 @@ class TaskRemoteMgr:
 
         # See if a previous failed attempt to initialize this platform has
         # occurred.
-        try:
+        if platform['name'] in self.remote_init_map:
             status = self.remote_init_map[platform['name']]
-        except KeyError:
-            pass  # Not yet initialised
-        else:
-            if status == REMOTE_INIT_FAILED:
+            if status == REMOTE_INIT_255:
                 del self.remote_init_map[platform['name']]
-            return status
+            elif status == REMOTE_INIT_FAILED:
+                del self.remote_init_map[platform['name']]
+                return status
+            else:
+                return status
 
         # Determine what items to install
         comm_meth = platform['communication method']
@@ -220,7 +225,7 @@ class TaskRemoteMgr:
         cmd.append(str(self.uuid_str))
         cmd.append(get_remote_suite_run_dir(platform, self.suite))
         # Create the ssh command
-        cmd = construct_platform_ssh_cmd(cmd, platform)
+        cmd = construct_platform_ssh_cmd(cmd, platform, badhosts=self.badhosts)
 
         self.proc_pool.put_command(
             SubProcContext(
@@ -347,6 +352,12 @@ class TaskRemoteMgr:
                     LOG.debug(proc_ctx)
                     self.remote_init_map[platform['name']] = status
                     return
+        elif proc_ctx.ret_code == 255:
+            LOG.critical("Remote-init failed with a 255 error code.")
+            self.remote_init_map[platform['name']] = REMOTE_INIT_255
+            badhost, = set(proc_ctx.cmd).intersection(set(platform['hosts']))
+            self.badhosts.append(badhost)
+            return
         # Bad status
         LOG.error(TaskRemoteMgmtError(
             TaskRemoteMgmtError.MSG_INIT,
