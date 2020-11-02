@@ -1,4 +1,4 @@
-[cylc]
+[scheduler]
     force run mode = simulation
 [scheduling]
     [[graph]]

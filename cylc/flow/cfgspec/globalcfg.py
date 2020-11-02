@@ -94,9 +94,9 @@ with Conf('global.cylc', desc='''
         The number of old run directory trees to retain at start-up.
     ''')
 
-    # suite
-    with Conf('cylc', desc='''
-        Default values for entries in flow.cylc ``[cylc]`` section.
+    with Conf('scheduler', desc='''
+        Default values for entries in flow.cylc ``[scheduler]`` section.
+        This should not be confused with scheduling in the ``flow.conf`` file.
     '''):
         Conf('UTC mode', VDR.V_BOOLEAN, False, desc='''
                 Default for :cylc:conf:`flow.cylc[cylc]UTC mode`.

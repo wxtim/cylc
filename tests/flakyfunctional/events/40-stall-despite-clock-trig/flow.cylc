@@ -1,5 +1,5 @@
 # Stall with t3 waiting due to unhandled failure of t2
-[cylc]
+[scheduler]
     UTC mode = True
     cycle point format = %Y%m%d
     [[events]]
