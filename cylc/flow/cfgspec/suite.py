@@ -1405,7 +1405,6 @@ def upg(cfg, descr):
         ['scheduling', 'max active cycle points'],
         ['scheduling', 'runahead limit'],
         cvtr=converter(lambda x: f'P{x}' if x != '' else '', '"n" -> "Pn"'))
-    u.deprecate('8.0.0', ['cylc'], ['scheduler'])
     # TODO uncomment these deprecations when ready - see todo in
     # [runtime][__MANY__] section.
     # for job_setting in [
@@ -1422,6 +1421,7 @@ def upg(cfg, descr):
     #     )
     # TODO - there are some simple changes to the config (items from [remote]
     # and [job] moved up 1 level for example) which should be upgraded here.
+    u.deprecate('8.0.0', ['cylc'], ['scheduler'])
     u.upgrade()
 
     upgrade_graph_section(cfg, descr)
