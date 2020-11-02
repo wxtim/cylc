@@ -414,7 +414,8 @@ def test_cycle_point_tz(caplog, monkeypatch):
         }
         mock_config.options.cycle_point_tz = cp_tz['stored']
         SuiteConfig.process_cycle_point_tz(mock_config)
-        assert mock_config.cfg['scheduler']['cycle point time zone'] == expected
+        assert mock_config.cfg['scheduler'][
+            'cycle point time zone'] == expected
         assert len(caplog.record_tuples) == expected_warnings
         caplog.clear()
 

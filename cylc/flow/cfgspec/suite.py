@@ -82,7 +82,6 @@ with Conf(
             interpreted according to your needs. For example,
             "suite-priority".
         ''')
-
     with Conf('scheduler'):
         Conf('UTC mode', VDR.V_BOOLEAN)
 
@@ -1406,6 +1405,7 @@ def upg(cfg, descr):
         ['scheduling', 'max active cycle points'],
         ['scheduling', 'runahead limit'],
         cvtr=converter(lambda x: f'P{x}' if x != '' else '', '"n" -> "Pn"'))
+    u.deprecate('8.0.0', ['cylc'], ['scheduler'])
     # TODO uncomment these deprecations when ready - see todo in
     # [runtime][__MANY__] section.
     # for job_setting in [
