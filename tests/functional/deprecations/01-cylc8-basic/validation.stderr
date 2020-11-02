@@ -1,24 +1,25 @@
 WARNING - deprecated items were automatically upgraded in "suite definition"
-WARNING -  * (8.0.0) [scheduler][force run mode] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][authentication] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][log resolved dependencies] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][reference test][allow task failures] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][reference test][live mode suite timeout] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][reference test][dummy mode suite timeout] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][reference test][dummy-local mode suite timeout] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][reference test][simulation mode suite timeout] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][reference test][required run mode] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][required run mode] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][reference test][suite shutdown event handler] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][force run mode] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][authentication] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][log resolved dependencies] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][reference test][allow task failures] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][reference test][live mode suite timeout] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][reference test][dummy mode suite timeout] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][reference test][dummy-local mode suite timeout] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][reference test][simulation mode suite timeout] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][reference test][required run mode] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][required run mode] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][reference test][suite shutdown event handler] - DELETED (OBSOLETE)
 WARNING -  * (8.0.0) [runtime][foo, cat, dog][job][shell] - DELETED (OBSOLETE)
 WARNING -  * (8.0.0) [runtime][foo, cat, dog][events][mail retry delays] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][abort if any task fails] - DELETED (OBSOLETE)
-WARNING -  * (8.0.0) [scheduler][task event mail interval] -> [cylc][mail][task event batch interval] - value unchanged
-WARNING -  * (8.0.0) [scheduler][mail to] -> [cylc][mail][to] - value unchanged
-WARNING -  * (8.0.0) [scheduler][mail from] -> [cylc][mail][from] - value unchanged
-WARNING -  * (8.0.0) [scheduler][mail smtp] -> [cylc][mail][smtp] - value unchanged
-WARNING -  * (8.0.0) [scheduler][mail footer] -> [cylc][mail][footer] - value unchanged
+WARNING -  * (8.0.0) [cylc][abort if any task fails] - DELETED (OBSOLETE)
+WARNING -  * (8.0.0) [cylc][task event mail interval] -> [cylc][mail][task event batch interval] - value unchanged
+WARNING -  * (8.0.0) [cylc][mail to] -> [cylc][mail][to] - value unchanged
+WARNING -  * (8.0.0) [cylc][mail from] -> [cylc][mail][from] - value unchanged
+WARNING -  * (8.0.0) [cylc][mail smtp] -> [cylc][mail][smtp] - value unchanged
+WARNING -  * (8.0.0) [cylc][mail footer] -> [cylc][mail][footer] - value unchanged
 WARNING -  * (8.0.0) [runtime][foo, cat, dog][events][mail to] -> [runtime][foo, cat, dog][mail][to] - value unchanged
 WARNING -  * (8.0.0) [runtime][foo, cat, dog][events][mail from] -> [runtime][foo, cat, dog][mail][from] - value unchanged
 WARNING -  * (8.0.0) [runtime][foo, cat, dog][events][mail smtp] -> [runtime][foo, cat, dog][mail][smtp] - value unchanged
 WARNING -  * (8.0.0) [scheduling][max active cycle points] -> [scheduling][runahead limit] - "n" -> "Pn"
+WARNING -  * (8.0.0) [cylc] -> [scheduler] - value unchanged
