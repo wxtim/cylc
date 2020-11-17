@@ -31,8 +31,8 @@ parsec config file parsing:
 """
 
 import os
-import sys
 import re
+import sys
 
 import pkg_resources
 from ast import literal_eval
@@ -240,7 +240,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
         'jinja2:suite.rc': None
     }
     for entry_point in pkg_resources.iter_entry_points(
-        'cylc.configure'
+        'cylc.pre_configure'
     ):
         rose_vars = entry_point.resolve()(Path(fpath).parent)
 
