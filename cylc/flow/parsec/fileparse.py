@@ -259,8 +259,20 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
         flines = inline(
             flines, fdir, fpath, False, viewcfg=viewcfg, for_edit=asedit)
 
+    # If empy and jinja2 sections are both filled raise an error.
+    if (all([rose_vars['empy:suite.rc'], rose_vars['jinja2:suite.rc']])):
+        raise FileParseError(
+            "Your additional configuration files define both empy and jinja2"
+            "variables. This makes sense."
+        )
+
     # process with EmPy
     if do_empy:
+        if (
+            rose_vars['empy:suite.rc'] is not None and
+            not re.match(r'^#![Ee]m[Pp]y\s*', flines[0])
+        ):
+            flines.insert(0, '#!empy')
         if flines and re.match(r'^#![Ee]m[Pp]y\s*', flines[0]):
             LOG.debug('Processing with EmPy')
             tvars = copy(template_vars)
@@ -276,6 +288,11 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
 
     # process with Jinja2
     if do_jinja2:
+        if (
+            rose_vars['jinja2:suite.rc'] is not None and
+            not re.match(r'^#![jJ]inja2\s*', flines[0])
+        ):
+            flines.insert(0, '#!jinja2')
         if flines and re.match(r'^#![jJ]inja2\s*', flines[0]):
             LOG.debug('Processing with Jinja2')
             tvars = copy(template_vars)
