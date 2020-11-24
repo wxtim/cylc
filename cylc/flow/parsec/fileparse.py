@@ -263,7 +263,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     if (all([extra_vars['empy:suite.rc'], extra_vars['jinja2:suite.rc']])):
         raise FileParseError(
             "Your additional configuration files define both empy and jinja2"
-            "variables. This makes sense."
+            "variables. This doesn't makes sense."
         )
 
     template_vars['CYLC_VERSION'] = __version__
