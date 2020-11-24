@@ -267,9 +267,14 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     if do_empy:
         if (
             extra_vars['templating detected'] == 'empy:suite.rc' and
-            not re.match(r'^#![Ee]m[Pp]y\s*', flines[0])
+            not re.match(r'^#![Ee]m[Pp]y\s*', flines[0]) and
+            not re.match(r'^#!'. flines[0])
         ):
             flines.insert(0, '#!empy')
+        elif re.match(r'^#!'. flines[0]):
+            raise FileParseError(
+                "Your file has shebang line incompatible with empy variables."
+            )
         if flines and re.match(r'^#![Ee]m[Pp]y\s*', flines[0]):
             LOG.debug('Processing with EmPy')
             tvars = copy(template_vars)
@@ -287,9 +292,15 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     if do_jinja2:
         if (
             extra_vars['templating detected'] == 'jinja2:suite.rc' and
-            not re.match(r'^#![jJ]inja2\s*', flines[0])
+            not re.match(r'^#![jJ]inja2\s*', flines[0]) and
+            not re.match(r'^#!'. flines[0])
         ):
             flines.insert(0, '#!jinja2')
+        elif re.match(r'^#!'. flines[0]):
+            raise FileParseError(
+                "Your file has shebang line incompatible with jinja2"
+                " variables."
+            )
         if flines and re.match(r'^#![jJ]inja2\s*', flines[0]):
             LOG.debug('Processing with Jinja2')
             tvars = copy(template_vars)
