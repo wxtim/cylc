@@ -236,8 +236,8 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # Load Rose Vars, if a ``rose-suite.conf`` file is present.
     extra_vars = {
         'env': None,
-        'empy:suite.rc': None,
-        'jinja2:suite.rc': None
+        'template variables': None,
+        'templating detected': None
     }
     for entry_point in pkg_resources.iter_entry_points(
         'cylc.pre_configure'
@@ -260,19 +260,12 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
         flines = inline(
             flines, fdir, fpath, False, viewcfg=viewcfg, for_edit=asedit)
 
-    # If empy and jinja2 sections are both filled raise an error.
-    if (all([extra_vars['empy:suite.rc'], extra_vars['jinja2:suite.rc']])):
-        raise FileParseError(
-            "Your additional configuration files define both empy and jinja2"
-            "variables. This doesn't makes sense."
-        )
-
     template_vars['CYLC_VERSION'] = __version__
 
     # process with EmPy
     if do_empy:
         if (
-            extra_vars['empy:suite.rc'] is not None and
+            extra_vars['templating detected'] == 'empy:suite.rc' and
             not re.match(r'^#![Ee]m[Pp]y\s*', flines[0])
         ):
             flines.insert(0, '#!empy')
@@ -292,7 +285,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # process with Jinja2
     if do_jinja2:
         if (
-            extra_vars['jinja2:suite.rc'] is not None and
+            extra_vars['templating detected'] == 'jinja2:suite.rc' and
             not re.match(r'^#![jJ]inja2\s*', flines[0])
         ):
             flines.insert(0, '#!jinja2')
