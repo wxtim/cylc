@@ -242,7 +242,8 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     for entry_point in pkg_resources.iter_entry_points(
         'cylc.pre_configure'
     ):
-        extra_vars = entry_point.resolve()(Path(fpath).parent)
+        plugin_result = entry_point.resolve()(Path(fpath).parent)
+        extra_vars['env'].update(plugin_result.get('env', {}))
 
     if viewcfg:
         if not viewcfg['empy']:
