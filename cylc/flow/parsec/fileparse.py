@@ -243,7 +243,8 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
         'cylc.pre_configure'
     ):
         plugin_result = entry_point.resolve()(Path(fpath).parent)
-        extra_vars['env'].update(plugin_result.get('env', {}))
+        for section in ['env', 'template variables', 'templating detecting']:
+            extra_vars[section].update(plugin_result.get(section, {}))
 
     if viewcfg:
         if not viewcfg['empy']:
