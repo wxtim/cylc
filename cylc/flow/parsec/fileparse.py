@@ -235,16 +235,20 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
 
     # Load Rose Vars, if a ``rose-suite.conf`` file is present.
     extra_vars = {
-        'env': None,
-        'template variables': None,
+        'env': {},
+        'template variables': {},
         'templating detected': None
     }
     for entry_point in pkg_resources.iter_entry_points(
         'cylc.pre_configure'
     ):
         plugin_result = entry_point.resolve()(Path(fpath).parent)
-        for section in ['env', 'template variables', 'templating detecting']:
-            extra_vars[section].update(plugin_result.get(section, {}))
+        for section in ['env', 'template variables']:
+            if plugin_result[section] is not None:
+                extra_vars[section].update(plugin_result.get(section, {}))
+        extra_vars['templating detected'] = plugin_result[
+            'templating detected'
+        ]
 
     if viewcfg:
         if not viewcfg['empy']:
@@ -267,19 +271,20 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     if do_empy:
         if (
             extra_vars['templating detected'] == 'empy:suite.rc' and
-            not re.match(r'^#![Ee]m[Pp]y\s*', flines[0]) and
-            not re.match(r'^#!'. flines[0])
+            not re.match(r'^#![Ee]m[Pp]y\s*', flines[0])
         ):
-            flines.insert(0, '#!empy')
-        elif re.match(r'^#!'. flines[0]):
-            raise FileParseError(
-                "Your file has shebang line incompatible with empy variables."
-            )
+            if not re.match(r'^#!', flines[0]):
+                flines.insert(0, '#!empy')
+            else:
+                raise FileParseError(
+                    "Your file has shebang line incompatible with empy"
+                    " variables."
+                )
         if flines and re.match(r'^#![Ee]m[Pp]y\s*', flines[0]):
             LOG.debug('Processing with EmPy')
             tvars = copy(template_vars)
-            if extra_vars['empy:suite.rc'] is not None:
-                for key, value in extra_vars['empy:suite.rc'].items():
+            if extra_vars['templating detected'] == 'empy:suite.rc':
+                for key, value in extra_vars['template variables'].items():
                     tvars[key] = value
             try:
                 from cylc.flow.parsec.empysupport import empyprocess
@@ -292,20 +297,20 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     if do_jinja2:
         if (
             extra_vars['templating detected'] == 'jinja2:suite.rc' and
-            not re.match(r'^#![jJ]inja2\s*', flines[0]) and
-            not re.match(r'^#!'. flines[0])
+            not re.match(r'^#![jJ]inja2\s*', flines[0])
         ):
-            flines.insert(0, '#!jinja2')
-        elif re.match(r'^#!'. flines[0]):
-            raise FileParseError(
-                "Your file has shebang line incompatible with jinja2"
-                " variables."
-            )
+            if not re.match(r'^#!', flines[0]):
+                flines.insert(0, '#!jinja2')
+            else:
+                raise FileParseError(
+                    "Your file has shebang line incompatible with jinja2"
+                    " variables."
+                )
         if flines and re.match(r'^#![jJ]inja2\s*', flines[0]):
             LOG.debug('Processing with Jinja2')
             tvars = copy(template_vars)
-            if extra_vars['jinja2:suite.rc'] is not None:
-                for key, value in extra_vars['jinja2:suite.rc'].items():
+            if extra_vars['templating detected'] == 'jinja2:suite.rc':
+                for key, value in extra_vars['template variables'].items():
                     tvars[key] = value
             try:
                 from cylc.flow.parsec.jinja2support import jinja2process
