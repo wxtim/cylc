@@ -63,7 +63,7 @@ from cylc.flow.parsec.OrderedDict import DictTree
 from cylc.flow.parsec.util import printcfg
 from cylc.flow.parsec.validate import DurationFloat
 from cylc.flow.pathutil import (
-    get_suite_run_dir,
+    get_workflow_run_dir,
     get_suite_run_log_dir,
     get_suite_run_config_log_dir,
     get_suite_run_share_dir,
@@ -263,7 +263,7 @@ class Scheduler:
         # directory information
         self.suite_dir = suite_files.get_suite_source_dir(self.suite)
         self.flow_file = suite_files.get_flow_file(self.suite)
-        self.suite_run_dir = get_suite_run_dir(self.suite)
+        self.suite_run_dir = get_workflow_run_dir(self.suite)
         self.suite_work_dir = get_suite_run_work_dir(self.suite)
         self.suite_share_dir = get_suite_run_share_dir(self.suite)
         self.suite_log_dir = get_suite_run_log_dir(self.suite)
@@ -291,7 +291,7 @@ class Scheduler:
             suite_files.get_suite_source_dir(self.suite)
         except SuiteServiceFileError:
             # Source path is assumed to be the run directory
-            suite_files.install(self.suite, get_suite_run_dir(self.suite))
+            suite_files.install_workflow(self.suite, get_workflow_run_dir(self.suite))
 
         # Create ZMQ keys
         key_housekeeping(self.suite, platform=self.options.host or 'localhost')
