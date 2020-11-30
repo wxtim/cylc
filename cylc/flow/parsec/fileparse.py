@@ -235,7 +235,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # Load Rose Vars, if a ``rose-suite.conf`` file is present.
     extra_vars = {
         'env': {},
-        'template variables': {},
+        'template variables': None,
         'templating detected': None
     }
     for entry_point in pkg_resources.iter_entry_points(
@@ -243,7 +243,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     ):
         plugin_result = entry_point.resolve()(Path(fpath).parent)
         for section in ['env', 'template variables']:
-            if plugin_result[section] is not None:
+            if section in plugin_result and plugin_result[section] is not None:
                 extra_vars[section].update(plugin_result.get(section, {}))
         extra_vars['templating detected'] = plugin_result[
             'templating detected'
