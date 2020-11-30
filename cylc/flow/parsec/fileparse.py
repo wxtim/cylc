@@ -245,9 +245,13 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
         for section in ['env', 'template variables']:
             if section in plugin_result and plugin_result[section] is not None:
                 extra_vars[section].update(plugin_result.get(section, {}))
-        extra_vars['templating detected'] = plugin_result[
+
+        if 'templating detected' in plugin_result and plugin_result[
             'templating detected'
-        ]
+        ] is not None:
+            extra_vars['templating detected'] = plugin_result[
+                'templating detected'
+            ]
 
     if viewcfg:
         if not viewcfg['empy']:
