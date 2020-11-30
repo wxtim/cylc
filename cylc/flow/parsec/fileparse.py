@@ -284,13 +284,14 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
             if extra_vars['templating detected'] == 'empy:suite.rc':
                 for key, value in template_vars.items():
                     extra_vars[key] = value
+                template_vars = extra_vars
             try:
                 from cylc.flow.parsec.empysupport import empyprocess
             except (ImportError, ModuleNotFoundError):
                 raise ParsecError('EmPy Python package must be installed '
                                   'to process file: ' + fpath)
             flines = empyprocess(
-                flines, fdir, extra_vars['template variables']
+                flines, fdir, template_vars
             )
 
     # process with Jinja2
@@ -311,13 +312,14 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
             if extra_vars['templating detected'] == 'jinja2:suite.rc':
                 for key, value in template_vars.items():
                     extra_vars['template variables'][key] = value
+                template_vars = extra_vars
             try:
                 from cylc.flow.parsec.jinja2support import jinja2process
             except (ImportError, ModuleNotFoundError):
                 raise ParsecError('Jinja2 Python package must be installed '
                                   'to process file: ' + fpath)
             flines = jinja2process(
-                flines, fdir, extra_vars['template variables']
+                flines, fdir, template_vars
             )
 
     # concatenate continuation lines
