@@ -35,7 +35,6 @@ import re
 import sys
 
 import pkg_resources
-from copy import copy
 from pathlib import Path
 
 from cylc.flow import __version__
@@ -282,16 +281,17 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
                 )
         if flines and re.match(r'^#![Ee]m[Pp]y\s*', flines[0]):
             LOG.debug('Processing with EmPy')
-            tvars = copy(template_vars)
             if extra_vars['templating detected'] == 'empy:suite.rc':
-                for key, value in extra_vars['template variables'].items():
-                    tvars[key] = value
+                for key, value in template_vars.items():
+                    extra_vars[key] = value
             try:
                 from cylc.flow.parsec.empysupport import empyprocess
             except (ImportError, ModuleNotFoundError):
                 raise ParsecError('EmPy Python package must be installed '
                                   'to process file: ' + fpath)
-            flines = empyprocess(flines, fdir, tvars)
+            flines = empyprocess(
+                flines, fdir, extra_vars['template variables']
+            )
 
     # process with Jinja2
     if do_jinja2:
@@ -308,16 +308,17 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
                 )
         if flines and re.match(r'^#![jJ]inja2\s*', flines[0]):
             LOG.debug('Processing with Jinja2')
-            tvars = copy(template_vars)
             if extra_vars['templating detected'] == 'jinja2:suite.rc':
-                for key, value in extra_vars['template variables'].items():
-                    tvars[key] = value
+                for key, value in template_vars.items():
+                    extra_vars['template variables'][key] = value
             try:
                 from cylc.flow.parsec.jinja2support import jinja2process
             except (ImportError, ModuleNotFoundError):
                 raise ParsecError('Jinja2 Python package must be installed '
                                   'to process file: ' + fpath)
-            flines = jinja2process(flines, fdir, tvars)
+            flines = jinja2process(
+                flines, fdir, extra_vars['template variables']
+            )
 
     # concatenate continuation lines
     if do_contin:
