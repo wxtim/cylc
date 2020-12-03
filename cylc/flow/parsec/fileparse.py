@@ -280,8 +280,8 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
                 flines.insert(0, '#!empy')
             else:
                 raise FileParseError(
-                    "Your file has shebang line incompatible with empy"
-                    " variables."
+                    f"Your file has shebang line for {extra_vars['templating_detected']}"
+                    f" but {flines[0]} configured in flow.cylc.
                 )
         if flines and re.match(r'^#![Ee]m[Pp]y\s*', flines[0]):
             LOG.debug('Processing with EmPy')
