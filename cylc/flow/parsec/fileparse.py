@@ -273,7 +273,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # process with EmPy
     if do_empy:
         if (
-            extra_vars['templating detected'] == 'empy:suite.rc' and
+            extra_vars['templating detected'] == 'empy' and
             not re.match(r'^#![Ee]m[Pp]y\s*', flines[0])
         ):
             if not re.match(r'^#!', flines[0]):
