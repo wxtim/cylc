@@ -235,22 +235,22 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # Load Rose Vars, if a ``rose-suite.conf`` file is present.
     extra_vars = {
         'env': {},
-        'template variables': {},
-        'templating detected': None
+        'template_variables': {},
+        'templating_detected': None
     }
     for entry_point in pkg_resources.iter_entry_points(
         'cylc.pre_configure'
     ):
         plugin_result = entry_point.resolve()(Path(fpath).parent)
-        for section in ['env', 'template variables']:
+        for section in ['env', 'template_variables']:
             if section in plugin_result and plugin_result[section] is not None:
                 extra_vars[section].update(plugin_result.get(section, {}))
 
-        if 'templating detected' in plugin_result and plugin_result[
-            'templating detected'
+        if 'templating_detected' in plugin_result and plugin_result[
+            'templating_detected'
         ] is not None:
-            extra_vars['templating detected'] = plugin_result[
-                'templating detected'
+            extra_vars['templating_detected'] = plugin_result[
+                'templating_detected'
             ]
 
     if viewcfg:
@@ -272,11 +272,11 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
 
     # Push template_vars into extra_vars so that duplicates come from
     # template_vars.
-    if extra_vars['templating detected'] is not None:
+    if extra_vars['templating_detected'] is not None:
         for key, value in template_vars.items():
-            if key in extra_vars['template variables']:
+            if key in extra_vars['template_variables']:
                 LOG.warning(
-                    f'overriding {key}: {extra_vars["template variables"]}'
+                    f'overriding {key}: {extra_vars["template_variables"]}'
                     f' -> {value}'
                 )
             extra_vars[key] = value
@@ -285,7 +285,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # process with EmPy
     if do_empy:
         if (
-            extra_vars['templating detected'] == 'empy' and
+            extra_vars['templating_detected'] == 'empy' and
             not re.match(r'^#![Ee]m[Pp]y\s*', flines[0])
         ):
             if not re.match(r'^#!', flines[0]):
@@ -310,7 +310,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # process with Jinja2
     if do_jinja2:
         if (
-            extra_vars['templating detected'] == 'jinja2:suite.rc' and
+            extra_vars['templating_detected'] == 'jinja2:suite.rc' and
             not re.match(r'^#![jJ]inja2\s*', flines[0])
         ):
             if not re.match(r'^#!', flines[0]):
