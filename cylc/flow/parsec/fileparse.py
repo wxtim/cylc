@@ -235,7 +235,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # Load Rose Vars, if a ``rose-suite.conf`` file is present.
     extra_vars = {
         'env': {},
-        'template variables': None,
+        'template variables': {},
         'templating detected': None
     }
     for entry_point in pkg_resources.iter_entry_points(
@@ -270,6 +270,18 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
 
     template_vars['CYLC_VERSION'] = __version__
 
+    # Push template_vars into extra_vars so that duplicates come from
+    # template_vars.
+    if extra_vars['templating detected'] is not None:
+        for key, value in template_vars.items():
+            if key in extra_vars['template variables']:
+                LOG.warning(
+                    f'overriding {key}: {extra_vars["template variables"]}'
+                    f' -> {value}'
+                )
+            extra_vars[key] = value
+        template_vars = extra_vars
+
     # process with EmPy
     if do_empy:
         if (
@@ -280,15 +292,12 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
                 flines.insert(0, '#!empy')
             else:
                 raise FileParseError(
-                    f"Your file has shebang line for {extra_vars['templating_detected']}"
-                    f" but {flines[0]} configured in flow.cylc.
+                    "Your file has shebang line for "
+                    f"{extra_vars['templating_detected']}"
+                    f" but {flines[0]} configured in flow.cylc."
                 )
         if flines and re.match(r'^#![Ee]m[Pp]y\s*', flines[0]):
             LOG.debug('Processing with EmPy')
-            if extra_vars['templating detected'] == 'empy:suite.rc':
-                for key, value in template_vars.items():
-                    extra_vars[key] = value
-                template_vars = extra_vars
             try:
                 from cylc.flow.parsec.empysupport import empyprocess
             except (ImportError, ModuleNotFoundError):
@@ -308,15 +317,12 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
                 flines.insert(0, '#!jinja2')
             else:
                 raise FileParseError(
-                    "Your file has shebang line incompatible with jinja2"
-                    " variables."
+                    "Your file has shebang line for "
+                    f"{extra_vars['templating_detected']}"
+                    f" but {flines[0]} configured in flow.cylc."
                 )
         if flines and re.match(r'^#![jJ]inja2\s*', flines[0]):
             LOG.debug('Processing with Jinja2')
-            if extra_vars['templating detected'] == 'jinja2:suite.rc':
-                for key, value in template_vars.items():
-                    extra_vars['template variables'][key] = value
-                template_vars = extra_vars
             try:
                 from cylc.flow.parsec.jinja2support import jinja2process
             except (ImportError, ModuleNotFoundError):
