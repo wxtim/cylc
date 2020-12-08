@@ -21,10 +21,12 @@
 python -c "import cylc.rose" > /dev/null 2>&1 ||
   skip_all "cylc.rose not installed in environment."
 
-set_test_number 1
+set_test_number 2
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
 
 export ROSE_SUITE_OPT_CONF_KEYS=Gaelige
+
+run_ok "${TEST_NAME_BASE}-validate" cylc validate "${SUITE_NAME}"
 
 cylc view -p --stdout "${SUITE_NAME}" > processed.conf.test
 
