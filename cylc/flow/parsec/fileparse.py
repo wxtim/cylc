@@ -273,14 +273,8 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # Push template_vars into extra_vars so that duplicates come from
     # template_vars.
     if extra_vars['templating_detected'] is not None:
-        for key, value in template_vars.items():
-            if key in extra_vars['template_variables']:
-                LOG.warning(
-                    f'overriding {key}: {extra_vars["template_variables"]}'
-                    f' -> {value}'
-                )
-            extra_vars[key] = value
-        template_vars = extra_vars
+        extra_vars['template_variables'].update(template_vars)
+        template_vars = extra_vars['template_variables']
 
     # process with EmPy
     if do_empy:
@@ -310,7 +304,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # process with Jinja2
     if do_jinja2:
         if (
-            extra_vars['templating_detected'] == 'jinja2:suite.rc' and
+            extra_vars['templating_detected'] == 'jinja2' and
             not re.match(r'^#![jJ]inja2\s*', flines[0])
         ):
             if not re.match(r'^#!', flines[0]):
