@@ -273,6 +273,14 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     # Push template_vars into extra_vars so that duplicates come from
     # template_vars.
     if extra_vars['templating_detected'] is not None:
+        will_be_overwritten = set(template_vars.keys()).intersection(
+            set(extra_vars['template_variables'].keys())
+        )
+        for key in will_be_overwritten:
+            LOG.warning(
+                f'Over-riding {key}: {extra_vars["template variables"]} ->'
+                f' {template_vars[key]}'
+            )
         extra_vars['template_variables'].update(template_vars)
         template_vars = extra_vars['template_variables']
 
