@@ -244,11 +244,34 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
         plugin_result = entry_point.resolve()(Path(fpath).parent)
         for section in ['env', 'template_variables']:
             if section in plugin_result and plugin_result[section] is not None:
-                extra_vars[section].update(plugin_result.get(section, {}))
+                # Warn if multiple plugins try to update the same keys.
+                section_update = plugin_result.get(section, {})
+                keys_collision = extra_vars[section].keys() & \
+                    section_update.keys()
+                if keys_collision:
+                    raise ParsecError(
+                        f"{section} collision: "
+                        f"{', '.join(sorted(keys_collision))}"
+                    )
+                extra_vars[section].update(section_update)
 
-        if 'templating_detected' in plugin_result and plugin_result[
-            'templating_detected'
-        ] is not None:
+        if (
+            'templating_detected' in plugin_result and
+            plugin_result['templating_detected'] is not None and
+            extra_vars['templating_detected'] is not None and
+            extra_vars['templating_detected'] !=
+                plugin_result['templating_detected']
+        ):
+            # Don't allow subsequent plugins with different templating_detected
+            raise ParsecError(
+                "Can't merge templating languages "
+                f"{extra_vars['templating_detected']} and "
+                f"{plugin_result['templating_detected']}"
+            )
+        elif(
+            'templating_detected' in plugin_result and
+            plugin_result['templating_detected'] is not None
+        ):
             extra_vars['templating_detected'] = plugin_result[
                 'templating_detected'
             ]
@@ -278,7 +301,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
         )
         for key in will_be_overwritten:
             LOG.warning(
-                f'Over-riding {key}: {extra_vars["template variables"]} ->'
+                f'Over-riding {key}: {extra_vars["template_variables"]} ->'
                 f' {template_vars[key]}'
             )
         extra_vars['template_variables'].update(template_vars)
