@@ -110,7 +110,7 @@ def get_option_parser():
         dest="no_run_name")
 
     parser.add_option(
-        "--no-symlinks",
+        "--no-symlink-dirs",
         help="Use this option to override creating default local symlinks.",
         action="store_true",
         default=False,

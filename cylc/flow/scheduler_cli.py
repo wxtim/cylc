@@ -261,19 +261,6 @@ RestartOptions = Options(
     get_option_parser(is_restart=True, add_std_opts=True), DEFAULT_OPTS)
 
 
-def _auto_install():
-    """Install a workflow installed in the cylc-run directory."""
-    try:
-        reg = suite_files.install_workflow()
-    except SuiteServiceFileError as exc:
-        sys.exit(exc)
-    # Replace this process with "cylc run REG ..." for 'ps -f'.
-    os.execv(
-        sys.argv[0],
-        [sys.argv[0]] + sys.argv[1:] + [reg]
-    )
-
-
 def _open_logs(reg, no_detach):
     """Open Cylc log handlers for a flow run."""
     if not no_detach:
