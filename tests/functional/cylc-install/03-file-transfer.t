@@ -110,5 +110,3 @@ INSTALLED $RND_SUITE_NAME from ${RND_SUITE_SOURCE} -> ${RND_SUITE_RUNDIR}
 __OUT__
 popd || exit 1
 purge_rnd_suite
-
-

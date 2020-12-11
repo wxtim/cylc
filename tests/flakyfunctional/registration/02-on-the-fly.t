@@ -39,14 +39,14 @@ __FLOW_CONFIG__
 cd "${TESTD}" || exit 1
 run_ok "${TEST_NAME}-run" cylc run --hold
 contains_ok "${TEST_NAME}-run.stdout" <<__ERR__
-REGISTERED ${TESTD} -> ${PWD}
+INSTALLED ${TEST_NAME} from ${TESTD} -> ${PWD}
 __ERR__
 
 run_ok "${TEST_NAME}-stop" cylc stop --max-polls=10 --interval=2 "${TESTD}"
 
 purge "${TESTD}"
 #------------------------------------------------------------------------------
-# Test `cylc run` REG for an un-registered suite
+# Test `cylc run` REG for an un-installed suite
 TESTD="cylctb-${CYLC_TEST_TIME_INIT}/${TEST_NAME_BASE}"
 
 mkdir -p "${RUN_DIR}/${TESTD}"
@@ -64,7 +64,7 @@ __FLOW_CONFIG__
 TEST_NAME="${TEST_NAME_BASE}-cylc-run-dir"
 run_ok "${TEST_NAME}-run" cylc run --hold "${TESTD}"
 contains_ok "${TEST_NAME}-run.stdout" <<__ERR__
-REGISTERED ${TESTD} -> ${RUN_DIR}/${TESTD}
+INSTALLED ${TEST_NAME} from ${TESTD} -> ${RUN_DIR}/${TESTD}
 __ERR__
 
 run_ok "${TEST_NAME}-stop" cylc stop  --max-polls=10 --interval=2 "${TESTD}"
@@ -87,7 +87,7 @@ __FLOW_CONFIG__
 TEST_NAME="${TEST_NAME_BASE}-cylc-run-dir-2"
 run_fail "${TEST_NAME}-validate" cylc validate "${TESTD}"
 contains_ok "${TEST_NAME}-validate.stdout" <<__OUT__
-REGISTERED ${TESTD} -> ${RUN_DIR}/${TESTD}
+INSTALLED ${TEST_NAME} from ${TESTD} -> ${RUN_DIR}/${TESTD}
 __OUT__
 contains_ok "${TEST_NAME}-validate.stderr" <<__ERR__
 IllegalItemError: sched

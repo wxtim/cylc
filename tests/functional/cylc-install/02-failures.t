@@ -51,10 +51,9 @@ make_rnd_suite
 rm -rf "${RND_SUITE_SOURCE}"
 run_fail "${TEST_NAME}" cylc install --flow-name="${RND_SUITE_NAME}" --no-run-name -C "${RND_SUITE_SOURCE}" 
 contains_ok "${TEST_NAME}.stderr" <<__ERR__
-SuiteServiceFileError: no flow.cylc or suite.rc in ${RND_SUITE_SOURCE}
+WorkflowFilesError: no flow.cylc or suite.rc in ${RND_SUITE_SOURCE}
 __ERR__
 purge_rnd_suite
-
 
 # Test fail no flow.cylc or suite.rc file
 TEST_NAME="${TEST_NAME_BASE}-no-flow-file"
@@ -62,7 +61,7 @@ make_rnd_suite
 rm -f "${RND_SUITE_SOURCE}/flow.cylc"
 run_fail "${TEST_NAME}" cylc install --flow-name="${RND_SUITE_NAME}" -C "${RND_SUITE_SOURCE}"
 contains_ok "${TEST_NAME}.stderr" <<__ERR__
-SuiteServiceFileError: no flow.cylc or suite.rc in ${RND_SUITE_SOURCE}
+WorkflowFilesError: no flow.cylc or suite.rc in ${RND_SUITE_SOURCE}
 __ERR__
 purge_rnd_suite
 
@@ -72,21 +71,9 @@ make_rnd_suite
 rm -f "${RND_SUITE_SOURCE}/flow.cylc"
 run_fail "${TEST_NAME}" cylc install --flow-name="${RND_SUITE_SOURCE}" -C "${RND_SUITE_SOURCE}"
 contains_ok "${TEST_NAME}.stderr" <<__ERR__
-SuiteServiceFileError: Workflow name cannot be an absolute path: ${RND_SUITE_SOURCE}
+WorkflowFilesError: Workflow name cannot be an absolute path: ${RND_SUITE_SOURCE}
 __ERR__
 purge_rnd_suite
-
-
-# Test cylc install can not be run from within the cylc-run directory
-TEST_NAME="${TEST_NAME_BASE}-forbid-cylc-run-dir-install"
-BASE_NAME="cylctb-${CYLC_TEST_TIME_INIT}"
-mkdir -p ${RUN_DIR}/${BASE_NAME}/${TEST_SOURCE_DIR_BASE}/${TEST_NAME} && cd $_
-touch flow.cylc
-run_fail "${TEST_NAME}" cylc install
-contains_ok "${TEST_NAME}.stderr" <<__ERR__
-SuiteServiceFileError: Installation failed. Source directory should not be in ${RUN_DIR}
-__ERR__
-rm -rf ${RUN_DIR}/${BASE_NAME}
 
 
 # Test source dir can not contain '_cylc-install, log, share, work' dirs
@@ -97,8 +84,22 @@ for DIR in 'work' 'share' 'log' '_cylc-install'; do
     mkdir ${DIR}
     run_fail "${TEST_NAME}" cylc install
     contains_ok "${TEST_NAME}.stderr" <<__ERR__
-SuiteServiceFileError: Installation failed. - ${DIR} exists in source directory.
+WorkflowFilesError: Installation failed. - ${DIR} exists in source directory.
 __ERR__
-    popd || exit 1
     purge_rnd_suite
+    popd || exit 1
 done
+
+# Test cylc install can not be run from within the cylc-run directory
+TEST_NAME="${TEST_NAME_BASE}-forbid-cylc-run-dir-install"
+BASE_NAME="test-install-${CYLC_TEST_TIME_INIT}"
+mkdir -p ${RUN_DIR}/${BASE_NAME}/${TEST_SOURCE_DIR_BASE}/${TEST_NAME} && cd $_
+touch flow.cylc
+run_fail "${TEST_NAME}" cylc install
+contains_ok "${TEST_NAME}.stderr" <<__ERR__
+WorkflowFilesError: Installation failed. Source directory should not be in ${RUN_DIR}
+__ERR__
+cd ${RUN_DIR}
+rm -rf ${BASE_NAME}
+
+exit
