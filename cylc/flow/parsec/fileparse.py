@@ -204,34 +204,7 @@ def multiline(flines, value, index, maxline):
     return quot + newvalue + line, index
 
 
-def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
-    """
-    Read a cylc parsec config file (at fpath), inline any include files,
-    process with Jinja2, and concatenate continuation lines.
-    Jinja2 processing must be done before concatenation - it could be
-    used to generate continuation lines.
-    """
-    fdir = os.path.dirname(fpath)
-
-    # Allow Python modules in lib/python/ (e.g. for use by Jinja2 filters).
-    suite_lib_python = os.path.join(fdir, "lib", "python")
-    if os.path.isdir(suite_lib_python) and suite_lib_python not in sys.path:
-        sys.path.append(suite_lib_python)
-
-    LOG.debug('Reading file %s', fpath)
-
-    # read the file into a list, stripping newlines
-    with open(fpath) as f:
-        flines = [line.rstrip('\n') for line in f]
-
-    do_inline = True
-    do_empy = True
-    do_jinja2 = True
-    do_contin = True
-
-    if not template_vars:
-        template_vars = {}
-
+def process_plugins(fpath):
     # Load Rose Vars, if a ``rose-suite.conf`` file is present.
     extra_vars = {
         'env': {},
@@ -241,7 +214,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     for entry_point in pkg_resources.iter_entry_points(
         'cylc.pre_configure'
     ):
-        plugin_result = entry_point.resolve()(Path(fpath).parent)
+        plugin_result = entry_point.resolve()(fpath)
         for section in ['env', 'template_variables']:
             if section in plugin_result and plugin_result[section] is not None:
                 # Warn if multiple plugins try to update the same keys.
@@ -275,6 +248,39 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
             extra_vars['templating_detected'] = plugin_result[
                 'templating_detected'
             ]
+
+    return extra_vars
+
+
+def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
+    """
+    Read a cylc parsec config file (at fpath), inline any include files,
+    process with Jinja2, and concatenate continuation lines.
+    Jinja2 processing must be done before concatenation - it could be
+    used to generate continuation lines.
+    """
+    fdir = os.path.dirname(fpath)
+
+    # Allow Python modules in lib/python/ (e.g. for use by Jinja2 filters).
+    suite_lib_python = os.path.join(fdir, "lib", "python")
+    if os.path.isdir(suite_lib_python) and suite_lib_python not in sys.path:
+        sys.path.append(suite_lib_python)
+
+    LOG.debug('Reading file %s', fpath)
+
+    # read the file into a list, stripping newlines
+    with open(fpath) as f:
+        flines = [line.rstrip('\n') for line in f]
+
+    do_inline = True
+    do_empy = True
+    do_jinja2 = True
+    do_contin = True
+
+    extra_vars = process_plugins(template_vars, Path(fpath).parent)
+
+    if not template_vars:
+        template_vars = {}
 
     if viewcfg:
         if not viewcfg['empy']:
