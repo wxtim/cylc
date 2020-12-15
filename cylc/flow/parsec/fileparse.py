@@ -277,7 +277,7 @@ def read_and_proc(fpath, template_vars=None, viewcfg=None, asedit=False):
     do_jinja2 = True
     do_contin = True
 
-    extra_vars = process_plugins(template_vars, Path(fpath).parent)
+    extra_vars = process_plugins(Path(fpath).parent)
 
     if not template_vars:
         template_vars = {}
