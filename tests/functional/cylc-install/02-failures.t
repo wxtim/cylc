@@ -36,14 +36,12 @@ function make_rnd_suite() {
 function purge_rnd_suite() {
     # Remove the suite source created by make_rnd_suite().
     # And remove its run-directory too.
-    RND_SUITE_SOURCE=${1:-$RND_SUITE_SOURCE}
-    RND_SUITE_RUNDIR=${2:-$RND_SUITE_RUNDIR}
     rm -rf "${RND_SUITE_SOURCE}"
     rm -rf "${RND_SUITE_RUNDIR}"
 }
 
 . "$(dirname "$0")/test_header"
-set_test_number 16
+set_test_number 18
 
 # Test fail no suite source dir
 TEST_NAME="${TEST_NAME_BASE}-nodir"
@@ -68,7 +66,6 @@ purge_rnd_suite
 # Test cylc install fails when given flow-name that is an absolute path
 TEST_NAME="${TEST_NAME_BASE}-no-abs-path-flow-name"
 make_rnd_suite
-rm -f "${RND_SUITE_SOURCE}/flow.cylc"
 run_fail "${TEST_NAME}" cylc install --flow-name="${RND_SUITE_SOURCE}" -C "${RND_SUITE_SOURCE}"
 contains_ok "${TEST_NAME}.stderr" <<__ERR__
 WorkflowFilesError: Workflow name cannot be an absolute path: ${RND_SUITE_SOURCE}
@@ -93,13 +90,26 @@ done
 # Test cylc install can not be run from within the cylc-run directory
 TEST_NAME="${TEST_NAME_BASE}-forbid-cylc-run-dir-install"
 BASE_NAME="test-install-${CYLC_TEST_TIME_INIT}"
-mkdir -p ${RUN_DIR}/${BASE_NAME}/${TEST_SOURCE_DIR_BASE}/${TEST_NAME} && cd $_
+mkdir -p "${RUN_DIR}/${BASE_NAME}/${TEST_SOURCE_DIR_BASE}/${TEST_NAME}" && cd "$_" || exit
 touch flow.cylc
 run_fail "${TEST_NAME}" cylc install
 contains_ok "${TEST_NAME}.stderr" <<__ERR__
 WorkflowFilesError: Installation failed. Source directory should not be in ${RUN_DIR}
 __ERR__
-cd ${RUN_DIR}
-rm -rf ${BASE_NAME}
+cd "${RUN_DIR}" || exit
+rm -rf "${BASE_NAME}"
+purge_rnd_suite
+
+# Test --run-name and --no-run-name options are mutually exclusive
+
+TEST_NAME="${TEST_NAME_BASE}--no-run-name-and--run-name-forbidden"
+make_rnd_suite
+pushd "${RND_SUITE_SOURCE}" || exit 1
+run_fail "${TEST_NAME}" cylc install --run-name="${RND_SUITE_NAME}" --no-run-name 
+contains_ok "${TEST_NAME}.stderr" <<__ERR__
+cylc: error: options --no-run-name and --run-name are mutually exclusive.
+__ERR__
+purge_rnd_suite
+popd || exit 1
 
 exit

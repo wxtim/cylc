@@ -64,7 +64,7 @@ import pkg_resources
 
 from cylc.flow.exceptions import PluginError
 from cylc.flow.option_parsers import CylcOptionParser as COP
-from cylc.flow.pathutil import get_suite_run_dir
+from cylc.flow.pathutil import get_workflow_run_dir
 from cylc.flow.suite_files import install_workflow
 from cylc.flow.terminal import cli_function
 
@@ -153,7 +153,7 @@ def main(parser, opts, flow_name=None, src=None):
             entry_point.resolve()(
                 dir_=os.getcwd(),
                 opts=opts,
-                dest_root=get_suite_run_dir(flow_name)
+                dest_root=get_workflow_run_dir(flow_name)
             )
         except Exception as exc:
             # NOTE: except Exception (purposefully vague)

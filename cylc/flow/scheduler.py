@@ -279,7 +279,6 @@ class Scheduler:
     async def install(self):
         """Get the filesystem in the right state to run the flow.
         * Validate flowfiles
-        *
         * Install authentication files.
         * Build the directory tree.
         * Copy Python files.
@@ -287,7 +286,7 @@ class Scheduler:
         """
         # Check if flow has been installed
         if not suite_files.is_installed(self.suite_run_dir):
-            suite_files.register(self.suite)
+            suite_files.register(self.suite, source=self.suite_run_dir)
         # Install
         try:
             suite_files.get_suite_source_dir(self.suite)

@@ -147,7 +147,13 @@ def make_localhost_symlinks(rund, named_sub_dir):
     """Creates symlinks for any configured symlink dirs from glbl_cfg.
     Args:
         rund: the entire run directory path
-        named_sub_dir: e.g flow_name/run1 """
+        named_sub_dir: e.g flow_name/run1
+
+    Returns:
+         dict - A dictionary of Symlinks with sources as keys and
+         destinations as values: ``{source: destination}``
+
+    """
     dirs_to_symlink = get_dirs_to_symlink('localhost', named_sub_dir)
     symlinks_created = {}
     for key, value in dirs_to_symlink.items():
@@ -161,13 +167,10 @@ def make_localhost_symlinks(rund, named_sub_dir):
                 f'Unable to create symlink to {src}.'
                 f' \'{value}\' contains an invalid environment variable.'
                 ' Please check configuration.')
-        try:
-            make_symlink(src, dst)
-            # symlink info returned for logging purposes, symlinks created
-            # before logs as this dir may be a symlink.
-            symlinks_created[src] = dst
-        except TypeError:
-            pass
+        make_symlink(src, dst)
+        # symlink info returned for logging purposes, symlinks created
+        # before logs as this dir may be a symlink.
+        symlinks_created[src] = dst
     return symlinks_created
 
 

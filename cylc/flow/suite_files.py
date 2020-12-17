@@ -456,32 +456,33 @@ def parse_suite_arg(options, arg):
     """
     if arg == '.':
         arg = os.getcwd()
-    try:
-        if os.path.isfile(arg):
-            name = os.path.dirname(arg)
-            path = arg
-        else:
-            name = arg
+    if os.path.isfile(arg):
+        name = os.path.dirname(arg)
+        path = os.path.abspath(arg)
+    else:
+        name = arg
+        try:
             path = get_flow_file(arg)
-    except WorkflowFilesError:
-        arg = os.path.abspath(arg)
-        if os.path.isdir(arg):
-            path = os.path.join(arg, SuiteFiles.FLOW_FILE)
-            name = os.path.basename(arg)
-            if not os.path.exists(path):
-                # Probably using deprecated suite.rc
-                path = os.path.join(arg, SuiteFiles.SUITE_RC)
+        except WorkflowFilesError:
+            arg = os.path.abspath(arg)
+            if os.path.isdir(arg):
+                path = os.path.join(arg, SuiteFiles.FLOW_FILE)
+                name = os.path.basename(arg)
                 if not os.path.exists(path):
-                    raise SuiteServiceFileError(
-                        f'no {SuiteFiles.FLOW_FILE} or {SuiteFiles.SUITE_RC}'
-                        f' in {arg}')
-                else:
-                    LOG.warning(
-                        f'The filename "{SuiteFiles.SUITE_RC}" is deprecated '
-                        f'in favour of "{SuiteFiles.FLOW_FILE}".')
-        else:
-            path = arg
-            name = os.path.basename(os.path.dirname(arg))
+                    # Probably using deprecated suite.rc
+                    path = os.path.join(arg, SuiteFiles.SUITE_RC)
+                    if not os.path.exists(path):
+                        raise SuiteServiceFileError(
+                            f'no {SuiteFiles.FLOW_FILE} or '
+                            f'{SuiteFiles.SUITE_RC} in {arg}')
+                    else:
+                        LOG.warning(
+                            f'The filename "{SuiteFiles.SUITE_RC}" is '
+                            f'deprecated in favour of '
+                            f'"{SuiteFiles.FLOW_FILE}".')
+            else:
+                path = arg
+                name = os.path.basename(os.path.dirname(arg))
     return name, path
 
 

@@ -37,8 +37,6 @@ function make_rnd_suite() {
 function purge_rnd_suite() {
     # Remove the suite source created by make_rnd_suite().
     # And remove its run-directory too.
-    RND_SUITE_SOURCE=${1:-$RND_SUITE_SOURCE}
-    RND_SUITE_RUNDIR=${2:-$RND_SUITE_RUNDIR}
     rm -rf "${RND_SUITE_SOURCE}"
     rm -rf "${RND_SUITE_RUNDIR}"
 }
@@ -86,7 +84,7 @@ contains_ok "${TEST_NAME}.stdout" <<__OUT__
 INSTALLED ${RND_SUITE_NAME}-olaf from ${RND_SUITE_SOURCE} -> ${RUN_DIR}/${RND_SUITE_NAME}-olaf/run1
 __OUT__
 popd || exit 1
-rm -rf ${RUN_DIR}/${RND_SUITE_NAME}-olaf
+rm -rf "${RUN_DIR}/${RND_SUITE_NAME}-olaf"
 purge_rnd_suite
 
 # Test "cylc install REG" flow-name given (flow in $PWD)
@@ -98,7 +96,7 @@ contains_ok "${TEST_NAME}.stdout" <<__OUT__
 INSTALLED ${RND_SUITE_NAME}-olaf from ${RND_SUITE_SOURCE} -> ${RUN_DIR}/${RND_SUITE_NAME}-olaf
 __OUT__
 popd || exit 1
-rm -rf ${RUN_DIR}/${RND_SUITE_NAME}-olaf
+rm -rf "${RUN_DIR}/${RND_SUITE_NAME}-olaf"
 purge_rnd_suite
 
 # Test "cylc install" --directory given (flow in --directory)
