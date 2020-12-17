@@ -43,28 +43,21 @@ function purge_rnd_suite() {
     rm -rf "${RND_SUITE_RUNDIR}"
 }
 
+declare -A TESTS
 # Test default name: "cylc install" (suite in $PWD, no args)
-TEST_NAME="${TEST_NAME_BASE}-basic"
-make_rnd_suite
-pushd "${RND_SUITE_SOURCE}" || exit 1
-run_ok "${TEST_NAME}" cylc install 
-
-contains_ok "${TEST_NAME}.stdout" <<__OUT__
-INSTALLED $RND_SUITE_NAME from ${RND_SUITE_SOURCE} -> ${RND_SUITE_RUNDIR}/run1
-__OUT__
-popd || exit 1
-purge_rnd_suite
-
+TESTS[' ']='INSTALLED $RND_SUITE_NAME from ${RND_SUITE_SOURCE} -> ${RND_SUITE_RUNDIR}/run1'
 # Test default path: "cylc install REG" (flow in $PWD)
-TEST_NAME="${TEST_NAME_BASE}-pwd2"
-make_rnd_suite
-pushd "${RND_SUITE_SOURCE}" || exit 1
-run_ok "${TEST_NAME}" cylc install "${RND_SUITE_NAME}"
-contains_ok "${TEST_NAME}.stdout" <<__OUT__
-INSTALLED $RND_SUITE_NAME from ${RND_SUITE_SOURCE} -> ${RND_SUITE_RUNDIR}/run1
-__OUT__
-popd || exit 1
-purge_rnd_suite
+TESTS['"${RND_SUITE_NAME}"']='INSTALLED $RND_SUITE_NAME from ${RND_SUITE_SOURCE} -> ${RND_SUITE_RUNDIR}/run1'
+
+for test in "${!TESTS[@]}"; do
+    TEST_NAME="${TEST_NAME_BASE}-${test}"
+    make_rnd_suite
+    pushd "${RND_SUITE_SOURCE}" || exit 1
+    run_ok "${TEST_NAME}" cylc install "$test"
+    contains_ok "${TEST_NAME}.stdout" "${TESTS[$test]}"
+    popd || exit 1
+    purge_rnd_suite
+done
 
 # Test default path: "cylc install REG" --no-run-name (flow in $PWD)
 TEST_NAME="${TEST_NAME_BASE}-pwd-no-run-name"
