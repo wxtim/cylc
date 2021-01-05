@@ -1111,7 +1111,7 @@ def install_workflow(flow_name=None, source=None, run_name=None,
     INSTALL_LOG.info(f'INSTALLED {flow_name} from {source} -> {rundir}')
     print(f'INSTALLED {flow_name} from {source} -> {rundir}')
     _close_install_log()
-    return flow_name
+    return source, rundir, flow_name
 
 
 def create_workflow_srv_dir(rundir=None, source=None):
