@@ -988,7 +988,7 @@ def get_rsync_rund_cmd(src, dst, restart=False):
     rsync_cmd.append("-av")
     if restart:
         rsync_cmd.append('--delete')
-    ignore_dirs = ['.git', '.svn', '.cylcignore']
+    ignore_dirs = ['.git', '.svn', '.cylcignore', SuiteFiles.Install.DIRNAME]
     for exclude in ignore_dirs:
         if Path(src).joinpath(exclude).exists():
             rsync_cmd.append(f"--exclude={exclude}")
