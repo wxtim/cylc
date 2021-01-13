@@ -1047,7 +1047,7 @@ def install_workflow(flow_name=None, source=None, run_name=None,
     validate_source_dir(source)
     run_path_base = Path(get_workflow_run_dir(flow_name)).expanduser()
     relink = False
-    run_num = int()
+    run_num = 0
     if no_run_name:
         rundir = run_path_base
     elif run_name:
@@ -1076,11 +1076,6 @@ def install_workflow(flow_name=None, source=None, run_name=None,
     except OSError as e:
         if e.strerror == "File exists":
             raise WorkflowFilesError(f"Run directory already exists : {e}")
-    # create source symlink to be used as the basis of ensuring runs are
-    # from a constistent source dir.
-    # base_source_link = run_path_base.joinpath(SuiteFiles.Install.SOURCE)
-    # if not base_source_link.exists():
-    #     run_path_base.joinpath(SuiteFiles.Install.SOURCE).symlink_to(source)
     if relink:
         link_runN(rundir)
     create_workflow_srv_dir(rundir)
