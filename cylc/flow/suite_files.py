@@ -45,8 +45,7 @@ from cylc.flow.platforms import (
     get_platform, get_install_target_to_platforms_map)
 from cylc.flow.hostuserutil import (
     get_user,
-    is_remote_host,
-    is_remote_user
+    is_remote_host
 )
 from cylc.flow.remote import construct_ssh_cmd
 from cylc.flow.suite_db_mgr import SuiteDatabaseManager
