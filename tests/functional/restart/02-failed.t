@@ -24,7 +24,6 @@ set_test_number 7
 #-------------------------------------------------------------------------------
 install_suite "${TEST_NAME_BASE}" 'failed'
 cp "$TEST_SOURCE_DIR/lib/flow-runtime-restart.cylc" "${RUN_DIR}/${SUITE_NAME}/"
-export TEST_DIR
 #-------------------------------------------------------------------------------
 TEST_NAME="${TEST_NAME_BASE}-validate"
 run_ok "${TEST_NAME}" cylc validate "${SUITE_NAME}"

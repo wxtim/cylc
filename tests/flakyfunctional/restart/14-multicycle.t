@@ -23,7 +23,6 @@ fi
 set_test_number 6
 #-------------------------------------------------------------------------------
 install_suite "${TEST_NAME_BASE}" "${TEST_NAME_BASE}"
-export TEST_DIR
 #-------------------------------------------------------------------------------
 run_ok "${TEST_NAME_BASE}-validate" cylc validate "${SUITE_NAME}"
 if ! command -v 'sqlite3' > /dev/null; then
