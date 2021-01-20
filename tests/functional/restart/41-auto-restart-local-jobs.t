@@ -46,6 +46,7 @@ init_suite "${TEST_NAME_BASE}" <<< '
     [[bar]]
         script = sleep 60
 '
+cd "${SUITE_RUN_DIR}" || exit 1
 
 create_test_global_config '' "
 ${BASE_GLOBAL_CONFIG}
