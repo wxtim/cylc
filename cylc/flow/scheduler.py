@@ -299,7 +299,7 @@ class Scheduler:
         extract_resources(
             suite_files.get_suite_srv_dir(self.suite),
             ['etc/job.sh'])
-        # Add python dirs to sys.path   
+        # Add python dirs to sys.path
         for sub_dir in ["python", os.path.join("lib", "python")]:
             # TODO - eventually drop the deprecated "python" sub-dir.
             suite_py = os.path.join(self.suite_run_dir, sub_dir)
