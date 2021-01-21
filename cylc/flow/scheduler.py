@@ -299,20 +299,12 @@ class Scheduler:
         extract_resources(
             suite_files.get_suite_srv_dir(self.suite),
             ['etc/job.sh'])
-        # Copy local python modules from source to run directory
+        # Add python dirs to sys.path   
         for sub_dir in ["python", os.path.join("lib", "python")]:
             # TODO - eventually drop the deprecated "python" sub-dir.
             suite_py = os.path.join(self.suite_run_dir, sub_dir)
-            if (os.path.realpath(self.suite_run_dir) !=
-                    os.path.realpath(self.suite_run_dir) and
-                    os.path.isdir(suite_py)):
-                suite_run_py = os.path.join(self.suite_run_dir, sub_dir)
-                try:
-                    rmtree(suite_run_py)
-                except OSError:
-                    pass
-                copytree(suite_py, suite_run_py)
-            sys.path.append(os.path.join(self.suite_run_dir, sub_dir))
+            if os.path.isdir(suite_py):
+                sys.path.append(os.path.join(self.suite_run_dir, sub_dir))
 
     async def initialise(self):
         """Initialise the components and sub-systems required to run the flow.
@@ -414,19 +406,6 @@ class Scheduler:
             pri_dao.select_suite_params(self._load_suite_params)
             pri_dao.select_suite_template_vars(self._load_template_vars)
             pri_dao.execute_queued_items()
-        # Copy local python modules from source to run directory
-        for sub_dir in ["python", os.path.join("lib", "python")]:
-            # TODO - eventually drop the deprecated "python" sub-dir.
-            suite_py = os.path.join(self.suite_run_dir, sub_dir)
-            if (os.path.realpath(self.suite_run_dir) !=
-                    os.path.realpath(self.suite_run_dir) and
-                    os.path.isdir(suite_py)):
-                suite_run_py = os.path.join(self.suite_run_dir, sub_dir)
-                try:
-                    rmtree(suite_run_py)
-                except OSError:
-                    pass
-                copytree(suite_py, suite_run_py)
 
         self.profiler.log_memory("scheduler.py: before load_flow_file")
         self.load_flow_file()
