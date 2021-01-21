@@ -23,7 +23,6 @@ from optparse import Values
 import os
 from queue import Empty, Queue
 from shlex import quote
-from shutil import copytree, rmtree
 from subprocess import Popen, PIPE, DEVNULL
 import sys
 from threading import Barrier
