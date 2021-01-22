@@ -18,6 +18,7 @@
 
 import aiofiles
 from enum import Enum
+import glob
 import logging
 import os
 from pathlib import Path
@@ -147,9 +148,6 @@ class SuiteFiles:
 
     SUITE_RC = 'suite.rc'
     """Deprecated workflow configuration file."""
-
-    SOURCE = 'source'
-    """Symlink to the workflow source directory (For workflow dir)"""
 
     class Service:
         """The directory containing Cylc system files."""
@@ -376,11 +374,11 @@ def get_suite_source_dir(reg):
     source_path = Path(
         cwd,
         SuiteFiles.Install.DIRNAME,
-        SuiteFiles.SOURCE)
+        SuiteFiles.Install.SOURCE)
     alt_source_path = Path(
         cwd.parent,
         SuiteFiles.Install.DIRNAME,
-        SuiteFiles.SOURCE)
+        SuiteFiles.Install.SOURCE)
     try:
         source = os.readlink(source_path)
     except OSError:
@@ -1044,29 +1042,16 @@ def install_workflow(flow_name=None, source=None, run_name=None,
             ' Please choose another run name.')
     validate_source_dir(source, flow_name)
     run_path_base = Path(get_workflow_run_dir(flow_name)).expanduser()
-    relink = False
-    run_num = 0
-    if no_run_name:
-        rundir = run_path_base
-    elif run_name:
-        rundir = run_path_base.joinpath(run_name)
-    else:
-        run_n = Path(run_path_base, 'runN').expanduser()
-        run_num = get_next_rundir_number(run_path_base)
-        rundir = Path(run_path_base, f'run{run_num}')
-        if run_num == 1 and rundir.exists():
-            WorkflowFilesError(
-                f"This path: {rundir} exists. Try using --run-name")
-        unlink_runN(run_n)
-        relink = True
+    relink, run_num, rundir = get_run_dir(run_name, no_run_name, run_path_base)
     check_nested_run_dirs(rundir, flow_name)
+    symlinks_created = {}
     if not no_symlinks:
         sub_dir = flow_name
         if run_num:
             sub_dir += '/' + f'run{run_num}'
         symlinks_created = make_localhost_symlinks(rundir, sub_dir)
     _open_install_log(rundir)
-    if not no_symlinks and bool(symlinks_created):
+    if not no_symlinks and bool(symlinks_created) is True:
         for src, dst in symlinks_created.items():
             INSTALL_LOG.info(f"Symlink created from {src} to {dst}")
     try:
@@ -1118,6 +1103,43 @@ def install_workflow(flow_name=None, source=None, run_name=None,
     print(f'INSTALLED {flow_name} from {source} -> {rundir}')
     _close_install_log()
     return source, rundir, flow_name
+
+
+def get_run_dir(run_name, no_run_name, run_path_base):
+    relink = False
+    run_num = 0
+    if no_run_name:
+        rundir = run_path_base
+    elif run_name:
+        rundir = run_path_base.joinpath(run_name)
+    else:
+        run_n = Path(run_path_base, 'runN').expanduser()
+        run_num = get_next_rundir_number(run_path_base)
+        rundir = Path(run_path_base, f'run{run_num}')
+        if run_num == 1 and run_path_base.exists():
+            raise WorkflowFilesError(
+                f"This path: \"{rundir}\" exists. Try using --run-name")
+        if run_path_base.exists() and installed_flow_exists(run_path_base):
+            raise WorkflowFilesError(
+                f"This path: \"{run_path_base}\" contains an installed"
+                " workflow. Try using --run-name")
+        unlink_runN(run_n)
+        relink = True
+    return relink, run_num, rundir
+
+
+def installed_flow_exists(run_path_base):
+    """Returns true if installed flow already exists
+
+    Args:
+        run_path_base"""
+    # dirs_in_run_path_base = []
+    for entry in Path(run_path_base).iterdir():
+        if entry.is_dir() and \
+            entry not in [SuiteFiles.Install.DIRNAME, 'runN'] and \
+            Path(entry, SuiteFiles.FLOW_FILE).exists() and \
+            bool(re.search(r'(?:run)(\d+$)', entry.name)):
+            return True
 
 
 def create_workflow_srv_dir(rundir=None, source=None):
