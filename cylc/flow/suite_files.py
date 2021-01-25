@@ -1041,8 +1041,8 @@ def install_workflow(flow_name=None, source=None, run_name=None,
             ' Please choose another run name.')
     validate_source_dir(source, flow_name)
     run_path_base = Path(get_workflow_run_dir(flow_name)).expanduser()
-    relink, run_num, rundir = get_run_dir(run_name, no_run_name, run_path_base)
-    if rundir.exists():
+    relink, run_num, rundir = get_run_dir(run_path_base, run_name, no_run_name)
+    if Path(rundir).exists():
         raise WorkflowFilesError(
             f"\"{rundir}\" exists."
             " Try using cylc reinstall. Alternatively, install with another"
@@ -1109,7 +1109,7 @@ def install_workflow(flow_name=None, source=None, run_name=None,
     return source, rundir, flow_name
 
 
-def get_run_dir(run_path_base, run_name=None, no_run_name=False,):
+def get_run_dir(run_path_base, run_name, no_run_name):
     """ Build run directory for current install.
 
     Args:
