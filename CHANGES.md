@@ -42,6 +42,10 @@ Named checkpoints have been removed ([#3906](https://github.com/cylc/cylc-flow/p
 due to being a seldom-used feature. Workflows can still be restarted from the
 last run, or reflow can be used to achieve the same result.
 
+Cylc Rose options added to CLI scripts ([4293](https://github.com/cylc/cylc-flow/pull/4293))
+Cylc Rose options (`--opt-conf-keys`, `--define` and `--rose-template-variable`)
+added to CLI for Cylc List, Validate, Graph and Config if Cylc Rose is installed.
+
 <!-- The topmost release date is automatically updated by GitHub Actions. When
 creating a new release entry be sure to copy & paste the span tag with the
 `actions:bind` attribute, which is used by a regex to find the text to be
