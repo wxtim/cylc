@@ -123,8 +123,13 @@ def check_cylc_file(file_, checks, modify=False):
 def get_cylc_files(base: Path) -> List[Path]:
     """Given a directory yield paths to check.
     """
+    excludes = [Path('log')]
+
     for rglob in FILEGLOBS:
-        yield from base.rglob(rglob)
+        for path in base.rglob(rglob):
+            # Exclude log directory:
+            if path.relative_to(base).parents[0] not in excludes:
+                yield path
 
 
 def get_option_parser() -> COP:

@@ -19,7 +19,11 @@
 from pathlib import Path
 import pytest
 
-from cylc.flow.scripts.lint import check_cylc_file, parse_checks
+from cylc.flow.scripts.lint import (
+    check_cylc_file,
+    get_cylc_files,
+    parse_checks
+)
 
 
 TEST_FILE = """
@@ -59,3 +63,21 @@ def create_testable_file(monkeypatch, capsys):
 )
 def test_check_cylc_file(create_testable_file, number):
     assert f'{number:03d}:7-to-8' in create_testable_file.out
+
+
+def test_get_cylc_files_get_all_rcs(run_get_cylc_files):
+    """It returns all paths except `log/**`.
+    """
+    expect = [('etc', 'foo.rc'), ('bin', 'foo.rc'), ('an_other', 'foo.rc')]
+
+    # Create a fake run directory, including the log file which should not
+    # be searched:
+    dirs = ['etc', 'bin', 'log', 'an_other']
+    for path in dirs:
+        thispath = tmp_path / path
+        thispath.mkdir()
+        (thispath / 'foo.rc').touch()
+
+    # Run the test
+    result = [(i.parent.name, i.name) for i in get_cylc_files(tmp_path)]
+    assert result == expect
