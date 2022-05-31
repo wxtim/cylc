@@ -44,7 +44,13 @@ TEST_FILE = """
     [[simulation]]
         disable suite event handlers = true
     [[authentication]]
-
+    [[events]]
+        abort on stalled = True
+        abort if startup handler fails= True
+        abort if shutdown handler fails= True
+        abort if timeout handler fails = True
+        abort if stalled handler fails = True
+        abort if inactivity handler fails = False
 
 [scheduling]
     [[dependencies]]
@@ -63,6 +69,7 @@ TEST_FILE = """
             shell = fish
         [[[events]]]
             mail retry delays = PT30S
+            warning handler = frr.sh
 
 """
 

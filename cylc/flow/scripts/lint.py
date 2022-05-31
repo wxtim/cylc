@@ -27,6 +27,7 @@ from cylc.flow.option_parsers import (
 )
 from cylc.flow.terminal import cli_function
 
+URL_STUB = "https://cylc.github.io/cylc-doc/latest/html/7-to-8/"
 SECTION1 = r'\[{}\]'
 SECTION2 = r'\[\[{}\]\]'
 SECTION3 = r'\[\[\[{}\]\]\]'
@@ -35,11 +36,11 @@ CHECK78 = {
     '7-to-8': {
         re.compile(SECTION1.format('vizualization')): {
             'short': 'section `[vizualization]` has been removed.',
-            'url': ''
+            'url': 'summary.html#new-web-and-terminal-uis'
         },
         re.compile(SECTION1.format('cylc')): {
             'short': 'section `[cylc]` is now called `[scheduler]`.',
-            'url': ''
+            'url': 'summary.html#terminology'
         },
         re.compile(SECTION2.format('authentication')): {
             'short': '`[cylc][authentication]` is now obsolete.',
@@ -47,17 +48,23 @@ CHECK78 = {
         },
         re.compile(r'include at start-up\s?='): {
             'short': '`[cylc]include at start up` is obsolete.',
-            'url': ''
+            'url': (
+                'major-changes/excluding-tasks.html?'
+                '#excluding-tasks-at-start-up-is-not-supported')
         },
         re.compile(r'exclude at start-up\s?='): {
             'short': '`[cylc]exclude at start up` is obsolete.',
-            'url': ''
+            'url': (
+                'major-changes/excluding-tasks.html?'
+                '#excluding-tasks-at-start-up-is-not-supported')
         },
         re.compile(r'log resolved dependencies\s?='): {
+            # Mainly for testing
             'short': '`[cylc]log resolved dependencies` is obsolete.',
             'url': ''
         },
         re.compile(r'required run mode\s?='): {
+            # Mainly for testing
             'short': '`[cylc]required run mode` is obsolete.',
             'url': ''
         },
@@ -74,6 +81,7 @@ CHECK78 = {
             'url': ''
         },
         re.compile(r'reference test\s?='): {
+            # Mainly for testing
             'short': '`[cylc]reference test` is obsolete.',
             'url': ''
         },
@@ -87,11 +95,34 @@ CHECK78 = {
         },
         re.compile(r'spawn to max active cycle points\s?='): {
             'short': '`[cylc]spawn to max active cycle points` is obsolete.',
+            'url': (
+                'https://cylc.github.io/cylc-doc/latest/html/reference'
+                '/config/workflow.html#flow.cylc[scheduling]runahead%20limit'
+            )
+        },
+        re.compile(r'abort on stalled\s?='): {
+            'short': (
+                '`[cylc][events]abort on stalled` is obsolete.'
+            ),
+            'url': ''
+        },
+        re.compile(r'abort if .* handler fails\s?='): {
+            'short': (
+                '`[cylc][events]abort on ___ handler fails` commands are'
+                ' obsolete.'
+            ),
+            'url': ''
+        },
+        re.compile(r'.* handler\s?='): {
+            'short': (
+                '`[cylc][<namespace>][events]___ handler` commands are'
+                ' now "handlers".'
+            ),
             'url': ''
         },
         re.compile(r'mail retry delays\s?='): {
             'short': (
-                '`[runtime][<namespace>][events]health check interval` '
+                '`[runtime][<namespace>][events]mail retry delays` '
                 'is obsolete.'
             ),
             'url': ''
@@ -115,7 +146,7 @@ CHECK78 = {
                 '`[runtime][<namespace>][remote]suite definition directory` '
                 'is obsolete.'
             ),
-            'url': ''
+            'url': 'summary.html#symlink-dirs'
         },
         re.compile(SECTION2.format('dependencies')): {
             'short': '`[dependencies]` is deprecated.',
@@ -133,25 +164,27 @@ CHECK78 = {
                 '`[runtime][<namespace>][remote]host` is deprecated, '
                 'use `[runtime][<namespace>]platform`',
             ),
-            'url': ''
+            'url': 'major-changes/platforms.html#platforms'
         },
         re.compile(SECTION3.format('job')): {
             'short': (
                 '`[runtime][<namespace>][job]` is deprecated, '
                 'use `[runtime][<namespace>]platform`',
             ),
-            'url': ''
+            'url': 'major-changes/platforms.html#platforms'
         }
     }
 }
 
 
-def parse_checks():
+def parse_checks(check_arg='8'):
     """Collapse metadata in checks dicts.
     """
     parsedchecks = {}
     index = 0
-    for checkdict in [CHECK78]:
+    if check_arg == '8':
+        checkdicts = [CHECK78]
+    for checkdict in checkdicts:
         for purpose, checks in checkdict.items():
             for pattern, meta in checks.items():
                 meta.update({'purpose': purpose})
@@ -174,10 +207,14 @@ def check_cylc_file(file_, checks, modify=False):
             if check.findall(line) and not line.strip().startswith('#'):
                 count += 1
                 if modify:
+                    if message['url'].startswith('http'):
+                        url = message['url']
+                    else:
+                        url = URL_STUB + message['url']
                     outlines.append(
                         f'# [{message["index"]:03d}:{message["purpose"]}]: '
                         f'{message["short"]}\n'
-                        f'# - see {message["url"]}'
+                        f'# - see {url}'
                     )
                 else:
                     print(
