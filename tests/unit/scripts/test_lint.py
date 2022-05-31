@@ -22,7 +22,7 @@ import pytest
 import re
 
 from cylc.flow.scripts.lint import (
-    CHECK78,
+    CHECKS,
     check_cylc_file,
     get_cylc_files,
     get_reference,
@@ -81,23 +81,57 @@ TEST_FILE = """
 """
 
 
+LINT_TEST_FILE = """
+\t[scheduler]
+
+ [scheduler]
+
+[[dependencies]]
+
+[runtime]
+          [[foo]]
+        inherit = Wooo
+     [[[job]]]
+something\t
+"""
+
+LINT_TEST_FILE += ('\nscript = the quick brown fox jumps over the lazy dog '
+    'until it becomes clear that this line is far longer the 79 characters.')
+
+
 @pytest.fixture()
 def create_testable_file(monkeypatch, capsys):
-    monkeypatch.setattr(Path, 'read_text', lambda _: TEST_FILE)
-    check_cylc_file(Path('x'), parse_checks())
-    return capsys.readouterr()
+    def _inner(test_file):
+        monkeypatch.setattr(Path, 'read_text', lambda _: test_file)
+        check_cylc_file(Path('x'), parse_checks('all'))
+        return capsys.readouterr()
+    return _inner
 
 
 @pytest.mark.parametrize(
-    'number', range(len(CHECK78['7-to-8']))
+    'number', range(len(CHECKS['7-to-8']))
 )
-def test_check_cylc_file(create_testable_file, number):
+def test_check_cylc_file_7to8(create_testable_file, number):
     try:
-        assert f'[{number:03d}:7-to-8]' in create_testable_file.out
-    except AssertionError as exc:
+        assert f'[{number:03d}:7-to-8]' in create_testable_file(TEST_FILE).out
+    except AssertionError:
         raise AssertionError(
             f'missing error number {number:03d}:7-to-8 - '
-            f'{[*CHECK78["7-to-8"].keys()][number]}'
+            f'{[*CHECKS["7-to-8"].keys()][number]}'
+        )
+
+
+@pytest.mark.parametrize(
+    'number', range(len(CHECKS['lint']))
+)
+def test_check_cylc_file_lint(create_testable_file, number):
+    try:
+        assert f'[{number:03d}:lint]' in create_testable_file(
+            LINT_TEST_FILE).out
+    except AssertionError:
+        raise AssertionError(
+            f'missing error number {number:03d}:lint - '
+            f'{[*CHECKS["lint"].keys()][number]}'
         )
 
 
@@ -105,22 +139,22 @@ def test_check_cylc_file(create_testable_file, number):
 def create_testable_dir(tmp_path):
     test_file = (tmp_path / 'suite.rc')
     test_file.write_text(TEST_FILE)
-    check_cylc_file(test_file, parse_checks(), modify=True)
+    check_cylc_file(test_file, parse_checks('all'), modify=True)
     return '\n'.join([*difflib.Differ().compare(
         TEST_FILE.split('\n'), test_file.read_text().split('\n')
     )])
 
 
 @pytest.mark.parametrize(
-    'number', range(len(CHECK78['7-to-8']))
+    'number', range(len(CHECKS['7-to-8']))
 )
 def test_check_cylc_file_inplace(create_testable_dir, number):
     try:
         assert f'[{number:03d}:7-to-8]' in create_testable_dir
-    except AssertionError as exc:
+    except AssertionError:
         raise AssertionError(
             f'missing error number {number:03d}:7-to-8 - '
-            f'{[*CHECK78["7-to-8"].keys()][number]}'
+            f'{[*CHECKS["7-to-8"].keys()][number]}'
         )
 
 
@@ -144,7 +178,7 @@ def test_get_cylc_files_get_all_rcs(tmp_path):
 
 def test_get_reference(capsys):
     """It produces a reference file for our linting."""
-    result = get_reference({
+    get_reference({
         re.compile('not a regex'): {
             'short': 'section `[vizualization]` has been removed.',
             'url': 'some url or other',

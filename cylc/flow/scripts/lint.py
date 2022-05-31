@@ -14,7 +14,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""Look through a folder for Cylc 7 syntax ``suite*.rc`` files
+"""Look through one or more folders for Cylc 7 syntax ``suite*.rc`` files
+and search for syntax which may be problematic at Cylc 8.
+
+Can be run either as a linter or "in place" (``-i``), leaving comments
+in files. If used in the "in place" mode it is recommended that you ensure
+that you have recorded the state of your workflow in a version control
+system before starting.
 """
 from colorama import Fore
 from optparse import Values
@@ -28,12 +34,16 @@ from cylc.flow.option_parsers import (
 )
 from cylc.flow.terminal import cli_function
 
+STYLE_GUIDE = (
+    'https://cylc.github.io/cylc-doc/latest/html/workflow-design-guide/'
+    'style-guide.html#'
+)
 URL_STUB = "https://cylc.github.io/cylc-doc/latest/html/7-to-8/"
 SECTION1 = r'\[{}\]'
 SECTION2 = r'\[\[{}\]\]'
 SECTION3 = r'\[\[\[{}\]\]\]'
-FILEGLOBS = ['*.rc']
-CHECK78 = {
+FILEGLOBS = ['*.rc', '*.cylc']
+CHECKS = {
     '7-to-8': {
         re.compile(SECTION1.format('vizualization')): {
             'short': 'section ``[vizualization]`` has been removed.',
@@ -196,19 +206,62 @@ CHECK78 = {
             ),
             'url': ''
         }
+    },
+    'lint': {
+        re.compile(r'^\t'): {
+            'short': 'Use multiple spaces, not tabs',
+            'url': STYLE_GUIDE + 'tab-characters'
+        },
+        # Not a full test, but if a non section is not indented...
+        re.compile(r'^[^\[|\s]'): {
+            'short': 'Item not indented.',
+            'url': STYLE_GUIDE + 'indentation'
+        },
+        #            [section]
+        re.compile(r'^\s+\[.*\]'): {
+            'short': 'Too many indents for top level section.',
+            'url': STYLE_GUIDE + 'indentation'
+        },
+        # 2 or 4 space indentation both seem reasonable:
+        re.compile(r'^(\s|\s{3}|\s{5,})\[\[.*\]\]'): {
+            'short': 'wrong number of indents for second level section.',
+            'url': STYLE_GUIDE + 'indentation'
+        },
+        re.compile(r'^(\s{1,3}|\s{5,7}|\s{9,})\[\[\[.*\]\]\]'): {
+            'short': 'wrong number of indents for third level section.',
+            'url': STYLE_GUIDE + 'indentation'
+        },
+        re.compile(r'\s$'): {
+            'short': 'wrong number of indents for third level section.',
+            'url': STYLE_GUIDE + 'trailing-whitespace'
+        },
+        re.compile(r'^.{80,}'): {
+            'short': 'line > 79 characters.',
+            'url': STYLE_GUIDE + 'line-length-and-continuation'
+        },
+        re.compile(r'inherit\s*=\s*.*[a-z].*$'): {
+            'short': 'Family name contains lowercase characters.',
+            'url': STYLE_GUIDE + 'task-naming-conventions'
+        },
+
     }
 }
 
 
-def parse_checks(check_arg='8'):
+def parse_checks(check_arg):
     """Collapse metadata in checks dicts.
     """
     parsedchecks = {}
-    index = 0
     if check_arg == '8':
-        checkdicts = [CHECK78]
-    for checkdict in checkdicts:
-        for purpose, checks in checkdict.items():
+        purpose_filters = ['7-to-8']
+    elif check_arg == 'lint':
+        purpose_filters = ['lint']
+    else:
+        purpose_filters = ['lint', '7-to-8']
+
+    for purpose, checks in CHECKS.items():
+        if purpose in purpose_filters:
+            index = 0
             for pattern, meta in checks.items():
                 meta.update({'purpose': purpose})
                 meta.update({'index': index})
@@ -235,15 +288,15 @@ def check_cylc_file(file_, checks, modify=False):
                     else:
                         url = URL_STUB + message['url']
                     outlines.append(
-                        f'# [{message["index"]:03d}:{message["purpose"]}]: '
+                        f'# [{message["index"]:03d}: {message["purpose"]}]: '
                         f'{message["short"]}\n'
                         f'# - see {url}'
                     )
                 else:
                     print(
                         Fore.YELLOW +
-                        f'[{message["index"]:03d}:{message["purpose"]}]'
-                        f'{file_}:{line_no}:{message["short"]}'
+                        f'[{message["index"]:03d}: {message["purpose"]}]'
+                        f'{file_}: {line_no}: {message["short"]}'
                     )
         if modify:
             outlines.append(line)
@@ -262,6 +315,28 @@ def get_cylc_files(base: Path) -> Generator:
             # Exclude log directory:
             if path.relative_to(base).parents[0] not in excludes:
                 yield path
+
+
+def get_reference(checks):
+    output = ''
+    for check, meta in checks.items():
+        template = (
+            '{index:003d} {checkset} ``{title}``:\n    {summary}\n'
+            '    see - {url}\n'
+        )
+        if meta['url'].startswith('http'):
+            url = meta['url']
+        else:
+            url = URL_STUB + meta['url']
+        msg = template.format(
+            title=check.pattern.replace('\\', ''),
+            checkset=meta['purpose'],
+            summary=meta['short'],
+            url=url,
+            index=meta['index'],
+        )
+        output += msg
+    print(output)
 
 
 def get_option_parser() -> COP:
@@ -287,35 +362,19 @@ def get_option_parser() -> COP:
         default=False,
         dest="ref"
     )
+    parser.add_option(
+        '--linter',
+        default='8',
+        choices=('8', 'lint', 'all'),
+        dest='linter'
+    )
 
     return parser
 
 
-def get_reference(checks):
-    output = ''
-    for check, meta in checks.items():
-        template = (
-            '{index:003d} {checkset} ``{title}``:\n    {summary}\n'
-            '    see - {url}\n'
-        )
-        if meta['url'].startswith('http'):
-            url = meta['url']
-        else:
-            url = URL_STUB + meta['url']
-        msg = template.format(
-            title=check.pattern.replace('\\', ''),
-            checkset=meta['purpose'],
-            summary=meta['short'],
-            url=url,
-            index=meta['index'],
-        )
-        output += msg
-    print(output)
-
-
 @cli_function(get_option_parser)
 def main(parser: COP, options: 'Values', *targets) -> None:
-    checks = parse_checks()
+    checks = parse_checks(options.linter)
 
     if options.ref:
         get_reference(checks)
