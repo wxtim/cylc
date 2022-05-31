@@ -19,7 +19,7 @@
 from optparse import Values
 from pathlib import Path
 import re
-from typing import List
+from typing import Generator
 
 from cylc.flow import LOG
 from cylc.flow.option_parsers import (
@@ -27,27 +27,97 @@ from cylc.flow.option_parsers import (
 )
 from cylc.flow.terminal import cli_function
 
-
+SECTION1 = r'\[{}\]'
+SECTION2 = r'\[\[{}\]\]'
+SECTION3 = r'\[\[\[{}\]\]\]'
 FILEGLOBS = ['*.rc']
 CHECK78 = {
     '7-to-8': {
-        re.compile(r'\[cylc\]'): {
+        re.compile(SECTION1.format('vizualization')): {
+            'short': 'section `[vizualization]` has been removed.',
+            'url': ''
+        },
+        re.compile(SECTION1.format('cylc')): {
             'short': 'section `[cylc]` is now called `[scheduler]`.',
-            'url': 'major-changes/config-changes.html#graph'
+            'url': ''
+        },
+        re.compile(SECTION2.format('authentication')): {
+            'short': '`[cylc][authentication]` is now obsolete.',
+            'url': ''
         },
         re.compile(r'include at start-up\s?='): {
-            'short': '`include at start up` is obselete.',
-            'url': 'major-changes/config-changes.html#graph'
+            'short': '`[cylc]include at start up` is obsolete.',
+            'url': ''
         },
         re.compile(r'exclude at start-up\s?='): {
-            'short': '`exclude at start up` is obselete.',
-            'url': 'major-changes/config-changes.html#graph'
+            'short': '`[cylc]exclude at start up` is obsolete.',
+            'url': ''
         },
         re.compile(r'log resolved dependencies\s?='): {
-            'short': '`exclude at start up` is obselete.',
-            'url': 'major-changes/config-changes.html#graph'
+            'short': '`[cylc]log resolved dependencies` is obsolete.',
+            'url': ''
         },
-        re.compile(r'\[\[dependencies\]\]'): {
+        re.compile(r'required run mode\s?='): {
+            'short': '`[cylc]required run mode` is obsolete.',
+            'url': ''
+        },
+        re.compile(r'health check interval\s?='): {
+            'short': '`[cylc]health check interval` is obsolete.',
+            'url': ''
+        },
+        re.compile(r'abort if any task fails\s?='): {
+            'short': '`[cylc]abort if any task fails` is obsolete.',
+            'url': ''
+        },
+        re.compile(r'disable automatic shutdown\s?='): {
+            'short': '`[cylc]disable automatic shutdown` is obsolete.',
+            'url': ''
+        },
+        re.compile(r'reference test\s?='): {
+            'short': '`[cylc]reference test` is obsolete.',
+            'url': ''
+        },
+        re.compile(r'disable suite event handlers\s?='): {
+            'short': '`[cylc]disable suite event handlers` is obsolete.',
+            'url': ''
+        },
+        re.compile(SECTION2.format('simulation')): {
+            'short': '`[cylc]simulation` is obsolete.',
+            'url': ''
+        },
+        re.compile(r'spawn to max active cycle points\s?='): {
+            'short': '`[cylc]spawn to max active cycle points` is obsolete.',
+            'url': ''
+        },
+        re.compile(r'mail retry delays\s?='): {
+            'short': (
+                '`[runtime][<namespace>][events]health check interval` '
+                'is obsolete.'
+            ),
+            'url': ''
+        },
+        re.compile(r'extra log files\s?='): {
+            'short': (
+                '`[runtime][<namespace>][events]extra log files` '
+                'is obsolete.'
+            ),
+            'url': ''
+        },
+        re.compile(r'shell\s?='): {
+            'short': (
+                '`[runtime][<namespace>]shell` '
+                'is obsolete.'
+            ),
+            'url': ''
+        },
+        re.compile(r'suite definition directory\s?='): {
+            'short': (
+                '`[runtime][<namespace>][remote]suite definition directory` '
+                'is obsolete.'
+            ),
+            'url': ''
+        },
+        re.compile(SECTION2.format('dependencies')): {
             'short': '`[dependencies]` is deprecated.',
             'url': 'major-changes/config-changes.html#graph'
         },
@@ -58,19 +128,19 @@ CHECK78 = {
             ),
             'url': 'major-changes/config-changes.html#graph'
         },
-        re.compile(r'\[\[remote\]\]'): {
+        re.compile(SECTION2.format('remote')): {
             'short': (
                 '`[runtime][<namespace>][remote]host` is deprecated, '
                 'use `[runtime][<namespace>]platform`',
             ),
-            'url': 'major-changes/config-changes.html#graph'
+            'url': ''
         },
-        re.compile(r'\[\[job\]\]'): {
+        re.compile(SECTION3.format('job')): {
             'short': (
                 '`[runtime][<namespace>][job]` is deprecated, '
                 'use `[runtime][<namespace>]platform`',
             ),
-            'url': 'major-changes/config-changes.html#graph'
+            'url': ''
         }
     }
 }
@@ -120,7 +190,7 @@ def check_cylc_file(file_, checks, modify=False):
     return count
 
 
-def get_cylc_files(base: Path) -> List[Path]:
+def get_cylc_files(base: Path) -> Generator:
     """Given a directory yield paths to check.
     """
     excludes = [Path('log')]

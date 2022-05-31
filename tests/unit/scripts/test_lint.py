@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from cylc.flow.scripts.lint import (
+    CHECK78,
     check_cylc_file,
     get_cylc_files,
     parse_checks
@@ -27,12 +28,22 @@ from cylc.flow.scripts.lint import (
 
 
 TEST_FILE = """
+[vizualization]
 [cylc]
     include at start-up = foo
     exclude at start-up = bar
     log resolved dependencies = True
     required run mode = False
     health check interval = PT10M
+    abort if any task fails = true
+    suite definition directory = '/woo'
+    disable automatic shutdown = false
+    reference test = true
+    spawn to max active cycle points = false
+    [[simulation]]
+        disable suite event handlers = true
+    [[authentication]]
+
 
 [scheduling]
     [[dependencies]]
@@ -42,11 +53,15 @@ TEST_FILE = """
 
 [runtime]
     [[MYFAM]]
+        extra log files = True
         [[[remote]]]
             host = parasite
+            suite definition directory = '/home/bar'
         [[[job]]]
             batch system = slurm
-
+            shell = fish
+        [[[events]]]
+            mail retry delays = PT30S
 
 """
 
@@ -59,13 +74,19 @@ def create_testable_file(monkeypatch, capsys):
 
 
 @pytest.mark.parametrize(
-    'number', range(8)
+    'number', range(len(CHECK78['7-to-8']))
 )
 def test_check_cylc_file(create_testable_file, number):
-    assert f'{number:03d}:7-to-8' in create_testable_file.out
+    try:
+        assert f'[{number:03d}:7-to-8]' in create_testable_file.out
+    except AssertionError as exc:
+        raise AssertionError(
+            f'missing error number {number:03d}:7-to-8 - '
+            f'{[*CHECK78["7-to-8"].keys()][number]}'
+        )
 
 
-def test_get_cylc_files_get_all_rcs(run_get_cylc_files):
+def test_get_cylc_files_get_all_rcs(tmp_path):
     """It returns all paths except `log/**`.
     """
     expect = [('etc', 'foo.rc'), ('bin', 'foo.rc'), ('an_other', 'foo.rc')]
