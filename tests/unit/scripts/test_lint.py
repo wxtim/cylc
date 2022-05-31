@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Tests `cylc lint` CLI Utility.
 """
+import difflib
 from pathlib import Path
 import pytest
 
@@ -79,6 +80,29 @@ def create_testable_file(monkeypatch, capsys):
 def test_check_cylc_file(create_testable_file, number):
     try:
         assert f'[{number:03d}:7-to-8]' in create_testable_file.out
+    except AssertionError as exc:
+        raise AssertionError(
+            f'missing error number {number:03d}:7-to-8 - '
+            f'{[*CHECK78["7-to-8"].keys()][number]}'
+        )
+
+
+@pytest.fixture
+def create_testable_dir(tmp_path):
+    test_file = (tmp_path / 'suite.rc')
+    test_file.write_text(TEST_FILE)
+    check_cylc_file(test_file, parse_checks(), modify=True)
+    return '\n'.join([*difflib.Differ().compare(
+        TEST_FILE.split('\n'), test_file.read_text().split('\n')
+    )])
+
+
+@pytest.mark.parametrize(
+    'number', range(len(CHECK78['7-to-8']))
+)
+def test_check_cylc_file_inplace(create_testable_dir, number):
+    try:
+        assert f'[{number:03d}:7-to-8]' in create_testable_dir
     except AssertionError as exc:
         raise AssertionError(
             f'missing error number {number:03d}:7-to-8 - '

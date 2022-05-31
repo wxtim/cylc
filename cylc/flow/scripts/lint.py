@@ -175,7 +175,8 @@ def check_cylc_file(file_, checks, modify=False):
                 count += 1
                 if modify:
                     outlines.append(
-                        f'# {message["purpose"]}: {message["short"]}\n'
+                        f'# [{message["index"]:03d}:{message["purpose"]}]: '
+                        f'{message["short"]}\n'
                         f'# - see {message["url"]}'
                     )
                 else:
