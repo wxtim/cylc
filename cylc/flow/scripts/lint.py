@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Look through a folder for Cylc 7 syntax ``suite*.rc`` files
 """
+from colorama import Fore
 from optparse import Values
 from pathlib import Path
 import re
@@ -35,143 +36,165 @@ FILEGLOBS = ['*.rc']
 CHECK78 = {
     '7-to-8': {
         re.compile(SECTION1.format('vizualization')): {
-            'short': 'section `[vizualization]` has been removed.',
+            'short': 'section ``[vizualization]`` has been removed.',
             'url': 'summary.html#new-web-and-terminal-uis'
         },
         re.compile(SECTION1.format('cylc')): {
-            'short': 'section `[cylc]` is now called `[scheduler]`.',
+            'short': 'section ``[cylc]`` is now called ``[scheduler]``.',
             'url': 'summary.html#terminology'
         },
         re.compile(SECTION2.format('authentication')): {
-            'short': '`[cylc][authentication]` is now obsolete.',
+            'short': '``[cylc][authentication]`` is now obsolete.',
             'url': ''
         },
-        re.compile(r'include at start-up\s?='): {
-            'short': '`[cylc]include at start up` is obsolete.',
+        re.compile(r'include at start-up\s*?='): {
+            'short': '``[cylc]include at start up`` is obsolete.',
             'url': (
                 'major-changes/excluding-tasks.html?'
-                '#excluding-tasks-at-start-up-is-not-supported')
+                '#excluding-tasks-at-start-up-is-not-supported'
+            ),
         },
-        re.compile(r'exclude at start-up\s?='): {
-            'short': '`[cylc]exclude at start up` is obsolete.',
+        re.compile(r'exclude at start-up\s*?='): {
+            'short': '``[cylc]exclude at start up`` is obsolete.',
             'url': (
                 'major-changes/excluding-tasks.html?'
-                '#excluding-tasks-at-start-up-is-not-supported')
+                '#excluding-tasks-at-start-up-is-not-supported'
+            ),
         },
-        re.compile(r'log resolved dependencies\s?='): {
+        re.compile(r'log resolved dependencies\s*?='): {
             # Mainly for testing
-            'short': '`[cylc]log resolved dependencies` is obsolete.',
+            'short': '``[cylc]log resolved dependencies`` is obsolete.',
             'url': ''
         },
-        re.compile(r'required run mode\s?='): {
+        re.compile(r'required run mode\s*?='): {
             # Mainly for testing
-            'short': '`[cylc]required run mode` is obsolete.',
+            'short': '``[cylc]required run mode`` is obsolete.',
             'url': ''
         },
-        re.compile(r'health check interval\s?='): {
-            'short': '`[cylc]health check interval` is obsolete.',
+        re.compile(r'health check interval\s*?='): {
+            'short': '``[cylc]health check interval`` is obsolete.',
             'url': ''
         },
-        re.compile(r'abort if any task fails\s?='): {
-            'short': '`[cylc]abort if any task fails` is obsolete.',
+        re.compile(r'abort if any task fails\s*?='): {
+            'short': '``[cylc]abort if any task fails`` is obsolete.',
             'url': ''
         },
-        re.compile(r'disable automatic shutdown\s?='): {
-            'short': '`[cylc]disable automatic shutdown` is obsolete.',
+        re.compile(r'disable automatic shutdown\s*?='): {
+            'short': '``[cylc]disable automatic shutdown`` is obsolete.',
             'url': ''
         },
-        re.compile(r'reference test\s?='): {
+        re.compile(r'reference test\s*?='): {
             # Mainly for testing
-            'short': '`[cylc]reference test` is obsolete.',
+            'short': '``[cylc]reference test`` is obsolete.',
             'url': ''
         },
-        re.compile(r'disable suite event handlers\s?='): {
-            'short': '`[cylc]disable suite event handlers` is obsolete.',
+        re.compile(r'disable suite event handlers\s*?='): {
+            'short': '``[cylc]disable suite event handlers`` is obsolete.',
             'url': ''
         },
         re.compile(SECTION2.format('simulation')): {
-            'short': '`[cylc]simulation` is obsolete.',
+            'short': '``[cylc]simulation`` is obsolete.',
             'url': ''
         },
-        re.compile(r'spawn to max active cycle points\s?='): {
-            'short': '`[cylc]spawn to max active cycle points` is obsolete.',
+        re.compile(r'spawn to max active cycle points\s*?='): {
+            'short': '``[cylc]spawn to max active cycle points`` is obsolete.',
             'url': (
                 'https://cylc.github.io/cylc-doc/latest/html/reference'
                 '/config/workflow.html#flow.cylc[scheduling]runahead%20limit'
-            )
-        },
-        re.compile(r'abort on stalled\s?='): {
-            'short': (
-                '`[cylc][events]abort on stalled` is obsolete.'
             ),
+        },
+        re.compile(r'abort on stalled\s*?='): {
+            'short':
+                '``[cylc][events]abort on stalled`` is obsolete.',
             'url': ''
         },
-        re.compile(r'abort if .* handler fails\s?='): {
+        re.compile(r'abort if .* handler fails\s*?='): {
             'short': (
-                '`[cylc][events]abort on ___ handler fails` commands are'
+                '``[cylc][events]abort on ___ handler fails`` commands are'
                 ' obsolete.'
             ),
             'url': ''
         },
-        re.compile(r'.* handler\s?='): {
+        re.compile(r'.* handler\s*?='): {
             'short': (
-                '`[cylc][<namespace>][events]___ handler` commands are'
+                '``[cylc][<namespace>][events]___ handler`` commands are'
                 ' now "handlers".'
             ),
             'url': ''
         },
-        re.compile(r'mail retry delays\s?='): {
+        re.compile(r'mail retry delays\s*?='): {
             'short': (
-                '`[runtime][<namespace>][events]mail retry delays` '
+                '``[runtime][<namespace>][events]mail retry delays`` '
                 'is obsolete.'
             ),
             'url': ''
         },
-        re.compile(r'extra log files\s?='): {
+        re.compile(r'extra log files\s*?='): {
             'short': (
-                '`[runtime][<namespace>][events]extra log files` '
+                '``[runtime][<namespace>][events]extra log files`` '
                 'is obsolete.'
             ),
             'url': ''
         },
-        re.compile(r'shell\s?='): {
+        re.compile(r'shell\s*?='): {
             'short': (
-                '`[runtime][<namespace>]shell` '
+                '``[runtime][<namespace>]shell`` '
                 'is obsolete.'
             ),
             'url': ''
         },
-        re.compile(r'suite definition directory\s?='): {
+        re.compile(r'suite definition directory\s*?='): {
             'short': (
-                '`[runtime][<namespace>][remote]suite definition directory` '
+                '``[runtime][<namespace>][remote]suite definition directory`` '
                 'is obsolete.'
             ),
             'url': 'summary.html#symlink-dirs'
         },
         re.compile(SECTION2.format('dependencies')): {
-            'short': '`[dependencies]` is deprecated.',
+            'short': '``[dependencies]`` is deprecated.',
             'url': 'major-changes/config-changes.html#graph'
         },
-        re.compile(r'graph\s?='): {
+        re.compile(r'graph\s*?='): {
             'short': (
-                '`[cycle point]graph =` is deprecated, '
-                'use `cycle point = <graph>`',
+                '``[cycle point]graph =`` is deprecated, '
+                'use ``cycle point = <graph>``'
             ),
             'url': 'major-changes/config-changes.html#graph'
         },
         re.compile(SECTION2.format('remote')): {
             'short': (
-                '`[runtime][<namespace>][remote]host` is deprecated, '
-                'use `[runtime][<namespace>]platform`',
+                '``[runtime][<namespace>][remote]host`` is deprecated, '
+                'use ``[runtime][<namespace>]platform``'
             ),
             'url': 'major-changes/platforms.html#platforms'
         },
         re.compile(SECTION3.format('job')): {
             'short': (
-                '`[runtime][<namespace>][job]` is deprecated, '
-                'use `[runtime][<namespace>]platform`',
+                '``[runtime][<namespace>][job]`` is deprecated, '
+                'use ``[runtime][<namespace>]platform``'
             ),
             'url': 'major-changes/platforms.html#platforms'
+        },
+        re.compile(SECTION2.format('parameter templates')): {
+            'short': (
+                '``[cylc][parameter templates]`` is deprecated, '
+                'use ``[task parameters][templates]``'
+            ),
+            'url': ''
+        },
+        re.compile(SECTION2.format('parameters')): {
+            'short': (
+                '``[cylc][parameters]`` is deprecated, '
+                'use ``[task parameters]``'
+            ),
+            'url': ''
+        },
+        re.compile(r'task event mail interval\s*?='): {
+            'short': (
+                '``[cylc][task event mail interval]`` is deprecated, '
+                'use ``[scheduler][mail][task event batch interval]``'
+            ),
+            'url': ''
         }
     }
 }
@@ -218,6 +241,7 @@ def check_cylc_file(file_, checks, modify=False):
                     )
                 else:
                     print(
+                        Fore.YELLOW +
                         f'[{message["index"]:03d}:{message["purpose"]}]'
                         f'{file_}:{line_no}:{message["short"]}'
                     )
@@ -243,9 +267,7 @@ def get_cylc_files(base: Path) -> Generator:
 def get_option_parser() -> COP:
     parser = COP(
         __doc__,
-        argdoc=[('targets ...', 'Directories to lint')],
-        # auto_add=False,  NOTE: at present auto_add can not be turned off
-        color=False
+        argdoc=[('[targets ...]', 'Directories to lint')],
     )
     parser.add_option(
         '--inplace', '-i',
@@ -256,13 +278,48 @@ def get_option_parser() -> COP:
         action='store_true',
         default=False,
     )
+    parser.add_option(
+        '--reference', '--ref', '-r',
+        help=(
+            'generate a reference of errors'
+        ),
+        action='store_true',
+        default=False,
+        dest="ref"
+    )
 
     return parser
+
+
+def get_reference(checks):
+    output = ''
+    for check, meta in checks.items():
+        template = (
+            '{index:003d} {checkset} ``{title}``:\n    {summary}\n'
+            '    see - {url}\n'
+        )
+        if meta['url'].startswith('http'):
+            url = meta['url']
+        else:
+            url = URL_STUB + meta['url']
+        msg = template.format(
+            title=check.pattern.replace('\\', ''),
+            checkset=meta['purpose'],
+            summary=meta['short'],
+            url=url,
+            index=meta['index'],
+        )
+        output += msg
+    print(output)
 
 
 @cli_function(get_option_parser)
 def main(parser: COP, options: 'Values', *targets) -> None:
     checks = parse_checks()
+
+    if options.ref:
+        get_reference(checks)
+
     count = 0
     for target in targets:
         target = Path(target)
@@ -272,4 +329,7 @@ def main(parser: COP, options: 'Values', *targets) -> None:
             for file_ in get_cylc_files(target):
                 LOG.debug(f'Checking {file_}')
                 count += check_cylc_file(file_, checks, options.inplace)
-    LOG.info(f'Checked and found {count} possible issues.')
+        if count > 0:
+            print(Fore.YELLOW + f'Checked {target} and found {count} issues.')
+        else:
+            print(Fore.GREEN + f'Checked {target} and found {count} issues.')

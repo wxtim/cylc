@@ -19,17 +19,20 @@
 import difflib
 from pathlib import Path
 import pytest
+import re
 
 from cylc.flow.scripts.lint import (
     CHECK78,
     check_cylc_file,
     get_cylc_files,
+    get_reference,
     parse_checks
 )
 
 
 TEST_FILE = """
 [vizualization]
+
 [cylc]
     include at start-up = foo
     exclude at start-up = bar
@@ -46,11 +49,15 @@ TEST_FILE = """
     [[authentication]]
     [[events]]
         abort on stalled = True
-        abort if startup handler fails= True
+        abort if startup handler fails= True  # deliberately not added a space.
         abort if shutdown handler fails= True
         abort if timeout handler fails = True
         abort if stalled handler fails = True
         abort if inactivity handler fails = False
+    [[parameters]]
+    [[parameter templates]]
+    [[mail]]
+        task event mail interval    = PT4M # deliberately added lots of spaces.
 
 [scheduling]
     [[dependencies]]
@@ -133,3 +140,22 @@ def test_get_cylc_files_get_all_rcs(tmp_path):
     # Run the test
     result = [(i.parent.name, i.name) for i in get_cylc_files(tmp_path)]
     assert result == expect
+
+
+def test_get_reference(capsys):
+    """It produces a reference file for our linting."""
+    result = get_reference({
+        re.compile('not a regex'): {
+            'short': 'section `[vizualization]` has been removed.',
+            'url': 'some url or other',
+            'purpose': '7-to-8',
+            'index': 42
+        },
+    })
+    expect = (
+        '042 7-to-8 ``not a regex``:\n    section `[vizualization]` has been '
+        'removed.\n    see -'
+        ' https://cylc.github.io/cylc-doc/latest/html/7-to-8/some url'
+        ' or other\n\n'
+    )
+    assert capsys.readouterr().out == expect
