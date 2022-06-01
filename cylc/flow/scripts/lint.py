@@ -261,12 +261,10 @@ def parse_checks(check_arg):
 
     for purpose, checks in CHECKS.items():
         if purpose in purpose_filters:
-            index = 0
-            for pattern, meta in checks.items():
+            for index, (pattern, meta) in enumerate(checks.items()):
                 meta.update({'purpose': purpose})
                 meta.update({'index': index})
                 parsedchecks.update({pattern: meta})
-                index += 1   # noqa SIM113
     return parsedchecks
 
 

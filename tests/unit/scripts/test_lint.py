@@ -101,9 +101,9 @@ LINT_TEST_FILE += ('\nscript = the quick brown fox jumps over the lazy dog '
 
 @pytest.fixture()
 def create_testable_file(monkeypatch, capsys):
-    def _inner(test_file):
+    def _inner(test_file, checks):
         monkeypatch.setattr(Path, 'read_text', lambda _: test_file)
-        check_cylc_file(Path('x'), parse_checks('all'))
+        check_cylc_file(Path('x'), parse_checks(checks))
         return capsys.readouterr()
     return _inner
 
@@ -111,12 +111,13 @@ def create_testable_file(monkeypatch, capsys):
 @pytest.mark.parametrize(
     'number', range(len(CHECKS['7-to-8']))
 )
-def test_check_cylc_file_7to8(create_testable_file, number):
+def test_check_cylc_file_7to8(create_testable_file, number, capsys):
     try:
-        assert f'[{number:03d}:7-to-8]' in create_testable_file(TEST_FILE).out
+        result = create_testable_file(TEST_FILE, '8').out
+        assert f'[{number:03d}: 7-to-8]' in result
     except AssertionError:
         raise AssertionError(
-            f'missing error number {number:03d}:7-to-8 - '
+            f'missing error number {number:03d}: 7-to-8 - '
             f'{[*CHECKS["7-to-8"].keys()][number]}'
         )
 
@@ -126,11 +127,11 @@ def test_check_cylc_file_7to8(create_testable_file, number):
 )
 def test_check_cylc_file_lint(create_testable_file, number):
     try:
-        assert f'[{number:03d}:lint]' in create_testable_file(
-            LINT_TEST_FILE).out
+        assert f'[{number:03d}: lint]' in create_testable_file(
+            LINT_TEST_FILE, 'lint').out
     except AssertionError:
         raise AssertionError(
-            f'missing error number {number:03d}:lint - '
+            f'missing error number {number:03d}: lint - '
             f'{[*CHECKS["lint"].keys()][number]}'
         )
 
@@ -150,7 +151,7 @@ def create_testable_dir(tmp_path):
 )
 def test_check_cylc_file_inplace(create_testable_dir, number):
     try:
-        assert f'[{number:03d}:7-to-8]' in create_testable_dir
+        assert f'[{number:03d}: 7-to-8]' in create_testable_dir
     except AssertionError:
         raise AssertionError(
             f'missing error number {number:03d}:7-to-8 - '
