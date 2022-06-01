@@ -174,7 +174,7 @@ def test_get_cylc_files_get_all_rcs(tmp_path):
 
     # Run the test
     result = [(i.parent.name, i.name) for i in get_cylc_files(tmp_path)]
-    assert result == expect
+    assert result.sort() == expect.sort()
 
 
 def test_get_reference(capsys):
