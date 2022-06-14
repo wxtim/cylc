@@ -14,8 +14,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""Look through one or more folders for Cylc 7 syntax ``suite*.rc`` files
-and search for syntax which may be problematic at Cylc 8.
+"""Look through one or more folders for ``suite*.rc`` files and
+search for Cylc 7 syntax which may be problematic at Cylc 8.
 
 Can be run either as a linter or "in place" (``-i``), leaving comments
 in files. If used in the "in place" mode it is recommended that you ensure
@@ -39,7 +39,7 @@ STYLE_GUIDE = (
     'style-guide.html#'
 )
 URL_STUB = "https://cylc.github.io/cylc-doc/latest/html/7-to-8/"
-SECTION1 = r'\[{}\]'
+SECTION1 = r'\[\s*{}\s*\]'
 SECTION2 = r'\[\[{}\]\]'
 SECTION3 = r'\[\[\[{}\]\]\]'
 FILEGLOBS = ['*.rc', '*.cylc']
@@ -57,7 +57,7 @@ CHECKS = {
             'short': '``[cylc][authentication]`` is now obsolete.',
             'url': ''
         },
-        re.compile(r'include at start-up\s*?='): {
+        re.compile(r'^\s*include at start-up\s*='): {
             'short': '``[cylc]include at start up`` is obsolete.',
             'url': (
                 'major-changes/excluding-tasks.html?'
@@ -120,7 +120,7 @@ CHECKS = {
         },
         re.compile(r'abort if .* handler fails\s*?='): {
             'short': (
-                '``[cylc][events]abort on ___ handler fails`` commands are'
+                '``[cylc][events]abort if ___ handler fails`` commands are'
                 ' obsolete.'
             ),
             'url': ''
@@ -232,7 +232,7 @@ CHECKS = {
             'url': STYLE_GUIDE + 'indentation'
         },
         re.compile(r'\s$'): {
-            'short': 'wrong number of indents for third level section.',
+            'short': 'trailing whitespace.',
             'url': STYLE_GUIDE + 'trailing-whitespace'
         },
         re.compile(r'^.{80,}'): {
@@ -303,7 +303,7 @@ def check_cylc_file(file_, checks, modify=False):
     return count
 
 
-def get_cylc_files(base: Path) -> Generator:
+def get_cylc_files(base: Path) -> Generator[Path, None, None]:
     """Given a directory yield paths to check.
     """
     excludes = [Path('log')]
@@ -345,8 +345,8 @@ def get_option_parser() -> COP:
     parser.add_option(
         '--inplace', '-i',
         help=(
-            'Modify files in place, adding comments to files'
-            'If not set script will work as a linter'
+            'Modify files in place, adding comments to files. '
+            'If not set, the script will work as a linter'
         ),
         action='store_true',
         default=False,
