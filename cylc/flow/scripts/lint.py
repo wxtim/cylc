@@ -437,21 +437,35 @@ def get_option_parser() -> COP:
 
 @cli_function(get_option_parser)
 def main(parser: COP, options: 'Values', *targets) -> None:
+
+    # Expand paths so that message will return full path
+    # & ensure that CWD is used if no path is given:
+    if targets:
+        targets = tuple(Path(path).resolve() for path in targets)
+    else:
+        targets = tuple(str(Path.cwd()))
+
+    # Get a list of checks based on the checking options:
     checks = parse_checks(options.linter)
 
     if options.ref:
         get_reference(checks)
 
-    count = 0
-    for target in targets:
-        target = Path(target)
-        if not target.exists():
-            LOG.warn(f'Path {target} does not exist.')
-        else:
-            for file_ in get_cylc_files(target):
-                LOG.debug(f'Checking {file_}')
-                count += check_cylc_file(file_, checks, options.inplace)
-        if count > 0:
-            print(Fore.YELLOW + f'Checked {target} and found {count} issues.')
-        else:
-            print(Fore.GREEN + f'Checked {target} and found {count} issues.')
+    else:
+        count = 0
+        for target in targets:
+            target = Path(target)
+            if not target.exists():
+                LOG.warn(f'Path {target} does not exist.')
+            else:
+                for file_ in get_cylc_files(target):
+                    LOG.debug(f'Checking {file_}')
+                    count += check_cylc_file(file_, checks, options.inplace)
+            if count > 0:
+                print(
+                    Fore.YELLOW + f'Checked {target} and found {count} issues.'
+                )
+            else:
+                print(
+                    Fore.GREEN + f'Checked {target} and found {count} issues.'
+                )
