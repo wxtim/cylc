@@ -241,6 +241,13 @@ CHECKS = {
             'short': (
                 '``[runtime][<namespace>][job]`` is deprecated, '
                 'use ``[runtime][<namespace>]platform``'
+                '\n(the following items can be moved to '
+                '``[runtime][<namespace>]``:'
+                '\n- execution retry delays``'
+                '\n- submission retry delays``'
+                '\n- execution polling intervals``'
+                '\n- submission polling intervals``'
+                '\n- execution time limit``'
             ),
             'url': 'major-changes/platforms.html#platforms'
         },
