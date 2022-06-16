@@ -69,6 +69,8 @@ SECTION1 = r'\[\s*{}\s*\]'
 SECTION2 = r'\[\[\s*{}\s*\]\]'
 SECTION3 = r'\[\[\[\s*{}\s*\]\]\]'
 FILEGLOBS = ['*.rc', '*.cylc']
+JINJA2_SHEBANG = '#!jinja2'
+JINJA2_FOUND_WITHOUT_SHEBANG = 'jinja2 found: no shebang (#!jinja2)'
 CHECKS_DESC = {'U': '7 to 8 upgrades', 'S': 'Style'}
 CHECKS = {
     'U': {
@@ -299,6 +301,20 @@ CHECKS = {
             ),
             'url': ''
         },
+        re.compile(r'{{.*}}'): {
+            'short': (
+                f'{JINJA2_FOUND_WITHOUT_SHEBANG}'
+                '{{VARIABLE}}'
+            ),
+            'url': ''
+        },
+        re.compile(r'{%.*%}'): {
+            'short': (
+                f'{JINJA2_FOUND_WITHOUT_SHEBANG}'
+                '{% .* %}'
+            ),
+            'url': ''
+        },
     },
     'S': {
         re.compile(r'^\t'): {
@@ -368,9 +384,18 @@ def check_cylc_file(file_, checks, modify=False):
 
     # Open file, and read it's line to mempory.
     lines = file_.read_text().split('\n')
+    jinja_shebang = lines[0].strip().lower() == JINJA2_SHEBANG
     count = 0
     for line_no, line in enumerate(lines):
         for check, message in checks.items():
+            # Tests with for presence of Jinja2 if no shebang line is
+            # present.
+            if (
+                jinja_shebang
+                and message['short'].startswith(
+                    JINJA2_FOUND_WITHOUT_SHEBANG)
+            ):
+                continue
             if check.findall(line) and not line.strip().startswith('#'):
                 count += 1
                 if modify:

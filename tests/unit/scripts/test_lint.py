@@ -74,9 +74,12 @@ TEST_FILE = """
             graph = foo
 
 
+
 [runtime]
     [[MYFAM]]
         extra log files = True
+        {% from 'cylc.flow' import LOG %}
+        script = {{HELLOWORLD}}
         [[[remote]]]
             host = parasite
             suite definition directory = '/home/bar'
