@@ -99,7 +99,7 @@ LINT_TEST_FILE = """
 
 [runtime]
           [[foo]]
-        inherit = Wooo
+        inherit = hello
      [[[job]]]
 something\t
 """
@@ -186,9 +186,9 @@ def test_get_cylc_files_get_all_rcs(tmp_path):
     assert result.sort() == expect.sort()
 
 
-def test_get_reference(capsys):
+def test_get_reference():
     """It produces a reference file for our linting."""
-    get_reference({
+    ref = get_reference({
         re.compile('not a regex'): {
             'short': 'section `[vizualization]` has been removed.',
             'url': 'some url or other',
@@ -202,4 +202,4 @@ def test_get_reference(capsys):
         ' https://cylc.github.io/cylc-doc/latest/html/7-to-8/some url'
         ' or other\n\n'
     )
-    assert capsys.readouterr().out == expect
+    assert ref == expect

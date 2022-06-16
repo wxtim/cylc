@@ -327,11 +327,12 @@ CHECKS = {
             'short': 'trailing whitespace.',
             'url': STYLE_GUIDE + 'trailing-whitespace'
         },
-        re.compile(r'^.{80,}'): {
-            'short': 'line > 79 characters.',
-            'url': STYLE_GUIDE + 'line-length-and-continuation'
-        },
-        re.compile(r'inherit\s*=\s*.*[a-z].*$'): {
+        # Consider re-adding this as an option later:
+        # re.compile(r'^.{80,}'): {
+        #     'short': 'line > 79 characters.',
+        #     'url': STYLE_GUIDE + 'line-length-and-continuation'
+        # },
+        re.compile(r'inherit\s*=\s*[a-z].*$'): {
             'short': 'Family name contains lowercase characters.',
             'url': STYLE_GUIDE + 'task-naming-conventions'
         },
@@ -343,7 +344,7 @@ def parse_checks(check_arg):
     """Collapse metadata in checks dicts.
     """
     parsedchecks = {}
-    if check_arg == '8':
+    if check_arg == '728':
         purpose_filters = ['7-to-8']
     elif check_arg == 'lint':
         purpose_filters = ['lint']
@@ -444,7 +445,7 @@ def get_option_parser() -> COP:
         default=False,
     )
     parser.add_option(
-        '--reference', '--ref', '-r',
+        '--reference', '--ref', '-R',
         help=(
             'generate a reference of errors'
         ),
@@ -453,9 +454,13 @@ def get_option_parser() -> COP:
         dest="ref"
     )
     parser.add_option(
-        '--linter',
-        default='8',
-        choices=('8', 'lint', 'all'),
+        '--ruleset', '-r',
+        help=(
+            'Set of rules to use: '
+            '("728", "lint", "all")'
+        ),
+        default='728',
+        choices=('728', 'lint', 'all'),
         dest='linter'
     )
 
@@ -498,4 +503,4 @@ def main(parser: COP, options: 'Values', *targets) -> None:
                 )
 
 
-__doc__ += get_reference(parse_checks('8'))
+__doc__ += get_reference(parse_checks('all'))
