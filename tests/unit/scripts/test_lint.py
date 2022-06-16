@@ -47,6 +47,8 @@ TEST_FILE = """
     [[simulation]]
         disable suite event handlers = true
     [[authentication]]
+    [[environment]]
+    [[force run mode]]
     [[events]]
         abort on stalled = True
         abort if startup handler fails= True  # deliberately not added a space.
@@ -54,6 +56,13 @@ TEST_FILE = """
         abort if timeout handler fails = True
         abort if stalled handler fails = True
         abort if inactivity handler fails = False
+        mail to = eleanor.rigby@beatles.lv
+        mail from = fr.mckenzie@beatles.lv
+        mail footer = "Collecting The Rice"
+        mail smtp = 123.456.789.10
+        timeout = 30
+        inactivity = 30
+        abort on inactivity = 30
     [[parameters]]
     [[parameter templates]]
     [[mail]]

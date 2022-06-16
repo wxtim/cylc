@@ -40,8 +40,8 @@ STYLE_GUIDE = (
 )
 URL_STUB = "https://cylc.github.io/cylc-doc/latest/html/7-to-8/"
 SECTION1 = r'\[\s*{}\s*\]'
-SECTION2 = r'\[\[{}\]\]'
-SECTION3 = r'\[\[\[{}\]\]\]'
+SECTION2 = r'\[\[\s*{}\s*\]\]'
+SECTION3 = r'\[\[\[\s*{}\s*\]\]\]'
 FILEGLOBS = ['*.rc', '*.cylc']
 CHECKS = {
     '7-to-8': {
@@ -125,6 +125,65 @@ CHECKS = {
             ),
             'url': ''
         },
+        re.compile(r'mail to\s*='): {
+            'short': (
+                '``[events]mail to`` => ``[mail]to``'
+            ),
+            'url': ''
+        },
+        re.compile(r'mail from\s*='): {
+            'short': (
+                '``[events]mail from`` => ``[mail]from``'
+            ),
+            'url': ''
+        },
+        re.compile(r'mail footer\s*='): {
+            'short': (
+                '``[events]mail footer`` => ``[mail]footer``'
+            ),
+            'url': ''
+        },
+        re.compile(r'mail smtp\s*='): {
+            'short': (
+                '``[events]mail smtp`` => ``[mail]smtp``'
+            ),
+            'url': ''
+        },
+        re.compile(r'timeout\s*='): {
+            'short': (
+                '``[cylc][events]timeout`` => '
+                '``[scheduler][events]stall timeout``'
+            ),
+            'url': ''
+        },
+        re.compile(r'inactivity\s*='): {
+            'short': (
+                '``[cylc][events]inactivity`` => '
+                '``[scheduler][events]inactivity timeout``'
+            ),
+            'url': ''
+        },
+        re.compile(r'abort on inactivity\s*='): {
+            'short': (
+                '``[cylc][events]timeout`` => '
+                '``[scheduler][events]abort on inactivity timeout``'
+            ),
+            'url': ''
+        },
+        re.compile(SECTION2.format('force run mode')): {
+            'short': (
+                '``[cylc][force run mode]abort if ___ handler fails`` '
+                'commands are obsolete.'
+            ),
+            'url': ''
+        },
+        re.compile(SECTION2.format('environment')): {
+            'short': (
+                '``[cylc][force run mode]abort if ___ handler fails`` '
+                'commands are obsolete.'
+            ),
+            'url': ''
+        },
         re.compile(r'.* handler\s*?='): {
             'short': (
                 '``[cylc][<namespace>][events]___ handler`` commands are'
@@ -205,7 +264,7 @@ CHECKS = {
                 'use ``[scheduler][mail][task event batch interval]``'
             ),
             'url': ''
-        }
+        },
     },
     'lint': {
         re.compile(r'^\t'): {
@@ -243,7 +302,6 @@ CHECKS = {
             'short': 'Family name contains lowercase characters.',
             'url': STYLE_GUIDE + 'task-naming-conventions'
         },
-
     }
 }
 
