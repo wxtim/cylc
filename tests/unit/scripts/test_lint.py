@@ -118,30 +118,30 @@ def create_testable_file(monkeypatch, capsys):
 
 
 @pytest.mark.parametrize(
-    'number', range(len(CHECKS['7-to-8']))
+    'number', range(len(CHECKS['U']))
 )
 def test_check_cylc_file_7to8(create_testable_file, number, capsys):
     try:
-        result = create_testable_file(TEST_FILE, '8').out
-        assert f'[{number:03d}: 7-to-8]' in result
+        result = create_testable_file(TEST_FILE, '728').out
+        assert f'[U{number:03d}]' in result
     except AssertionError:
         raise AssertionError(
-            f'missing error number {number:03d}: 7-to-8 - '
-            f'{[*CHECKS["7-to-8"].keys()][number]}'
+            f'missing error number U{number:03d}'
+            f'{[*CHECKS["U"].keys()][number]}'
         )
 
 
 @pytest.mark.parametrize(
-    'number', range(len(CHECKS['lint']))
+    'number', range(len(CHECKS['S']))
 )
 def test_check_cylc_file_lint(create_testable_file, number):
     try:
-        assert f'[{number:03d}: lint]' in create_testable_file(
+        assert f'[S{number:03d}]' in create_testable_file(
             LINT_TEST_FILE, 'lint').out
     except AssertionError:
         raise AssertionError(
-            f'missing error number {number:03d}: lint - '
-            f'{[*CHECKS["lint"].keys()][number]}'
+            f'missing error number S:{number:03d}'
+            f'{[*CHECKS["S"].keys()][number]}'
         )
 
 
@@ -156,15 +156,15 @@ def create_testable_dir(tmp_path):
 
 
 @pytest.mark.parametrize(
-    'number', range(len(CHECKS['7-to-8']))
+    'number', range(len(CHECKS['U']))
 )
 def test_check_cylc_file_inplace(create_testable_dir, number):
     try:
-        assert f'[{number:03d}: 7-to-8]' in create_testable_dir
+        assert f'[U{number:03d}]' in create_testable_dir
     except AssertionError:
         raise AssertionError(
             f'missing error number {number:03d}:7-to-8 - '
-            f'{[*CHECKS["7-to-8"].keys()][number]}'
+            f'{[*CHECKS["U"].keys()][number]}'
         )
 
 
@@ -192,12 +192,13 @@ def test_get_reference():
         re.compile('not a regex'): {
             'short': 'section `[vizualization]` has been removed.',
             'url': 'some url or other',
-            'purpose': '7-to-8',
+            'purpose': 'U',
             'index': 42
         },
     })
     expect = (
-        '042 7-to-8 ``not a regex``:\n    section `[vizualization]` has been '
+        '\n7 to 8 upgrades\n---------------\n\n'
+        'U042 ``not a regex``:\n    section `[vizualization]` has been '
         'removed.\n    see -'
         ' https://cylc.github.io/cylc-doc/latest/html/7-to-8/some url'
         ' or other\n\n'

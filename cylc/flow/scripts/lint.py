@@ -69,8 +69,9 @@ SECTION1 = r'\[\s*{}\s*\]'
 SECTION2 = r'\[\[\s*{}\s*\]\]'
 SECTION3 = r'\[\[\[\s*{}\s*\]\]\]'
 FILEGLOBS = ['*.rc', '*.cylc']
+CHECKS_DESC = {'U': '7 to 8 upgrades', 'S': 'Style'}
 CHECKS = {
-    '7-to-8': {
+    'U': {
         re.compile(SECTION1.format('vizualization')): {
             'short': 'section ``[vizualization]`` has been removed.',
             'url': 'summary.html#new-web-and-terminal-uis'
@@ -299,7 +300,7 @@ CHECKS = {
             'url': ''
         },
     },
-    'lint': {
+    'S': {
         re.compile(r'^\t'): {
             'short': 'Use multiple spaces, not tabs',
             'url': STYLE_GUIDE + 'tab-characters'
@@ -345,11 +346,11 @@ def parse_checks(check_arg):
     """
     parsedchecks = {}
     if check_arg == '728':
-        purpose_filters = ['7-to-8']
+        purpose_filters = ['U']
     elif check_arg == 'lint':
-        purpose_filters = ['lint']
+        purpose_filters = ['S']
     else:
-        purpose_filters = ['lint', '7-to-8']
+        purpose_filters = ['U', 'S']
 
     for purpose, checks in CHECKS.items():
         if purpose in purpose_filters:
@@ -378,14 +379,14 @@ def check_cylc_file(file_, checks, modify=False):
                     else:
                         url = URL_STUB + message['url']
                     outlines.append(
-                        f'# [{message["index"]:03d}: {message["purpose"]}]: '
+                        f'# [{message["purpose"]}{message["index"]:03d}]: '
                         f'{message["short"]}\n'
                         f'# - see {url}'
                     )
                 else:
                     print(
                         Fore.YELLOW +
-                        f'[{message["index"]:03d}: {message["purpose"]}]'
+                        f'[{message["purpose"]}{message["index"]:03d}]'
                         f'{file_}: {line_no}: {message["short"]}'
                     )
         if modify:
@@ -408,10 +409,24 @@ def get_cylc_files(base: Path) -> Generator[Path, None, None]:
 
 
 def get_reference(checks):
+    """Print a reference for checks to be carried out.
+
+    Returns:
+        RST compatible text.
+    """
     output = ''
+    current_checkset = ''
     for check, meta in checks.items():
+        # Check if the purpose has changed - if so create a new
+        # section title:
+        if meta['purpose'] != current_checkset:
+            current_checkset = meta['purpose']
+            title = CHECKS_DESC[meta["purpose"]]
+            output += f'\n{title}\n{"-" * len(title)}\n\n'
+
+        # Fill a template with info about the issue.
         template = (
-            '{index:003d} {checkset} ``{title}``:\n    {summary}\n'
+            '{checkset}{index:003d} ``{title}``:\n    {summary}\n'
             '    see - {url}\n'
         )
         if meta['url'].startswith('http'):
