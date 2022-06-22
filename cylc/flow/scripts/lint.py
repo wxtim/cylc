@@ -264,6 +264,13 @@ CHECKS = {
             ),
             'url': 'major-changes/platforms.html#platforms'
         },
+        re.compile(r'suite state polling\s*='): {
+            'short': (
+                '``[runtime][<namespace>]suite state polling`` is deprecated, '
+                'use ``[runtime][<namespace>]workflow state polling``'
+            ),
+            'url': 'major-changes/platforms.html#platforms'
+        },
         re.compile(SECTION3.format('job')): {
             'short': (
                 '``[runtime][<namespace>][job]`` is deprecated, '
@@ -310,6 +317,20 @@ CHECKS = {
             'short': (
                 f'{JINJA2_FOUND_WITHOUT_SHEBANG}'
                 '{% .* %}'
+            ),
+            'url': ''
+        },
+        re.compile(r'max active cycle points\s*='): {
+            'short': (
+                '``[scheduling]max active cycle points`` is deprecated'
+                'use [scheduling]runahead limit'
+            ),
+            'url': ''
+        },
+        re.compile(r'hold after point\s*='): {
+            'short': (
+                '``[scheduling]hold after point`` is deprecated'
+                'use [scheduling]hold after cycle point'
             ),
             'url': ''
         },

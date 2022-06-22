@@ -69,6 +69,8 @@ TEST_FILE = """
         task event mail interval    = PT4M # deliberately added lots of spaces.
 
 [scheduling]
+    max active cycle points = 5
+    hold after point = 20220101T0000Z
     [[dependencies]]
         [[[R1]]]
             graph = foo
@@ -80,6 +82,7 @@ TEST_FILE = """
         extra log files = True
         {% from 'cylc.flow' import LOG %}
         script = {{HELLOWORLD}}
+        suite state polling = PT1H
         [[[remote]]]
             host = parasite
             suite definition directory = '/home/bar'
