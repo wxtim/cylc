@@ -31,7 +31,7 @@ from cylc.flow.scripts.lint import (
 
 
 TEST_FILE = """
-[vizualization]
+[visualization]
 
 [cylc]
     include at start-up = foo
@@ -48,7 +48,7 @@ TEST_FILE = """
         disable suite event handlers = true
     [[authentication]]
     [[environment]]
-    [[force run mode]]
+    force run mode = dummy
     [[events]]
         abort on stalled = True
         abort if startup handler fails= True  # deliberately not added a space.
@@ -132,6 +132,12 @@ def test_check_cylc_file_7to8(create_testable_file, number, capsys):
             f'missing error number U{number:03d}'
             f'{[*CHECKS["U"].keys()][number]}'
         )
+
+
+def test_check_cylc_file_line_no(create_testable_file, capsys):
+    """It prints the correct line numbers"""
+    result = create_testable_file(TEST_FILE, '728').out
+    assert result.split()[1] == '2:'
 
 
 @pytest.mark.parametrize(

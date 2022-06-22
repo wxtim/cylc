@@ -74,8 +74,8 @@ JINJA2_FOUND_WITHOUT_SHEBANG = 'jinja2 found: no shebang (#!jinja2)'
 CHECKS_DESC = {'U': '7 to 8 upgrades', 'S': 'Style'}
 CHECKS = {
     'U': {
-        re.compile(SECTION1.format('vizualization')): {
-            'short': 'section ``[vizualization]`` has been removed.',
+        re.compile(SECTION1.format('visualization')): {
+            'short': 'section ``[visualization]`` has been removed.',
             'url': 'summary.html#new-web-and-terminal-uis'
         },
         re.compile(SECTION1.format('cylc')): {
@@ -174,18 +174,18 @@ CHECKS = {
         },
         re.compile(r'mail smtp\s*='): {
             'short': (
-                '``[events]mail smtp`` => ``[mail]smtp``'
+                '``[events]mail smtp`` => ``global.cylc[scheduler][mail]smtp``'
             ),
             'url': ''
         },
-        re.compile(r'timeout\s*='): {
+        re.compile(r'^\s*timeout\s*='): {
             'short': (
                 '``[cylc][events]timeout`` => '
                 '``[scheduler][events]stall timeout``'
             ),
             'url': ''
         },
-        re.compile(r'inactivity\s*='): {
+        re.compile(r'^\s*inactivity\s*='): {
             'short': (
                 '``[cylc][events]inactivity`` => '
                 '``[scheduler][events]inactivity timeout``'
@@ -194,22 +194,20 @@ CHECKS = {
         },
         re.compile(r'abort on inactivity\s*='): {
             'short': (
-                '``[cylc][events]timeout`` => '
+                '``[cylc][events]abort on inactivity`` => '
                 '``[scheduler][events]abort on inactivity timeout``'
             ),
             'url': ''
         },
-        re.compile(SECTION2.format('force run mode')): {
+        re.compile(r'force run mode\s*='): {
             'short': (
-                '``[cylc][force run mode]abort if ___ handler fails`` '
-                'commands are obsolete.'
+                '``[cylc]force run mode`` is obsolete.'
             ),
             'url': ''
         },
         re.compile(SECTION2.format('environment')): {
             'short': (
-                '``[cylc][force run mode]abort if ___ handler fails`` '
-                'commands are obsolete.'
+                '``[cylc][environment]`` is obsolete.'
             ),
             'url': ''
         },
@@ -386,7 +384,7 @@ def check_cylc_file(file_, checks, modify=False):
     lines = file_.read_text().split('\n')
     jinja_shebang = lines[0].strip().lower() == JINJA2_SHEBANG
     count = 0
-    for line_no, line in enumerate(lines):
+    for line_no, line in enumerate(lines, start=1):
         for check, message in checks.items():
             # Tests with for presence of Jinja2 if no shebang line is
             # present.
