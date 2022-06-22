@@ -382,7 +382,7 @@ def parse_checks(check_arg):
     parsedchecks = {}
     if check_arg == '728':
         purpose_filters = ['U']
-    elif check_arg == 'lint':
+    elif check_arg == 'style':
         purpose_filters = ['S']
     else:
         purpose_filters = ['U', 'S']
@@ -504,22 +504,13 @@ def get_option_parser() -> COP:
         default=False,
     )
     parser.add_option(
-        '--reference', '--ref', '-R',
-        help=(
-            'generate a reference of errors'
-        ),
-        action='store_true',
-        default=False,
-        dest="ref"
-    )
-    parser.add_option(
         '--ruleset', '-r',
         help=(
             'Set of rules to use: '
-            '("728", "lint", "all")'
+            '("728", "style", "all")'
         ),
         default='728',
-        choices=('728', 'lint', 'all'),
+        choices=('728', 'style', 'all'),
         dest='linter'
     )
 
@@ -536,30 +527,49 @@ def main(parser: COP, options: 'Values', *targets) -> None:
     else:
         targets = tuple(str(Path.cwd()))
 
-    # Get a list of checks based on the checking options:
-    checks = parse_checks(options.linter)
-
-    if options.ref:
-        print(get_reference(checks))
-
-    else:
-        count = 0
-        for target in targets:
-            target = Path(target)
-            if not target.exists():
-                LOG.warn(f'Path {target} does not exist.')
-            else:
-                for file_ in get_cylc_files(target):
-                    LOG.debug(f'Checking {file_}')
-                    count += check_cylc_file(file_, checks, options.inplace)
-            if count > 0:
-                print(
-                    Fore.YELLOW + f'Checked {target} and found {count} issues.'
+    # Get a list of checks bas ed on the checking options:
+    count = 0
+    # Allow us to check any number of folders at once
+    for target in targets:
+        target = Path(target)
+        if not target.exists():
+            LOG.warn(f'Path {target} does not exist.')
+        else:
+            # Check whether target is an upgraded Cylc 8 workflow.
+            # If it isn't then we shouldn't run the 7-to-8 checks upon
+            # it:
+            cylc8 = (target / 'flow.cylc').exists()
+            if not cylc8 and options.linter == '728':
+                LOG.error(
+                    f'{target} not a Cylc 8 workflow: '
+                    'No checks will be made.'
                 )
-            else:
-                print(
-                    Fore.GREEN + f'Checked {target} and found {count} issues.'
+                continue
+            elif not cylc8 and options.linter == 'all':
+                LOG.error(
+                    f'{target} not a Cylc 8 workflow: '
+                    'Checking only for style.'
                 )
+                check_names = parse_checks('style')
+            else:
+                check_names = options.linter
+
+            # Check each file:
+            checks = parse_checks(check_names)
+            for file_ in get_cylc_files(target):
+                LOG.debug(f'Checking {file_}')
+                count += check_cylc_file(file_, checks, options.inplace)
+
+        # Summing up:
+        if count > 0:
+            color = Fore.YELLOW
+        else:
+            color = Fore.GREEN
+        msg = (
+            f'Checked {target} against {check_names} '
+            f'rules and found {count} issues.'
+        )
+        print(f'{color}{"-" * len(msg)}\n{msg}')
 
 
 __doc__ += get_reference(parse_checks('all'))
