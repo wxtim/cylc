@@ -28,12 +28,18 @@ from cylc.flow.scripts.lint import (
     get_cylc_files,
     get_reference_rst,
     get_reference_text,
+    get_pyproject_toml,
     get_upgrader_info,
-    parse_checks
+    merge_cli_with_tomldata,
+    parse_checks,
+    tomlDataValidatationFailure,
+    validate_toml_items
 )
 
 
-UPG_CHECKS = parse_checks('728')
+param = pytest.param
+
+UPG_CHECKS = parse_checks(['728'])
 TEST_FILE = """
 [visualization]
 
@@ -162,7 +168,7 @@ def create_testable_file(monkeypatch, capsys):
 )
 def test_check_cylc_file_7to8(create_testable_file, number, capsys):
     try:
-        result, checks = create_testable_file(TEST_FILE, '728')
+        result, checks = create_testable_file(TEST_FILE, ['728'])
         assert f'[U{number:03d}]' in result.out
     except AssertionError:
         raise AssertionError(
@@ -173,14 +179,14 @@ def test_check_cylc_file_7to8(create_testable_file, number, capsys):
 
 def test_check_cylc_file_7to8_has_shebang(create_testable_file):
     """Jinja2 code comments will not be added if shebang present"""
-    result, _ = create_testable_file('#!jinja2\n{{FOO}}', '[scheduler]')
+    result, _ = create_testable_file('#!jinja2\n{{FOO}}', '', '[scheduler]')
     result = result.out
     assert result == ''
 
 
 def test_check_cylc_file_line_no(create_testable_file, capsys):
     """It prints the correct line numbers"""
-    result, _ = create_testable_file(TEST_FILE, '728')
+    result, _ = create_testable_file(TEST_FILE, ['728'])
     result = result.out
     assert result.split()[1] == '.:2:'
 
@@ -191,7 +197,7 @@ def test_check_cylc_file_line_no(create_testable_file, capsys):
 def test_check_cylc_file_lint(create_testable_file, number):
     try:
         result, _ = create_testable_file(
-            LINT_TEST_FILE, 'style')
+            LINT_TEST_FILE, ['style'])
         assert f'S{(number + 1):03d}' in result.out
     except AssertionError:
         raise AssertionError(
@@ -212,7 +218,41 @@ def test_check_cylc_file_lint(create_testable_file, number):
 def test_check_exclusions(create_testable_file, exclusion):
     """It does not report any items excluded."""
     result, _ = create_testable_file(
-        LINT_TEST_FILE, 'style', list(exclusion))
+        LINT_TEST_FILE, ['style'], list(exclusion))
+    for item in exclusion:
+        assert item not in result.out
+
+
+@pytest.mark.parametrize(
+    'exclusion',
+    [
+        comb for i in range(len(STYLE_CHECKS.values()))
+        for comb in combinations(
+            [f'S{i["index"]:03d}' for i in STYLE_CHECKS.values()], i + 1
+        )
+    ]
+)
+def test_check_exclusions(create_testable_file, exclusion):
+    """It does not report any items excluded."""
+    result, _ = create_testable_file(
+        LINT_TEST_FILE, ['style'], list(exclusion))
+    for item in exclusion:
+        assert item not in result.out
+
+
+@pytest.mark.parametrize(
+    'exclusion',
+    [
+        comb for i in range(len(STYLE_CHECKS.values()))
+        for comb in combinations(
+            [f'S{i["index"]:03d}' for i in STYLE_CHECKS.values()], i + 1
+        )
+    ]
+)
+def test_check_exclusions(create_testable_file, exclusion):
+    """It does not report any items excluded."""
+    result, _ = create_testable_file(
+        LINT_TEST_FILE, ['style'], list(exclusion))
     for item in exclusion:
         assert item not in result.out
 
@@ -224,7 +264,7 @@ def create_testable_dir(tmp_path):
     check_cylc_file(
         test_file.parent,
         test_file,
-        parse_checks('all'),
+        parse_checks(['728', 'style']),
         modify=True,
     )
     return '\n'.join([*difflib.Differ().compare(
@@ -341,3 +381,114 @@ def test_get_upg_info(fixture_get_deprecations, findme):
     else:
         pattern = f'^\\s*{findme}\\s*=\\s*.*'
         assert pattern in [i.pattern for i in fixture_get_deprecations.keys()]
+
+
+@pytest.mark.parametrize(
+    'expect',
+    [
+        param({
+            'rulesets': ['style'],
+            'ignore': ['S004'],
+            'exceptions': ['sites/*.cylc']},
+            id="it returns what we want"
+        ),
+        param({
+            'northgate': ['sites/*.cylc'],
+            'mons-meg': 42},
+            id="it only returns requested sections"
+        ),
+    ]
+)
+def test_get_pyproject_toml(tmp_path, expect):
+    """It returns only the lists we want from the toml file."""
+    tomlcontent = ""
+    permitted_keys = ['rulesets', 'ignore', 'exceptions']
+
+    for section, value in expect.items():
+        tomlcontent += f'\n{section} = {value}'
+    (tmp_path / 'pyproject.toml').write_text(tomlcontent)
+    tomldata = get_pyproject_toml(tmp_path)
+
+    control = {}
+    for key in permitted_keys:
+        if key in expect:
+            control[key] = expect[key]
+        else:
+            control[key] = []
+    assert tomldata == control
+
+
+@pytest.mark.parametrize(
+    'input_, error',
+    [
+        param(
+            {'exceptions': ['hey', 'there', 'Delilah']},
+            None,
+            id='it works'
+        ),
+        param(
+            {'foo': ['hey', 'there', 'Delilah', 42]},
+            'allowed',
+            id='it fails with illegal section name'
+        ),
+        param(
+            {'exceptions': 'woo!'},
+            'should be a list, but',
+            id='it fails with illegal section type'
+        ),
+        param(
+            {'exceptions': ['hey', 'there', 'Delilah', 42]},
+            'should be a string',
+            id='it fails with illegal value name'
+        ),
+        param(
+            {'rulesets': ['hey']},
+            'hey not valid: Rulesets can be',
+            id='it fails with illegal ruleset'
+        ),
+        param(
+            {'ignore': ['hey']},
+            'hey not valid: Ignore codes',
+            id='it fails with illegal ignores'
+        ),
+        param(
+            {'ignore': ['R999']},
+            'R999 is a not a known linter code.',
+            id='it fails with non-existant checks ignored'
+        )
+    ]
+)
+def test_validate_toml_items(input_, error):
+    """It chucks out the wrong sort of items."""
+    if error is not None:
+        with pytest.raises(tomlDataValidatationFailure, match=error):
+            validate_toml_items(input_)
+    else:
+        assert validate_toml_items(input_) is True
+
+
+@pytest.mark.parametrize(
+    'clidata, tomldata, expect',
+    [
+        param(
+            {
+                'rulesets': ['foo', 'bar'],
+                'ignore': ['R101'],
+            },
+            {
+                'rulesets': ['baz'],
+                'ignore': ['R100'],
+                'exceptions': ['not_me-*.cylc']
+            },
+            {
+                'rulesets': ['foo', 'bar'],
+                'ignore': ['R100', 'R101'],
+                'exceptions': ['not_me-*.cylc']
+            },
+            id='It works with good path'
+        ),
+    ]
+)
+def test_merge_cli_with_tomldata(clidata, tomldata, expect):
+    """It merges each of the three sections correctly: see function.__doc__"""
+    assert merge_cli_with_tomldata(clidata, tomldata) == expect

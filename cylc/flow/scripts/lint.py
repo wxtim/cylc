@@ -28,7 +28,7 @@ Check .cylc and .rc files for code style, deprecated syntax and other issues.
 
 By default, suggestions are written to stdout.
 
-In-place mode ( "-i, --inplace") writes suggestions into the file as comments.
+In-place mode ("-i, --inplace") writes suggestions into the file as comments.
 Commit to version control before using this, in case you want to back out.
 
 """
@@ -36,7 +36,8 @@ from colorama import Fore
 from optparse import Values
 from pathlib import Path
 import re
-from typing import Generator
+import tomli
+from typing import Generator, Union
 
 from cylc.flow import LOG
 from cylc.flow.option_parsers import (
@@ -166,6 +167,124 @@ MANUAL_DEPRECATIONS = {
         )
     },
 }
+RULESETS = ['728', 'style', 'all']
+EXTRA_TOML_VALIDATION = {
+    'ignore': {
+        lambda x: re.match(r'[A-Z]\d\d\d', x):
+            '{item} not valid: Ignore codes should be in the form X001',
+        lambda x: x in [
+            f'{i["purpose"]}{i["index"]:03d}'
+            for i in parse_checks(['728', 'style']).values()
+        ]:
+            '{item} is a not a known linter code.'
+    },
+    'rulesets': {
+        lambda item: item in RULESETS:
+            '{item} not valid: Rulesets can be '
+            '\'728\', \'style\' or \'all\'.'
+    },
+    # consider checking that item is file?
+    'exceptions': {}
+}
+
+
+class tomlDataValidatationFailure(Exception):
+    ...
+
+
+def validate_toml_items(tomldata):
+    """Check that all tomldata items are lists of strings
+
+    Explicitly checks and raises if tomldata not:
+        - str in EXTRA_TOML_VALIDATION.keys()
+        - item is not a list of strings.
+
+    Plus additional validation for each set of values.
+    """
+    for key, items in tomldata.items():
+        # Key should only be one of the allowed keys:
+        if key not in EXTRA_TOML_VALIDATION.keys():
+            raise tomlDataValidatationFailure(
+                f'Only {[*EXTRA_TOML_VALIDATION.keys()]} '
+                f'allowed as toml sections but you used {key}'
+            )
+        # Item should be a list...
+        if not isinstance(items, list):
+            raise tomlDataValidatationFailure(
+                f'{key} should be a list, but was: {items}')
+        # ... of strings
+        for item in items:
+            if not isinstance(item, str):
+                raise tomlDataValidatationFailure(
+                    f'Config {item} should be a string but '
+                    f'is {str(type(item))}'
+                )
+            for check, message in EXTRA_TOML_VALIDATION[key].items():
+                if not check(item):
+                    raise tomlDataValidatationFailure(
+                        message.format(item=item)
+                    )
+    return True
+
+
+def get_pyproject_toml(dir_):
+    """if a pyproject.toml file is present open it and return settings.
+
+    TODO: Do we need more checks e.g. validating type of the data?
+    """
+    keys = ['rulesets', 'ignore', 'exceptions']
+    tomlfile = Path(dir_ / 'pyproject.toml')
+    tomldata = {}
+    if tomlfile.exists():
+        loadeddata = tomli.loads(tomlfile.read_text())
+        for key in keys:
+            tomldata[key] = loadeddata.get(key, [])
+        validate_toml_items(tomldata)
+    else:
+        tomldata = {key: [] for key in keys}
+    return tomldata
+
+
+def merge_cli_with_tomldata(clidata, tomldata, ignore_cli_ruleset=False):
+    """Merge options set by pyproject.toml with CLI options.
+
+    rulesets: CLI should override toml.
+    ignore: CLI and toml should be combined with no duplicates.
+    exceptions: No CLI eqivelent, rerturn toml if any.
+
+    Args:
+        ignore_cli_ruleset: If user doesn't specifiy a ruleset use the
+            rules from the tomlfile.
+
+    Examples:
+    >>> merge_cli_with_tomldata({'rulesets': ['foo']}, {'rulesets': ['bar']})
+    {'rulesets': ['foo']}
+    >>> merge_cli_with_tomldata({'rulesets': []}, {'rulesets': ['bar']})
+    {'rulesets': ['bar']}
+    >>> merge_cli_with_tomldata({'ignore': ['foo']}, {'ignore': ['bar']})
+    {'ignore': ['bar', 'foo']}
+    """
+    output = {}
+
+    # Combine 'ignore' sections:
+    output['ignore'] = sorted(set(clidata['ignore'] + tomldata['ignore']))
+
+    # Replace 'rulesets from toml with those from CLI if they exist:
+    if ignore_cli_ruleset:
+        output['rulesets'] = (
+            tomldata['rulesets'] if tomldata['rulesets']
+            else clidata['rulesets']
+        )
+    else:
+        output['rulesets'] = (
+            clidata['rulesets'] if clidata['rulesets']
+            else tomldata['rulesets']
+        )
+
+    # Return 'exceptions' for the tomldata:
+    output['exceptions'] = tomldata['exceptions']
+
+    return output
 
 
 def list_to_config(path_, is_section=False):
@@ -244,37 +363,23 @@ def get_upgrader_info():
     return deprecations
 
 
-def get_checkset_from_name(name):
-    """Take a ruleset name and return a ruleset code
-
-    Examples:
-        >>> get_checkset_from_name('728')
-        ['U']
-        >>> get_checkset_from_name('style')
-        ['S']
-        >>> get_checkset_from_name('all')
-        ['U', 'S']
-    """
-    if name == '728':
-        purpose_filters = ['U']
-    elif name == 'style':
-        purpose_filters = ['S']
-    else:
-        purpose_filters = ['U', 'S']
-    return purpose_filters
+PURPOSE_FILTER_MAP = {
+    'style': 'S',
+    '728': 'U',
+}
 
 
-def parse_checks(check_arg, ignores=None):
+def parse_checks(check_args, ignores=None):
     """Collapse metadata in checks dicts.
 
     Args:
-        check_arg: type of checks to run, currently expecting '728', 'style'
-            or 'all'.
+        check_arg: list of types of checks to run,
+            currently expecting '728' and/or 'style'
         ignores: list of codes to ignore.
     """
     ignores = ignores or []
     parsedchecks = {}
-    purpose_filters = get_checkset_from_name(check_arg)
+    purpose_filters = [PURPOSE_FILTER_MAP[i] for i in check_args]
 
     checks = {'U': get_upgrader_info(), 'S': STYLE_CHECKS}
 
@@ -335,12 +440,20 @@ def check_cylc_file(dir_, file_, checks, modify=False):
     return count
 
 
-def get_cylc_files(base: Path) -> Generator[Path, None, None]:
+def get_cylc_files(
+    base: Path, exceptions: Union[list, None] = None
+) -> Generator[Path, None, None]:
     """Given a directory yield paths to check."""
+    exceptions = [] if exceptions is None else exceptions
+    except_these_files = [
+        file for exception in exceptions for file in base.rglob(exception)]
     for rglob in FILEGLOBS:
         for path in base.rglob(rglob):
             # Exclude log directory:
-            if path.relative_to(base).parts[0] != 'log':
+            if (
+                path.relative_to(base).parts[0] != 'log'
+                and path not in except_these_files
+            ):
                 yield path
 
 
@@ -437,8 +550,8 @@ def get_option_parser() -> COP:
             'Set of rules to use: '
             '("728", "style", "all")'
         ),
-        default='all',
-        choices=('728', 'style', 'all'),
+        default='',
+        choices=["728", "style", "all", ''],
         dest='linter'
     )
     parser.add_option(
@@ -468,7 +581,11 @@ def get_option_parser() -> COP:
 @cli_function(get_option_parser)
 def main(parser: COP, options: 'Values', *targets) -> None:
     if options.ref_mode:
-        print(get_reference_text(parse_checks(options.linter)))
+        if options.linter == 'all' or options.linter == '':
+            rulesets = ['728', 'style']
+        else:
+            rulesets = [options.linter]
+        print(get_reference_text(parse_checks(rulesets)))
         exit(0)
 
     # Expand paths so that message will return full path
@@ -490,25 +607,45 @@ def main(parser: COP, options: 'Values', *targets) -> None:
         if not target.exists():
             LOG.warn(f'Path {target} does not exist.')
         else:
+            ruleset_default = False
+            if options.linter == 'all':
+                options.linter = ['728', 'style']
+            elif options.linter == '':
+                options.linter = ['728', 'style']
+                ruleset_default = True
+            else:
+                options.linter = [options.linter]
+            tomlopts = get_pyproject_toml(target)
+            mergedopts = merge_cli_with_tomldata(
+                {
+                    'exceptions': [],
+                    'ignore': options.ignores,
+                    'rulesets': options.linter
+                },
+                tomlopts,
+                ruleset_default
+            )
+
             # Check whether target is an upgraded Cylc 8 workflow.
             # If it isn't then we shouldn't run the 7-to-8 checks upon
             # it:
             cylc8 = (target / 'flow.cylc').exists()
-            if not cylc8 and options.linter == '728':
+            if not cylc8 and mergedopts['rulesets'] == ['728']:
                 LOG.error(
                     f'{target} not a Cylc 8 workflow: '
                     'Lint after renaming '
                     '"suite.rc" to "flow.cylc"'
                 )
                 continue
-            elif not cylc8 and options.linter == 'all':
-                check_names = 'style'
+            elif not cylc8 and '728' in mergedopts['rulesets']:
+                check_names = mergedopts['rulesets']
+                check_names.remove('728')
             else:
-                check_names = options.linter
+                check_names = mergedopts['rulesets']
 
             # Check each file:
-            checks = parse_checks(check_names, options.ignores)
-            for file_ in get_cylc_files(target):
+            checks = parse_checks(check_names, mergedopts['ignore'])
+            for file_ in get_cylc_files(target, mergedopts['exceptions']):
                 LOG.debug(f'Checking {file_}')
                 count += check_cylc_file(
                     target,
@@ -536,4 +673,4 @@ def main(parser: COP, options: 'Values', *targets) -> None:
 
 # NOTE: use += so that this works with __import__
 # (docstring needed for `cylc help all` output)
-__doc__ += get_reference_rst(parse_checks('all'))
+__doc__ += get_reference_rst(parse_checks(['728', 'style']))
