@@ -257,12 +257,10 @@ def merge_cli_with_tomldata(clidata, tomldata, ignore_cli_ruleset=False):
             rules from the tomlfile.
 
     Examples:
-    >>> merge_cli_with_tomldata({'rulesets': ['foo']}, {'rulesets': ['bar']})
-    {'rulesets': ['foo']}
-    >>> merge_cli_with_tomldata({'rulesets': []}, {'rulesets': ['bar']})
-    {'rulesets': ['bar']}
-    >>> merge_cli_with_tomldata({'ignore': ['foo']}, {'ignore': ['bar']})
-    {'ignore': ['bar', 'foo']}
+    >>> merge_cli_with_tomldata(
+    ... {'rulesets': ['foo'], 'ignore': ['R101'], 'exceptions': []},
+    ... {'rulesets': ['bar'], 'ignore': ['R100'], 'exceptions': ['*.bk']})
+    {'ignore': ['R100', 'R101'], 'rulesets': ['foo'], 'exceptions': ['*.bk']}
     """
     output = {}
 
