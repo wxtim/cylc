@@ -18,6 +18,7 @@ dependencies:
   - pyzmq >=22,<23
   - setuptools >=49
   - urwid >=2,<3
+  - tomli >=2.0.0 # [py<3.11]
 
 # optional dependencies
   #- empy >=3.3,<3.4
