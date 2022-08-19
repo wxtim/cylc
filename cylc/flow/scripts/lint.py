@@ -31,6 +31,9 @@ By default, suggestions are written to stdout.
 In-place mode ("-i, --inplace") writes suggestions into the file as comments.
 Commit to version control before using this, in case you want to back out.
 
+Configurations for Cylc lint can also be set in a pyproject.toml file. For
+example:
+
 """
 from colorama import Fore
 from optparse import Values
@@ -40,10 +43,12 @@ import tomli
 from typing import Generator, Union
 
 from cylc.flow import LOG
+from cylc.flow.exceptions import CylcError
 from cylc.flow.option_parsers import (
     CylcOptionParser as COP,
 )
 from cylc.flow.cfgspec.workflow import upg, SPEC
+from cylc.flow.id_cli import parse_id
 from cylc.flow.parsec.config import ParsecConfig
 from cylc.flow.terminal import cli_function
 from cylc.flow.workflow_files import check_flow_file
@@ -126,10 +131,10 @@ STYLE_CHECKS = {
         'url': STYLE_GUIDE + 'task-naming-conventions',
         'index': 7
     },
-    # Consider re-adding this as an option later:
-    # re.compile(r'^.{80,}'): {
-    #     'short': 'line > 79 characters.',
+    # re.compile(r'^.{{maxlen},}'): {
+    #     'short': 'line > {maxlen} characters.',
     #     'url': STYLE_GUIDE + 'line-length-and-continuation',
+    #     'index': 8
     # },
 }
 # Subset of deprecations which are tricky (impossible?) to scrape from the
@@ -183,13 +188,13 @@ EXTRA_TOML_VALIDATION = {
             '{item} not valid: Rulesets can be '
             '\'728\', \'style\' or \'all\'.'
     },
+    'max-line-length': {
+        lambda x: isinstance(x, int):
+            'max-line-length must be an integer.'
+    },
     # consider checking that item is file?
-    'exceptions': {}
+    'exclude': {}
 }
-
-
-class tomlDataValidatationFailure(Exception):
-    ...
 
 
 def validate_toml_items(tomldata):
@@ -204,71 +209,85 @@ def validate_toml_items(tomldata):
     for key, items in tomldata.items():
         # Key should only be one of the allowed keys:
         if key not in EXTRA_TOML_VALIDATION.keys():
-            raise tomlDataValidatationFailure(
+            raise CylcError(
                 f'Only {[*EXTRA_TOML_VALIDATION.keys()]} '
                 f'allowed as toml sections but you used {key}'
             )
-        # Item should be a list...
-        if not isinstance(items, list):
-            raise tomlDataValidatationFailure(
-                f'{key} should be a list, but was: {items}')
-        # ... of strings
-        for item in items:
-            if not isinstance(item, str):
-                raise tomlDataValidatationFailure(
-                    f'Config {item} should be a string but '
-                    f'is {str(type(item))}'
-                )
-            for check, message in EXTRA_TOML_VALIDATION[key].items():
-                if not check(item):
-                    raise tomlDataValidatationFailure(
-                        message.format(item=item)
+        if key != 'max-line-length':
+            # Item should be a list...
+            if not isinstance(items, list):
+                raise CylcError(
+                    f'{key} should be a list, but was: {items}')
+            # ... of strings
+            for item in items:
+                if not isinstance(item, str):
+                    raise CylcError(
+                        f'Config {item} should be a string but '
+                        f'is {str(type(item))}'
                     )
+                for check, message in EXTRA_TOML_VALIDATION[key].items():
+                    if not check(item):
+                        raise CylcError(
+                            message.format(item=item)
+                        )
     return True
 
 
 def get_pyproject_toml(dir_):
     """if a pyproject.toml file is present open it and return settings.
-
-    TODO: Do we need more checks e.g. validating type of the data?
     """
-    keys = ['rulesets', 'ignore', 'exceptions']
+    keys = ['rulesets', 'ignore', 'exclude', 'max-line-length']
     tomlfile = Path(dir_ / 'pyproject.toml')
     tomldata = {}
-    if tomlfile.exists():
+    if tomlfile.is_file():
         loadeddata = tomli.loads(tomlfile.read_text())
-        for key in keys:
-            tomldata[key] = loadeddata.get(key, [])
-        validate_toml_items(tomldata)
-    else:
+        if 'cylc-lint' in loadeddata:
+            for key in keys:
+                tomldata[key] = loadeddata.get('cylc-lint').get(key, [])
+            validate_toml_items(tomldata)
+    if not tomldata:
         tomldata = {key: [] for key in keys}
     return tomldata
 
 
-def merge_cli_with_tomldata(clidata, tomldata, ignore_cli_ruleset=False):
+def merge_cli_with_tomldata(
+    clidata, tomldata,
+    override_cli_default_rules=False
+):
     """Merge options set by pyproject.toml with CLI options.
 
     rulesets: CLI should override toml.
     ignore: CLI and toml should be combined with no duplicates.
-    exceptions: No CLI eqivelent, rerturn toml if any.
+    exclude: No CLI equivalent, return toml if any.
 
     Args:
-        ignore_cli_ruleset: If user doesn't specifiy a ruleset use the
-            rules from the tomlfile.
+        override_cli_default_rules: If user doesn't specifiy a ruleset use the
+            rules from the tomlfile - i.e: if we've set 'rulesets': 'style'
+            we probably don't want to get warnings about 728 upgrades by
+            default, but only if we ask for it on the CLI.
 
     Examples:
-    >>> merge_cli_with_tomldata(
-    ... {'rulesets': ['foo'], 'ignore': ['R101'], 'exceptions': []},
-    ... {'rulesets': ['bar'], 'ignore': ['R100'], 'exceptions': ['*.bk']})
-    {'ignore': ['R100', 'R101'], 'rulesets': ['foo'], 'exceptions': ['*.bk']}
+    >>> result = merge_cli_with_tomldata(
+    ... {'rulesets': ['foo'], 'ignore': ['R101'], 'exclude': []},
+    ... {'rulesets': ['bar'], 'ignore': ['R100'], 'exclude': ['*.bk']})
+    >>> result['ignore']
+    ['R100', 'R101']
+    >>> result['rulesets']
+    ['foo']
+    >>> result['exclude']
+    ['*.bk']
     """
+    if isinstance(clidata['rulesets'][0], list):
+        clidata['rulesets'] = clidata['rulesets'][0]
+
     output = {}
 
     # Combine 'ignore' sections:
     output['ignore'] = sorted(set(clidata['ignore'] + tomldata['ignore']))
 
     # Replace 'rulesets from toml with those from CLI if they exist:
-    if ignore_cli_ruleset:
+
+    if override_cli_default_rules:
         output['rulesets'] = (
             tomldata['rulesets'] if tomldata['rulesets']
             else clidata['rulesets']
@@ -279,8 +298,9 @@ def merge_cli_with_tomldata(clidata, tomldata, ignore_cli_ruleset=False):
             else tomldata['rulesets']
         )
 
-    # Return 'exceptions' for the tomldata:
-    output['exceptions'] = tomldata['exceptions']
+    # Return 'exclude' and 'max-line-length' for the tomldata:
+    output['exclude'] = tomldata['exclude']
+    output['max-line-length'] = tomldata.get('max-line-length', None)
 
     return output
 
@@ -367,13 +387,15 @@ PURPOSE_FILTER_MAP = {
 }
 
 
-def parse_checks(check_args, ignores=None):
+def parse_checks(check_args, ignores=None, max_line_len=None):
     """Collapse metadata in checks dicts.
 
     Args:
         check_arg: list of types of checks to run,
             currently expecting '728' and/or 'style'
         ignores: list of codes to ignore.
+        max_line_len: Adds a specific style warning for lines longer than
+            this. (If None, rule not enforced)
     """
     ignores = ignores or []
     parsedchecks = {}
@@ -383,16 +405,29 @@ def parse_checks(check_args, ignores=None):
 
     for purpose, ruleset in checks.items():
         if purpose in purpose_filters:
+            # Run through the rest of the config items.
             for index, (pattern, meta) in enumerate(ruleset.items(), start=1):
                 meta.update({'purpose': purpose})
                 if 'index' not in meta:
                     meta.update({'index': index})
                 if f'{purpose}{index:03d}' not in ignores:
                     parsedchecks.update({pattern: meta})
+            # Add max line length check.
+            if 'S' in purpose and max_line_len:
+                regex = r"^.{" + str(max_line_len) + r"}"
+                parsedchecks[re.compile(regex)] = {
+                    'short': f'line > {max_line_len} characters.',
+                    'url': STYLE_GUIDE + 'line-length-and-continuation',
+                    'index': 8,
+                    'purpose': 'S'
+                }
     return parsedchecks
 
 
-def check_cylc_file(dir_, file_, checks, modify=False):
+def check_cylc_file(
+    dir_, file_, checks,
+    modify=False,
+):
     """Check A Cylc File for Cylc 7 Config"""
     file_rel = file_.relative_to(dir_)
     # Set mode as read-write or read only.
@@ -439,12 +474,12 @@ def check_cylc_file(dir_, file_, checks, modify=False):
 
 
 def get_cylc_files(
-    base: Path, exceptions: Union[list, None] = None
+    base: Path, exclusions: Union[list, None] = None
 ) -> Generator[Path, None, None]:
     """Given a directory yield paths to check."""
-    exceptions = [] if exceptions is None else exceptions
+    exclusions = [] if exclusions is None else exclusions
     except_these_files = [
-        file for exception in exceptions for file in base.rglob(exception)]
+        file for exclusion in exclusions for file in base.rglob(exclusion)]
     for rglob in FILEGLOBS:
         for path in base.rglob(rglob):
             # Exclude log directory:
@@ -531,7 +566,7 @@ def get_reference_text(checks):
 def get_option_parser() -> COP:
     parser = COP(
         COP_DOC,
-        argdoc=[COP.optional(('DIR ...', 'Directories to lint'))],
+        argdoc=[COP.optional(('WORKFLOW | PATH ...', 'Workflows to lint'))],
     )
     parser.add_option(
         '--inplace', '-i',
@@ -579,23 +614,24 @@ def get_option_parser() -> COP:
 @cli_function(get_option_parser)
 def main(parser: COP, options: 'Values', *targets) -> None:
     if options.ref_mode:
-        if options.linter == 'all' or options.linter == '':
+        if options.linter in {'all', ''}:
             rulesets = ['728', 'style']
         else:
             rulesets = [options.linter]
         print(get_reference_text(parse_checks(rulesets)))
         exit(0)
 
-    # Expand paths so that message will return full path
-    # & ensure that CWD is used if no path is given:
-    if targets:
-        targets = tuple(Path(path).resolve() for path in targets)
-    else:
+    # If target not given assume we are looking at PWD
+    if not targets:
         targets = (str(Path.cwd()),)
 
     # make sure the targets are all src/run directories
     for target in targets:
-        check_flow_file(target)
+        target = parse_id(
+            target,
+            src=True,
+            constraint='workflows',
+        )
 
     # Get a list of checks bas ed on the checking options:
     # Allow us to check any number of folders at once
@@ -616,7 +652,7 @@ def main(parser: COP, options: 'Values', *targets) -> None:
             tomlopts = get_pyproject_toml(target)
             mergedopts = merge_cli_with_tomldata(
                 {
-                    'exceptions': [],
+                    'exclude': [],
                     'ignore': options.ignores,
                     'rulesets': options.linter
                 },
@@ -642,8 +678,12 @@ def main(parser: COP, options: 'Values', *targets) -> None:
                 check_names = mergedopts['rulesets']
 
             # Check each file:
-            checks = parse_checks(check_names, mergedopts['ignore'])
-            for file_ in get_cylc_files(target, mergedopts['exceptions']):
+            checks = parse_checks(
+                check_names,
+                mergedopts['ignore'],
+                max_line_len=mergedopts['max-line-length']
+            )
+            for file_ in get_cylc_files(target, mergedopts['exclude']):
                 LOG.debug(f'Checking {file_}')
                 count += check_cylc_file(
                     target,

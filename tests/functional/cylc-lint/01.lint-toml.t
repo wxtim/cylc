@@ -18,7 +18,7 @@
 #------------------------------------------------------------------------------
 # Test linting with a toml file present.
 . "$(dirname "$0")/test_header"
-set_test_number 8
+set_test_number 10
 
 # Set Up:
 rm etc/global.cylc
@@ -56,20 +56,20 @@ named_grep_ok "it returns a 728 upgrade code" "^\[U" "${TESTOUT}"
 
 # Add a pyproject.toml file
 cat > pyproject.toml <<__HERE__
-# .cylc-lint.toml
-# Check against these rules
-rulesets = [
-    "style"
-]
-#  do not check for these errors
-ignore = [
-    "S004"
-]
-# do not lint files matching
-# these globs:
-exceptions = [
-    "sites/*.cylc",
-]
+[cylc-lint]
+    # Check against these rules
+    rulesets = [
+        "style"
+    ]
+    #  do not check for these errors
+    ignore = [
+        "S004"
+    ]
+    # do not lint files matching
+    # these globs:
+    exclude = [
+        "sites/*.cylc",
+    ]
 
 __HERE__
 
@@ -80,3 +80,20 @@ TESTOUT="${TEST_NAME}.stdout"
 grep_fail "S004" "${TESTOUT}"
 grep_fail "niwa.cylc" "${TESTOUT}"
 grep_fail "^\[U" "${TESTOUT}"
+
+
+# Add a max line length to the pyproject.toml.
+echo "" >> pyproject.toml
+echo "max-line-length = 4" >> pyproject.toml
+
+cat > flow.cylc <<__HERE__
+        script = """
+            How long a line is too long a line
+        """
+__HERE__
+
+TEST_NAME="it_fails_if_max-line-length_set"
+run_ok "${TEST_NAME}" cylc lint
+named_grep_ok "${TEST_NAME}-line-too-long-message" \
+    "\[S008\] flow.cylc:2: line > 4 characters." \
+    "${TEST_NAME}.stdout"
