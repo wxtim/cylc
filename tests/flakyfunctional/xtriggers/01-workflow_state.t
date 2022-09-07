@@ -31,7 +31,7 @@ run_ok "${TEST_NAME_BASE}-validate-up" cylc validate --debug "${WORKFLOW_NAME_UP
 
 # Validate the downstream test workflow.
 run_ok "${TEST_NAME_BASE}-validate" \
-    cylc val --debug --set="UPSTREAM='${WORKFLOW_NAME_UPSTREAM}'" "${WORKFLOW_NAME}"
+    cylc validate --debug --set="UPSTREAM='${WORKFLOW_NAME_UPSTREAM}'" "${WORKFLOW_NAME}"
 
 # Run the upstream workflow and detach (not a test).
 cylc play "${WORKFLOW_NAME_UPSTREAM}"

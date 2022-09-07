@@ -43,12 +43,58 @@ from cylc.flow.option_parsers import (
     WORKFLOW_ID_OR_PATH_ARG_DOC,
     CylcOptionParser as COP,
     Options,
-    icp_option,
+    ICP_OPTION,
+    ARGS, KWARGS, HELP, ACTION, DEFAULT, DEST, METAVAR, CHOICES
 )
 from cylc.flow.profiler import Profiler
 from cylc.flow.task_proxy import TaskProxy
 from cylc.flow.templatevars import get_template_vars
 from cylc.flow.terminal import cli_function
+
+VALIDATE_OPTIONS = [
+    {
+        ARGS: ["--check-circular"],
+        KWARGS: {
+            HELP:
+                "Check for circular dependencies in graphs when the number of"
+                " tasks is greater than 100 (smaller graphs are always"
+                " checked). This can be slow when the number of"
+                " tasks is high.",
+            ACTION: "store_true",
+            DEFAULT: False,
+            DEST: "check_circular"
+        }
+    },
+    {
+        ARGS: ["--output", "-o"],
+        KWARGS: {
+            HELP: "Specify a file name to dump the processed flow.cylc.",
+            METAVAR: "FILENAME",
+            ACTION: "store",
+            DEST: "output"
+        }
+    },
+    {
+        ARGS: ["--profile"],
+        KWARGS: {
+            HELP: "Output profiling (performance) information",
+            ACTION: "store_true",
+            DEFAULT: False,
+            DEST: "profile_mode"
+        },
+    },
+    {
+        ARGS: ["-u", "--run-mode"],
+        KWARGS: {
+            HELP: "Validate for run mode.",
+            ACTION: "store",
+            DEFAULT: "live",
+            DEST: "run_mode",
+            CHOICES: ["live", "dummy", "simulation"]
+        }
+    },
+    ICP_OPTION,
+]
 
 
 def get_option_parser():
@@ -58,31 +104,10 @@ def get_option_parser():
         argdoc=[WORKFLOW_ID_OR_PATH_ARG_DOC],
     )
 
-    parser.add_option(
-        "--check-circular",
-        help="Check for circular dependencies in graphs when the number of "
-             "tasks is greater than 100 (smaller graphs are always checked). "
-             "This can be slow when the number of "
-             "tasks is high.",
-        action="store_true", default=False, dest="check_circular")
+    validate_options = parser.get_cylc_rose_options() + VALIDATE_OPTIONS
 
-    parser.add_option(
-        "--output", "-o",
-        help="Specify a file name to dump the processed flow.cylc.",
-        metavar="FILENAME", action="store", dest="output")
-
-    parser.add_option(
-        "--profile", help="Output profiling (performance) information",
-        action="store_true", default=False, dest="profile_mode")
-
-    parser.add_option(
-        "-u", "--run-mode", help="Validate for run mode.", action="store",
-        default="live", dest="run_mode",
-        choices=['live', 'dummy', 'simulation'])
-
-    parser.add_option(icp_option)
-
-    parser.add_cylc_rose_options()
+    for option in validate_options:
+        parser.add_option(*option[ARGS], **option[KWARGS])
 
     parser.set_defaults(is_validate=True)
 
@@ -102,6 +127,10 @@ ValidateOptions = Options(
 
 @cli_function(get_option_parser)
 def main(parser: COP, options: 'Values', workflow_id: str) -> None:
+    wrapped_main(parser, options, workflow_id)
+
+
+def wrapped_main(parser: COP, options: 'Values', workflow_id: str) -> None:
     """cylc validate CLI."""
     profiler = Profiler(None, options.profile_mode)
     profiler.start()

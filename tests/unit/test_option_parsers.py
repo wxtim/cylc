@@ -14,14 +14,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from contextlib import redirect_stdout
+import io
 import pytest
+from pytest import param
+import sys
+from types import SimpleNamespace
 from typing import List
 
-import sys
-import io
-from contextlib import redirect_stdout
 import cylc.flow.flags
-from cylc.flow.option_parsers import CylcOptionParser as COP, Options
+from cylc.flow.option_parsers import (
+    CylcOptionParser as COP, Options, combine_options, combine_options_pair,
+    ARGS, HELP, KWARGS, SOURCES, cleanup_sysargv
+)
 
 
 USAGE_WITH_COMMENT = "usage \n # comment"
@@ -93,3 +98,291 @@ def test_Options_std_opts():
     MyOptions = Options(parser)
     MyValues = MyOptions(verbosity=1)
     assert MyValues.verbosity == 1
+
+
+# Add overlapping args tomorrow
+@pytest.mark.parametrize(
+    'first, second, expect',
+    [
+        param(
+            (['do'], [{ARGS: ['-f', '--foo'], KWARGS: {}}]),
+            (['dont'], [{ARGS: ['-f', '--foo'], KWARGS: {}}]),
+            (
+                ['do', 'dont'],
+                [{ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'do', 'dont'}}]
+            ),
+            id='identical arg lists unchanged'
+        ),
+        param(
+            (['fall'], [{ARGS: ['-f', '--foo'], KWARGS: {}}]),
+            (['fold'], [{
+                ARGS: ['-f', '--foolish'], KWARGS: {'help': 'not identical'}}]),
+            (
+                ['fall', 'fold'],
+                [
+                    {ARGS: ['--foo'], KWARGS: {}, SOURCES: {'fall'}},
+                    {
+                        ARGS: ['--foolish'],
+                        KWARGS: {'help': 'not identical'},
+                        SOURCES: {'fold'}
+                    }
+                ]
+            ),
+            id='different arg lists lose shared names'
+        ),
+        param(
+            (
+                ['cook'],
+                [{ARGS: ['-f', '--foo'], KWARGS: {}}]
+            ),
+            (
+                ['bake'],
+                [{ARGS: ['-f', '--foo'], KWARGS: {'help': 'not identical'}}]
+            ),
+            None,
+            id='different args identical arg list cause exception'
+        ),
+        param(
+            (
+                ['knit'],
+                [{ARGS: ['-g', '--goo'], KWARGS: {}}],
+            ),
+            (
+                ['feed'],
+                [{ARGS: ['-f', '--foo'], KWARGS: {}}]
+            ),
+            (
+                ['knit', 'feed'],
+                [
+                    {ARGS: ['-g', '--goo'], KWARGS: {}, SOURCES: {'knit'}},
+                    {ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'feed'}},
+                ]
+            ),
+            id='all unrelated args added'
+        ),
+        param(
+            (
+                ['work'],
+                [
+                    {ARGS: ['-f', '--foo'], KWARGS: {}},
+                    {ARGS: ['-r', '--redesdale'], KWARGS: {}}
+                ]
+            ),
+            (
+                ['sink'],
+                [
+                    {ARGS: ['-f', '--foo'], KWARGS: {}},
+                    {ARGS: ['-b', '--buttered-peas'], KWARGS: {}}
+                ]
+            ),
+            (
+                ['work', 'sink'],
+                [
+                    {
+                        ARGS: ['-f', '--foo'],
+                        KWARGS: {},
+                        SOURCES: {'work', 'sink'}
+                    },
+                    {
+                        ARGS: ['-b', '--buttered-peas'],
+                        KWARGS: {},
+                        SOURCES: {'sink'}
+                    },
+                    {
+                        ARGS: ['-r', '--redesdale'],
+                        KWARGS: {},
+                        SOURCES: {'work'}
+                    },
+                ],
+            ),
+            id='do not repeat args'
+        ),
+        param(
+            (
+                ['push'],
+                [
+                    {
+                        ARGS: ['-f', '--foo'],
+                        KWARGS: {},
+                        SOURCES: {'work', 'sink'}
+                    },
+                ]
+            ),
+            (['pull'], []),
+            (
+                ['push', 'pull'],
+                [
+                    {
+                        ARGS: ['-f', '--foo'],
+                        KWARGS: {},
+                        SOURCES: {'push'}
+                    },
+                ]
+            ),
+            id='one empty list is fine'
+        )
+    ]
+)
+def test_combine_options_pair(first, second, expect):
+    """It combines sets of options"""
+    if expect is not None:
+        result = combine_options_pair(first, second)
+
+        assert result == expect
+    else:
+        with pytest.raises(Exception, match='Clashing Options'):
+            combine_options_pair(first, second)
+
+
+@pytest.mark.parametrize(
+    'inputs, expect',
+    [
+        param(
+            [
+                (
+                    ['wish'],
+                    [{ARGS: ['-i', '--inflammable'], KWARGS: {HELP: ''}}]
+                ),
+                (
+                    ['rest'],
+                    [{ARGS: ['-f', '--flammable'], KWARGS: {HELP: ''}}]
+                ),
+                (
+                    ['swim'],
+                    [{ARGS: ['-n', '--non-flammable'], KWARGS: {HELP: ''}}]
+                )
+            ],
+            [
+                {ARGS: ['-i', '--inflammable']},
+                {ARGS: ['-f', '--flammable']},
+                {ARGS: ['-n', '--non-flammable']}
+            ],
+            id='merge three argsets no overlap'
+        ),
+        param(
+            [
+                (
+                    ['stop'],
+                    [
+                        {ARGS: ['-m', '--morpeth'], KWARGS: {HELP: ''}},
+                        {ARGS: ['-r', '--redesdale'], KWARGS: {HELP: ''}}
+                    ],
+                ),
+                (
+                    ['walk'],
+                    [
+                        {ARGS: ['-b', '--byker'], KWARGS: {HELP: ''}},
+                        {ARGS: ['-r', '--roxborough'], KWARGS: {HELP: ''}}
+                    ],
+                ),
+                (
+                    ['leap'],
+                    [{ARGS: ['-b', '--bellingham'], KWARGS: {HELP: ''}}]
+                )
+            ],
+            [
+                {ARGS: ['--bellingham']},
+                {ARGS: ['--roxborough']},
+                {ARGS: ['--redesdale']},
+                {ARGS: ['--byker']},
+                {ARGS: ['-m', '--morpeth']}
+            ],
+            id='merge three overlapping argsets'
+        ),
+        param(
+            [
+                (['bar'], []),
+                (['foo'], [{ARGS: ['-c', '--campden'], KWARGS: {HELP: 'x'}}])
+            ],
+            [
+                {ARGS: ['-c', '--campden']}
+            ],
+            id="empty list doesn't clear result"
+        ),
+    ]
+)
+def test_combine_options(inputs, expect):
+    """It combines multiple input sets"""
+    result = combine_options(*inputs)
+    result_args = [i[ARGS] for i in result]
+
+    # Order of args irrelevent to test
+    for option in expect:
+        assert option[ARGS] in result_args
+
+    for input_ in inputs:
+        for i in input_[0]:
+            if input_[1]:
+                assert i in input_[1][0]['sources']
+
+
+@pytest.mark.parametrize(
+    'argv_before, kwargs, expect',
+    [
+        param(
+            'vip myworkflow --foo something'.split(),
+            {
+                'script_name': 'play',
+                'workflow_id': 'myworkflow',
+                'compound_script_opts': [
+                    {ARGS: ['--foo', '-f'], KWARGS: {}},
+                ],
+                'script_opts': [{
+                    ARGS: ['--foo', '-f'],
+                    KWARGS: {}
+                }]
+            },
+            'play myworkflow --foo something'.split(),
+            id='no opts to remove'
+        ),
+        param(
+            'vip myworkflow -f something -b something_else --baz'.split(),
+            {
+                'script_name': 'play',
+                'workflow_id': 'myworkflow',
+                'compound_script_opts': [
+                    {ARGS: ['--foo', '-f'], KWARGS: {}},
+                    {ARGS: ['--bar', '-b'], KWARGS: {'action': 'store'}},
+                    {ARGS: ['--baz'], KWARGS: {'action': 'store_true'}},
+                ],
+                'script_opts': [{
+                    ARGS: ['--foo', '-f'],
+                    KWARGS: {}
+                }]
+            },
+            'play myworkflow -f something'.split(),
+            id='remove some opts'
+        ),
+        param(
+            'vip myworkflow'.split(),
+            {
+                'script_name': 'play',
+                'workflow_id': 'myworkflow',
+                'compound_script_opts': [
+                    {ARGS: ['--foo', '-f'], KWARGS: {}},
+                    {ARGS: ['--bar', '-b'], KWARGS: {}},
+                    {ARGS: ['--baz'], KWARGS: {}},
+                ],
+                'script_opts': []
+            },
+            'play myworkflow'.split(),
+            id='no opts to keep'
+        ),
+    ]
+)
+def test_cleanup_sysargv(monkeypatch, argv_before, kwargs, expect):
+    """It replaces the contents of sysargv with Cylc Play argv items.
+    """
+    # Fake up sys.argv: for this test.
+    dummy_cylc_path = ['/pathto/my/cylc/bin/cylc']
+    monkeypatch.setattr(sys, 'argv', dummy_cylc_path + argv_before)
+    # Fake options too:
+    opts = SimpleNamespace(**{
+        i[ARGS][0].replace('--', ''): i for i in kwargs['compound_script_opts']
+    })
+
+    kwargs.update({'options': opts})
+
+    # Test the script:
+    cleanup_sysargv(**kwargs)
+    assert sys.argv == dummy_cylc_path + expect

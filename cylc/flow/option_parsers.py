@@ -17,6 +17,7 @@
 
 from contextlib import suppress
 import logging
+from itertools import product
 from optparse import (
     OptionParser,
     OptionConflictError,
@@ -33,7 +34,7 @@ from ansimarkup import (
 
 import sys
 from textwrap import dedent
-from typing import Any, Dict, Optional, List, Tuple
+from typing import Any, Dict, Optional, List, Tuple, Union
 
 from cylc.flow import LOG
 from cylc.flow.terminal import supports_color, DIM
@@ -51,6 +52,23 @@ FULL_ID_MULTI_ARG_DOC = ('ID ...', 'Cycle/Family/Task ID(s)')
 
 SHORTLINK_TO_ICP_DOCS = "https://bit.ly/3MYHqVh"
 
+ARGS = 'args'
+KWARGS = 'kwargs'
+HELP = 'help'
+ACTION = 'action'
+STORE = 'store'
+STORE_CONST = 'store_const'
+SOURCES = 'sources'
+DEFAULT = 'default'
+DEST = 'dest'
+METAVAR = 'metavar'
+CHOICES = 'choices'
+OPTS = 'opts'
+ALL = 'all'
+USEIF = 'useif'
+DOUBLEDASH = '--'
+
+
 icp_option = Option(
     "--initial-cycle-point", "--icp",
     metavar="CYCLE_POINT or OFFSET",
@@ -63,6 +81,21 @@ icp_option = Option(
     action="store",
     dest="icp",
 )
+
+
+ICP_OPTION = {
+    ARGS: ["--initial-cycle-point", "--icp"],
+    KWARGS: {
+        METAVAR: "CYCLE_POINT or OFFSET",
+        HELP:
+            "Set the initial cycle point."
+            " Required if not defined in flow.cylc."
+            "\nMay be either an absolute point or an offset: See"
+            f" {SHORTLINK_TO_ICP_DOCS} (Cylc documentation link).",
+        ACTION: "store",
+        DEST: "icp",
+    }
+}
 
 
 def format_shell_examples(string):
@@ -169,7 +202,7 @@ def verbosity_to_env(verb: int) -> Dict[str, str]:
     }
 
 
-def env_to_verbosity(env: dict) -> int:
+def env_to_verbosity(env: Union[Dict, os._Environ]) -> int:
     """Extract verbosity from environment variables.
 
     Examples:
@@ -283,6 +316,116 @@ class CylcOptionParser(OptionParser):
             See `cylc help id` for more details.
     '''))
 
+    STD_OPTIONS = [
+        {
+            ARGS: ['-q', '--quiet'],
+            KWARGS: {
+                HELP: 'Decrease verbosity.',
+                ACTION: 'decrement',
+                DEST: 'verbosity'
+            },
+            USEIF: ALL
+        },
+        {
+            ARGS: ['-v', '--verbose'],
+            KWARGS: {
+                HELP: 'Increase Verbosity',
+                DEST: 'verbosity',
+                ACTION: 'count',
+                DEFAULT: env_to_verbosity(os.environ)
+            },
+            USEIF: ALL
+        },
+        {
+            ARGS: ['--debug'],
+            KWARGS: {
+                HELP: 'Equivalent to -v -v',
+                DEST: 'verbosity',
+                ACTION: STORE_CONST,
+                'const': 2
+            },
+            USEIF: ALL
+        },
+        {
+            ARGS: ['--no-timestamp'],
+            KWARGS: {
+                HELP: 'Don\'t timestamp logged messages.',
+                ACTION: 'store_false',
+                DEST: 'log_timestamp',
+                DEFAULT: True
+            },
+            USEIF: ALL
+        },
+        {
+            ARGS: ['--color', '--color'],
+            KWARGS: {
+                METAVAR: 'WHEN',
+                ACTION: STORE,
+                DEFAULT: 'auto',
+                CHOICES: ['never', 'auto', 'always'],
+                HELP:
+                    "When to use color/bold text in terminal output."
+                    " Options are 'never', 'auto' and 'always'."
+            },
+            USEIF: 'color'
+        },
+        {
+            ARGS: ['--comms-timeout'],
+            KWARGS: {
+                METAVAR: 'SEC',
+                HELP:
+                    "Set a timeout for network connections"
+                    " to the running workflow. The default is no timeout."
+                    " For task messaging connections see"
+                    " site/user config file documentation.",
+                ACTION: STORE,
+                DEFAULT: None,
+                DEST: 'comms_timeout'
+            },
+            USEIF: 'comms'
+        },
+        {
+            ARGS: ['-s', '--set'],
+            KWARGS: {
+                METAVAR: 'NAME=VALUE',
+                HELP:
+                    "Set the value of a Jinja2 template variable in the"
+                    " workflow definition."
+                    " Values should be valid Python literals so strings"
+                    " must be quoted"
+                    " e.g. 'STR=\"string\"', INT=43, BOOL=True."
+                    " This option can be used multiple "
+                    " times on the command line."
+                    " NOTE: these settings persist across workflow restarts,"
+                    " but can be set again on the \"cylc play\""
+                    " command line if they need to be overridden.",
+                ACTION: 'append',
+                DEFAULT: [],
+                DEST: 'templatevars'
+            },
+            USEIF: 'jset'
+        },
+        {
+            ARGS: ['--set-file'],
+            KWARGS: {
+                METAVAR: 'FILE',
+                HELP:
+                    "Set the value of Jinja2 template variables in the"
+                    " workflow definition from a file containing NAME=VALUE"
+                    " pairs (one per line)."
+                    " As with --set values should be valid Python literals "
+                    " so strings must be quoted e.g. STR='string'."
+                    " NOTE: these settings persist across workflow restarts,"
+                    " but can be set again on the \"cylc play\""
+                    " command line if they need to be overridden.",
+                ACTION: STORE,
+                DEFAULT: None,
+                DEST: 'templatevars_file'
+            },
+            USEIF: 'jset'
+        }
+    ]
+
     def __init__(
         self,
         usage: str,
@@ -356,6 +499,17 @@ class CylcOptionParser(OptionParser):
             formatter=CylcHelpFormatter()
         )
 
+    def get_std_options(self):
+        """Get a data-structure of standard options"""
+        opts = []
+        for opt in self.STD_OPTIONS:
+            if (
+                opt[USEIF] == ALL
+                or hasattr(self, opt[USEIF]) and getattr(self, opt[USEIF])
+            ):
+                opts.append(opt)
+        return opts
+
     def add_std_option(self, *args, **kwargs):
         """Add a standard option, ignoring override."""
         with suppress(OptionConflictError):
@@ -363,121 +517,63 @@ class CylcOptionParser(OptionParser):
 
     def add_std_options(self):
         """Add standard options if they have not been overridden."""
-        self.add_std_option(
-            "-q", "--quiet",
-            help="Decrease verbosity.",
-            action='decrement',
-            dest='verbosity',
-        )
-        self.add_std_option(
-            "-v", "--verbose",
-            help="Increase verbosity.",
-            dest='verbosity',
-            action='count',
-            default=env_to_verbosity(os.environ)
-        )
-        self.add_std_option(
-            "--debug",
-            help="Equivalent to -v -v",
-            dest="verbosity",
-            action='store_const',
-            const=2
-        )
-        self.add_std_option(
-            "--no-timestamp",
-            help="Don't timestamp logged messages.",
-            action="store_false", dest="log_timestamp", default=True)
+        for option in self.get_std_options():
+            if not any(self.has_option(i) for i in option[ARGS]):
+                self.add_option(*option[ARGS], **option[KWARGS])
 
-        if self.color:
-            self.add_std_option(
-                '--color', '--colour', metavar='WHEN', action='store',
-                default='auto', choices=['never', 'auto', 'always'],
-                help=(
-                    "When to use color/bold text in terminal output."
-                    " Options are 'never', 'auto' and 'always'."
-                )
-            )
-
-        if self.comms:
-            self.add_std_option(
-                "--comms-timeout", metavar='SEC',
-                help=(
-                    "Set a timeout for network connections "
-                    "to the running workflow. The default is no timeout. "
-                    "For task messaging connections see "
-                    "site/user config file documentation."
-                ),
-                action="store", default=None, dest="comms_timeout")
-
-        if self.jset:
-            self.add_std_option(
-                "-s", "--set", metavar="NAME=VALUE",
-                help=(
-                    "Set the value of a Jinja2 template variable in the"
-                    " workflow definition."
-                    " Values should be valid Python literals so strings"
-                    " must be quoted"
-                    " e.g. 'STR=\"string\"', INT=43, BOOL=True."
-                    " This option can be used multiple "
-                    " times on the command line."
-                    " NOTE: these settings persist across workflow restarts,"
-                    " but can be set again on the \"cylc play\""
-                    " command line if they need to be overridden."
-                ),
-                action="append", default=[], dest="templatevars")
-
-            self.add_std_option(
-                "--set-file", metavar="FILE",
-                help=(
-                    "Set the value of Jinja2 template variables in the "
-                    "workflow definition from a file containing NAME=VALUE "
-                    "pairs (one per line). "
-                    "As with --set values should be valid Python literals "
-                    "so strings must be quoted e.g. STR='string'. "
-                    "NOTE: these settings persist across workflow restarts, "
-                    "but can be set again on the \"cylc play\" "
-                    "command line if they need to be overridden."
-                ),
-                action="store", default=None, dest="templatevars_file")
-
-    def add_cylc_rose_options(self) -> None:
-        """Add extra options for cylc-rose plugin if it is installed."""
+    @staticmethod
+    def get_cylc_rose_options():
+        """Returns a list of option dictionaries if Cylc Rose exists."""
         try:
             __import__('cylc.rose')
         except ImportError:
-            return
-        self.add_option(
-            "--opt-conf-key", "-O",
-            help=(
-                "Use optional Rose Config Setting "
-                "(If Cylc-Rose is installed)"
-            ),
-            action="append",
-            default=[],
-            dest="opt_conf_keys"
-        )
-        self.add_option(
-            "--define", '-D',
-            help=(
-                "Each of these overrides the `[SECTION]KEY` setting in a "
-                "`rose-suite.conf` file. "
-                "Can be used to disable a setting using the syntax "
-                "`--define=[SECTION]!KEY` or even `--define=[!SECTION]`."
-            ),
-            action="append",
-            default=[],
-            dest="defines"
-        )
-        self.add_option(
-            "--rose-template-variable", '-S', '--define-suite',
-            help=(
-                "As `--define`, but with an implicit `[SECTION]` for "
-                "workflow variables."
-            ),
-            action="append",
-            default=[],
-            dest="rose_template_vars"
-        )
+            return []
+        return [
+            {
+                ARGS: ["--opt-conf-key", "-O"],
+                KWARGS: {
+                    HELP:
+                        "Use optional Rose Config Setting"
+                        " (If Cylc-Rose is installed)",
+                    ACTION: "append",
+                    DEFAULT: [],
+                    DEST: "opt_conf_keys"
+                }
+            },
+            {
+                ARGS: ["--define", '-D'],
+                KWARGS: {
+                    HELP:
+                        "Each of these overrides the `[SECTION]KEY` setting"
+                        " in a `rose-suite.conf` file."
+                        " Can be used to disable a setting using the syntax"
+                        " `--define=[SECTION]!KEY` or"
+                        " even `--define=[!SECTION]`.",
+                    ACTION: "append",
+                    DEFAULT: [],
+                    DEST: "defines"
+                }
+            },
+            {
+                ARGS: ["--rose-template-variable", '-S', '--define-suite'],
+                KWARGS: {
+                    HELP:
+                        "As `--define`, but with an implicit `[SECTION]` for"
+                        " workflow variables.",
+                    ACTION: "append",
+                    DEFAULT: [],
+                    DEST: "rose_template_vars"
+                }
+            }
+        ]
+
+    def add_cylc_rose_options(self) -> None:
+        """Add extra options for cylc-rose plugin if it is installed.
+
+        Now a vestigal interface for get_cylc_rose_options.
+        """
+        for option in self.get_cylc_rose_options():
+            self.add_option(*option[ARGS], **option[KWARGS])
 
     def parse_args(self, api_args, remove_opts=None):
         """Parse options and arguments, overrides OptionParser.parse_args.
@@ -607,3 +703,168 @@ class Options:
             setattr(opts, key, value)
 
         return opts
+
+
+def appendif(list_, item):
+    """Avoid duplicating items in output list"""
+    if item not in list_:
+        list_.append(item)
+    return list_
+
+
+def combine_options_pair(first_list, second_list):
+    """Combine two option lists recording where each came from.
+
+    Scenarios:
+        - Arguments are identical - return this argument.
+        - Arguments are not identical but have some common label strings,
+          i.e. both arguments can be invoked using `-f`.
+          - If there are non-shared label strings strip the shared ones.
+          - Otherwise raise an error.
+          E.g: If `command-A` has an option `-f` or `--file` and
+          `command-B has an option `-f` or `--fortran`` then
+          `command-A+B` will have options `--fortran` and `--file` but _not_
+          `-f`, which would be confusing.
+        - Arguments only apply to a single compnent of the compound CLI script.
+
+    """
+    label1, first_list = first_list
+    label2, second_list = second_list
+
+    output = []
+
+    if not first_list:
+        output = second_list
+        for item in second_list:
+            item[SOURCES] = {*label2}
+        output = first_list
+    elif not second_list:
+        for item in first_list:
+            item[SOURCES] = {*label1}
+        output = first_list
+    else:
+
+        for first, second in product(first_list, second_list):
+            if not first.get(SOURCES, ''):
+                first[SOURCES] = {*label1}
+            if not second.get(SOURCES, ''):
+                second[SOURCES] = {*label2}
+
+            # Two options are identical in both args and kwargs:
+            if (
+                first[KWARGS] == second[KWARGS]
+                and first[ARGS] == second[ARGS]
+            ):
+                first[SOURCES] = {*label1, *label2}
+                output = appendif(output, first)
+
+            # If any of the argument names identical we must remove
+            # overlapping names (if we can)
+            # e.g. [-a, --aleph], [-a, --alpha-centuri] -> keep both options
+            # but neither should have the `-a` short version:
+            elif (
+                (
+                    first[KWARGS] != second[KWARGS]
+                    or first[ARGS] != second[ARGS]
+                )
+                and any(
+                    i[0] == i[1] for i in product(second[ARGS], first[ARGS])
+                )
+            ):
+                # if any of the args are different:
+                if first[ARGS] != second[ARGS]:
+                    first_args = list(set(first[ARGS]) - set(second[ARGS]))
+                    second[ARGS] = list(set(second[ARGS]) - set(first[ARGS]))
+                    first[ARGS] = first_args
+                    output = appendif(output, first)
+                    output = appendif(output, second)
+                else:
+                    # if none of the arg names are different.
+                    raise Exception(f'Clashing Options \n{first}\n{second}')
+            else:
+                # Neither option appears in the other list, so it can be
+                # appended:
+                if all(first[ARGS] != i[ARGS] for i in second_list):
+                    output = appendif(output, first)
+                if all(second[ARGS] != i[ARGS] for i in first_list):
+                    output = appendif(output, second)
+
+    label = [*label1, *label2]
+
+    return (label, output)
+
+
+def add_sources_to_helps(options):
+    """Prettify format of list of CLI commands this option applies to
+    and prepend that list to the start of help.
+    """
+    for option in options:
+        if 'sources' in option:
+            option[KWARGS][HELP] = cparse(
+                f'<cyan>[{", ".join(option[SOURCES])}]</cyan>'
+                f' {option[KWARGS][HELP]}')
+    return options
+
+
+def combine_options(*args):
+    """Combine a list of argument dicts.
+
+    Ordering should be irrelevant because combine_options_pair should
+    be commutative, and the overall order of args is not relevant.
+    """
+    list_ = list(args)
+    output = list_[0]
+    for arg in list_[1:]:
+        output = combine_options_pair(arg, output)
+
+    return add_sources_to_helps(output[1])
+
+
+def cleanup_sysargv(
+    script_name,
+    workflow_id,
+    options,
+    compound_script_opts,
+    script_opts
+):
+    """Remove unwanted options from sys.argv
+
+    Some cylc scripts (notably Cylc Play when it is re-invoked on a scheduler
+    server) require the correct content in sys.argv.
+    """
+    # Organize Options by dest.
+    script_opts_by_dest = {
+        x[KWARGS].get('dest', x[ARGS][0].strip(DOUBLEDASH)): x
+        for x in script_opts
+    }
+    compound_opts_by_dest = {
+        x[KWARGS].get('dest', x[ARGS][0].strip(DOUBLEDASH)): x
+        for x in compound_script_opts
+    }
+    # Filter out non-cylc-play options.
+    for unwanted_opt in (set(options.__dict__)) - set(script_opts_by_dest):
+        for arg in compound_opts_by_dest[unwanted_opt][ARGS]:
+            if arg in sys.argv:
+                index = sys.argv.index(arg)
+                sys.argv.pop(index)
+                if (
+                    compound_opts_by_dest[unwanted_opt][KWARGS][ACTION]
+                    not in ['store_true', 'store_false']
+                ):
+                    sys.argv.pop(index)
+
+    # replace compound script name:
+    sys.argv[1] = script_name
+    if workflow_id not in sys.argv:
+        sys.argv.append(workflow_id)
+
+
+def log_subcommand(command, workflow_id):
+    """Log a command run as part of a sequence.
+
+    Example:
+        >>> log_subcommand('ruin', 'my_workflow')
+        \x1b[1m\x1b[36m$ cylc ruin my_workflow\x1b[0m\x1b[1m\x1b[0m\n
+    """
+    print(cparse(
+        f'<b><cyan>$ cylc {command} {workflow_id}</cyan></b>'))
