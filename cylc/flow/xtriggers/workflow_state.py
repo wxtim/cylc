@@ -52,9 +52,8 @@ def workflow_state(
             e.g. PT1H (one hour).
         status:
             The task status required for this xtrigger to be satisfied.
-        message:
-            The custom task output required for this xtrigger to be satisfied.
-
+        output:
+            The task output required for this xtrigger to be satisfied.
             .. note::
 
                This cannot be specified in conjunction with ``status``.
@@ -99,7 +98,7 @@ def workflow_state(
         status = "succeeded"
 
     satisfied = checker.task_state_met(
-        task, str(point), message=message, status=status
+        task, str(point), output=message, status=status
     )
 
     results = {
