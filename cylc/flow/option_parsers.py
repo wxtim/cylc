@@ -732,15 +732,9 @@ def combine_options_pair(first_list, second_list):
     label2, second_list = second_list
 
     output = []
-
     if not first_list:
         output = second_list
-        for item in second_list:
-            item[SOURCES] = {*label2}
-        output = first_list
     elif not second_list:
-        for item in first_list:
-            item[SOURCES] = {*label1}
         output = first_list
     else:
 

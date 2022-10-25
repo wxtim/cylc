@@ -204,7 +204,7 @@ def test_Options_std_opts():
                     {
                         ARGS: ['-f', '--foo'],
                         KWARGS: {},
-                        SOURCES: {'work', 'sink'}
+                        SOURCES: {}
                     },
                 ]
             ),
@@ -215,7 +215,7 @@ def test_Options_std_opts():
                     {
                         ARGS: ['-f', '--foo'],
                         KWARGS: {},
-                        SOURCES: {'push'}
+                        SOURCES: {}
                     },
                 ]
             ),
@@ -292,7 +292,13 @@ def test_combine_options_pair(first, second, expect):
         param(
             [
                 (['bar'], []),
-                (['foo'], [{ARGS: ['-c', '--campden'], KWARGS: {HELP: 'x'}}])
+                (
+                    ['foo'],
+                    [{
+                        ARGS: ['-c', '--campden'],
+                        KWARGS: {HELP: 'x'},
+                        SOURCES: {'foo'}
+                    }])
             ],
             [
                 {ARGS: ['-c', '--campden']}
