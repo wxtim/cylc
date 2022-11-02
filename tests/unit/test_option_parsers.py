@@ -16,11 +16,12 @@
 
 from contextlib import redirect_stdout
 import io
-import pytest
-from pytest import param
 import sys
 from types import SimpleNamespace
 from typing import List
+
+import pytest
+from pytest import param
 
 import cylc.flow.flags
 from cylc.flow.option_parsers import (
