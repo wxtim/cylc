@@ -739,9 +739,9 @@ def combine_options_pair(first_list, second_list):
     else:
 
         for first, second in product(first_list, second_list):
-            if not first.get(SOURCES, ''):
+            if not first.get(SOURCES):
                 first[SOURCES] = {*label1}
-            if not second.get(SOURCES, ''):
+            if not second.get(SOURCES):
                 second[SOURCES] = {*label2}
 
             # Two options are identical in both args and kwargs:
