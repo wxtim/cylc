@@ -538,7 +538,8 @@ class CylcOptionParser(OptionParser):
                     ACTION: "append",
                     DEFAULT: [],
                     DEST: "opt_conf_keys"
-                }
+                },
+                SOURCES: {'cylc-rose'},
             },
             {
                 ARGS: ["--define", '-D'],
@@ -552,7 +553,8 @@ class CylcOptionParser(OptionParser):
                     ACTION: "append",
                     DEFAULT: [],
                     DEST: "defines"
-                }
+                },
+                SOURCES: {'cylc-rose'},
             },
             {
                 ARGS: ["--rose-template-variable", '-S', '--define-suite'],
@@ -563,7 +565,8 @@ class CylcOptionParser(OptionParser):
                     ACTION: "append",
                     DEFAULT: [],
                     DEST: "rose_template_vars"
-                }
+                },
+                SOURCES: {'cylc-rose'},
             }
         ]
 
@@ -728,9 +731,6 @@ def combine_options_pair(first_list, second_list):
         - Arguments only apply to a single compnent of the compound CLI script.
 
     """
-    label1, first_list = first_list
-    label2, second_list = second_list
-
     output = []
     if not first_list:
         output = second_list
@@ -738,13 +738,6 @@ def combine_options_pair(first_list, second_list):
         output = first_list
     else:
         for first, second in product(first_list, second_list):
-            if '--icp' in first[ARGS] and '--icp' in second[ARGS]:
-                breakpoint()
-            if not first.get(SOURCES):
-                first[SOURCES] = {*label1}
-            if not second.get(SOURCES):
-                second[SOURCES] = {*label2}
-
             # Two options are identical in both args and kwargs:
             if (
                 first[KWARGS] == second[KWARGS]
@@ -784,24 +777,37 @@ def combine_options_pair(first_list, second_list):
                 if all(second[ARGS] != i[ARGS] for i in first_list):
                     output = appendif(output, second)
 
-    label = [*label1, *label2]
-
-    return (label, output)
+    return output
 
 
-def add_sources_to_helps(options):
+def add_sources_to_helps(options, modify=None):
     """Prettify format of list of CLI commands this option applies to
     and prepend that list to the start of help.
+
+    Arguments:
+        Options:
+            Options dicts to modify help upon.
+        modify:
+            Dict of items to substitute: Intended to allow one
+            to replace cylc-rose with the names of the sub-commands
+            cylc rose options apply to.
     """
+    modify = {} if modify == None else modify
     for option in options:
         if 'sources' in option:
+            sources = list(option[SOURCES])
+            for match, sub in modify.items():
+                if match in option[SOURCES]:
+                    sources.append(sub)
+                    sources.remove(match)
+
             option[KWARGS][HELP] = cparse(
-                f'<cyan>[{", ".join(option[SOURCES])}]</cyan>'
+                f'<cyan>[{", ".join(sources)}]</cyan>'
                 f' {option[KWARGS][HELP]}')
     return options
 
 
-def combine_options(*args):
+def combine_options(*args, modify=None):
     """Combine a list of argument dicts.
 
     Ordering should be irrelevant because combine_options_pair should
@@ -812,7 +818,7 @@ def combine_options(*args):
     for arg in list_[1:]:
         output = combine_options_pair(arg, output)
 
-    return add_sources_to_helps(output[1])
+    return add_sources_to_helps(output, modify)
 
 
 def cleanup_sysargv(

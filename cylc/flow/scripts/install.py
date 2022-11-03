@@ -96,7 +96,7 @@ from cylc.flow import iter_entry_points
 from cylc.flow.exceptions import PluginError, InputError
 from cylc.flow.loggingutil import CylcLogFormatter
 from cylc.flow.option_parsers import (
-    ARGS, KWARGS, HELP, ACTION, DEFAULT, DEST, METAVAR,
+    ARGS, KWARGS, HELP, ACTION, DEFAULT, DEST, METAVAR, SOURCES,
     CylcOptionParser as COP,
     Options
 )
@@ -122,7 +122,8 @@ INSTALL_OPTIONS = [
             METAVAR: "WORKFLOW_NAME",
             DEFAULT: None,
             DEST: "workflow_name"
-        }
+        },
+        SOURCES: {'install'},
     },
     {
         ARGS: ["--symlink-dirs"],
@@ -136,7 +137,8 @@ INSTALL_OPTIONS = [
                 " an empty list '' to skip making localhost symlink dirs.",
             ACTION: "store",
             DEST: "symlink_dirs"
-        }
+        },
+        SOURCES: {'install'},
     },
     {
         ARGS: ["--run-name"],
@@ -148,7 +150,8 @@ INSTALL_OPTIONS = [
             METAVAR: "RUN_NAME",
             DEFAULT: None,
             DEST: "run_name"
-        }
+        },
+        SOURCES: {'install'},
     },
     {
         ARGS: ["--no-run-name"],
@@ -160,7 +163,8 @@ INSTALL_OPTIONS = [
             ACTION: "store_true",
             DEFAULT: False,
             DEST: "no_run_name"
-        }
+        },
+        SOURCES: {'install'},
     },
     {
         ARGS: ['--no-ping'],
@@ -171,7 +175,8 @@ INSTALL_OPTIONS = [
             ACTION: 'store_true',
             DEFAULT: False,
             DEST: 'no_ping'
-        }
+        },
+        SOURCES: {'install'},
     }
 ]
 

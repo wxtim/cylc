@@ -17,6 +17,7 @@
 
 from ansimarkup import parse as cparse
 import asyncio
+from copy import deepcopy
 from functools import lru_cache
 from shlex import quote
 import sys
@@ -39,7 +40,7 @@ from cylc.flow.option_parsers import (
     CylcOptionParser as COP,
     Options,
     ICP_OPTION,
-    ARGS, KWARGS, HELP, ACTION, DEFAULT, DEST, METAVAR, CHOICES
+    ARGS, KWARGS, HELP, ACTION, DEFAULT, DEST, METAVAR, CHOICES, SOURCES
 )
 from cylc.flow.pathutil import get_workflow_run_scheduler_log_path
 from cylc.flow.remote import cylc_server_cmd
@@ -108,6 +109,9 @@ mutation (
 }
 '''
 
+PLAY_ICP_OPTION = deepcopy(ICP_OPTION)
+PLAY_ICP_OPTION[SOURCES] = {'play'}
+
 RUN_MODE = {
     ARGS: ["-m", "--mode"],
     KWARGS: {
@@ -120,6 +124,9 @@ RUN_MODE = {
     }
 }
 
+PLAY_RUN_MODE = deepcopy(RUN_MODE)
+PLAY_RUN_MODE.update({SOURCES: {'play'}})
+
 PLAY_OPTIONS = [
     {
         ARGS: ["-n", "--no-detach", "--non-daemon"],
@@ -127,7 +134,8 @@ PLAY_OPTIONS = [
             HELP: "Do not daemonize the scheduler (infers --format=plain)",
             ACTION: "store_true",
             DEST: "no_detach",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--profile"],
@@ -136,7 +144,8 @@ PLAY_OPTIONS = [
             ACTION: "store_true",
             DEFAULT: False,
             DEST: "profile_mode"
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--start-cycle-point", "--startcp"],
@@ -149,7 +158,8 @@ PLAY_OPTIONS = [
             METAVAR: "CYCLE_POINT",
             ACTION: "store",
             DEST: "startcp",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--final-cycle-point", "--fcp"],
@@ -161,7 +171,8 @@ PLAY_OPTIONS = [
             METAVAR: "CYCLE_POINT",
             ACTION: "store",
             DEST: "fcp",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--stop-cycle-point", "--stopcp"],
@@ -175,7 +186,8 @@ PLAY_OPTIONS = [
             METAVAR: "CYCLE_POINT",
             ACTION: "store",
             DEST: "stopcp",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--start-task", "--starttask", "-t"],
@@ -190,7 +202,8 @@ PLAY_OPTIONS = [
             METAVAR: "TASK_ID",
             ACTION: "append",
             DEST: "starttask",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--pause"],
@@ -198,7 +211,8 @@ PLAY_OPTIONS = [
             HELP: "Pause the workflow immediately on start up.",
             ACTION: "store_true",
             DEST: "paused_start",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--hold-after", "--hold-cycle-point", "--holdcp"],
@@ -207,9 +221,9 @@ PLAY_OPTIONS = [
             METAVAR: "CYCLE_POINT",
             ACTION: "store",
             DEST: "holdcp",
-        }
+        },
+        SOURCES: {'play'},
     },
-    RUN_MODE,
     {
         ARGS: ["--reference-log"],
         KWARGS: {
@@ -217,7 +231,8 @@ PLAY_OPTIONS = [
             ACTION: "store_true",
             DEFAULT: False,
             DEST: "genref",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--reference-test"],
@@ -227,7 +242,8 @@ PLAY_OPTIONS = [
             ACTION: "store_true",
             DEFAULT: False,
             DEST: "reftest",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--host"],
@@ -239,7 +255,8 @@ PLAY_OPTIONS = [
             METAVAR: "HOST",
             ACTION: "store",
             DEST: "host",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--format"],
@@ -249,7 +266,8 @@ PLAY_OPTIONS = [
             CHOICES: ('plain', 'json'),
             DEFAULT: "plain",
             DEST: 'format'
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--main-loop"],
@@ -261,7 +279,8 @@ PLAY_OPTIONS = [
             METAVAR: "PLUGIN_NAME",
             ACTION: "append",
             DEST: "main_loop",
-        }
+        },
+        SOURCES: {'play'},
     },
     {
         ARGS: ["--abort-if-any-task-fails"],
@@ -271,9 +290,11 @@ PLAY_OPTIONS = [
             ACTION: "store_true",
             DEFAULT: False,
             DEST: "abort_if_any_task_fails",
-        }
+        },
+        SOURCES: {'play'},
     },
-    ICP_OPTION
+    PLAY_ICP_OPTION,
+    PLAY_RUN_MODE
 ]
 
 

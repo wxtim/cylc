@@ -106,20 +106,20 @@ def test_Options_std_opts():
     'first, second, expect',
     [
         param(
-            (['do'], [{ARGS: ['-f', '--foo'], KWARGS: {}}]),
-            (['dont'], [{ARGS: ['-f', '--foo'], KWARGS: {}}]),
+            [{ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'do'}}],
+            [{ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'dont'}}],
             (
-                ['do', 'dont'],
                 [{ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'do', 'dont'}}]
             ),
             id='identical arg lists unchanged'
         ),
         param(
-            (['fall'], [{ARGS: ['-f', '--foo'], KWARGS: {}}]),
-            (['fold'], [{
-                ARGS: ['-f', '--foolish'], KWARGS: {'help': 'not identical'}}]),
+            [{ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'fall'}}],
+            [{
+                ARGS: ['-f', '--foolish'],
+                KWARGS: {'help': 'not identical'}, 
+                SOURCES: {'fold'}}],
             (
-                ['fall', 'fold'],
                 [
                     {ARGS: ['--foo'], KWARGS: {}, SOURCES: {'fall'}},
                     {
@@ -132,53 +132,37 @@ def test_Options_std_opts():
             id='different arg lists lose shared names'
         ),
         param(
-            (
-                ['cook'],
-                [{ARGS: ['-f', '--foo'], KWARGS: {}}]
-            ),
-            (
-                ['bake'],
-                [{ARGS: ['-f', '--foo'], KWARGS: {'help': 'not identical'}}]
-            ),
+            [{ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'cook'}}],
+            [{
+                ARGS: ['-f', '--foo'], 
+                KWARGS: {'help': 'not identical'}, 
+                SOURCES: {'bake'}
+            }],
             None,
             id='different args identical arg list cause exception'
         ),
         param(
-            (
-                ['knit'],
-                [{ARGS: ['-g', '--goo'], KWARGS: {}}],
-            ),
-            (
-                ['feed'],
-                [{ARGS: ['-f', '--foo'], KWARGS: {}}]
-            ),
-            (
-                ['knit', 'feed'],
-                [
-                    {ARGS: ['-g', '--goo'], KWARGS: {}, SOURCES: {'knit'}},
-                    {ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'feed'}},
-                ]
-            ),
+            [{ARGS: ['-g', '--goo'], KWARGS: {}, SOURCES: {'knit'}}],
+            [{ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'feed'}}],
+            [
+                {ARGS: ['-g', '--goo'], KWARGS: {}, SOURCES: {'knit'}},
+                {ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'feed'}},
+            ],
             id='all unrelated args added'
         ),
         param(
-            (
-                ['work'],
-                [
-                    {ARGS: ['-f', '--foo'], KWARGS: {}},
-                    {ARGS: ['-r', '--redesdale'], KWARGS: {}}
-                ]
-            ),
-            (
-                ['sink'],
-                [
-                    {ARGS: ['-f', '--foo'], KWARGS: {}},
-                    {ARGS: ['-b', '--buttered-peas'], KWARGS: {}}
-                ]
-            ),
-            (
-                ['work', 'sink'],
-                [
+            [
+                {ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'work'}},
+                {ARGS: ['-r', '--redesdale'], KWARGS: {}, SOURCES: {'work'}}
+            ],
+            [
+                {ARGS: ['-f', '--foo'], KWARGS: {}, SOURCES: {'sink'}},
+                {
+                    ARGS: ['-b', '--buttered-peas'], 
+                    KWARGS: {}, SOURCES: {'sink'}
+                }
+            ],
+            [
                     {
                         ARGS: ['-f', '--foo'],
                         KWARGS: {},
@@ -194,32 +178,25 @@ def test_Options_std_opts():
                         KWARGS: {},
                         SOURCES: {'work'}
                     },
-                ],
-            ),
+            ],
             id='do not repeat args'
         ),
         param(
-            (
-                ['push'],
-                [
-                    {
-                        ARGS: ['-f', '--foo'],
-                        KWARGS: {},
-                        SOURCES: {}
-                    },
-                ]
-            ),
-            (['pull'], []),
-            (
-                ['push', 'pull'],
-                [
-                    {
-                        ARGS: ['-f', '--foo'],
-                        KWARGS: {},
-                        SOURCES: {}
-                    },
-                ]
-            ),
+            [
+                {
+                    ARGS: ['-f', '--foo'],
+                    KWARGS: {},
+                    SOURCES: {'push'}
+                },
+            ],
+            [],
+            [
+                {
+                    ARGS: ['-f', '--foo'],
+                    KWARGS: {},
+                    SOURCES: {'push'}
+                },
+            ],
             id='one empty list is fine'
         )
     ]
@@ -240,18 +217,16 @@ def test_combine_options_pair(first, second, expect):
     [
         param(
             [
-                (
-                    ['wish'],
-                    [{ARGS: ['-i', '--inflammable'], KWARGS: {HELP: ''}}]
-                ),
-                (
-                    ['rest'],
-                    [{ARGS: ['-f', '--flammable'], KWARGS: {HELP: ''}}]
-                ),
-                (
-                    ['swim'],
-                    [{ARGS: ['-n', '--non-flammable'], KWARGS: {HELP: ''}}]
-                )
+                ([{
+                    ARGS: ['-i', '--inflammable'],
+                    KWARGS: {HELP: ''}, SOURCES: {'wish'}
+                }]),
+                ([{
+                    ARGS: ['-f', '--flammable'], KWARGS: {HELP: ''}, SOURCES: {'rest'}
+                }]),
+                ([{
+                    ARGS: ['-n', '--non-flammable'], KWARGS: {HELP: ''}, SOURCES: {'swim'}
+                }]),
             ],
             [
                 {ARGS: ['-i', '--inflammable']},
@@ -262,24 +237,15 @@ def test_combine_options_pair(first, second, expect):
         ),
         param(
             [
-                (
-                    ['stop'],
                     [
-                        {ARGS: ['-m', '--morpeth'], KWARGS: {HELP: ''}},
-                        {ARGS: ['-r', '--redesdale'], KWARGS: {HELP: ''}}
+                        {ARGS: ['-m', '--morpeth'], KWARGS: {HELP: ''}, SOURCES: {'stop'}},
+                        {ARGS: ['-r', '--redesdale'], KWARGS: {HELP: ''}, SOURCES: {'stop'}}
                     ],
-                ),
-                (
-                    ['walk'],
                     [
-                        {ARGS: ['-b', '--byker'], KWARGS: {HELP: ''}},
-                        {ARGS: ['-r', '--roxborough'], KWARGS: {HELP: ''}}
+                        {ARGS: ['-b', '--byker'], KWARGS: {HELP: ''}, SOURCES: {'walk'}},
+                        {ARGS: ['-r', '--roxborough'], KWARGS: {HELP: ''}, SOURCES: {'walk'}}
                     ],
-                ),
-                (
-                    ['leap'],
-                    [{ARGS: ['-b', '--bellingham'], KWARGS: {HELP: ''}}]
-                )
+                    [{ARGS: ['-b', '--bellingham'], KWARGS: {HELP: ''}, SOURCES: {'leap'}}]
             ],
             [
                 {ARGS: ['--bellingham']},
@@ -292,9 +258,8 @@ def test_combine_options_pair(first, second, expect):
         ),
         param(
             [
-                (['bar'], []),
+                ([]),
                 (
-                    ['foo'],
                     [{
                         ARGS: ['-c', '--campden'],
                         KWARGS: {HELP: 'x'},
@@ -316,11 +281,6 @@ def test_combine_options(inputs, expect):
     # Order of args irrelevent to test
     for option in expect:
         assert option[ARGS] in result_args
-
-    for input_ in inputs:
-        for i in input_[0]:
-            if input_[1]:
-                assert i in input_[1][0]['sources']
 
 
 @pytest.mark.parametrize(

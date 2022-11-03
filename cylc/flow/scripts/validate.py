@@ -26,6 +26,7 @@ use 'cylc view -i,--inline WORKFLOW' for comparison.
 """
 
 from ansimarkup import parse as cparse
+from copy import deepcopy
 from optparse import Values
 import sys
 
@@ -44,13 +45,19 @@ from cylc.flow.option_parsers import (
     CylcOptionParser as COP,
     Options,
     ICP_OPTION,
-    ARGS, KWARGS, HELP, ACTION, DEFAULT, DEST, METAVAR, CHOICES
+    ARGS, KWARGS, HELP, ACTION, DEFAULT, DEST, METAVAR, SOURCES
 )
 from cylc.flow.profiler import Profiler
 from cylc.flow.task_proxy import TaskProxy
 from cylc.flow.templatevars import get_template_vars
 from cylc.flow.terminal import cli_function
 from cylc.flow.scheduler_cli import RUN_MODE
+
+
+VALIDATE_RUN_MODE = deepcopy(RUN_MODE)
+VALIDATE_RUN_MODE.update({SOURCES: {'validate'}})
+VALIDATE_ICP_OPTION = deepcopy(ICP_OPTION)
+VALIDATE_ICP_OPTION.update({SOURCES: {'validate'}})
 
 
 VALIDATE_OPTIONS = [
@@ -65,7 +72,8 @@ VALIDATE_OPTIONS = [
             ACTION: "store_true",
             DEFAULT: False,
             DEST: "check_circular"
-        }
+        },
+        SOURCES: {'validate'}
     },
     {
         ARGS: ["--output", "-o"],
@@ -74,7 +82,8 @@ VALIDATE_OPTIONS = [
             METAVAR: "FILENAME",
             ACTION: "store",
             DEST: "output"
-        }
+        },
+        SOURCES: {'validate'}
     },
     {
         ARGS: ["--profile"],
@@ -84,9 +93,10 @@ VALIDATE_OPTIONS = [
             DEFAULT: False,
             DEST: "profile_mode"
         },
+        SOURCES: {'validate'}
     },
-    RUN_MODE,
-    ICP_OPTION,
+    VALIDATE_RUN_MODE,
+    VALIDATE_ICP_OPTION
 ]
 
 

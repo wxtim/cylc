@@ -55,10 +55,11 @@ if TYPE_CHECKING:
 
 CYLC_ROSE_OPTIONS = COP.get_cylc_rose_options()
 VIP_OPTIONS = combine_options(
-    (['validate'], VALIDATE_OPTIONS),
-    (['install'], INSTALL_OPTIONS),
-    (['play'], PLAY_OPTIONS),
-    (['validate', 'install'], CYLC_ROSE_OPTIONS)
+    VALIDATE_OPTIONS,
+    INSTALL_OPTIONS,
+    PLAY_OPTIONS,
+    CYLC_ROSE_OPTIONS,
+    modify={'cylc-rose': 'validate, install'}
 )
 
 
