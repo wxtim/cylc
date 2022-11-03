@@ -737,8 +737,9 @@ def combine_options_pair(first_list, second_list):
     elif not second_list:
         output = first_list
     else:
-
         for first, second in product(first_list, second_list):
+            if '--icp' in first[ARGS] and '--icp' in second[ARGS]:
+                breakpoint()
             if not first.get(SOURCES):
                 first[SOURCES] = {*label1}
             if not second.get(SOURCES):
@@ -749,7 +750,7 @@ def combine_options_pair(first_list, second_list):
                 first[KWARGS] == second[KWARGS]
                 and first[ARGS] == second[ARGS]
             ):
-                first[SOURCES] = {*label1, *label2}
+                first[SOURCES] = {*first[SOURCES], *second[SOURCES]}
                 output = appendif(output, first)
 
             # If any of the argument names identical we must remove

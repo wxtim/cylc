@@ -108,6 +108,18 @@ mutation (
 }
 '''
 
+RUN_MODE = {
+    ARGS: ["-m", "--mode"],
+    KWARGS: {
+        HELP: "Run mode: live, dummy, simulation (default live).",
+        METAVAR: "STRING",
+        ACTION: "store",
+        DEST: "run_mode",
+        DEFAULT: 'live',
+        CHOICES: ['live', 'dummy', 'simulation'],
+    }
+}
+
 PLAY_OPTIONS = [
     {
         ARGS: ["-n", "--no-detach", "--non-daemon"],
@@ -197,16 +209,7 @@ PLAY_OPTIONS = [
             DEST: "holdcp",
         }
     },
-    {
-        ARGS: ["-m", "--mode"],
-        KWARGS: {
-            HELP: "Run mode: live, dummy, simulation (default live).",
-            METAVAR: "STRING",
-            ACTION: "store",
-            DEST: "run_mode",
-            CHOICES: ['live', 'dummy', 'simulation'],
-        }
-    },
+    RUN_MODE,
     {
         ARGS: ["--reference-log"],
         KWARGS: {

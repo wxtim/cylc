@@ -55,7 +55,7 @@ __STDERR__
 run_ok "${TEST_NAME_BASE}-validate--help" cylc validate --help
 run_ok "${TEST_NAME_BASE}-validate-h" cylc validate -h
 run_ok "${TEST_NAME_BASE}-help-validate" cylc help validate
-run_ok "${TEST_NAME_BASE}-help-va" cylc help validate
+run_ok "${TEST_NAME_BASE}-help-va" cylc help va
 for FILE in \
     "${TEST_NAME_BASE}-validate-h.stdout" \
     "${TEST_NAME_BASE}-help-validate.stdout" \

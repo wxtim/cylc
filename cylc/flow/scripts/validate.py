@@ -50,6 +50,8 @@ from cylc.flow.profiler import Profiler
 from cylc.flow.task_proxy import TaskProxy
 from cylc.flow.templatevars import get_template_vars
 from cylc.flow.terminal import cli_function
+from cylc.flow.scheduler_cli import RUN_MODE
+
 
 VALIDATE_OPTIONS = [
     {
@@ -83,16 +85,7 @@ VALIDATE_OPTIONS = [
             DEST: "profile_mode"
         },
     },
-    {
-        ARGS: ["-u", "--run-mode"],
-        KWARGS: {
-            HELP: "Validate for run mode.",
-            ACTION: "store",
-            DEFAULT: "live",
-            DEST: "run_mode",
-            CHOICES: ["live", "dummy", "simulation"]
-        }
-    },
+    RUN_MODE,
     ICP_OPTION,
 ]
 

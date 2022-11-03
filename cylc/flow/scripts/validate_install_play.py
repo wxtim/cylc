@@ -55,8 +55,10 @@ if TYPE_CHECKING:
 
 CYLC_ROSE_OPTIONS = COP.get_cylc_rose_options()
 VIP_OPTIONS = combine_options(
-    (['validate'], VALIDATE_OPTIONS), (['install'], INSTALL_OPTIONS),
-    (['play'], PLAY_OPTIONS), (['cylc-rose'], CYLC_ROSE_OPTIONS)
+    (['validate'], VALIDATE_OPTIONS),
+    (['install'], INSTALL_OPTIONS),
+    (['play'], PLAY_OPTIONS),
+    (['validate', 'install'], CYLC_ROSE_OPTIONS)
 )
 
 
@@ -88,7 +90,7 @@ def main(parser: COP, options: 'Values', workflow_id: Optional[str] = None):
     log_subcommand('validate', source)
     validate_main(parser, options, str(source))
 
-    log_subcommand('install', workflow_id)
+    log_subcommand('install', '.')
     workflow_id = install(options, workflow_id)
 
     cleanup_sysargv(

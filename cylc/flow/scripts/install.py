@@ -310,7 +310,7 @@ def install(
     elif opts.symlink_dirs:
         cli_symdirs = parse_cli_sym_dirs(opts.symlink_dirs)
 
-    source_dir, rundir, _workflow_name = install_workflow(
+    source_dir, rundir, workflow_name = install_workflow(
         source=source,
         workflow_name=opts.workflow_name,
         run_name=opts.run_name,
@@ -335,4 +335,4 @@ def install(
                 entry_point.name,
                 exc
             ) from None
-    return _workflow_name
+    return workflow_name
