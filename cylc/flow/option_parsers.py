@@ -792,7 +792,7 @@ def add_sources_to_helps(options, modify=None):
             to replace cylc-rose with the names of the sub-commands
             cylc rose options apply to.
     """
-    modify = {} if modify == None else modify
+    modify = {} if modify is None else modify
     for option in options:
         if 'sources' in option:
             sources = list(option[SOURCES])
