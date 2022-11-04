@@ -1,7 +1,9 @@
+#!Jinja2
+
 [scheduler]
     allow implicit tasks = True
 
 [scheduling]
     initial cycle point = 1500
     [[graph]]
-        R1 = foo
+        R1 = {{ TASK }}
