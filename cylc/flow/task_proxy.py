@@ -235,7 +235,7 @@ class TaskProxy:
 
         self.local_job_file_path: Optional[str] = None
 
-        self.platform = get_platform()
+        self.platform = None
 
         self.job_vacated = False
         self.poll_timer: Optional['TaskActionTimer'] = None

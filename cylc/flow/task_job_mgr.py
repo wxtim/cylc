@@ -986,10 +986,11 @@ class TaskJobManager:
     def _simulation_submit_task_jobs(self, itasks, workflow):
         """Simulation mode task jobs submission."""
         for itask in itasks:
+            itask.platform = get_platform()
+            itask.platform['name'] = 'SIMULATION'
             itask.waiting_on_job_prep = False
             itask.submit_num += 1
             self._set_retry_timers(itask)
-            itask.platform = {'name': 'SIMULATION'}
             itask.summary['job_runner_name'] = 'SIMULATION'
             itask.summary[self.KEY_EXECUTE_TIME_LIMIT] = (
                 itask.tdef.rtconfig['job']['simulated run length']
@@ -1171,6 +1172,7 @@ class TaskJobManager:
                 itask.summary['platforms_used'][itask.submit_num] = ''
                 # Retry delays, needed for the try_num
                 self._create_job_log_path(workflow, itask)
+                itask.platform = {'name': itask.tdef.rtconfig['platform']}
                 self._prep_submit_task_job_error(
                     workflow, itask, '(platform not defined)', exc)
                 return False
