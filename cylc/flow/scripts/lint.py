@@ -488,7 +488,7 @@ def check_cylc_file(
                     outlines.append({
                         'range': Range(
                             start=Position(line=line_no - 1, character=0),
-                            end=Position(line=line_no - 1, character=0)
+                            end=Position(line=line_no - 1, character=len(line))
                         ),
                         'code': message["index"],
                         'source': 'cylc lint',

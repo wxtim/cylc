@@ -129,15 +129,15 @@ ValidateOptions = Options(
 
 @cli_function(get_option_parser)
 def main(parser: COP, options: 'Values', workflow_id: str) -> None:
-    _main(parser, options, workflow_id)
+    _main(options, workflow_id)
 
 
-def _main(parser: COP, options: 'Values', workflow_id: str) -> None:
-    asyncio.run(wrapped_main(parser, options, workflow_id))
+def _main(options: 'Values', workflow_id: str) -> None:
+    asyncio.run(wrapped_main(options, workflow_id))
 
 
 async def wrapped_main(
-    parser: COP, options: 'Values', workflow_id: str
+    options: 'Values', workflow_id: str
 ) -> None:
     """cylc validate CLI."""
     profiler = Profiler(None, options.profile_mode)
