@@ -443,16 +443,24 @@ def parse_checks(check_args, ignores=None, max_line_len=None, reference=False):
 def check_cylc_file(
     dir_, file_, checks,
     modify=False,
+    for_language_server=False,
 ):
     """Check A Cylc File for Cylc 7 Config"""
-    file_rel = file_.relative_to(dir_)
-    # Set mode as read-write or read only.
+
     outlines = []
 
-    # Open file, and read it's line to memory.
-    lines = file_.read_text().split('\n')
-    jinja_shebang = lines[0].strip().lower() == JINJA2_SHEBANG
-    count = 0
+    if not for_language_server:
+        file_rel = file_.relative_to(dir_)
+        # Set mode as read-write or read only.
+
+        # Open file, and read it's line to memory.
+        lines = file_.read_text().split('\n')
+        jinja_shebang = lines[0].strip().lower() == JINJA2_SHEBANG
+        count = 0
+
+    else:
+        lines = dir_.split('\n')
+        breakpoint()
     for line_no, line in enumerate(lines, start=1):
         for check, message in checks.items():
             # Tests with for presence of Jinja2 if no shebang line is
@@ -476,6 +484,13 @@ def check_cylc_file(
                         f'{message["short"]}\n'
                         f'# - see {url}'
                     )
+                elif for_language_server:
+                    outlines.append({
+                        'range': line_no,
+                        'code': message["index"],
+                        'source': 'cylc lint',
+                        'message': message["short"],
+                    })
                 else:
                     print(
                         Fore.YELLOW +
@@ -486,6 +501,8 @@ def check_cylc_file(
             outlines.append(line)
     if modify:
         file_.write_text('\n'.join(outlines))
+    if for_language_server:
+        return outlines
     return count
 
 
