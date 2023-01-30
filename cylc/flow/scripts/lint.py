@@ -441,7 +441,7 @@ def parse_checks(check_args, ignores=None, max_line_len=None, reference=False):
 
 
 def check_cylc_file(
-    dir_, file_, checks,
+    dir_, file_=None, checks=None,
     modify=False,
     for_language_server=False,
 ):
@@ -452,15 +452,14 @@ def check_cylc_file(
     if not for_language_server:
         file_rel = file_.relative_to(dir_)
         # Set mode as read-write or read only.
-
-        # Open file, and read it's line to memory.
         lines = file_.read_text().split('\n')
-        jinja_shebang = lines[0].strip().lower() == JINJA2_SHEBANG
-        count = 0
 
     else:
         lines = dir_.split('\n')
-        breakpoint()
+
+    count = 0
+    jinja_shebang = lines[0].strip().lower() == JINJA2_SHEBANG
+
     for line_no, line in enumerate(lines, start=1):
         for check, message in checks.items():
             # Tests with for presence of Jinja2 if no shebang line is
@@ -485,11 +484,16 @@ def check_cylc_file(
                         f'# - see {url}'
                     )
                 elif for_language_server:
+                    from lsprotocol.types import Range, Position
                     outlines.append({
-                        'range': line_no,
+                        'range': Range(
+                            start=Position(line=line_no - 1, character=0),
+                            end=Position(line=line_no - 1, character=0)
+                        ),
                         'code': message["index"],
                         'source': 'cylc lint',
                         'message': message["short"],
+                        'severity': 'warning',
                     })
                 else:
                     print(
