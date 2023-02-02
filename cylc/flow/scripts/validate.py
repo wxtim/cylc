@@ -136,6 +136,18 @@ def _main(options: 'Values', workflow_id: str) -> None:
     asyncio.run(wrapped_main(options, workflow_id))
 
 
+from contextlib import redirect_stdout, redirect_stderr
+from io import StringIO
+
+
+async def wrapped_main_with_capture(options: 'Values', workflow_id: str
+) -> None:
+    capture = StringIO()
+    with redirect_stdout(capture) as fh:
+        await wrapped_main(options, workflow_id)
+    return capture
+
+
 async def wrapped_main(
     options: 'Values', workflow_id: str
 ) -> None:

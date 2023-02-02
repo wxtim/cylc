@@ -447,6 +447,9 @@ def check_cylc_file(
 ):
     """Check A Cylc File for Cylc 7 Config"""
 
+    if checks is None:
+        checks = parse_checks(['style'])
+
     outlines = []
 
     if not for_language_server:
