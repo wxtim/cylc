@@ -34,6 +34,8 @@ from cylc.flow.task_state import (
 
 from cylc.flow.workflow_status import AutoRestartMode
 
+from cylc.flow.network.client import WorkflowRuntimeClient
+
 from .utils.flow_tools import _make_flow
 
 
@@ -318,6 +320,121 @@ async def test_illegal_config_load(
         )
 
     assert TRACEBACK_MSG not in log.text
+
+
+async def test_mike_graph(flow, scheduler, run):
+    flow_def = {
+        'scheduler': {
+            'allow implicit tasks': True
+        },
+        'scheduling': {
+            'initial cycle point': '20230306T00Z',
+            'final cycle point': '+P1D',
+            'graph': {
+                'R1': "make_atm_dtm2013 => get_solar_index_for & get_geo_index_for_Ap & get_geo_index_for_ap & get_solar_index_arv & get_geo_index_arv_Ap",
+                'T00': """
+                get_solar_index_for & get_geo_index_for_Ap => dtm2013_atm_day_1-27_f
+                                                        #    => visualise_atm_day_1-27_f
+                                                        #    => package_atm_day_1-27_f
+                                                        #    => housekeep
+                get_solar_index_arv & get_geo_index_arv_Ap => dtm2013_atm_month_12_p
+                                                        #    => visualise_atm_month_12_p
+                                                        #    => package_atm_month_12_p
+                                                        #    => housekeep
+                """,
+                'T00': """
+                        get_solar_index_for[-PT0H] & get_geo_index_for_ap => dtm2013_atm_day_1-3_f
+                                                                                #    => visualise_atm_day_1-3_f
+                                                                                #    => package_atm_day_1-3_f
+                                                                                #    => housekeep
+                    """,
+                'T03': """
+                        get_solar_index_for[-PT3H] & get_geo_index_for_ap => dtm2013_atm_day_1-3_f
+                                                                                #    => visualise_atm_day_1-3_f
+                                                                                #    => package_atm_day_1-3_f
+                                                                                #    => housekeep
+                    """,
+                'T06': """
+                        get_solar_index_for[-PT6H] & get_geo_index_for_ap => dtm2013_atm_day_1-3_f
+                                                                                #    => visualise_atm_day_1-3_f
+                                                                                #    => package_atm_day_1-3_f
+                                                                                #    => housekeep
+                    """,
+                'T09': """
+                        get_solar_index_for[-PT9H] & get_geo_index_for_ap => dtm2013_atm_day_1-3_f
+                                                                                #    => visualise_atm_day_1-3_f
+                                                                                #    => package_atm_day_1-3_f
+                                                                                #    => housekeep
+                    """,
+                'T12': """
+                        get_solar_index_for[-PT12H] & get_geo_index_for_ap => dtm2013_atm_day_1-3_f
+                                                                                #    => visualise_atm_day_1-3_f
+                                                                                #    => package_atm_day_1-3_f
+                                                                                #    => housekeep
+                    """,
+                'T15': """
+                        get_solar_index_for[-PT15H] & get_geo_index_for_ap => dtm2013_atm_day_1-3_f
+                                                                                #    => visualise_atm_day_1-3_f
+                                                                                #    => package_atm_day_1-3_f
+                                                                                #    => housekeep
+                    """,
+                'T18': """
+                        get_solar_index_for[-PT18H] & get_geo_index_for_ap => dtm2013_atm_day_1-3_f
+                                                                                #    => visualise_atm_day_1-3_f
+                                                                                #    => package_atm_day_1-3_f
+                                                                                #    => housekeep
+                    """,
+                'T21': """
+                        get_solar_index_for[-PT21H] & get_geo_index_for_ap => dtm2013_atm_day_1-3_f
+                                                                                #    => visualise_atm_day_1-3_f
+                                                                                #    => package_atm_day_1-3_f
+                                                                                #    => housekeep
+                """
+            }
+        },
+        'runtime': {
+            'root': {},
+            'ARV': {},
+            'make_atm_dtm2013': {},
+            'get_geo_index_for_Ap': {},
+            'get_geo_index_for_ap': {},
+            'get_solar_index_arv': {
+                        'inherit': 'ARV',
+                    },
+            'get_geo_index_arv_Ap': {
+                        'inherit': 'ARV',
+                    },
+            'dtm2013_atm_day_1-27_f': {},
+            'dtm2013_atm_day_1-3_f': {},
+            'dtm2013_atm_month_12_p': {
+                        'inherit': 'ARV',
+                    },
+            'visualise_atm_day_1-27_f': {},
+            'visualise_atm_day_1-3_f': {},
+            'visualise_atm_month_12_p': {},
+            'package_atm_day_1-27_f': {},
+            'package_atm_day_1-3_f': {},
+            'package_atm_month_12_p': {},
+            'post_atm_day_1-27_f': {},
+            'post_atm_day_1-3_f': {},
+            'post_atm_month_12_p': {},
+            'archive_atm_day_1-27_f': {},
+            'archive_atm_day_1-3_f': {},
+            'archive_atm_month_12_p': {},
+            'housekeep': {}
+        }
+    }
+    reg: str = flow(flow_def)
+    schd: 'Scheduler' = scheduler(reg)
+
+    async with run(schd):
+        client = WorkflowRuntimeClient(reg)
+        ret = await client.async_request(
+            'graphql',
+            {'request_string': 'query { nodesEdges { nodes {id}\nedges {id} } }'}
+        )
+        print(ret)
+        assert ret == 'blah'
 
 
 async def test_unexpected_ParsecError(
