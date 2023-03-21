@@ -393,7 +393,7 @@ async def test_mike_graph(flow, scheduler, run):
             }
         },
         'runtime': {
-            'root': {},
+            'root': {'script': 'sleep 30'},
             'ARV': {},
             'make_atm_dtm2013': {},
             'get_geo_index_for_Ap': {},
@@ -425,17 +425,63 @@ async def test_mike_graph(flow, scheduler, run):
         }
     }
     reg: str = flow(flow_def)
-    schd: 'Scheduler' = scheduler(reg)
+    schd: 'Scheduler' = scheduler(reg, paused_start=False, no_detach=True)
 
     async with run(schd):
+
+        breakpoint(header=f'{reg}')
+        pass
+
+    # import subprocess
+    # subprocess.run(['cylc', 'play', reg])
+
+    client = WorkflowRuntimeClient(reg)
+    ret = await client.async_request(
+        'graphql',
+        {'request_string': 'query { nodesEdges { nodes {id} edges {id} } }'}
+    ) 
+    breakpoint()
+    ret = await client.async_request(
+        'graphql',
+        {'request_string': 'query { nodesEdges { nodes {id} edges {id} } }'}
+    ) 
+    breakpoint()
+    get_solars = [i['id'] for i in ret['nodesEdges']['nodes'] if 'get_solar_index_for' in i['id']]
+    assert len(get_solars) == 1
+
+
+async def test_mike_graph2(flow, scheduler, start, run):
+    conf = {
+        'scheduler': {
+            'allow implicit tasks': True
+        },
+        'scheduling': {
+            'graph': {
+                'R1': 'one => two & three'
+            }
+        },
+        'runtime': {
+            'root': {
+                'script': 'sleep 100'
+            }
+        }
+    }
+    reg: str = flow(conf)
+    schd: 'Scheduler' = scheduler(reg)
+    async with run(schd):
+        await schd.start()
+        breakpoint()
+        pass
         client = WorkflowRuntimeClient(reg)
         ret = await client.async_request(
             'graphql',
-            {'request_string': 'query { nodesEdges { nodes {id}\nedges {id} } }'}
+            {'request_string': 'query { nodesEdges { nodes {id} edges {id} } }'}
         )
-        print(ret)
-        assert ret == 'blah'
 
+        breakpoint()
+        pass
+        # print(ret)
+        # assert ret == 'blah'
 
 async def test_unexpected_ParsecError(
     one: Scheduler,

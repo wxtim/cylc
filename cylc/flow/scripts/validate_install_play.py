@@ -84,6 +84,10 @@ def get_option_parser() -> COP:
 
 @cli_function(get_option_parser)
 def main(parser: COP, options: 'Values', workflow_id: Optional[str] = None):
+    _main(parser, options, workflow_id)
+
+
+def _main(parser: COP, options: 'Values', workflow_id: Optional[str] = None):
     """Run Cylc validate - install - play in sequence."""
     if not workflow_id:
         workflow_id = '.'
