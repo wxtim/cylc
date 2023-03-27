@@ -118,9 +118,8 @@ class TaskRemoteMgr:
 
         Arguments:
             eval_str:
-                An explicit host/platform name, a command in back-tick or
-                $(command) format, or an environment variable holding a
-                host/patform name.
+                An explicit host/platform name, a command, or an environment
+                variable holding a host/patform name.
             command_pattern:
                 A compiled regex pattern designed to match subshell strings.
 
