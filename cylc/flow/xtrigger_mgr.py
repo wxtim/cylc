@@ -27,7 +27,6 @@ from cylc.flow.exceptions import XtriggerConfigError
 import cylc.flow.flags
 from cylc.flow.hostuserutil import get_user
 from cylc.flow.xtriggers.wall_clock import wall_clock
-
 from cylc.flow.subprocctx import SubFuncContext
 from cylc.flow.broadcast_mgr import BroadcastMgr
 from cylc.flow.data_store_mgr import DataStoreMgr
@@ -252,8 +251,9 @@ class XtriggerManager:
 
         """
         fname: str = fctx.func_name
+
         try:
-            func = get_func(fname, fdir)
+            func = get_func(fname, fname, fdir)
         except ImportError:
             raise XtriggerConfigError(
                 label,

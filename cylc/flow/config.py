@@ -57,6 +57,7 @@ from cylc.flow.cycling.loader import (
 from cylc.flow.id import Tokens
 from cylc.flow.cycling.integer import IntegerInterval
 from cylc.flow.cycling.iso8601 import ingest_time, ISO8601Interval
+
 from cylc.flow.exceptions import (
     CylcError,
     WorkflowConfigError,
@@ -84,6 +85,7 @@ from cylc.flow.pathutil import (
 from cylc.flow.platforms import FORBIDDEN_WITH_PLATFORM
 from cylc.flow.print_tree import print_tree
 from cylc.flow.subprocctx import SubFuncContext
+from cylc.flow.subprocpool import get_func
 from cylc.flow.task_events_mgr import (
     EventData,
     get_event_handler_data
@@ -1749,28 +1751,31 @@ class WorkflowConfig:
                 if label != 'wall_clock':
                     raise WorkflowConfigError(f"xtrigger not defined: {label}")
                 else:
-                    # Allow "@wall_clock" in the graph as an undeclared
-                    # zero-offset clock xtrigger.
-                    xtrig = SubFuncContext(
-                        'wall_clock', 'wall_clock', [], {})
+                    # Allow "@wall_clock" in graph as implicit zero-offset.
+                    xtrig = SubFuncContext('wall_clock', 'wall_clock', [], {})
 
-            if xtrig.func_name == 'wall_clock':
-                if self.cycling_type == INTEGER_CYCLING_TYPE:
-                    raise WorkflowConfigError(
-                        "Clock xtriggers require datetime cycling:"
-                        f" {label} = {xtrig.get_signature()}"
-                    )
-                else:
-                    # Convert offset arg to kwarg for certainty later.
-                    if "offset" not in xtrig.func_kwargs:
-                        xtrig.func_kwargs["offset"] = None
-                        with suppress(IndexError):
-                            xtrig.func_kwargs["offset"] = xtrig.func_args[0]
+            if (
+                xtrig.func_name == 'wall_clock' and
+                self.cycling_type == INTEGER_CYCLING_TYPE
+            ):
+                raise WorkflowConfigError(
+                    "Clock xtriggers require datetime cycling:"
+                    f" {label} = {xtrig.get_signature()}"
+                )
+
+            # Call the xtrigger's validate_config function if it has one.
+            with suppress(AttributeError):
+                get_func(xtrig.func_name, "validate_config", self.fdir)(
+                    xtrig.func_args,
+                    xtrig.func_kwargs,
+                    xtrig.get_signature()
+                )
 
             if self.xtrigger_mgr is None:
                 XtriggerManager.validate_xtrigger(label, xtrig, self.fdir)
             else:
                 self.xtrigger_mgr.add_trig(label, xtrig, self.fdir)
+
             self.taskdefs[right].add_xtrig_label(label, seq)
 
     def get_actual_first_point(self, start_point):

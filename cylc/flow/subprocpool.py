@@ -64,33 +64,38 @@ def _killpg(proc, signal):
     return True
 
 
-def get_func(func_name, src_dir):
-    """Find and return an xtrigger function from a module of the same name.
+def get_func(mod_name, func_name, src_dir):
+    """Find and return a name function from a named module.
 
-    Can be in <src_dir>/lib/python, CYLC_MOD_LOC, or in Python path.
+    Can be in <src_dir>/lib/python, cylc.flow.xtriggers, or in Python path.
+
     Workflow source directory passed in as this is executed in an independent
     process in the command pool and therefore doesn't know about the workflow.
 
+    Raises:
+        ImportError, if the module is not found
+        AtributeError, if the function is not found in the module
+
     """
     if func_name in _XTRIG_FUNCS:
+        # Found and cached already.
         return _XTRIG_FUNCS[func_name]
-    # First look in <src-dir>/lib/python.
+
+    # 1. look in <src-dir>/lib/python.
     sys.path.insert(0, os.path.join(src_dir, 'lib', 'python'))
-    mod_name = func_name
     try:
         mod_by_name = __import__(mod_name, fromlist=[mod_name])
     except ImportError:
-        # Then look in built-in xtriggers.
-        mod_name = "%s.%s" % ("cylc.flow.xtriggers", func_name)
+        # 2. look in built-in xtriggers.
+        mod_name = "%s.%s" % ("cylc.flow.xtriggers", mod_name)
         try:
             mod_by_name = __import__(mod_name, fromlist=[mod_name])
         except ImportError:
             raise
-    try:
-        _XTRIG_FUNCS[func_name] = getattr(mod_by_name, func_name)
-    except AttributeError:
-        # Module func_name has no function func_name.
-        raise
+
+    # Module found and imported, return the named function.
+
+    _XTRIG_FUNCS[func_name] = getattr(mod_by_name, func_name)
     return _XTRIG_FUNCS[func_name]
 
 
@@ -98,6 +103,8 @@ def run_function(func_name, json_args, json_kwargs, src_dir):
     """Run a Python function in the process pool.
 
     func_name(*func_args, **func_kwargs)
+
+    The function is presumed to be in a module of the same name.
 
     Redirect any function stdout to stderr (and workflow log in debug mode).
     Return value printed to stdout as a JSON string - allows use of the
@@ -107,7 +114,7 @@ def run_function(func_name, json_args, json_kwargs, src_dir):
     func_args = json.loads(json_args)
     func_kwargs = json.loads(json_kwargs)
     # Find and import then function.
-    func = get_func(func_name, src_dir)
+    func = get_func(func_name, func_name, src_dir)
     # Redirect stdout to stderr.
     orig_stdout = sys.stdout
     sys.stdout = sys.stderr
