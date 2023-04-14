@@ -10,6 +10,27 @@ creating a new release entry be sure to copy & paste the span tag with the
 updated. Only the first match gets replaced, so it's fine to leave the old
 ones in. -->
 -------------------------------------------------------------------------------
+## __cylc-8.2.0 (<span actions:bind='release-date'>Upcoming</span>)__
+
+### Enhancements
+
+[#5461](https://github.com/cylc/cylc-flow/pull/5461) - Preserve colour
+formatting when starting workflows in distributed mode using `run hosts`.
+
+[#5291](https://github.com/cylc/cylc-flow/pull/5291) - re-implement old-style
+clock triggers as wall_clock xtriggers.
+
+[#5439](https://github.com/cylc/cylc-flow/pull/5439) - Small CLI short option chages:
+Add the `-n` short option for `--workflow-name` to `cylc vip`; rename the `-n`
+short option for `--no-detach` to `-N`; add `-r` as a short option for
+`--run-name`.
+
+### Fixes
+
+[#5458](https://github.com/cylc/cylc-flow/pull/5458) - Fix a small bug
+causing option parsing to fail with Cylc Reinstall.
+
+-------------------------------------------------------------------------------
 ## __cylc-8.1.3 (<span actions:bind='release-date'>Upcoming</span>)__
 
 ### Fixes
@@ -30,6 +51,13 @@ Cylc to crash when preparing the job script.
 [#5359](https://github.com/cylc/cylc-flow/pull/5359) - Fix bug where viewing
 a workflow's log in the GUI or using `cylc cat-log` would prevent `cylc clean`
 from working.
+
+-------------------------------------------------------------------------------
+## __cylc-8.2.0 (<span actions:bind='release-date'>Coming Soon</span>)__
+
+### Fixes
+[#5328](https://github.com/cylc/cylc-flow/pull/5328) -
+Efficiency improvements to reduce task management overheads on the Scheduler.
 
 -------------------------------------------------------------------------------
 ## __cylc-8.1.2 (<span actions:bind='release-date'>Released 2023-02-20</span>)__
