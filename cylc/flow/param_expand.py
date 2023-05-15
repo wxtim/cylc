@@ -201,6 +201,64 @@ class NameExpander:
                 spec_vals[params[0][0]] = param_val
                 self._expand_name(results, tmpl, params[1:], spec_vals)
 
+    @staticmethod
+    def _parse_parent_string(parent):
+        """Takes a parent string and returns a list of parameters and a
+        template string.
+
+        Examples:
+            >>> this = NameExpander._parse_parent_string
+
+            # Parent doesn't contain a parameter:
+            >>> this('foo')
+            ([], 'foo')
+
+            # Parent contains a simple single parameter:
+            >>> this('<foo>')
+            (['foo'], '{foo}')
+
+            # Parent contains 2 parameters in 1 <>:
+            >>> this('something<foo, bar>other')
+            (['foo', 'bar'], 'something{foo}{bar}other')
+
+            # Parent contains 2 parameters in 2 <>:
+            >>> this('something<foo>middlebit<bar>other')
+            (['foo', 'bar'], 'something{foo}middlebit{bar}other')
+
+            # Parent contains 2 parameters, once with an = sign in it.
+            >>> this('something<foo=42>middlebit<bar>other')
+            (['foo=42', 'bar'], 'something{foo}middlebit{bar}other')
+
+            # Parent contains 2 parameters in 2 <>:
+            >>> this('something<foo,bar=99>other')
+            (['foo', 'bar=99'], 'something{foo}{bar}other')
+        """
+        params = re.findall(r'<.*?>', parent)
+        p_list = []
+        tmpl = parent
+        for param in params:
+            param_template = param[1:-1]
+
+            if ',' in param_template:
+                # parameter syntax `<foo, bar>`
+                sub_params = [
+                    i.strip('<> ') for i in param_template.split(',')]
+                for sub_param in sub_params:
+                    p_list.append(sub_param)
+                    if '=' in sub_param:
+                        sub_params.remove(sub_param)
+                        sub_params.append(sub_param.split('=')[0])
+                replacement = '{' + '}{'.join(sub_params) + '}'
+            else:
+                # parameter syntax: `<foo><bar>`
+                p_list.append(param_template)
+                if '=' in param_template:
+                    param_template = param_template.split('=')[0]
+                replacement = '{' + param_template + '}'
+            tmpl = tmpl.replace(param, replacement)
+
+        return p_list, tmpl
+
     def expand_parent_params(self, parent, param_values, origin):
         """Replace parameters with specific values in inherited parent names.
 
@@ -214,11 +272,13 @@ class NameExpander:
         then it must be a legal value for that parameter.
 
         """
-        head, p_list_str, tail = REC_P_ALL.match(parent).groups()
-        if not p_list_str:
-            return (None, head)
+        p_list, tmpl = self._parse_parent_string(parent)
+
+        if not p_list:
+            return (None, parent)
+
         used = {}
-        for item in (i.strip() for i in p_list_str.split(',')):
+        for item in p_list:
             if '-' in item or '+' in item:
                 raise ParamExpandError(
                     "parameter offsets illegal here: '%s'" % origin)
@@ -244,14 +304,10 @@ class NameExpander:
                     raise ParamExpandError(
                         "parameter '%s' undefined in '%s'" % (
                             item, origin))
-        if head:
-            tmpl = head
-        else:
-            tmpl = ''
-        for pname in used:
-            tmpl += self.param_tmpl_cfg[pname]
-        if tail:
-            tmpl += tail
+
+        # For each parameter substitute the param_tmpl_cfg.
+        tmpl = tmpl.format(**self.param_tmpl_cfg)
+        # Insert parameter values into template.
         return (used, tmpl % used)
 
 

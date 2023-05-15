@@ -420,12 +420,11 @@ class myParam():
             id='two-valid-param'
         ).get(),
         myParam(
-            expect=({'bar': 1, 'baz': 42}, 'foo_bar1_baz42'),
-            raw_str='foo<bar><baz>',
+            expect=({'bar': 1, 'baz': 42}, 'foo_bar1qux_baz42'),
+            raw_str='foo<bar>qux<baz>',
             parameter_values={'bar': 1, 'baz': 42},
             templates={'bar': '_bar%(bar)s', 'baz': '_baz%(baz)s'},
             id='two-valid-param-sep-brackets',
-            xfail=True,
         ).get(),
         myParam(
             raw_str='foo<bar-1>baz',
