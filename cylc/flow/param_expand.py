@@ -232,6 +232,10 @@ class NameExpander:
             # Parent contains 2 parameters in 2 <>:
             >>> this('something<foo,bar=99>other')
             (['foo', 'bar=99'], 'something{foo}{bar}other')
+
+            # Parent contains spaces around = sign:
+            >>> this('FAM<i = cat ,j=3>')
+            (['i = cat', 'j=3'], 'FAM{i}{j}')
         """
         tmpl_list = re.split(r'(<[^>]*>)', parent)
         raw_param_list = [
@@ -250,7 +254,7 @@ class NameExpander:
                     if '=' in sub_param:
                         sub_params[
                             sub_params.index(sub_param)
-                        ] = sub_param.split('=')[0]
+                        ] = sub_param.split('=')[0].strip()
                 replacement = '{' + '}{'.join(sub_params) + '}'
             else:
                 # parameter syntax: `<foo><bar>`
