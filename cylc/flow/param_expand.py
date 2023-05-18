@@ -233,31 +233,36 @@ class NameExpander:
             >>> this('something<foo,bar=99>other')
             (['foo', 'bar=99'], 'something{foo}{bar}other')
         """
-        params = REC_P_GROUP.findall(parent)
-        p_list = []
-        tmpl = parent
-        for param in params:
-            param_template = param
-
-            if ',' in param_template:
+        tmpl_list = re.split(r'(<[^>]*>)', parent)
+        raw_param_list = [
+            REC_P_GROUP.findall(i)[0]
+            for i in tmpl_list
+            if REC_P_GROUP.findall(i)
+        ]
+        param_list = []
+        for param in raw_param_list:
+            if ',' in param:
                 # parameter syntax `<foo, bar>`
                 sub_params = [
-                    i.strip() for i in param_template.split(',')]
+                    i.strip() for i in param.split(',')]
                 for sub_param in sub_params:
-                    p_list.append(sub_param)
+                    param_list.append(sub_param)
                     if '=' in sub_param:
-                        sub_params.remove(sub_param)
-                        sub_params.append(sub_param.split('=')[0])
+                        sub_params[
+                            sub_params.index(sub_param)
+                        ] = sub_param.split('=')[0]
                 replacement = '{' + '}{'.join(sub_params) + '}'
             else:
                 # parameter syntax: `<foo><bar>`
-                p_list.append(param_template)
-                if '=' in param_template:
-                    param_template = param_template.split('=')[0]
-                replacement = '{' + param_template + '}'
-            tmpl = tmpl.replace(f'<{param}>', replacement)
+                param_list.append(param)
+                param_value = param.split('=')[0] if '=' in param else param
+                replacement = '{' + param_value + '}'
 
-        return p_list, tmpl
+            # Replace param in template list with template.
+            if f'<{param}>' in tmpl_list:
+                tmpl_list[tmpl_list.index(f'<{param}>')] = replacement
+
+        return param_list, ''.join(tmpl_list)
 
     def expand_parent_params(self, parent, param_values, origin):
         """Replace parameters with specific values in inherited parent names.
