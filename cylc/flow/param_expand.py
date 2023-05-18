@@ -233,16 +233,16 @@ class NameExpander:
             >>> this('something<foo,bar=99>other')
             (['foo', 'bar=99'], 'something{foo}{bar}other')
         """
-        params = re.findall(r'<.*?>', parent)
+        params = REC_P_GROUP.findall(parent)
         p_list = []
         tmpl = parent
         for param in params:
-            param_template = param[1:-1]
+            param_template = param
 
             if ',' in param_template:
                 # parameter syntax `<foo, bar>`
                 sub_params = [
-                    i.strip('<> ') for i in param_template.split(',')]
+                    i.strip() for i in param_template.split(',')]
                 for sub_param in sub_params:
                     p_list.append(sub_param)
                     if '=' in sub_param:
@@ -255,7 +255,7 @@ class NameExpander:
                 if '=' in param_template:
                     param_template = param_template.split('=')[0]
                 replacement = '{' + param_template + '}'
-            tmpl = tmpl.replace(param, replacement)
+            tmpl = tmpl.replace(f'<{param}>', replacement)
 
         return p_list, tmpl
 
