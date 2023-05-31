@@ -17,6 +17,7 @@
 from cylc.flow.task_events_mgr import TaskJobLogsRetrieveContext
 from cylc.flow.scheduler import Scheduler
 
+from pathlib import Path
 from typing import Any as Fixture
 
 
@@ -42,3 +43,46 @@ async def test_process_job_logs_retrieval_warns_no_platform(
         warning = caplog.records[-1]
         assert warning.levelname == 'WARNING'
         assert 'Unable to retrieve' in warning.msg
+
+
+async def test_process_message_no_repeat(
+    one_conf: Fixture, flow: Fixture, scheduler: Fixture, run: Fixture
+):
+    """Don't log received messages if they are found again."""
+    reg: str = flow(one_conf)
+    schd: 'Scheduler' = scheduler(reg, paused_start=True)
+
+    async with run(schd) as log:
+        # Setup `job-activity.log` path:
+        job_activity_log = (
+            Path(schd.workflow_run_dir)
+            / 'log/job/1/one/NN/job-activity.log'
+        )
+        job_activity_log.parent.mkdir(parents=True)
+
+        args = {
+            'itask': schd.pool.get_tasks()[0],
+            'severity': 'comical',
+            'message': 'The dead swans lay in the stagnant pool',
+            'event_time': 'Thursday',
+            'flag': '(received)',
+            'submit_num': 0
+        }
+        # Process message should continue (i.e. check is True):
+        assert schd.task_events_mgr._process_message_check(**args) is True
+        # We have logged this message.
+        assert schd.task_events_mgr.FLAG_RECEIVED in log.records[-1].message
+
+        args = {
+            'itask': schd.pool.get_tasks()[0],
+            'severity': 'comical',
+            'message': 'The dead swans lay in the stagnant pool',
+            'event_time': 'Thursday',
+            'flag': '(polled)',
+            'submit_num': 0
+        }
+        # Process message should not continue - we've seen it before,
+        # albeit with a different flag:
+        assert schd.task_events_mgr._process_message_check(**args) is None
+        # We haven't logged another message:
+        assert schd.task_events_mgr.FLAG_RECEIVED in log.records[-1].message

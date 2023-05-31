@@ -819,6 +819,27 @@ class TaskEventsManager():
             self.EVENT_SUBMIT_FAILED, f'{FAIL_MESSAGE_PREFIX}ERR'
         }:
             severity = DEBUG
+
+        # Get job activity log to check whether a message is a repeat.
+        job_activity_log = get_task_job_activity_log(
+            self.workflow,
+            list(itask.tokens.values())[0],
+            list(itask.tokens.values())[1],
+            submit_num
+        )
+
+        # Record recieved messages in the job activity log.
+        # Do not log it a second time if Polling reveals the same
+        # message has been logged already by reciept method:
+        loggable_message = f'{flag} {message} {event_time}'
+        if flag == self.FLAG_RECEIVED:
+            with open(os.path.expandvars(job_activity_log), "ab") as handle:
+                handle.write((loggable_message + '\n').encode())
+        elif flag == self.FLAG_POLLED:
+            with open(os.path.expandvars(job_activity_log), "r") as handle:
+                if f'{message} {event_time}' in handle.read():
+                    return None
+
         LOG.log(severity, f"[{itask}] {flag}{message}{timestamp}")
         return True
 
