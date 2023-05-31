@@ -24,6 +24,7 @@ from tempfile import mktemp
 from types import SimpleNamespace
 
 import pytest
+from pytest import param
 
 from cylc.flow.exceptions import PlatformLookupError
 from cylc.flow.rundb import CylcWorkflowDAO
@@ -175,3 +176,51 @@ def test_select_task_pool_for_restart_if_not_platforms(tmp_path):
         match='not defined.*\n.*foo.*\n.*bar'
     ):
         dao.select_task_pool_for_restart(callback)
+
+
+@pytest.mark.parametrize(
+    'query, expect',
+    (
+        param(
+            (
+                1, "started", "morning",
+                SimpleNamespace(tokens={'task': 'qux', 'cycle': '-191'})
+            ),
+            True,
+            id="event-name-in-db"
+        ),
+        param(
+            (
+                1, "Hello Rome", "afternoon",
+                SimpleNamespace(tokens={'task': 'qux', 'cycle': '-190'})
+            ),
+            True,
+            id="message-in-db"
+        ),
+        param(
+            (
+                1, "submitted", "morning",
+                SimpleNamespace(tokens={'task': 'qux', 'cycle': '-191'})
+            ),
+            False,
+            id="not-in-db"
+        ),
+    )
+)
+def test_message_in_db(tmp_path, query, expect):
+    """Method correctly says if message is in DB.
+    """
+    db_file = tmp_path / 'db'
+    dao = CylcWorkflowDAO(db_file, create_tables=True)
+    setup_stmt = r"""
+        INSERT INTO task_events
+        VALUES
+            (
+                "qux", "-191",
+                "morning", "1", "started", ""),
+            (
+                "qux", "-190",
+                "afternoon", "1", "message critical", "Hello Rome");
+    """
+    dao.connect().execute(setup_stmt)
+    assert dao.message_in_db(*query) is expect

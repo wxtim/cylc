@@ -587,8 +587,18 @@ class TaskEventsManager():
         # Any message represents activity.
         self.reset_inactivity_timer_func()
 
-        if not self._process_message_check(
-                itask, severity, message, event_time, flag, submit_num):
+        message_already_received = self.workflow_db_mgr.pri_dao.message_in_db(
+            submit_num, message, event_time, itask)
+        if (
+            itask.tdef.run_mode == 'live'
+            and message_already_received
+        ):
+            return None
+
+        if (
+            not self._process_message_check(
+                itask, severity, message, event_time, flag, submit_num)
+        ):
             return None
 
         # always update the workflow state summary for latest message
@@ -767,6 +777,7 @@ class TaskEventsManager():
             timestamp = f" at {event_time}"
         else:
             timestamp = ""
+
         if flag == self.FLAG_RECEIVED and submit_num != itask.submit_num:
             # Ignore received messages from old jobs
             LOG.warning(
@@ -819,6 +830,7 @@ class TaskEventsManager():
             self.EVENT_SUBMIT_FAILED, f'{FAIL_MESSAGE_PREFIX}ERR'
         }:
             severity = DEBUG
+
         LOG.log(severity, f"[{itask}] {flag}{message}{timestamp}")
         return True
 
