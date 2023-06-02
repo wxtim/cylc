@@ -73,6 +73,7 @@ REC_P_GROUP = re.compile(r"<(.*?)>")
 # To extract parameter name and optional offset or value e.g. 'm-1'.
 REC_P_OFFS = re.compile(
     r'(\w+)\s*([\-+]\s*\d+|=\s*%s)?' % TaskID.NAME_SUFFIX_RE)
+REC_SPLIT_GROUPS = re.compile(r'(<[^>]*>)')
 
 
 def item_in_iterable(item, itt):
@@ -202,7 +203,7 @@ class NameExpander:
                 self._expand_name(results, tmpl, params[1:], spec_vals)
 
     @staticmethod
-    def _parse_parent_string(parent):
+    def _parse_parent_string(name_string):
         """Takes a parent string and returns a list of parameters and a
         template string.
 
@@ -237,12 +238,14 @@ class NameExpander:
             >>> this('FAM<i = cat ,j=3>')
             (['i = cat', 'j=3'], 'FAM{i}{j}')
         """
-        tmpl_list = re.split(r'(<[^>]*>)', parent)
-        raw_param_list = [
-            REC_P_GROUP.findall(i)[0]
-            for i in tmpl_list
-            if REC_P_GROUP.findall(i)
-        ]
+        tmpl_list = REC_SPLIT_GROUPS.split(name_string)
+
+        raw_param_list = []
+        for tmpl in tmpl_list:
+            param_match = REC_P_GROUP.findall(tmpl)
+            if param_match:
+                raw_param_list.append(param_match[0])
+
         param_list = []
         for param in raw_param_list:
             if ',' in param:
@@ -290,7 +293,7 @@ class NameExpander:
         for item in p_list:
             if '-' in item or '+' in item:
                 raise ParamExpandError(
-                    "parameter offsets illegal here: '%s'" % origin)
+                    "parameter offsets illegal here: '%s'" % item)
             elif '=' in item:
                 # Specific value given.
                 pname, pval = [val.strip() for val in item.split('=', 1)]

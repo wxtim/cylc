@@ -427,11 +427,6 @@ class myParam():
             id='two-valid-param-sep-brackets',
         ).get(),
         myParam(
-            raw_str='foo<bar-1>baz',
-            raises=(ParamExpandError, '^parameter offsets illegal here'),
-            id='offsets-illegal'
-        ).get(),
-        myParam(
             expect=({'bar': 1}, 'foo_bar1_baz'),
             raw_str='foo<bar=1>baz',
             parameter_values={'bar': [1, 2]},
@@ -449,6 +444,12 @@ class myParam():
             raw_str='foo<bar=3>baz',
             raises=(ParamExpandError, '^parameter \'bar\' undefined'),
             id='parameter-undefined'
+        ).get(),
+        myParam(
+            expect=({'bar': 2, 'foo': 8}, 'foo9_bar1_baz'),
+            raw_str='<foo+1><bar-1>baz',
+            raises=(ParamExpandError, 'parameter offsets illegal'),
+            id='offsets-illegal'
         ).get(),
     )
 )
