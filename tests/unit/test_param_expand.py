@@ -392,63 +392,64 @@ class myParam():
             id='basic'
         ).get(),
         myParam(
-            expect=({'bar': 1}, 'bar1'),
+            expect=({'bar': '1'}, 'bar1'),
             raw_str='<bar>',
-            parameter_values={'bar': 1},
+            parameter_values={'bar': '1'},
             templates={'bar': 'bar%(bar)s'},
             id='one-valid-param'
         ).get(),
         myParam(
-            expect=({'bar': 1}, 'foo_bar1_baz'),
+            expect=({'bar': '1'}, 'foo_bar1_baz'),
             raw_str='foo<bar>baz',
-            parameter_values={'bar': 1},
+            parameter_values={'bar': '1'},
             templates={'bar': '_bar%(bar)s_'},
             id='one-valid-param'
         ).get(),
         myParam(
             raw_str='foo<bar>baz',
-            parameter_values={'qux': 2},
+            parameter_values={'qux': '2'},
             templates={'bar': '_bar%(bar)s_'},
-            raises=(ParamExpandError, 'parameter \'bar\' undefined'),
+            raises=(ParamExpandError, 'parameter bar is not defined'),
             id='one-invalid-param'
         ).get(),
         myParam(
-            expect=({'bar': 1, 'baz': 42}, 'foo_bar1_baz42'),
+            expect=({'bar': '1', 'baz': '42'}, 'foo_bar1_baz42'),
             raw_str='foo<bar, baz>',
-            parameter_values={'bar': 1, 'baz': 42},
+            parameter_values={'bar': '1', 'baz': ['42']},
             templates={'bar': '_bar%(bar)s', 'baz': '_baz%(baz)s'},
-            id='two-valid-param'
+            id='two-valid-params'
         ).get(),
         myParam(
-            expect=({'bar': 1, 'baz': 42}, 'foo_bar1qux_baz42'),
+            expect=({'bar': '1', 'baz': '42'}, 'foo_bar1qux_baz42'),
             raw_str='foo<bar>qux<baz>',
-            parameter_values={'bar': 1, 'baz': 42},
+            parameter_values={'bar': '1', 'baz': ['42'], 'qux': ['84']},
             templates={'bar': '_bar%(bar)s', 'baz': '_baz%(baz)s'},
-            id='two-valid-param-sep-brackets',
+            id='two-valid-params-sep-brackets',
         ).get(),
         myParam(
             expect=({'bar': 1}, 'foo_bar1_baz'),
             raw_str='foo<bar=1>baz',
-            parameter_values={'bar': [1, 2]},
+            parameter_values={'bar': ['1', '2']},
             templates={'bar': '_bar%(bar)s_'},
             id='value-set'
         ).get(),
         myParam(
             raw_str='foo<bar=3>baz',
-            parameter_values={'bar': [1, 2]},
-            raises=(ParamExpandError, '^illegal'),
+            parameter_values={'bar': ['1', '2']},
+            raises=(ParamExpandError, 'parameter bar out of range'),
             id='illegal-value'
         ).get(),
         myParam(
-            expect=({'bar': 1}, 'foo_bar1_baz'),
+            expect=({'bar': '1'}, 'foo_bar1_baz'),
             raw_str='foo<bar=3>baz',
-            raises=(ParamExpandError, '^parameter \'bar\' undefined'),
+            raises=(ParamExpandError, 'parameter bar is not defined'),
             id='parameter-undefined'
         ).get(),
         myParam(
-            expect=({'bar': 2, 'foo': 8}, 'foo9_bar1_baz'),
+            expect=({'bar': '2', 'foo': '8'}, 'foo9_bar1_baz'),
             raw_str='<foo+1><bar-1>baz',
-            raises=(ParamExpandError, 'parameter offsets illegal'),
+            parameter_values={'bar': "123", 'foo': "678"},
+            raises=(ParamExpandError, 'parameter index offsets are not'),
             id='offsets-illegal'
         ).get(),
     )

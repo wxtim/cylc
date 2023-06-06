@@ -46,7 +46,7 @@ run_ok "${TNAME}" cylc validate .
 graph_workflow . "${TNAME}-graph-fam" --group="<all>"
 cmp_ok "${TNAME}-graph-fam" "${TEST_SOURCE_DIR}/${TEST_NAME_BASE}/graph-fam-1.ref"
 # task graph
-graph_workflow . "${TNAME}-graph-exp" 
+graph_workflow . "${TNAME}-graph-exp"
 cmp_ok "${TNAME}-graph-exp" "${TEST_SOURCE_DIR}/${TEST_NAME_BASE}/graph-exp-1.ref"
 # inheritance graph
 graph_workflow . "${TNAME}-graph-nam" -n
@@ -215,7 +215,7 @@ __WORKFLOW__
 TNAME=${TEST_NAME_BASE}-err-1
 run_fail "${TNAME}" cylc validate .
 cmp_ok "${TNAME}.stderr" - << __ERR__
-ParamExpandError: illegal value 'i=frog' in 'inherit = FAM<i=frog,j>'
+WorkflowConfigError: undefined parent for bar_cat_j1: FAM_frog_j1
 __ERR__
 
 #------------------------------------------------------------------------------
@@ -242,5 +242,5 @@ __WORKFLOW__
 TNAME="${TEST_NAME_BASE}-err-2"
 run_fail "${TNAME}" cylc validate .
 cmp_ok "${TNAME}.stderr" - << __ERR__
-ParamExpandError: parameter 'i' undefined in 'inherit = FAM<i,j=1>'
+ParamExpandError: parameter i is not defined in 'inherit = FAM<i,j=1>'
 __ERR__

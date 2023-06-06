@@ -1055,6 +1055,8 @@ class WorkflowConfig:
                         if used_indices:
                             self._update_task_params(name, used_indices)
                     newruntime[name]['inherit'] = repl_parents
+        from pathlib import Path
+        Path('/home/h02/tpilling/before').write_text(str(newruntime))
         self.cfg['runtime'] = newruntime
 
     def validate_namespace_names(self):

@@ -108,7 +108,29 @@ class TaskProxySequenceBoundsError(CylcError):
 
 
 class ParamExpandError(WorkflowConfigError):
-    """Exception for errors in Cylc parameter expansion."""
+    """Exception for errors in Cylc parameter expansion.
+
+    Kwargs:
+        problem_key: the name of the problematic key.
+        problem_value: the value of the problematic item.
+        context: the string we're trying to expand.
+    """
+
+    def __init__(
+        self, msg=None, problem_key=None, problem_value=None, context=None
+    ):
+        self.msg = "parameter {key}{value} is not defined in {context}"
+        if msg is not None:
+            self.msg = msg
+        self.problem_key = problem_key
+        self.problem_value = f'={problem_value}' if problem_value else ''
+        self.context = context
+        WorkflowConfigError.__init__(
+            self, self.msg.format(
+                key=self.problem_key,
+                value=self.problem_value,
+                context=self.context
+        ))
 
 
 class WorkflowEventError(CylcError):

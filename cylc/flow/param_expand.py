@@ -102,8 +102,10 @@ class NameExpander:
         """
         self.param_cfg, self.param_tmpl_cfg = parameters
 
-    def expand(self, runtime_heading):
+    def expand(self, runtime_heading, param_values=None):
         """Expand runtime namespace names for a subset of workflow parameters.
+
+        Extra checks are required if parameter is a parent.
 
         Input runtime_heading is a string that may contain comma-separated
         parameterized namespace names, e.g. for "foo<m,n>, bar<m,n>".
@@ -119,6 +121,8 @@ class NameExpander:
              ('foo_i1_j1', {i:'1', j:'1'})]
         """
         # Create a string template and values to pass to the expansion method.
+        if param_values is None:
+            param_values = self.param_cfg
         results = []
         for name in REC_NAMES.findall(runtime_heading):
             tmpl = ''
@@ -133,16 +137,15 @@ class NameExpander:
                 # Get the subset of parameters used in this case.
                 for item in (i.strip() for i in p_list_str.split(',')):
                     pname, sval = REC_P_OFFS.match(item.strip()).groups()
-                    if not self.param_cfg.get(pname, None):
+                    if not param_values.get(pname, None):
                         raise ParamExpandError(
-                            "parameter %s is not defined in %s" % (
-                                pname, runtime_heading))
+                            problem_key=pname, context=runtime_heading)
                     if sval:
                         if sval.startswith('+') or sval.startswith('-'):
                             raise ParamExpandError(
                                 "parameter index offsets are not"
-                                " supported in name expansion: %s%s" % (
-                                    pname, sval))
+                                " supported in name expansion: %s%s",
+                                pname, sval)
                         elif sval.startswith('='):
                             # Check that specific parameter values exist.
                             val = sval[1:].strip()
@@ -152,13 +155,15 @@ class NameExpander:
                             except ValueError:
                                 nval = val
                             if not item_in_iterable(
-                                    nval, self.param_cfg[pname]):
+                                    nval, param_values[pname]):
                                 raise ParamExpandError(
-                                    "parameter %s out of range: %s" % (
-                                        pname, p_list_str))
+                                    "parameter {key} out of range: {value}",
+                                    problem_key=pname,
+                                    problem_value=nval,
+                                )
                             spec_vals[pname] = nval
                     else:
-                        used_params.append((pname, self.param_cfg[pname]))
+                        used_params.append((pname, param_values[pname]))
                     tmpl += self.param_tmpl_cfg[pname]
                 if tail:
                     name = tail
@@ -196,131 +201,103 @@ class NameExpander:
                 results.append((tmpl % current_values, current_values))
             except KeyError as exc:
                 raise ParamExpandError('parameter %s is not '
-                                       'defined.' % str(exc.args[0]))
+                                       'defined.', str(exc.args[0]))
         else:
             for param_val in params[0][1]:
                 spec_vals[params[0][0]] = param_val
                 self._expand_name(results, tmpl, params[1:], spec_vals)
 
     @staticmethod
-    def _parse_parent_string(name_string):
-        """Takes a parent string and returns a list of parameters and a
-        template string.
+    def used_in_param_values(used, param_values):
+        """Check whether used is a subset of param_values.
 
         Examples:
-            >>> this = NameExpander._parse_parent_string
+            >>> this = NameExpander.used_in_param_values
 
-            # Parent doesn't contain a parameter:
-            >>> this('foo')
-            ([], 'foo')
+            # Used === param values:
+            >>> this({'a': '1'}, {'a': '1'})
+            True
 
-            # Parent contains a simple single parameter:
-            >>> this('<foo>')
-            (['foo'], '{foo}')
+            # Used has a value in the list of param values
+            # Irrelevent parameters ignored:
+            >>> this({'a': '1'}, {'a': ['1'], 'b': ['word']})
+            True
 
-            # Parent contains 2 parameters in 1 <>:
-            >>> this('something<foo, bar>other')
-            (['foo', 'bar'], 'something{foo}{bar}other')
+            # Used has a value in the list of param values:
+            >>> this({'a': 1}, {'a': [1, 2]})
+            True
 
-            # Parent contains 2 parameters in 2 <>:
-            >>> this('something<foo>middlebit<bar>other')
-            (['foo', 'bar'], 'something{foo}middlebit{bar}other')
+            # Used fails if any item has invalid value:
+            >>> this({'a': 2, 'b': 2}, {'a': ['2'], 'b': ['7']})
+            False
 
-            # Parent contains 2 parameters, once with an = sign in it.
-            >>> this('something<foo=42>middlebit<bar>other')
-            (['foo=42', 'bar'], 'something{foo}middlebit{bar}other')
+            >>> this({'a': 1}, {'a': ['12', '13']})
+            False
 
-            # Parent contains 2 parameters in 2 <>:
-            >>> this('something<foo,bar=99>other')
-            (['foo', 'bar=99'], 'something{foo}{bar}other')
+            >>> this({'a': 1}, {'b': ['1']})
+            False
 
-            # Parent contains spaces around = sign:
-            >>> this('FAM<i = cat ,j=3>')
-            (['i = cat', 'j=3'], 'FAM{i}{j}')
+            # Don't asset that value is a char in string.
+            >>> this({'a': '1'}, {'a': '11'})
+            False
+
+            # Used a value wrapped in a list
+            >>> this({'a': 1}, {'a': ['1']})
+            True
         """
-        tmpl_list = REC_SPLIT_GROUPS.split(name_string)
-
-        raw_param_list = []
-        for tmpl in tmpl_list:
-            param_match = REC_P_GROUP.findall(tmpl)
-            if param_match:
-                raw_param_list.append(param_match[0])
-
-        param_list = []
-        for param in raw_param_list:
-            if ',' in param:
-                # parameter syntax `<foo, bar>`
-                sub_params = [
-                    i.strip() for i in param.split(',')]
-                for sub_param in sub_params:
-                    param_list.append(sub_param)
-                    if '=' in sub_param:
-                        sub_params[
-                            sub_params.index(sub_param)
-                        ] = sub_param.split('=')[0].strip()
-                replacement = '{' + '}{'.join(sub_params) + '}'
-            else:
-                # parameter syntax: `<foo><bar>`
-                param_list.append(param)
-                param_value = param.split('=')[0] if '=' in param else param
-                replacement = '{' + param_value + '}'
-
-            # Replace param in template list with template.
-            if f'<{param}>' in tmpl_list:
-                tmpl_list[tmpl_list.index(f'<{param}>')] = replacement
-
-        return param_list, ''.join(tmpl_list)
+        result = True
+        for usedkey, usedval in used.items():
+            pvals_is_list = isinstance(param_values.get(usedkey, []), list)
+            if (
+                usedkey not in param_values
+                or (    # Parameter values list must contain our value:
+                    pvals_is_list
+                    and str(usedval) not in param_values.get(usedkey, [])
+                )
+                or (    # Parameter value must equal our value:
+                    not pvals_is_list
+                    and str(usedval) != param_values.get(usedkey, [])
+                )
+            ):
+                result = False
+        return result
 
     def expand_parent_params(self, parent, param_values, origin):
         """Replace parameters with specific values in inherited parent names.
 
-        If a value is NOT specified, e.g.:
-            inherit = parent<m>
-        then it must be given in param_values (as defined by expansion of the
-        enclosing namespace name).
-
-        If a value IS specified, e.g.:
-            inherit = parent<m=3>
-        then it must be a legal value for that parameter.
-
+        Uses expand.
         """
-        p_list, tmpl = self._parse_parent_string(parent)
-
-        if not p_list:
-            return (None, parent)
-
-        used = {}
-        for item in p_list:
-            if '-' in item or '+' in item:
-                raise ParamExpandError(
-                    "parameter offsets illegal here: '%s'" % item)
-            elif '=' in item:
-                # Specific value given.
-                pname, pval = [val.strip() for val in item.split('=', 1)]
-                with suppress(ValueError):
-                    pval = int(pval)
-                if pname not in self.param_cfg:
-                    raise ParamExpandError(
-                        "parameter '%s' undefined in '%s'" % (
-                            pname, origin))
-                elif pval not in self.param_cfg[pname]:
-                    raise ParamExpandError(
-                        "illegal value '%s=%s' in '%s'" % (
-                            pname, pval, origin))
-                used[pname] = pval
+        # param values input format Dict[str, Any]
+        # param values needs to be Dict[str, List] for use with self.expand.
+        new_param_values = {}
+        for key, val in param_values.items():
+            if isinstance(val, list):
+                new_param_values[key] = val
             else:
-                # Non-specific; value must be supplied in param_values.
-                try:
-                    used[item] = param_values[item]
-                except KeyError:
-                    raise ParamExpandError(
-                        "parameter '%s' undefined in '%s'" % (
-                            item, origin))
+                new_param_values[key] = [val]
+        param_values = new_param_values
 
-        # For each parameter substitute the param_tmpl_cfg.
-        tmpl = tmpl.format(**self.param_tmpl_cfg)
-        # Insert parameter values into template.
-        return (used, tmpl % used)
+        for item_list in REC_P_GROUP.findall(parent):
+            for item in item_list.split(','):
+                if '=' in item:
+                    key, value = [i.strip() for i in item.split('=')]
+                    param_values[key] = [value]
+
+        try:
+            breakpoint()
+            expanded_str, used = self.expand(parent, param_values)[0]
+        except ParamExpandError as exc:
+            raise ParamExpandError(
+                problem_key=exc.problem_key, context=f'\'{origin}\'')
+
+        if used == {}:
+            return None, expanded_str
+        elif self.used_in_param_values(used, param_values):
+            return used, expanded_str
+        elif self.used_in_param_values(used, self.param_cfg):
+            return used, expanded_str
+        else:
+            raise ParamExpandError(problem_key=expanded_str, context=parent)
 
 
 class GraphExpander:
