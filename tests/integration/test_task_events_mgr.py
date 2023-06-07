@@ -68,21 +68,14 @@ async def test_process_message_no_repeat(
             'flag': '(received)',
             'submit_num': 0
         }
-        # Process message should continue (i.e. check is True):
+
+        # Process message should continue (i.e. check is True),
+        # And we should log this message:
         assert schd.task_events_mgr._process_message_check(**args) is True
-        # We have logged this message.
         assert schd.task_events_mgr.FLAG_RECEIVED in log.records[-1].message
 
-        args = {
-            'itask': schd.pool.get_tasks()[0],
-            'severity': 'comical',
-            'message': 'The dead swans lay in the stagnant pool',
-            'event_time': 'Thursday',
-            'flag': '(polled)',
-            'submit_num': 0
-        }
         # Process message should not continue - we've seen it before,
-        # albeit with a different flag:
-        assert schd.task_events_mgr._process_message_check(**args) is None
-        # We haven't logged another message:
+        # albeit with a different flag - We should not log another message:
+        args['flag'] = '(polled)'
+        assert schd.task_events_mgr._process_message_check(**args) is False
         assert schd.task_events_mgr.FLAG_RECEIVED in log.records[-1].message
