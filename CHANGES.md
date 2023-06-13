@@ -28,6 +28,9 @@ This can be overridden using the new `--exit-zero` flag.
 
 ### Fixes
 
+[#5573](https://github.com/cylc/cylc-flow/pull/5573) - Fix bug that ran a
+queued waiting task even after removal by `cylc remove`.
+
 [#5524](https://github.com/cylc/cylc-flow/pull/5524) - Logging includes timestamps
 for `cylc play` when called by `cylc vip` or `cylc vr`.
 
