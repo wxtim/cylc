@@ -1102,5 +1102,5 @@ class CylcWorkflowDAO:
                     AND submit_num == ?
             )
         """
-        stmt_args = [task_name, cycle, message, message, submit, timestamp]
-        return bool(self.connect().execute(stmt, stmt_args[:-1]).fetchone()[0])
+        stmt_args = [task_name, cycle, message, message, submit]
+        return bool(self.connect().execute(stmt, stmt_args).fetchone()[0])
