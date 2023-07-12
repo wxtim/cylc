@@ -1785,10 +1785,12 @@ class TaskPool:
             itask.expire_time = (
                 itask.get_point_as_seconds() +
                 itask.get_offset_as_seconds(itask.tdef.expiration_offset))
-        if time() > itask.expire_time:
+        now = time()
+        if now > itask.expire_time:
             msg = 'Task expired (skipping job).'
             LOG.warning(f"[{itask}] {msg}")
-            self.task_events_mgr.setup_event_handlers(itask, "expired", msg)
+            self.task_events_mgr.setup_event_handlers(
+                itask, now, "expired", msg)
             # TODO succeeded and expired states are useless due to immediate
             # removal under all circumstances (unhandled failed is still used).
             if itask.state_reset(TASK_STATUS_EXPIRED, is_held=False):

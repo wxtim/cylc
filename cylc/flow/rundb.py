@@ -1100,7 +1100,8 @@ class CylcWorkflowDAO:
                     AND cycle == ?
                     AND (message == ? OR event == ?)
                     AND submit_num == ?
+                    AND time == ?
             )
         """
-        stmt_args = [task_name, cycle, message, message, submit]
+        stmt_args = [task_name, cycle, message, message, submit, timestamp]
         return bool(self.connect().execute(stmt, stmt_args).fetchone()[0])
