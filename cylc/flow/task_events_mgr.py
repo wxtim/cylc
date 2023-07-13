@@ -75,6 +75,7 @@ from cylc.flow.task_outputs import (
     TASK_OUTPUT_FAILED, TASK_OUTPUT_SUBMIT_FAILED)
 from cylc.flow.wallclock import (
     get_current_time_string,
+    get_time_string,
     get_seconds_as_interval_string as intvl_as_str
 )
 from cylc.flow.workflow_events import (
@@ -426,7 +427,8 @@ class TaskEventsManager():
         itask.timeout = None  # emit event only once
         if msg and event:
             LOG.warning(f"[{itask}] {msg}")
-            self.setup_event_handlers(itask, now, event, msg)
+            self.setup_event_handlers(
+                itask, get_time_string(now), event, msg)
             return True
         else:
             return can_poll
@@ -588,7 +590,7 @@ class TaskEventsManager():
         self.reset_inactivity_timer_func()
 
         message_already_received = self.workflow_db_mgr.pri_dao.message_in_db(
-            submit_num, message, event_time, itask)
+            itask, event_time, submit_num, message)
         if (
             itask.tdef.run_mode == 'live'
             and message_already_received
@@ -836,7 +838,9 @@ class TaskEventsManager():
         LOG.log(severity, f"[{itask}] {flag}{message}{timestamp}")
         return True
 
-    def setup_event_handlers(self, itask, event_time, event, message):
+    def setup_event_handlers(
+        self, itask: 'TaskProxy', event_time: str, event: str, message: str
+    ) -> None:
         """Set up handlers for a task event."""
         if itask.tdef.run_mode != 'live':
             return

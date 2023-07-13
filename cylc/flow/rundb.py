@@ -21,7 +21,7 @@ from os.path import expandvars
 from pprint import pformat
 import sqlite3
 import traceback
-from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 from cylc.flow import LOG
 from cylc.flow.exceptions import PlatformLookupError
@@ -545,10 +545,13 @@ class CylcWorkflowDAO:
         for row_idx, row in enumerate(self.connect().execute(stmt)):
             callback(row_idx, list(row))
 
-    def select_workflow_params(self) -> Iterable[Tuple[str, Optional[str]]]:
-        """Select all from workflow_params.
+    def select_workflow_params(self, callback):
+        """Select from workflow_params.
 
-        E.g. a row might be ('UTC mode', '1')
+        Invoke callback(row_idx, row) on each row, where each row contains:
+            [key, value]
+
+        E.g. a row might be ['UTC mode', '1']
         """
         stmt = rf'''
             SELECT
@@ -556,7 +559,8 @@ class CylcWorkflowDAO:
             FROM
                 {self.TABLE_WORKFLOW_PARAMS}
         '''  # nosec (table name is code constant)
-        return self.connect().execute(stmt)
+        for row_idx, row in enumerate(self.connect().execute(stmt)):
+            callback(row_idx, list(row))
 
     def select_workflow_flows(self, flow_nums):
         """Return flow data for selected flows."""
@@ -1082,7 +1086,7 @@ class CylcWorkflowDAO:
         """Vacuum to the database."""
         return self.connect().execute("VACUUM")
 
-    def message_in_db(self, submit, message, timestamp, itask):
+    def message_in_db(self, itask, event_time, submit, message):
         """Has this message been logged in the DB (task_events table)?
 
         SQL Query in plain English:
@@ -1100,8 +1104,7 @@ class CylcWorkflowDAO:
                     AND cycle == ?
                     AND (message == ? OR event == ?)
                     AND submit_num == ?
-                    AND time == ?
             )
         """
-        stmt_args = [task_name, cycle, message, message, submit, timestamp]
-        return bool(self.connect().execute(stmt, stmt_args).fetchone()[0])
+        stmt_args = [task_name, cycle, message, message, submit, event_time]
+        return bool(self.connect().execute(stmt, stmt_args[:-1]).fetchone()[0])
