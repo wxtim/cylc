@@ -146,7 +146,6 @@ from cylc.flow.templatevars import get_template_vars
 from cylc.flow.util import cli_format
 from cylc.flow.wallclock import (
     get_current_time_string,
-    get_time_string,
     get_time_string_from_unix_time as time2str,
     get_utc_mode)
 from cylc.flow.xtrigger_mgr import XtriggerManager
@@ -1494,7 +1493,7 @@ class Scheduler:
                 itask.is_late = True
                 LOG.warning(f"[{itask}] {msg}")
                 self.task_events_mgr.setup_event_handlers(
-                    itask, get_time_string(now),
+                    itask, time2str(now),
                     self.task_events_mgr.EVENT_LATE, msg)
                 self.workflow_db_mgr.put_insert_task_late_flags(itask)
 

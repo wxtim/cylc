@@ -75,7 +75,7 @@ from cylc.flow.task_outputs import (
     TASK_OUTPUT_FAILED, TASK_OUTPUT_SUBMIT_FAILED)
 from cylc.flow.wallclock import (
     get_current_time_string,
-    get_time_string,
+    get_time_string_from_unix_time,
     get_seconds_as_interval_string as intvl_as_str
 )
 from cylc.flow.workflow_events import (
@@ -428,7 +428,7 @@ class TaskEventsManager():
         if msg and event:
             LOG.warning(f"[{itask}] {msg}")
             self.setup_event_handlers(
-                itask, get_time_string(now), event, msg)
+                itask, get_time_string_from_unix_time(now), event, msg)
             return True
         else:
             return can_poll
