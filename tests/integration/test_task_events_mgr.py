@@ -57,6 +57,7 @@ async def test_process_message_no_repeat(
     async with run(schd) as log:
         # Set up the database with a message already received:
         itask = schd.pool.get_tasks()[0]
+        itask.tdef.run_mode = 'live'
         schd.workflow_db_mgr.put_insert_task_events(
             itask, {'time': message_time, 'event': '', 'message': message})
         schd.process_workflow_db_queue()
