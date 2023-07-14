@@ -183,24 +183,24 @@ def test_select_task_pool_for_restart_if_not_platforms(tmp_path):
     (
         param(
             (
-                1, "started", "morning",
-                SimpleNamespace(tokens={'task': 'qux', 'cycle': '-191'})
+                SimpleNamespace(tokens={'task': 'qux', 'cycle': '-191'}),
+                "morning", 1, "started",
             ),
             True,
             id="event-name-in-db"
         ),
         param(
             (
-                1, "Hello Rome", "afternoon",
-                SimpleNamespace(tokens={'task': 'qux', 'cycle': '-190'})
+                SimpleNamespace(tokens={'task': 'qux', 'cycle': '-190'}),
+                "afternoon", 1, "Hello Rome",
             ),
             True,
             id="message-in-db"
         ),
         param(
             (
-                1, "submitted", "morning",
-                SimpleNamespace(tokens={'task': 'qux', 'cycle': '-191'})
+                SimpleNamespace(tokens={'task': 'qux', 'cycle': '-191'}),
+                "morning", 1, "submitted",
             ),
             False,
             id="not-in-db"
