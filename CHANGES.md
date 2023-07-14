@@ -23,7 +23,7 @@ issue which could cause jobs to fail if this variable became too long.
 
 [#5992](https://github.com/cylc/cylc-flow/pull/5992) -
 Before trying to reload the workflow definition, the scheduler will
-now wait for preparing tasks to submit, and pause the workflow. 
+now wait for preparing tasks to submit, and pause the workflow.
 After successful reload the scheduler will unpause the workflow.
 
 -[#5605](https://github.com/cylc/cylc-flow/pull/5605) - A shorthand for defining
@@ -113,6 +113,10 @@ resuming a workflow.
 
 [#5625](https://github.com/cylc/cylc-flow/pull/5625) - Exclude `setuptools`
 version (v67) which results in dependency check failure with editable installs.
+
+[#5652](https://github.com/cylc/cylc-flow/pull/5562) - Prevent the same
+message being logged multiple times when polled.
+
 
 ## __cylc-8.1.4 (<span actions:bind='release-date'>Released 2023-05-04</span>)__
 
