@@ -589,19 +589,17 @@ class TaskEventsManager():
         # Any message represents activity.
         self.reset_inactivity_timer_func()
 
-        # In live mode check whether the message has been recieved and
+        # In live mode check whether the message has been received and
         # put in the database before:
-        repeat_message = False
         if (
             itask.tdef.run_mode == 'live'
             and self.workflow_db_mgr.pri_dao.message_in_db(
                 itask, event_time, submit_num, message)
         ):
-            repeat_message = True
+            return None
 
         if not self._process_message_check(
             itask, severity, message, event_time, flag, submit_num,
-            quiet=repeat_message,
         ):
             return None
 
@@ -611,11 +609,10 @@ class TaskEventsManager():
         else:
             new_msg = message
 
-        if not repeat_message:
-            self.data_store_mgr.delta_job_msg(
-                itask.tokens.duplicate(job=str(submit_num)),
-                new_msg
-            )
+        self.data_store_mgr.delta_job_msg(
+            itask.tokens.duplicate(job=str(submit_num)),
+            new_msg
+        )
 
         # Satisfy my output, if possible, and spawn children.
         # (first remove signal: failed/EXIT -> failed)
@@ -773,7 +770,6 @@ class TaskEventsManager():
         event_time: str,
         flag: str,
         submit_num: int,
-        quiet: bool = False,
     ) -> bool:
         """Helper for `.process_message`.
 
@@ -838,9 +834,7 @@ class TaskEventsManager():
             self.EVENT_SUBMIT_FAILED, f'{FAIL_MESSAGE_PREFIX}ERR'
         }:
             severity = DEBUG
-
-        if not quiet:
-            LOG.log(severity, f"[{itask}] {flag}{message}{timestamp}")
+        LOG.log(severity, f"[{itask}] {flag}{message}{timestamp}")
         return True
 
     def setup_event_handlers(
