@@ -36,6 +36,8 @@ from cylc.flow.simulation import (
         param(None, 10, 'PT1H', id='speedup-factor-alone'),
         param('PT1H', None, 'PT1H', id='execution-time-limit-alone'),
         param('P1D', 24, 'PT1M', id='speed-up-and-execution-tl'),
+        param(60 * 60 * 24, 24, 'PT1M', id='recalculation'),
+        param(1, None, 3600, id='recalculation'),
     )
 )
 def test_get_simulated_run_len(
@@ -49,9 +51,11 @@ def test_get_simulated_run_len(
         'execution time limit': execution_time_limit,
         'simulation': {
             'speedup factor': speedup_factor,
-            'default run length': default_run_length
-        }
+            'default run length': default_run_length,
+        },
     }
+    if isinstance(execution_time_limit, int):
+        rtc['simulation']['simulated run length'] = 30
     assert get_simulated_run_len(rtc) == 3600
 
 

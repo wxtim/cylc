@@ -1740,11 +1740,13 @@ class Scheduler:
 
             self.pool.set_expired_tasks()
             self.release_queued_tasks()
-
             if (
                 self.pool.config.run_mode('simulation')
                 and sim_time_check(
-                    self.message_queue, self.pool.get_tasks())
+                    self.message_queue,
+                    self.pool.get_tasks(),
+                    self.broadcast_mgr
+                )
             ):
                 # A simulated task state change occurred.
                 self.reset_inactivity_timer()

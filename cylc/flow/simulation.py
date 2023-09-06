@@ -37,25 +37,34 @@ if TYPE_CHECKING:
     from cylc.flow.task_proxy import TaskProxy
 
 
-def configure_sim_modes(taskdefs, sim_mode):
-    """Adjust task defs for simulation and dummy mode.
+# Exotic: Recursive Type hint.
+NestedDict = Dict[str, Union['NestedDict', Any]]
 
+
+def configure_sim_modes(taskdefs, sim_mode):
+    """Adjust task definitions for simulation and dummy modes.
     """
     dummy_mode = bool(sim_mode == 'dummy')
 
     for tdef in taskdefs:
         # Compute simulated run time by scaling the execution limit.
-        rtc = tdef.rtconfig
-        sleep_sec = get_simulated_run_len(rtc)
+        configure_rtc_sim_mode(tdef.rtconfig, dummy_mode)
 
-        rtc['execution time limit'] = (
-            sleep_sec + DurationParser().parse(str(
-                rtc['simulation']['time limit buffer'])).get_seconds()
-        )
 
-        rtc['simulation']['simulated run length'] = sleep_sec
-        rtc['submission retry delays'] = [1]
+def configure_rtc_sim_mode(rtc, dummy_mode):
+    """Change a task proxy's runtime config to simulation mode settings.
+    """
+    sleep_sec = get_simulated_run_len(rtc)
 
+    rtc['execution time limit'] = (
+        sleep_sec + DurationParser().parse(str(
+            rtc['simulation']['time limit buffer'])).get_seconds()
+    )
+
+    rtc['simulation']['simulated run length'] = sleep_sec
+    rtc['submission retry delays'] = [1]
+
+    if dummy_mode:
         # Generate dummy scripting.
         rtc['init-script'] = ""
         rtc['env-script'] = ""
@@ -63,33 +72,51 @@ def configure_sim_modes(taskdefs, sim_mode):
         rtc['post-script'] = ""
         rtc['script'] = build_dummy_script(
             rtc, sleep_sec) if dummy_mode else ""
+    else:
+        rtc['script'] = ""
 
-        disable_platforms(rtc)
+    disable_platforms(rtc)
 
-        # Disable environment, in case it depends on env-script.
-        rtc['environment'] = {}
+    rtc['platform'] = 'localhost'
 
-        rtc["simulation"][
-            "fail cycle points"
-        ] = parse_fail_cycle_points(
-            rtc["simulation"]["fail cycle points"]
-        )
+    # Disable environment, in case it depends on env-script.
+    rtc['environment'] = {}
+
+    rtc["simulation"][
+        "fail cycle points"
+    ] = parse_fail_cycle_points(
+        rtc["simulation"]["fail cycle points"]
+    )
 
 
 def get_simulated_run_len(rtc: Dict[str, Any]) -> int:
     """Get simulated run time.
 
-    rtc = run time config
+    Args:
+        rtc: run time config
+
+    Returns:
+        Number of seconds to sleep for in sim mode.
     """
+    # Simulated run length acts as a flag that this is at runtime:
+    # If durations have already been parsed, trying to parse them
+    # again will result in failures.
+    recalc = bool(rtc['simulation'].get('simulated run length', ''))
     limit = rtc['execution time limit']
     speedup = rtc['simulation']['speedup factor']
-    if limit and speedup:
-        sleep_sec = (DurationParser().parse(
-            str(limit)).get_seconds() / speedup)
+
+    if recalc:
+        if limit and speedup:
+            sleep_sec = limit / speedup
+        else:
+            sleep_sec = rtc['simulation']['default run length']
     else:
-        sleep_sec = DurationParser().parse(
-            str(rtc['simulation']['default run length'])
-        ).get_seconds()
+        if limit and speedup:
+            sleep_sec = (DurationParser().parse(
+                str(limit)).get_seconds() / speedup)
+        else:
+            default_run_len = str(rtc['simulation']['default run length'])
+            sleep_sec = DurationParser().parse(default_run_len).get_seconds()
 
     return sleep_sec
 
@@ -147,7 +174,7 @@ def parse_fail_cycle_points(
         []
     """
     f_pts: 'Optional[List[PointBase]]'
-    if 'all' in f_pts_orig:
+    if f_pts_orig is None or 'all' in f_pts_orig:
         f_pts = None
     else:
         f_pts = []
@@ -156,19 +183,84 @@ def parse_fail_cycle_points(
     return f_pts
 
 
+def unpack_dict(dict_: NestedDict, parent_key: str = '') -> Dict[str, Any]:
+    """Unpack a nested dict into a single layer.
+
+    Examples:
+        >>> unpack_dict({'foo': 1, 'bar': {'baz': 2, 'qux':3}})
+        {'foo': 1, 'bar.baz': 2, 'bar.qux': 3}
+        >>> unpack_dict({'foo': {'example': 42}, 'bar': {"1":2, "3":4}})
+        {'foo.example': 42, 'bar.1': 2, 'bar.3': 4}
+
+    """
+    output = {}
+    for key, value in dict_.items():
+        new_key = parent_key + '.' + key if parent_key else key
+        if isinstance(value, dict):
+            output.update(unpack_dict(value, new_key))
+        else:
+            output[new_key] = value
+
+    return output
+
+
+def nested_dict_path_update(
+    dict_: NestedDict, path: List[Any], value: Any
+) -> NestedDict:
+    """Set a value in a nested dict.
+
+    Examples:
+        >>> nested_dict_path_update({'foo': {'bar': 1}}, ['foo', 'bar'], 42)
+        {'foo': {'bar': 42}}
+    """
+    this = dict_
+    for i in range(len(path)):
+        if isinstance(this[path[i]], dict):
+            this = this[path[i]]
+        else:
+            this[path[i]] = value
+    return dict_
+
+
+def update_nested_dict(rtc: NestedDict, dict_: NestedDict) -> None:
+    """Update one config nested dictionary with the contents of another.
+
+    Examples:
+        >>> x = {'foo': {'bar': 12}, 'qux': 77}
+        >>> y = {'foo': {'bar': 42}}
+        >>> update_nested_dict(x, y)
+        >>> print(x)
+        {'foo': {'bar': 42}, 'qux': 77}
+    """
+    for keylist, value in unpack_dict(dict_).items():
+        keys = keylist.split('.')
+        rtc = nested_dict_path_update(rtc, keys, value)
+
+
 def sim_time_check(
-    message_queue: 'Queue[TaskMsg]', itasks: 'List[TaskProxy]'
+    message_queue: 'Queue[TaskMsg]',
+    itasks: 'List[TaskProxy]',
+    broadcast_mgr: Optional[Any] = None
 ) -> bool:
     """Check if sim tasks have been "running" for as long as required.
 
     If they have change the task state.
+    If broadcasts are active and they apply to tasks in itasks update
+    itasks.rtconfig.
 
     Returns:
         True if _any_ simulated task state has changed.
     """
+
     sim_task_state_changed = False
     now = time()
     for itask in itasks:
+        if broadcast_mgr:
+            broadcast = broadcast_mgr.get_broadcast(itask.tokens)
+            if broadcast:
+                update_nested_dict(
+                    itask.tdef.rtconfig, broadcast)
+                configure_rtc_sim_mode(itask.tdef.rtconfig, False)
         if itask.state.status != TASK_STATUS_RUNNING:
             continue
         # Started time is not set on restart
