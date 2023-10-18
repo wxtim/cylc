@@ -132,7 +132,7 @@ def disable_platforms(
 
 
 def parse_fail_cycle_points(
-    f_pts_orig: list
+    f_pts_orig: List[str]
 ) -> 'Union[None, List[PointBase]]':
     """Parse `[simulation][fail cycle points]`.
 
