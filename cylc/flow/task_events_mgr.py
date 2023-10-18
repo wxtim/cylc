@@ -592,7 +592,7 @@ class TaskEventsManager():
                 itask, severity, message, event_time, flag, submit_num):
             return None
 
-        severity = cast(int, LOG_LEVELS.get(severity, INFO))
+        severity = cast('int', LOG_LEVELS.get(severity, INFO))
         # Demote log level to DEBUG if this is a message that duplicates what
         # gets logged by itask state change anyway (and not manual poll)
         if severity > DEBUG and flag != self.FLAG_POLLED and message in {
@@ -600,7 +600,7 @@ class TaskEventsManager():
             self.EVENT_SUBMIT_FAILED, f'{FAIL_MESSAGE_PREFIX}ERR'
         }:
             severity = DEBUG
-        LOG.log(severity, f"[{itask}] {flag}{message} at {event_time}")
+        LOG.log(severity, f"[{itask}] {flag}{message}{event_time}")
 
         # always update the workflow state summary for latest message
         if flag == self.FLAG_POLLED:
