@@ -65,7 +65,7 @@ def _killpg(proc, signal):
 
 
 def get_func(mod_name, func_name, src_dir):
-    """Find and return a name function from a named module.
+    """Find and return a named function from a named module.
 
     Can be in <src_dir>/lib/python, cylc.flow.xtriggers, or in Python path.
 
