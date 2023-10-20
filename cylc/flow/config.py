@@ -1764,7 +1764,7 @@ class WorkflowConfig:
                 )
 
             # Call the xtrigger's validate_config function if it has one.
-            with suppress(AttributeError):
+            with suppress(AttributeError, ImportError):
                 get_func(xtrig.func_name, "validate_config", self.fdir)(
                     xtrig.func_args,
                     xtrig.func_kwargs,
