@@ -87,11 +87,8 @@ def get_func(mod_name, func_name, src_dir):
         mod_by_name = __import__(mod_name, fromlist=[mod_name])
     except ImportError:
         # 2. look in built-in xtriggers.
-        mod_name = "%s.%s" % ("cylc.flow.xtriggers", mod_name)
-        try:
-            mod_by_name = __import__(mod_name, fromlist=[mod_name])
-        except ImportError:
-            raise
+        mod_name = f"cylc.flow.xtriggers.{mod_name}"
+        mod_by_name = __import__(mod_name, fromlist=[mod_name])
 
     # Module found and imported, return the named function.
 
