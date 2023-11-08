@@ -80,7 +80,7 @@ from cylc.flow.pathutil import (
     is_relative_to,
 )
 from cylc.flow.print_tree import print_tree
-from cylc.flow.simulation import configure_sim_modes
+from cylc.flow.simulation import configure_sim_modes, check_sim_modes
 from cylc.flow.subprocctx import SubFuncContext
 from cylc.flow.task_events_mgr import (
     EventData,
@@ -523,6 +523,8 @@ class WorkflowConfig:
         if self.run_mode('simulation', 'dummy'):
             configure_sim_modes(
                 self.taskdefs.values(), self.run_mode())
+        else:
+            check_sim_modes(self.taskdefs.values())
 
         self.configure_workflow_state_polling_tasks()
 

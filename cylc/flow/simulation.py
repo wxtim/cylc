@@ -19,6 +19,7 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from time import time
 
+from cylc.flow import LOG
 from cylc.flow.cycling.loader import get_point
 from cylc.flow.network.resolvers import TaskMsg
 from cylc.flow.platforms import FORBIDDEN_WITH_PLATFORM
@@ -33,6 +34,7 @@ from metomi.isodatetime.parsers import DurationParser
 
 if TYPE_CHECKING:
     from queue import Queue
+    from cylc.flow.taskdef import TaskDef
     from cylc.flow.cycling import PointBase
     from cylc.flow.task_proxy import TaskProxy
 
@@ -40,11 +42,16 @@ if TYPE_CHECKING:
 SIMULATION_CONFIGS = ['simulation', 'execution time limit']
 
 
+SIMULATION = 'simulation'
+SKIP = 'skip'
+LIVE = 'live'
+DUMMY = 'dummy'
+
+
 def configure_sim_modes(taskdefs, sim_mode):
     """Adjust task definitions for simulation and dummy modes.
     """
     dummy_mode = bool(sim_mode == 'dummy')
-
     for tdef in taskdefs:
         # Compute simulated run time by scaling the execution limit.
         configure_rtc_sim_mode(tdef.rtconfig, dummy_mode)
@@ -84,6 +91,31 @@ def configure_rtc_sim_mode(rtc, dummy_mode):
     ] = parse_fail_cycle_points(
         rtc["simulation"]["fail cycle points"]
     )
+
+
+def check_sim_modes(taskdefs: 'List[TaskDef]'):
+    """If running in live mode warn of taskdefs with run-mode set to
+    skip or simulation.
+
+    These tasks will appear to run, but won't actually do
+    anything.
+    """
+    warn_for: Dict[str, List[str]] = {SKIP: [], SIMULATION: []}
+    for tdef in taskdefs:
+        if tdef.rtconfig['run mode'] == SKIP:
+            warn_for[SKIP].append(tdef.name)
+        if tdef.rtconfig['run mode'] == SIMULATION:
+            warn_for[SIMULATION].append(tdef.name)
+    if warn_for.values():
+        msg = (
+            'The following tasks have a non-live mode set'
+            ' in their config:\n * ')
+        msg += '\n * '.join(
+            [f'{i} ({SKIP})' for i in warn_for[SKIP]])
+        msg += '\n * '
+        msg += '\n * '.join(
+            [f'{i} ({SIMULATION})' for i in warn_for[SIMULATION]])
+        LOG.warning(msg)
 
 
 def get_simulated_run_len(rtc: Dict[str, Any]) -> int:
