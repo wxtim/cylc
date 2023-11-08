@@ -965,6 +965,17 @@ with Conf(
             can be explicitly configured to provide or override default
             settings for all tasks in the workflow.
         '''):
+            Conf(
+                'run mode', VDR.V_STRING, 'live',
+                ['live', 'skip', 'simulation'],
+                desc='''
+                    Run mode for this task.
+
+                    .. seealso::
+
+                       :ref:`TODO`
+                '''
+            )
             Conf('platform', VDR.V_STRING, desc='''
                 The name of a compute resource defined in
                 :cylc:conf:`global.cylc[platforms]` or
@@ -1276,6 +1287,32 @@ with Conf(
                      desc='''
                     If ``True`` configured task event handlers
                     will not be called in simulation or dummy modes.
+                ''')
+
+            with Conf('skip', desc='''
+                Task configuration for workflow *skip* run mode.
+
+                For a full description of simulation and dummy run modes see
+                :ref:`SkipMode`.
+            '''):
+                Conf('outputs', VDR.V_STRING_LIST, desc='''
+                    Define the outputs to be generated when this task
+                    runs in skip mode.
+
+                    By default, all required outputs will be generated
+                    plus succeeded if success is optional.
+
+                    The outputs submitted and started are always
+                    produced and do not need to be defined in outputs.
+
+                    If outputs is specified and does not include either
+                    succeeded or failed then succeeded will be produced.
+                ''')
+                Conf('disable task event handlers', VDR.V_BOOLEAN, True,
+                     desc='''
+                    Disable the event handlers which would normally be
+                    called on task lifecycle events.
+                    By default event handers will be turned off.
                 ''')
 
             with Conf('environment filter', desc='''
