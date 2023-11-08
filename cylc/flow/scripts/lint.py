@@ -400,6 +400,11 @@ STYLE_CHECKS = {
             check_if_jinja2,
             function=re.compile(r'(?<!{)#.*?{[{%]').findall
         )
+    },
+    'S013': {
+        'short': 'Tasks set to mode skip/simulation in config.',
+        'url': 'TODO',
+        FUNCTION: re.compile(r'run mode\s*=\s*(simulation|skip)').findall
     }
 }
 # Subset of deprecations which are tricky (impossible?) to scrape from the

@@ -165,6 +165,7 @@ LINT_TEST_FILE = """
 something\t
     [[bar]]
         platform = $(some-script foo)
+        run mode = skip
     [[baz]]
         platform = `no backticks`
 """ + (
