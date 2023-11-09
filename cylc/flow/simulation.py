@@ -106,7 +106,7 @@ def check_sim_modes(taskdefs: 'List[TaskDef]'):
             warn_for[SKIP].append(tdef.name)
         if tdef.rtconfig['run mode'] == SIMULATION:
             warn_for[SIMULATION].append(tdef.name)
-    if warn_for.values():
+    if any(warn_for.values()):
         msg = (
             'The following tasks have a non-live mode set'
             ' in their config:\n * ')
