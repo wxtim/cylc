@@ -16,13 +16,25 @@
 """Utilities supporting simulation and skip modes
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import (
+    TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, ValuesView)
 from time import time
+
 
 from cylc.flow import LOG
 from cylc.flow.cycling.loader import get_point
+from cylc.flow.exceptions import CylcError
 from cylc.flow.network.resolvers import TaskMsg
 from cylc.flow.platforms import FORBIDDEN_WITH_PLATFORM
+from cylc.flow.task_outputs import (
+    TASK_OUTPUT_EXPIRED,
+    TASK_OUTPUT_SUBMITTED,
+    TASK_OUTPUT_SUBMIT_FAILED,
+    TASK_OUTPUT_STARTED,
+    TASK_OUTPUT_SUCCEEDED,
+    TASK_OUTPUT_FAILED,
+    TASK_OUTPUT_FINISHED,
+)
 from cylc.flow.task_state import (
     TASK_STATUS_RUNNING,
     TASK_STATUS_FAILED,
@@ -46,20 +58,23 @@ SIMULATION = 'simulation'
 SKIP = 'skip'
 LIVE = 'live'
 DUMMY = 'dummy'
+WORKFLOW = 'workflow'
 
 
-def configure_sim_modes(taskdefs, sim_mode):
+def configure_sim_modes(taskdefs, workflow_mode):
     """Adjust task definitions for simulation and dummy modes.
     """
-    dummy_mode = bool(sim_mode == 'dummy')
     for tdef in taskdefs:
         # Compute simulated run time by scaling the execution limit.
-        configure_rtc_sim_mode(tdef.rtconfig, dummy_mode)
+        configure_rtc_sim_mode(tdef.rtconfig, workflow_mode)
 
 
-def configure_rtc_sim_mode(rtc, dummy_mode):
+def configure_rtc_sim_mode(rtc, workflow_mode):
     """Change a task proxy's runtime config to simulation mode settings.
     """
+    rtc['run mode'] = rtc.get('run mode', workflow_mode)
+    dummy_mode = bool(workflow_mode == DUMMY)
+
     sleep_sec = get_simulated_run_len(rtc)
     rtc['execution time limit'] = (
         sleep_sec + DurationParser().parse(str(
@@ -93,28 +108,25 @@ def configure_rtc_sim_mode(rtc, dummy_mode):
     )
 
 
-def check_sim_modes(taskdefs: 'List[TaskDef]'):
+def check_sim_modes(taskdefs: 'ValuesView[TaskDef]'):
     """If running in live mode warn of taskdefs with run-mode set to
     skip or simulation.
 
     These tasks will appear to run, but won't actually do
     anything.
     """
-    warn_for: Dict[str, List[str]] = {SKIP: [], SIMULATION: []}
+    warn_for: Dict[str, List[str]] = {}
     for tdef in taskdefs:
         if tdef.rtconfig['run mode'] == SKIP:
-            warn_for[SKIP].append(tdef.name)
+            warn_for[tdef.name] = SKIP
         if tdef.rtconfig['run mode'] == SIMULATION:
-            warn_for[SIMULATION].append(tdef.name)
-    if any(warn_for.values()):
+            warn_for[tdef.name] = SIMULATION
+    if warn_for:
         msg = (
             'The following tasks have a non-live mode set'
             ' in their config:\n * ')
         msg += '\n * '.join(
-            [f'{i} ({SKIP})' for i in warn_for[SKIP]])
-        msg += '\n * '
-        msg += '\n * '.join(
-            [f'{i} ({SIMULATION})' for i in warn_for[SIMULATION]])
+            [f'{k} ({v})' for k, v in warn_for.items()])
         LOG.warning(msg)
 
 
@@ -214,12 +226,175 @@ def parse_fail_cycle_points(
     return f_pts
 
 
-def sim_time_check(
+def unpack_dict(dict_: NestedDict, parent_key: str = '') -> Dict[str, Any]:
+    """Unpack a nested dict into a single layer.
+
+    Examples:
+        >>> unpack_dict({'foo': 1, 'bar': {'baz': 2, 'qux':3}})
+        {'foo': 1, 'bar.baz': 2, 'bar.qux': 3}
+        >>> unpack_dict({'foo': {'example': 42}, 'bar': {"1":2, "3":4}})
+        {'foo.example': 42, 'bar.1': 2, 'bar.3': 4}
+
+    """
+    output = {}
+    for key, value in dict_.items():
+        new_key = parent_key + '.' + key if parent_key else key
+        if isinstance(value, dict):
+            output.update(unpack_dict(value, new_key))
+        else:
+            output[new_key] = value
+
+    return output
+
+
+def nested_dict_path_update(
+    dict_: NestedDict, path: List[Any], value: Any
+) -> NestedDict:
+    """Set a value in a nested dict.
+
+    Examples:
+        >>> nested_dict_path_update({'foo': {'bar': 1}}, ['foo', 'bar'], 42)
+        {'foo': {'bar': 42}}
+    """
+    this = dict_
+    for i in range(len(path)):
+        if isinstance(this[path[i]], dict):
+            this = this[path[i]]
+        else:
+            this[path[i]] = value
+    return dict_
+
+
+def update_nested_dict(rtc: NestedDict, dict_: NestedDict) -> None:
+    """Update one config nested dictionary with the contents of another.
+
+    Examples:
+        >>> x = {'foo': {'bar': 12}, 'qux': 77}
+        >>> y = {'foo': {'bar': 42}}
+        >>> update_nested_dict(x, y)
+        >>> print(x)
+        {'foo': {'bar': 42}, 'qux': 77}
+    """
+    for keylist, value in unpack_dict(dict_).items():
+        keys = keylist.split('.')
+        rtc = nested_dict_path_update(rtc, keys, value)
+
+
+def internal_task_status_check(
     message_queue: 'Queue[TaskMsg]',
     itasks: 'List[TaskProxy]',
+    broadcast_mgr: Optional[Any] = None,
+    workflow_mode: Optional[str] = LIVE
+):
+    """Checks whether simulated or skipped tasks have been updated by a
+    broadcast and works out whether we want to view them as being "done".
+    """
+    internal_task_state_changed = False
+    now = time()
+    for itask in itasks:
+        if broadcast_mgr:
+            broadcast = broadcast_mgr.get_broadcast(itask.tokens)
+            if broadcast:
+                update_nested_dict(
+                    itask.tdef.rtconfig, broadcast)
+                configure_rtc_sim_mode(itask.tdef.rtconfig, False)
+        if (
+            itask.tdef.rtconfig['run mode'] == SIMULATION
+            and sim_time_check(message_queue, itask, now, broadcast_mgr)
+        ):
+            internal_task_state_changed = True
+        if (
+            itask.tdef.rtconfig['run mode'] == SKIP
+            and set_skip_outputs(message_queue, itask, broadcast_mgr)
+        ):
+            internal_task_state_changed = True
+
+    return internal_task_state_changed
+
+
+def set_skip_outputs(
+    message_queue: 'Queue[TaskMsg]',
+    itask: 'TaskProxy',
     broadcast_mgr: Optional[Any] = None
 ) -> bool:
-    """Check if sim tasks have been "running" for as long as required.
+    """Set task output required by skip mode without delay.
+
+    * Submitted, Started and Succeeded will always be generated.
+    * All required outputs will be generated.
+    * If [runtime][<namespace>][skip]outputs is specified and does not
+      include either succeeded or failed then succeeded will be produced.
+
+    """
+    job_d = itask.tokens.duplicate(job=str(itask.submit_num))
+    now_str = get_current_time_string()
+
+    outputs = filter_skip_outputs(
+        itask.tdef.outputs, itask.tdef.rtconfig['skip']['outputs']
+    )
+    outputs = {'submitted': 'submitted', 'bar': 'dafursargrfaf', 'succeeded': 'succeeded'}
+    for _, message in outputs.items():
+
+        message_queue.put(TaskMsg(job_d, now_str, 'WARNING', message))
+    return True
+    # job_d = itask.tokens.duplicate(job=str(itask.submit_num))
+    # now_str = get_current_time_string()
+    # if sim_task_failed(
+    #     itask.tdef.rtconfig['simulation'],
+    #     itask.point,
+    #     itask.get_try_num()
+    # ):
+    #     message_queue.put(
+    #         TaskMsg(job_d, now_str, 'CRITICAL', TASK_STATUS_FAILED)
+    #     )
+    # else:
+    #     # Simulate message outputs.
+    #     for msg in itask.tdef.rtconfig['outputs'].values():
+    #         message_queue.put(
+    #             TaskMsg(job_d, now_str, 'DEBUG', msg)
+    #         )
+    #     message_queue.put(
+    #         TaskMsg(job_d, now_str, 'DEBUG', TASK_STATUS_SUCCEEDED)
+    #     )
+
+
+def filter_skip_outputs(
+    task_outputs: Dict[str, Tuple[str, Optional[bool]]],
+    skip_outputs: List[str]
+) -> Dict[str, str]:
+    """Decide which outputs should be marked satisfied in skip mode.
+
+    Encapsulate logic for ease of testing.
+    """
+    outputs = {}
+    for output, (message, is_required) in task_outputs.items():
+        if (
+            # These are always emitted:
+            output in [TASK_OUTPUT_SUBMITTED, TASK_OUTPUT_SUBMITTED]
+            # This task will fail in skip mode!
+            or (
+                output == TASK_OUTPUT_FAILED
+                and TASK_OUTPUT_FAILED in skip_outputs
+            )
+            # This task will succeed in skip mode:
+            or (
+                output == TASK_OUTPUT_SUCCEEDED
+                and TASK_OUTPUT_FAILED not in skip_outputs
+            )
+            or is_required
+            or output in skip_outputs
+        ):
+            outputs[output] = message
+    return outputs
+
+
+def sim_time_check(
+    message_queue: 'Queue[TaskMsg]',
+    itask: 'TaskProxy',
+    now: float,
+    broadcast_mgr: Optional[Any] = None
+) -> bool:
+    """Check if scheduler only tasks have been "running" for
+    as long as required.
 
     If they have change the task state.
     If broadcasts are active and they apply to tasks in itasks update
@@ -227,54 +402,50 @@ def sim_time_check(
 
     Returns:
         True if _any_ simulated task state has changed.
-
     """
-    sim_task_state_changed = False
-    now = time()
-    for itask in itasks:
-        if broadcast_mgr:
-            broadcast = broadcast_mgr.get_broadcast(itask.tokens)
-            if broadcast:
-                for config in SIMULATION_CONFIGS:
-                    if (
-                        config in broadcast
-                        and isinstance(broadcast[config], dict)
-                    ):
-                        itask.tdef.rtconfig[config].update(broadcast[config])
-                    elif config in broadcast:
-                        itask.tdef.rtconfig[config] = broadcast[config]
-                configure_rtc_sim_mode(itask.tdef.rtconfig, False)
-        if itask.state.status != TASK_STATUS_RUNNING:
-            continue
-        # Started time is not set on restart
-        if itask.summary['started_time'] is None:
-            itask.summary['started_time'] = now
-        timeout = (
-            itask.summary['started_time'] +
-            itask.tdef.rtconfig['simulation']['simulated run length']
-        )
-        if now > timeout:
-            job_d = itask.tokens.duplicate(job=str(itask.submit_num))
-            now_str = get_current_time_string()
-            if sim_task_failed(
-                itask.tdef.rtconfig['simulation'],
-                itask.point,
-                itask.get_try_num()
-            ):
+    if broadcast_mgr:
+        broadcast = broadcast_mgr.get_broadcast(itask.tokens)
+        if broadcast:
+            for config in SIMULATION_CONFIGS:
+                if (
+                    config in broadcast
+                    and isinstance(broadcast[config], dict)
+                ):
+                    itask.tdef.rtconfig[config].update(broadcast[config])
+                elif config in broadcast:
+                    itask.tdef.rtconfig[config] = broadcast[config]
+            configure_rtc_sim_mode(itask.tdef.rtconfig, False)
+    if itask.state.status != TASK_STATUS_RUNNING:
+        return False
+    # Started time is not set on restart
+    if itask.summary['started_time'] is None:
+        itask.summary['started_time'] = now
+    timeout = (
+        itask.summary['started_time'] +
+        itask.tdef.rtconfig['simulation']['simulated run length']
+    )
+    if now > timeout:
+        job_d = itask.tokens.duplicate(job=str(itask.submit_num))
+        now_str = get_current_time_string()
+        if sim_task_failed(
+            itask.tdef.rtconfig['simulation'],
+            itask.point,
+            itask.get_try_num()
+        ):
+            message_queue.put(
+                TaskMsg(job_d, now_str, 'CRITICAL', TASK_STATUS_FAILED)
+            )
+        else:
+            # Simulate message outputs.
+            for msg in itask.tdef.rtconfig['outputs'].values():
                 message_queue.put(
-                    TaskMsg(job_d, now_str, 'CRITICAL', TASK_STATUS_FAILED)
+                    TaskMsg(job_d, now_str, 'DEBUG', msg)
                 )
-            else:
-                # Simulate message outputs.
-                for msg in itask.tdef.rtconfig['outputs'].values():
-                    message_queue.put(
-                        TaskMsg(job_d, now_str, 'DEBUG', msg)
-                    )
-                message_queue.put(
-                    TaskMsg(job_d, now_str, 'DEBUG', TASK_STATUS_SUCCEEDED)
-                )
-            sim_task_state_changed = True
-    return sim_task_state_changed
+            message_queue.put(
+                TaskMsg(job_d, now_str, 'DEBUG', TASK_STATUS_SUCCEEDED)
+            )
+        return True
+    return False
 
 
 def sim_task_failed(
