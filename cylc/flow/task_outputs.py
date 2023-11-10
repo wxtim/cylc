@@ -85,7 +85,6 @@ class TaskOutputs:
         # Add outputs from task def.
         for trigger, (message, required) in tdef.outputs.items():
             self._add(message, trigger, required=required)
-        breakpoint()
 
         # Handle implicit submit requirement
         if (

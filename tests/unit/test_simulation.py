@@ -180,6 +180,8 @@ def test_sim_task_failed(
                 'failed': ('failed', False),
                 'started': ('started', True),
                 'custom': ('made to order', True),
+                'custom2': ('custom2', False),
+                'custom3': ('custom3', None),
             },
             [],
             {
