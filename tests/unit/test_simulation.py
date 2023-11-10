@@ -21,10 +21,11 @@ from pytest import param
 from cylc.flow.cycling.integer import IntegerPoint
 from cylc.flow.cycling.iso8601 import ISO8601Point
 from cylc.flow.simulation import (
-    parse_fail_cycle_points,
     build_dummy_script,
     disable_platforms,
+    filter_skip_outputs,
     get_simulated_run_len,
+    parse_fail_cycle_points,
     sim_task_failed,
 )
 
@@ -168,3 +169,72 @@ def test_sim_task_failed(
 ):
     set_cycling_type('iso8601')
     assert sim_task_failed(conf, point, try_) == expect
+
+
+@pytest.mark.parametrize(
+    'task_outputs, skip_outputs, expect',
+    (
+        param(
+            {
+                'succeeded': ('success', False),
+                'failed': ('failed', False),
+                'started': ('started', True),
+                'custom': ('made to order', True),
+            },
+            [],
+            {
+                'started': 'started',
+                'custom': 'made to order',
+                'succeeded': 'success'
+            },
+            id="all-required-outputs+succeed"
+        ),
+        param(
+            {
+                'submitted': ('submitted', None),
+                'started': ('started', None),
+            },
+            [],
+            {
+                'submitted': 'submitted',
+                'started': 'started',
+            },
+            id="submitted-and-started-are-always-produced"
+            # n.b. TaskOuputs.__init__ means that succeeded and
+            # started are always in the task_outputs.
+        ),
+        param(
+            {
+                'submitted': ('submitted', None),
+                'custom': ('custom', None),
+                'started': ('started', None),
+                'succeeded': ('succeeded', None),
+            },
+            ['custom'],
+            {
+                'submitted': 'submitted',
+                'started': 'started',
+                'custom': 'custom',
+                'succeeded': 'succeeded',
+            },
+            id="outputs-&-no-success-or-failure"
+            # n.b. TaskOuputs.__init__ means that succeeded are
+            # always in the task_outputs.
+        ),
+    )
+)
+def test_filter_skip_outputs(task_outputs, skip_outputs, expect):
+    """It produces a list of outputs to return in a sorted
+    order.
+
+    From: https://github.com/cylc/cylc-admin/blob/master/docs/
+    proposal-skip-mode.md
+
+    * By default, all required outputs will be generated plus
+      succeeded if success is optional.
+    * The outputs submitted and started are always produced
+      and do not need to be defined in outputs.
+    * If outputs is specified and does not include either succeeded
+      or failed then succeeded will be produced.
+    """
+    assert filter_skip_outputs(task_outputs, skip_outputs) == expect

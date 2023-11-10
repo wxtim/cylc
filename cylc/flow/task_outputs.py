@@ -33,6 +33,17 @@ SORT_ORDERS = (
     TASK_OUTPUT_SUCCEEDED,
     TASK_OUTPUT_FAILED)
 
+CUSTOM_SORT_ORDERS = (
+    TASK_OUTPUT_EXPIRED,
+    TASK_OUTPUT_SUBMITTED,
+    TASK_OUTPUT_SUBMIT_FAILED,
+    TASK_OUTPUT_STARTED,
+    None,
+    TASK_OUTPUT_SUCCEEDED,
+    TASK_OUTPUT_FAILED,
+    TASK_OUTPUT_FINISHED
+)
+
 TASK_OUTPUTS = (
     TASK_OUTPUT_EXPIRED,
     TASK_OUTPUT_SUBMITTED,
@@ -74,6 +85,7 @@ class TaskOutputs:
         # Add outputs from task def.
         for trigger, (message, required) in tdef.outputs.items():
             self._add(message, trigger, required=required)
+        breakpoint()
 
         # Handle implicit submit requirement
         if (
@@ -264,3 +276,35 @@ class TaskOutputs:
         except ValueError:
             ind = 999
         return (ind, item[_MESSAGE] or '')
+
+
+def lifecycle_sort_key(item):
+    """Put outputs into lifecycle order where custom outputs
+    are between started and succeeded.
+
+    Examples:
+
+    >>> this = TaskOutputs.lifecycle_sort_key
+    >>> sorted({
+    ...     'started': 'started',
+    ...     'succeeded': 'succeeded',
+    ...     'kustom': 'any old thing'
+    ... }, key=this)
+    ['started', 'kustom', 'succeeded']
+
+    >>> sorted({
+    ...     'finished': 'finished',
+    ...     'started': 'started',
+    ...     'succeeded': 'succeeded',
+    ...     'kustom': 'any old thing',
+    ...     'submitted': 'submitted',
+    ...     'lazlar-lyricon': 'this man has no shame',
+    ... }, key=this)
+    ['submitted', 'started', 'kustom', 'lazlar-lyricon', \
+'succeeded', 'finished']
+    """
+    try:
+        ind = CUSTOM_SORT_ORDERS.index(item)
+    except ValueError:
+        ind = 4
+    return (ind, item)

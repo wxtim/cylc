@@ -34,6 +34,7 @@ from cylc.flow.task_outputs import (
     TASK_OUTPUT_SUCCEEDED,
     TASK_OUTPUT_FAILED,
     TASK_OUTPUT_FINISHED,
+    lifecycle_sort_key,
 )
 from cylc.flow.task_state import (
     TASK_STATUS_RUNNING,
@@ -331,30 +332,9 @@ def set_skip_outputs(
     outputs = filter_skip_outputs(
         itask.tdef.outputs, itask.tdef.rtconfig['skip']['outputs']
     )
-    outputs = {'submitted': 'submitted', 'bar': 'dafursargrfaf', 'succeeded': 'succeeded'}
-    for _, message in outputs.items():
-
+    for message in outputs.values():
         message_queue.put(TaskMsg(job_d, now_str, 'WARNING', message))
     return True
-    # job_d = itask.tokens.duplicate(job=str(itask.submit_num))
-    # now_str = get_current_time_string()
-    # if sim_task_failed(
-    #     itask.tdef.rtconfig['simulation'],
-    #     itask.point,
-    #     itask.get_try_num()
-    # ):
-    #     message_queue.put(
-    #         TaskMsg(job_d, now_str, 'CRITICAL', TASK_STATUS_FAILED)
-    #     )
-    # else:
-    #     # Simulate message outputs.
-    #     for msg in itask.tdef.rtconfig['outputs'].values():
-    #         message_queue.put(
-    #             TaskMsg(job_d, now_str, 'DEBUG', msg)
-    #         )
-    #     message_queue.put(
-    #         TaskMsg(job_d, now_str, 'DEBUG', TASK_STATUS_SUCCEEDED)
-    #     )
 
 
 def filter_skip_outputs(
@@ -364,12 +344,22 @@ def filter_skip_outputs(
     """Decide which outputs should be marked satisfied in skip mode.
 
     Encapsulate logic for ease of testing.
+
+    Sorts outputs to ensure that required custom outputs are
+    returned before succceeded, failed or finished. This prevents
+    use getting warnings that required outputs have not been
+    completed.
+
+    Args:
+        task_outputs: outputs defined by the task:
+            {output: (message, is_required)}
+        skip_outputs: outputs defined by the skip mode config.
     """
     outputs = {}
     for output, (message, is_required) in task_outputs.items():
         if (
             # These are always emitted:
-            output in [TASK_OUTPUT_SUBMITTED, TASK_OUTPUT_SUBMITTED]
+            output in [TASK_OUTPUT_SUBMITTED, TASK_OUTPUT_STARTED]
             # This task will fail in skip mode!
             or (
                 output == TASK_OUTPUT_FAILED
@@ -384,7 +374,11 @@ def filter_skip_outputs(
             or output in skip_outputs
         ):
             outputs[output] = message
-    return outputs
+
+    return {
+        k: outputs[k]
+        for k in sorted(outputs, key=lifecycle_sort_key)
+    }
 
 
 def sim_time_check(
