@@ -966,8 +966,8 @@ with Conf(
             settings for all tasks in the workflow.
         '''):
             Conf(
-                'run mode', VDR.V_STRING, 'live',
-                ['live', 'skip', 'simulation'],
+                'run mode', VDR.V_STRING, None,
+                ['skip', 'simulation'],
                 desc='''
                     Run mode for this task.
 
