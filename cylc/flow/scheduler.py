@@ -113,7 +113,7 @@ from cylc.flow.platforms import (
 )
 from cylc.flow.profiler import Profiler
 from cylc.flow.resources import get_resources
-from cylc.flow.simulation import sim_time_check
+from cylc.flow.simulation import internal_task_status_check
 from cylc.flow.subprocpool import SubProcPool
 from cylc.flow.templatevars import eval_var
 from cylc.flow.workflow_db_mgr import WorkflowDatabaseManager
@@ -1740,13 +1740,11 @@ class Scheduler:
 
             self.pool.set_expired_tasks()
             self.release_queued_tasks()
-            if (
-                self.pool.config.run_mode('simulation')
-                and sim_time_check(
-                    self.message_queue,
-                    self.pool.get_tasks(),
-                    self.broadcast_mgr
-                )
+            if internal_task_status_check(
+                self.message_queue,
+                self.pool.get_tasks(),
+                self.broadcast_mgr,
+                self.pool.config.run_mode(),
             ):
                 # A simulated task state change occurred.
                 self.reset_inactivity_timer()
