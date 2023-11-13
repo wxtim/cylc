@@ -142,7 +142,6 @@ def get_simulated_run_len(rtc: Dict[str, Any]) -> int:
     recalc = bool(rtc['simulation'].get('simulated run length', ''))
     limit = rtc['execution time limit']
     speedup = rtc['simulation']['speedup factor']
-
     if recalc:
         if limit and speedup:
             sleep_sec = limit / speedup
@@ -289,12 +288,16 @@ def internal_task_status_check(
     internal_task_state_changed = False
     now = time()
     for itask in itasks:
+
         if broadcast_mgr:
             broadcast = broadcast_mgr.get_broadcast(itask.tokens)
             if broadcast:
                 update_nested_dict(
                     itask.tdef.rtconfig, broadcast)
                 configure_rtc_sim_mode(itask.tdef.rtconfig, False)
+        elif itask.tdef.rtconfig['run mode'] is None:
+            configure_rtc_sim_mode(itask.tdef.rtconfig, workflow_mode)
+
         if (
             itask.tdef.rtconfig['run mode'] == SIMULATION
             and sim_time_check(message_queue, itask, now, broadcast_mgr)
