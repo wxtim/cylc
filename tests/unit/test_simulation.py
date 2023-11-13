@@ -17,11 +17,13 @@
 """
 import pytest
 from pytest import param
+from types import SimpleNamespace
 
 from cylc.flow.cycling.integer import IntegerPoint
 from cylc.flow.cycling.iso8601 import ISO8601Point
 from cylc.flow.simulation import (
     build_dummy_script,
+    check_sim_modes,
     disable_platforms,
     filter_skip_outputs,
     get_simulated_run_len,
@@ -240,3 +242,44 @@ def test_filter_skip_outputs(task_outputs, skip_outputs, expect):
       or failed then succeeded will be produced.
     """
     assert filter_skip_outputs(task_outputs, skip_outputs) == expect
+
+
+@pytest.mark.parametrize(
+    'tdefs, expect',
+    (
+        param(
+            [{'run mode': 'foo', 'name': 'foo'}], [],
+            id='no-warning'
+        ),
+        param(
+            [
+                {'run mode': 'simulation', 'name': 'foo'},
+                {'run mode': 'bath', 'name': 'bar'},
+            ], ['foo'],
+            id='one-task-warning'
+        ),
+        param(
+            [
+                {'run mode': 'simulation', 'name': 'foo'},
+                {'run mode': 'skip', 'name': 'bar'},
+                {'run mode': 'bath', 'name': 'baz'},
+            ], ['foo', 'bar'],
+            id='two-task-warning'
+        )
+    )
+)
+def test_check_sim_modes(caplog, tdefs, expect):
+    """In live mode a warning is logged if [runtime][<ns>]run mode
+    is skip or simulation.
+    """
+    taskdefs = [
+        SimpleNamespace(
+            rtconfig=tdef, name=tdef['name']
+        ) for tdef in tdefs
+    ]
+    check_sim_modes(taskdefs)
+    if expect:
+        for item in expect:
+            assert item in caplog.messages[0]
+    else:
+        assert caplog.messages == expect

@@ -23,17 +23,13 @@ from time import time
 
 from cylc.flow import LOG
 from cylc.flow.cycling.loader import get_point
-from cylc.flow.exceptions import CylcError
 from cylc.flow.network.resolvers import TaskMsg
 from cylc.flow.platforms import FORBIDDEN_WITH_PLATFORM
 from cylc.flow.task_outputs import (
-    TASK_OUTPUT_EXPIRED,
     TASK_OUTPUT_SUBMITTED,
-    TASK_OUTPUT_SUBMIT_FAILED,
     TASK_OUTPUT_STARTED,
     TASK_OUTPUT_SUCCEEDED,
     TASK_OUTPUT_FAILED,
-    TASK_OUTPUT_FINISHED,
     lifecycle_sort_key,
 )
 from cylc.flow.task_state import (
