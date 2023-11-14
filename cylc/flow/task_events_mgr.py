@@ -823,13 +823,24 @@ class TaskEventsManager():
 
     def setup_event_handlers(self, itask, event, message):
         """Set up handlers for a task event."""
-        if itask.tdef.run_mode != 'live':
+        from cylc.flow.simulation import SIMULATION as SIM, SKIP
+        if (
+            (
+                itask.tdef.rtconfig['run mode'] == SIM
+                and itask.tdef.rtconfig[SIM]['disable task event handlers']
+            )
+            or (
+                itask.tdef.rtconfig['run mode'] == SKIP
+                and itask.tdef.rtconfig[SKIP]['disable task event handlers']
+            )
+        ):
             return
         msg = ""
         if message != f"job {event}":
             msg = message
         self._db_events_insert(itask, event, msg)
-        self._setup_job_logs_retrieval(itask, event)
+        if itask.tdef.rtconfig['run mode'] not in [SIM, SKIP]:
+            self._setup_job_logs_retrieval(itask, event)
         self._setup_event_mail(itask, event)
         self._setup_custom_event_handlers(itask, event, message)
 

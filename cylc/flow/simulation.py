@@ -54,6 +54,7 @@ SKIP = 'skip'
 LIVE = 'live'
 DUMMY = 'dummy'
 WORKFLOW = 'workflow'
+INTERNAL_MODES = [SIMULATION, SKIP]
 
 
 def configure_sim_modes(taskdefs, workflow_mode):
