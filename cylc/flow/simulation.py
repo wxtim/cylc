@@ -37,8 +37,7 @@ if TYPE_CHECKING:
     from cylc.flow.task_proxy import TaskProxy
 
 
-# Exotic: Recursive Type hint.
-NestedDict = Dict[str, Union['NestedDict', Any]]
+SIMULATION_CONFIGS = ['simulation', 'execution time limit']
 
 
 def configure_sim_modes(taskdefs, sim_mode):
@@ -55,7 +54,6 @@ def configure_rtc_sim_mode(rtc, dummy_mode):
     """Change a task proxy's runtime config to simulation mode settings.
     """
     sleep_sec = get_simulated_run_len(rtc)
-
     rtc['execution time limit'] = (
         sleep_sec + DurationParser().parse(str(
             rtc['simulation']['time limit buffer'])).get_seconds()
@@ -70,10 +68,9 @@ def configure_rtc_sim_mode(rtc, dummy_mode):
         rtc['env-script'] = ""
         rtc['pre-script'] = ""
         rtc['post-script'] = ""
+        rtc['err-script'] = ""
         rtc['script'] = build_dummy_script(
-            rtc, sleep_sec) if dummy_mode else ""
-    else:
-        rtc['script'] = ""
+            rtc, sleep_sec)
 
     disable_platforms(rtc)
 
@@ -111,7 +108,9 @@ def get_simulated_run_len(rtc: Dict[str, Any]) -> int:
         else:
             sleep_sec = rtc['simulation']['default run length']
     else:
-        if limit and speedup:
+        if limit and speedup and isinstance(limit, float):
+            sleep_sec = limit / speedup
+        elif limit and speedup:
             sleep_sec = (DurationParser().parse(
                 str(limit)).get_seconds() / speedup)
         else:
@@ -183,60 +182,6 @@ def parse_fail_cycle_points(
     return f_pts
 
 
-def unpack_dict(dict_: NestedDict, parent_key: str = '') -> Dict[str, Any]:
-    """Unpack a nested dict into a single layer.
-
-    Examples:
-        >>> unpack_dict({'foo': 1, 'bar': {'baz': 2, 'qux':3}})
-        {'foo': 1, 'bar.baz': 2, 'bar.qux': 3}
-        >>> unpack_dict({'foo': {'example': 42}, 'bar': {"1":2, "3":4}})
-        {'foo.example': 42, 'bar.1': 2, 'bar.3': 4}
-
-    """
-    output = {}
-    for key, value in dict_.items():
-        new_key = parent_key + '.' + key if parent_key else key
-        if isinstance(value, dict):
-            output.update(unpack_dict(value, new_key))
-        else:
-            output[new_key] = value
-
-    return output
-
-
-def nested_dict_path_update(
-    dict_: NestedDict, path: List[Any], value: Any
-) -> NestedDict:
-    """Set a value in a nested dict.
-
-    Examples:
-        >>> nested_dict_path_update({'foo': {'bar': 1}}, ['foo', 'bar'], 42)
-        {'foo': {'bar': 42}}
-    """
-    this = dict_
-    for i in range(len(path)):
-        if isinstance(this[path[i]], dict):
-            this = this[path[i]]
-        else:
-            this[path[i]] = value
-    return dict_
-
-
-def update_nested_dict(rtc: NestedDict, dict_: NestedDict) -> None:
-    """Update one config nested dictionary with the contents of another.
-
-    Examples:
-        >>> x = {'foo': {'bar': 12}, 'qux': 77}
-        >>> y = {'foo': {'bar': 42}}
-        >>> update_nested_dict(x, y)
-        >>> print(x)
-        {'foo': {'bar': 42}, 'qux': 77}
-    """
-    for keylist, value in unpack_dict(dict_).items():
-        keys = keylist.split('.')
-        rtc = nested_dict_path_update(rtc, keys, value)
-
-
 def sim_time_check(
     message_queue: 'Queue[TaskMsg]',
     itasks: 'List[TaskProxy]',
@@ -250,16 +195,22 @@ def sim_time_check(
 
     Returns:
         True if _any_ simulated task state has changed.
-    """
 
+    """
     sim_task_state_changed = False
     now = time()
     for itask in itasks:
         if broadcast_mgr:
             broadcast = broadcast_mgr.get_broadcast(itask.tokens)
             if broadcast:
-                update_nested_dict(
-                    itask.tdef.rtconfig, broadcast)
+                for config in SIMULATION_CONFIGS:
+                    if (
+                        config in broadcast
+                        and isinstance(broadcast[config], dict)
+                    ):
+                        itask.tdef.rtconfig[config].update(broadcast[config])
+                    elif config in broadcast:
+                        itask.tdef.rtconfig[config] = broadcast[config]
                 configure_rtc_sim_mode(itask.tdef.rtconfig, False)
         if itask.state.status != TASK_STATUS_RUNNING:
             continue

@@ -27,8 +27,11 @@ workflow_run_ok "${TEST_NAME_BASE}-run" \
 SCHD_LOG="${WORKFLOW_RUN_DIR}/log/scheduler/log"
 
 # If we speed up the simulated task we
-# can make it finish before workflow timeout:
-cylc broadcast "${WORKFLOW_NAME}" -s '[simulation]speedup factor = 600'
+# can make it finish before workflow timeout
+# (neither change will do this on its own):
+cylc broadcast "${WORKFLOW_NAME}" \
+    -s '[simulation]speedup factor = 60' \
+    -s 'execution time limit = PT60S'
 
 # Wait for the workflow to finish (it wasn't run in no-detach mode):
 poll_grep "INFO - DONE" "${SCHD_LOG}"

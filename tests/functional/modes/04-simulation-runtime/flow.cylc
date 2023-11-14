@@ -1,6 +1,6 @@
 [scheduler]
     [[events]]
-        workflow timeout = PT30S
+        # workflow timeout = PT30S
 
 [scheduling]
     initial cycle point = 2359
@@ -9,6 +9,7 @@
 
 [runtime]
     [[get_observations]]
+        execution time limit = P2D
         execution retry delays = PT10M
         [[[simulation]]]
             speedup factor = 1
