@@ -1,6 +1,6 @@
 [scheduler]
     [[events]]
-        # workflow timeout = PT30S
+        workflow timeout = PT30S
 
 [scheduling]
     initial cycle point = 2359

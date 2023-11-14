@@ -1,0 +1,19 @@
+[scheduler]
+    [[events]]
+        workflow timeout = PT30S
+
+[scheduling]
+    initial cycle point = 2359
+    [[graph]]
+        R1 = foo => bar
+
+[runtime]
+    [[foo]]
+        script = """
+            cylc broadcast "${CYLC_WORKFLOW_ID}"\
+                -n bar \
+                -p '*' \
+                -s 'run mode=skip'
+        """
+    [[bar]]
+        script = sleep 60
