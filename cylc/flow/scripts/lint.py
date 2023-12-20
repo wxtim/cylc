@@ -273,7 +273,7 @@ STYLE_GUIDE = (
 )
 SECTION2 = r'\[\[\s*{}\s*\]\]'
 SECTION3 = r'\[\[\[\s*{}\s*\]\]\]'
-FILEGLOBS = ['*.rc', '*.cylc']
+FILEGLOBS = ['*.rc', '*.cylc', '*.py']
 JINJA2_SHEBANG = '#!jinja2'
 DEPENDENCY_SECTION_MSG = {
     'text': (
@@ -966,7 +966,7 @@ def lint(
     checks: Dict[str, dict],
     counter: Dict[str, int],
     modify: bool = False,
-    write: Callable = print
+    write: Callable = print,
 ) -> Iterator[str]:
     """Lint text, one line at a time.
 
@@ -991,7 +991,10 @@ def lint(
     """
     # get the first line
     line_no = 1
-    line = next(lines)
+    try:
+        line = next(lines)
+    except StopIteration:
+        return
     # check if it is a jinja2 shebang
     jinja_shebang = line.strip().lower() == JINJA2_SHEBANG
 
@@ -1003,6 +1006,12 @@ def lint(
                 line.strip().startswith('#')
                 and not check_meta.get('evaluate commented lines', False)
             ):
+                continue
+
+            # If suffixes in check meta, and file suffix is in that list
+            # we want to carry out this check, else, skip it.
+            check_file_types = check_meta.get('suffixes', None)
+            if not check_file_types or file_rel.suffix in check_file_types:
                 continue
 
             if check_meta.get('kwargs', False):
