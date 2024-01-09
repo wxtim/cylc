@@ -107,7 +107,7 @@ class EventData(Enum):
 
     .. deprecated:: 8.0.0
 
-       Use "uuid_str".
+       Use "uuid".
     """
 
     # BACK COMPAT: "suite_url" deprecated
@@ -202,6 +202,7 @@ class WorkflowEventHandler():
     EVENT_INACTIVITY_TIMEOUT = 'inactivity timeout'
     EVENT_STALL = 'stall'
     EVENT_STALL_TIMEOUT = 'stall timeout'
+    EVENT_RESTART_TIMEOUT = 'restart timeout'
 
     WORKFLOW_EVENT_HANDLER = 'workflow-event-handler'
     WORKFLOW_EVENT_MAIL = 'workflow-event-mail'

@@ -104,7 +104,13 @@ class upgrader:
     def get_item(self, keys):
         item = self.cfg
         for key in keys:
-            item = item[key]
+            try:
+                item = item[key]
+            except TypeError:
+                raise UpgradeError(
+                    f'{self.show_keys(keys[:-1], True)}'
+                    f' ("{keys[-2]}" should be a [section] not a setting)'
+                )
         return item
 
     def put_item(self, keys, val):
@@ -206,7 +212,10 @@ class upgrader:
                         if upg['new']:
                             msg += ' -> ' + self.show_keys(upg['new'],
                                                            upg['is_section'])
-                        msg += " - " + upg['cvt'].describe()
+                        msg += " - " + upg['cvt'].describe().format(
+                            old=old,
+                            new=upg['cvt'].convert(old)
+                        )
                         if not upg['silent']:
                             warnings.setdefault(vn, [])
                             warnings[vn].append(msg)

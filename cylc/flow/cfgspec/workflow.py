@@ -401,7 +401,7 @@ with Conf(
                     # differentiate between not set vs set to empty
                     default = None
                 elif item.endswith("handlers"):
-                    desc = desc + '\n\n' + dedent(rf'''
+                    desc = desc + '\n\n' + dedent(f'''
                         Examples:
 
                         .. code-block:: cylc
@@ -413,9 +413,9 @@ with Conf(
                            {item} = echo %(workflow)s
 
                            # configure multiple event handlers
-                           {item} = \
-                               'echo %(workflow)s, %(event)s', \
-                               'my_exe %(event)s %(message)s' \
+                           {item} = \\
+                               'echo %(workflow)s, %(event)s', \\
+                               'my_exe %(event)s %(message)s' \\
                                'curl -X PUT -d event=%(event)s host:port'
                     ''')
                 elif item.startswith("abort on"):
@@ -605,7 +605,7 @@ with Conf(
             The stop cycle point can be overridden on the command line using
             ``cylc play --stop-cycle-point=POINT``
 
-            .. note:
+            .. note::
 
                Not to be confused with :cylc:conf:`[..]final cycle point`:
                There can be more graph beyond this point, but you are
@@ -747,25 +747,29 @@ with Conf(
                 ``cylc ext-trigger`` command.
             ''')
             Conf('clock-expire', VDR.V_STRING_LIST, desc='''
-                Don't submit jobs if they are very late in wall clock time.
+                Don't submit jobs if they are too late in wall clock time.
 
                 Clock-expire tasks enter the ``expired`` state and skip job
                 submission if too far behind the wall clock when they become
                 ready to run.
 
-                The expiry time is specified as an offset from
-                wall-clock time; typically it should be negative - see
-                :ref:`ClockExpireTasks`.
-
-                .. note::
-                   The offset:
+                The expiry time is specified as an offset from the task's
+                cycle point. The offset:
 
                    * May be positive or negative
-                   * The offset may be omitted if it is zero.
+                   * May be omitted if it is zero
 
-                Example:
+                .. seealso::
 
-                ``PT1H`` - 1 hour
+                   :ref:`ClockExpireTasks`.
+
+                Examples:
+
+                ``foo(PT1H)`` - expire task ``foo`` if the current wall clock
+                time has reached 1 hour after the task's cycle point.
+
+                ``bar(-PT5M)`` - expire task ``bar`` if the current wall clock
+                time has reached 5 minutes *before* the task's cycle point.
             ''')
             Conf('sequential', VDR.V_STRING_LIST, desc='''
                 A list of tasks which automatically depend on their own
@@ -1256,10 +1260,17 @@ with Conf(
                     - ``all`` - all instance of the task will fail
                     - ``2017-08-12T06, 2017-08-12T18`` - these instances of
                       the task will fail
+
+                    If you set :cylc:conf:`[..][..]execution retry delays`
+                    the second attempt will succeed unless you set
+                    :cylc:conf:`[..]fail try 1 only = False`.
                 ''')
                 Conf('fail try 1 only', VDR.V_BOOLEAN, True, desc='''
                     If ``True`` only the first run of the task
                     instance will fail, otherwise retries will fail too.
+
+                    Task instances must be set to fail by
+                    :cylc:conf:`[..]fail cycle points`.
                 ''')
                 Conf('disable task event handlers', VDR.V_BOOLEAN, True,
                      desc='''
@@ -1530,7 +1541,7 @@ with Conf(
 
                 The items in this section reflect
                 options and defaults of the ``cylc workflow-state`` command,
-                except that the target workflow name and the
+                except that the target workflow ID and the
                 ``--task``, ``--cycle``, and ``--status`` options are
                 taken from the graph notation.
 
@@ -1594,7 +1605,7 @@ with Conf(
                 You can also specify job environment templates here for
                 :ref:`parameterized tasks <User Guide Param>`.
             '''):
-                Conf('<variable>', VDR.V_STRING, desc='''
+                Conf('<variable>', VDR.V_STRING, desc=r'''
                     A custom user defined variable for a task execution
                     environment.
 
@@ -1635,6 +1646,32 @@ with Conf(
                        MYITEM = %(item)s
                        MYFILE = /path/to/%(i)03d/%(item)s
 
+                    .. note::
+
+                       As with other Cylc configurations, leading or trailing
+                       whitespace will be stripped, so the following two
+                       examples are equivalent:
+
+                       .. list-table::
+                          :class: grid-table
+
+                          * - .. code-block:: cylc
+
+                                 [environment]
+                                     FOO = " a "
+                                     BAR = """
+                                       $(foo bar baz)
+                                   """
+                            - .. code-block:: cylc
+
+                                 [environment]
+                                     FOO = "a"
+                                     BAR = "$(foo bar baz)"
+
+                       If leading or trailing whitespace is required, consider
+                       using the ``\0`` escape character, or set the variable
+                       in :cylc:conf:`[..][..]env-script`.
+
                     .. versionchanged:: 7.8.7/7.9.2
 
                        Parameter environment templates (previously in
@@ -1655,10 +1692,25 @@ with Conf(
                 this section (:ref:`MessageTriggers`)
             '''):
                 Conf('<output>', VDR.V_STRING, desc='''
-                    Task output messages (:ref:`MessageTriggers`).
+                    Define custom task outputs (aka :ref:`MessageTriggers`).
 
-                    The item name is used to select the custom output
-                    message in graph trigger notation.
+                    :term:`Custom outputs <custom output>` allow you to extend
+                    the built-in task outputs e.g. ``succeeded`` and ``failed``
+                    in order to provide more detailed information about task
+                    state. Custom outputs can be used to express dependencies
+                    in the graph as with built-in outputs.
+
+                    Custom outputs are defined in the form:
+
+                    .. code-block:: cylc
+
+                       output = message
+
+                    Where ``output`` is the name of the output as it is used in
+                    the graph, and ``message`` is the task message sent by
+                    the ``cylc message`` command which tells Cylc that this
+                    output has been completed. See :ref:`MessageTriggers` for
+                    more details.
 
                     Examples:
 
@@ -1667,10 +1719,15 @@ with Conf(
                        out1 = "sea state products ready"
                        out2 = "NWP restart files completed"
 
-                    Task outputs are validated by
-                    :py:class:`cylc.flow.unicode_rules.TaskOutputValidator`.
+                    Custom outputs must satisfy these rules:
 
                     .. autoclass:: cylc.flow.unicode_rules.TaskOutputValidator
+                       :noindex:
+
+                    Task messages must satisfy these rules:
+
+                    .. autoclass:: cylc.flow.unicode_rules.TaskMessageValidator
+                       :noindex:
                 ''')
 
             with Conf('parameter environment templates', desc='''
@@ -1737,7 +1794,7 @@ def upg(cfg, descr):
         ['cylc', 'simulation', 'disable suite event handlers'])
     u.obsolete('8.0.0', ['cylc', 'simulation'], is_section=True)
     u.obsolete('8.0.0', ['visualization'], is_section=True)
-    u.obsolete('8.0.0', ['scheduling', 'spawn to max active cycle points']),
+    u.obsolete('8.0.0', ['scheduling', 'spawn to max active cycle points'])
     u.deprecate(
         '8.0.0',
         ['cylc', 'task event mail interval'],
@@ -1798,7 +1855,10 @@ def upg(cfg, descr):
         '8.0.0',
         ['scheduling', 'max active cycle points'],
         ['scheduling', 'runahead limit'],
-        cvtr=converter(lambda x: f'P{x}' if x != '' else '', '"n" -> "Pn"'),
+        cvtr=converter(
+            lambda x: f'P{int(x) - 1}' if x != '' else '',
+            '"{old}" -> "{new}"'
+        ),
         silent=cylc.flow.flags.cylc7_back_compat,
     )
     u.deprecate(

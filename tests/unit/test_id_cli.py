@@ -35,9 +35,8 @@ from cylc.flow.workflow_files import WorkflowFiles
 
 
 @pytest.fixture
-def mock_exists(mocker):
-    mock_exists = mocker.patch('pathlib.Path.exists')
-    mock_exists.return_value = True
+def mock_exists(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr('pathlib.Path.exists', lambda *a, **k: True)
 
 
 @pytest.fixture(scope='module')
@@ -570,7 +569,7 @@ def no_scan(monkeypatch):
         # something that looks like scan but doesn't do anything
         yield
 
-    monkeypatch.setattr('cylc.flow.id_cli.scan', _scan)
+    monkeypatch.setattr('cylc.flow.network.scan.scan', _scan)
 
 
 async def test_expand_workflow_tokens_impl_selector(no_scan):

@@ -198,7 +198,7 @@ def _get_inheritance_nodes_and_edges(
 
 
 def get_config(workflow_id: str, opts: 'Values', flow_file) -> WorkflowConfig:
-    """Return a WorkflowConfig object for the provided reg / path."""
+    """Return a WorkflowConfig object for the provided id_ / path."""
     template_vars = get_template_vars(opts)
     return WorkflowConfig(
         workflow_id, flow_file, opts, template_vars=template_vars
@@ -414,9 +414,21 @@ async def graph_diff(
     graph_a: List[str] = []
     graph_b: List[str] = []
     graph_reference(
-        opts, workflow_a, start, stop, flow_file, write=graph_a.append),
+        opts,
+        workflow_a,
+        start,
+        stop,
+        flow_file,
+        write=graph_a.append,
+    )
     graph_reference(
-        opts, workflow_b, start, stop, flow_file_b, write=graph_b.append),
+        opts,
+        workflow_b,
+        start,
+        stop,
+        flow_file_b,
+        write=graph_b.append,
+    )
 
     # compare graphs
     diff_lines = list(

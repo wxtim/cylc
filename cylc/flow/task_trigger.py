@@ -17,23 +17,10 @@
 from cylc.flow.cycling.loader import (
     get_point, get_point_relative, get_interval)
 from cylc.flow.prerequisite import Prerequisite
-from cylc.flow.task_outputs import (
-    TASK_OUTPUT_EXPIRED, TASK_OUTPUT_SUBMITTED, TASK_OUTPUT_SUBMIT_FAILED,
-    TASK_OUTPUT_STARTED, TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_FAILED,
-    TASK_OUTPUT_FINISHED
-)
+from cylc.flow.task_qualifiers import ALT_QUALIFIERS
 
 # Task trigger names (e.g. foo:fail => bar).
 # Can use "foo:fail => bar" or "foo:failed => bar", etc.
-_ALT_TRIGGER_NAMES = {
-    TASK_OUTPUT_EXPIRED: ["expire"],
-    TASK_OUTPUT_SUBMITTED: ["submit"],
-    TASK_OUTPUT_SUBMIT_FAILED: ["submit-fail"],
-    TASK_OUTPUT_STARTED: ["start"],
-    TASK_OUTPUT_SUCCEEDED: ["succeed"],
-    TASK_OUTPUT_FAILED: ["fail"],
-    TASK_OUTPUT_FINISHED: ["finish"],
-}
 
 
 class TaskTrigger:
@@ -157,11 +144,17 @@ class TaskTrigger:
 
         Arg name should be a valid standard name or alias, otherwise assumed
         to be a custom trigger and return as-is.
+
+        Examples:
+            >>> TaskTrigger.standardise_name('foo')
+            'foo'
+            >>> TaskTrigger.standardise_name('succeed')
+            'succeeded'
+            >>> TaskTrigger.standardise_name('succeeded')
+            'succeeded'
+
         """
-        for standard_name, alt_names in _ALT_TRIGGER_NAMES.items():
-            if name == standard_name or name in alt_names:
-                return standard_name
-        return name
+        return ALT_QUALIFIERS.get(name, name)
 
 
 class Dependency:
@@ -200,7 +193,7 @@ class Dependency:
 
         """
         # Create Prerequisite.
-        cpre = Prerequisite(point, tdef.start_point)
+        cpre = Prerequisite(point)
 
         # Loop over TaskTrigger instances.
         for task_trigger in self.task_triggers:

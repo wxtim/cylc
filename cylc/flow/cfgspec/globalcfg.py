@@ -22,7 +22,7 @@ from textwrap import dedent
 from typing import List, Optional, Tuple, Any, Union
 
 from contextlib import suppress
-from pkg_resources import parse_version
+from packaging.version import Version
 
 from cylc.flow import LOG
 from cylc.flow import __version__ as CYLC_VERSION
@@ -263,6 +263,13 @@ EVENTS_SETTINGS = {  # workflow events
         .. versionchanged:: 8.0.0
 
            {REPLACES}``abort on inactivity``.
+    ''',
+    'restart timeout': '''
+        How long to wait for intervention on restarting a completed workflow.
+        The timer stops if any task is triggered.
+
+        .. versionadded:: 8.2.0
+
     '''
 }
 
@@ -445,7 +452,8 @@ Event handlers can be stored in the workflow ``bin/`` directory, or
 anywhere the scheduler environment ``$PATH``. They should return quickly.
 
 Multiple event handlers can be specified as a list of command line templates.
-For supported template variables see :ref:`task_event_template_variables`.
+For supported template variables see :ref:`user_guide.runtime.\
+event_handlers.task_event_handling.template_variables`.
 Python template substitution syntax is used:
 `String Formatting Operations in the Python documentation
 <https://docs.python.org/3/library/stdtypes.html
@@ -454,18 +462,38 @@ Python template substitution syntax is used:
 
 TASK_EVENTS_SETTINGS = {
     'handlers': '''
-        Specify a list of command lines or command line templates as generic
-        task event handlers for each event set in
+        Commands to run on task :cylc:conf:`[..]handler events`.
+
+        A command or list of commands to run for each task event handler
+        set in
         :cylc:conf:`flow.cylc[runtime][<namespace>][events]handler events`.
+
+        Information about the event can be provided to the command
+        using :ref:`user_guide.runtime.event_handlers.\
+task_event_handling.template_variables`.
+        For more information, see
+        :ref:`user_guide.runtime.task_event_handling`.
+
+        For workflow events, see
+        :ref:`user_guide.scheduler.workflow_event_handling`.
+
+        Example::
+
+           echo %(event)s occurred in %(workflow)s >> my-log-file
+
     ''',
     'execution timeout': '''
         If a task has not finished after the specified interval, the execution
         timeout event handler(s) will be called.
     ''',
     'handler events': '''
+        A list of events for which :cylc:conf:`[..]handlers` are run.
+
         Specify the events for which the general task event handlers
         :cylc:conf:`flow.cylc[runtime][<namespace>][events]handlers`
         should be invoked.
+
+        See :ref:`user_guide.runtime.task_event_handling` for more information.
 
         Example::
 
@@ -582,6 +610,26 @@ with Conf('global.cylc', desc='''
        Prior to Cylc 8, ``global.cylc`` was named ``global.rc``, but that name
        is no longer supported.
 ''') as SPEC:
+    with Conf('hub', desc='''
+        Configure the public URL of Jupyter Hub.
+
+        If configured, the ``cylc gui`` command will open a web browser at this
+        location rather than starting a standalone server when called.
+
+
+        .. seealso::
+
+           * The cylc hub :ref:`architecture-reference` for fuller details.
+           * :ref:`UI_Server_config` for practical details.
+
+    '''):
+        Conf('url', VDR.V_STRING, '', desc='''
+            .. versionadded:: 8.3.0
+
+            Where Jupyter Hub is used a url can be provided for routing on
+            execution of ``cylc gui`` command.
+        ''')
+
     with Conf('scheduler', desc=(
         default_for(SCHEDULER_DESCR, "[scheduler]", section=True)
     )):
@@ -839,6 +887,8 @@ with Conf('global.cylc', desc='''
                     vdr_type = VDR.V_INTERVAL
                     if item == "stall timeout":
                         default = DurationFloat(3600)
+                    elif item == "restart timeout":
+                        default = DurationFloat(120)
                     else:
                         default = None
                 Conf(item, vdr_type, default, desc=desc)
@@ -1024,11 +1074,11 @@ with Conf('global.cylc', desc='''
                     Alternative location for the run dir.
 
                     If specified, the workflow run directory will
-                    be created in ``<this-path>/cylc-run/<workflow-name>``
+                    be created in ``<this-path>/cylc-run/<workflow-id>``
                     and a symbolic link will be created from
-                    ``$HOME/cylc-run/<workflow-name>``.
+                    ``$HOME/cylc-run/<workflow-id>``.
                     If not specified the workflow run directory will be created
-                    in ``$HOME/cylc-run/<workflow-name>``.
+                    in ``$HOME/cylc-run/<workflow-id>``.
                     All the workflow files and the ``.service`` directory get
                     installed into this directory.
 
@@ -1038,11 +1088,11 @@ with Conf('global.cylc', desc='''
                     Alternative location for the log dir.
 
                     If specified the workflow log directory will be created in
-                    ``<this-path>/cylc-run/<workflow-name>/log`` and a
+                    ``<this-path>/cylc-run/<workflow-id>/log`` and a
                     symbolic link will be created from
-                    ``$HOME/cylc-run/<workflow-name>/log``. If not specified
+                    ``$HOME/cylc-run/<workflow-id>/log``. If not specified
                     the workflow log directory will be created in
-                    ``$HOME/cylc-run/<workflow-name>/log``.
+                    ``$HOME/cylc-run/<workflow-id>/log``.
 
                     .. versionadded:: 8.0.0
                 """)
@@ -1050,11 +1100,11 @@ with Conf('global.cylc', desc='''
                     Alternative location for the share dir.
 
                     If specified the workflow share directory will be
-                    created in ``<this-path>/cylc-run/<workflow-name>/share``
+                    created in ``<this-path>/cylc-run/<workflow-id>/share``
                     and a symbolic link will be created from
-                    ``<$HOME/cylc-run/<workflow-name>/share``. If not specified
+                    ``<$HOME/cylc-run/<workflow-id>/share``. If not specified
                     the workflow share directory will be created in
-                    ``$HOME/cylc-run/<workflow-name>/share``.
+                    ``$HOME/cylc-run/<workflow-id>/share``.
 
                     .. versionadded:: 8.0.0
                 """)
@@ -1063,11 +1113,11 @@ with Conf('global.cylc', desc='''
 
                     If specified the workflow share/cycle directory
                     will be created in
-                    ``<this-path>/cylc-run/<workflow-name>/share/cycle``
+                    ``<this-path>/cylc-run/<workflow-id>/share/cycle``
                     and a symbolic link will be created from
-                    ``$HOME/cylc-run/<workflow-name>/share/cycle``. If not
+                    ``$HOME/cylc-run/<workflow-id>/share/cycle``. If not
                     specified the workflow share/cycle directory will be
-                    created in ``$HOME/cylc-run/<workflow-name>/share/cycle``.
+                    created in ``$HOME/cylc-run/<workflow-id>/share/cycle``.
 
                     .. versionadded:: 8.0.0
                 """)
@@ -1075,11 +1125,11 @@ with Conf('global.cylc', desc='''
                     Alternative directory for the work dir.
 
                     If specified the workflow work directory will be created in
-                    ``<this-path>/cylc-run/<workflow-name>/work`` and a
+                    ``<this-path>/cylc-run/<workflow-id>/work`` and a
                     symbolic link will be created from
-                    ``$HOME/cylc-run/<workflow-name>/work``. If not specified
+                    ``$HOME/cylc-run/<workflow-id>/work``. If not specified
                     the workflow work directory will be created in
-                    ``$HOME/cylc-run/<workflow-name>/work``.
+                    ``$HOME/cylc-run/<workflow-id>/work``.
 
                     .. versionadded:: 8.0.0
                 """)
@@ -1172,6 +1222,9 @@ with Conf('global.cylc', desc='''
 
                    {PLATFORM_REPLACES.format("[job]batch system")}
             ''')
+            replaces = PLATFORM_REPLACES.format(
+                "[job]batch submit command template"
+            )
             Conf('job runner command template', VDR.V_STRING, desc=f'''
                 Set the command used by the chosen job runner.
 
@@ -1180,9 +1233,7 @@ with Conf('global.cylc', desc='''
 
                 .. versionadded:: 8.0.0
 
-                   {PLATFORM_REPLACES.format(
-                       "[job]batch submit command template"
-                    )}
+                   {replaces}
             ''')
             Conf('shell', VDR.V_STRING, '/bin/bash', desc='''
 
@@ -1399,11 +1450,24 @@ with Conf('global.cylc', desc='''
                  desc=f'''
                 {LOG_RETR_SETTINGS['retrieve job logs command']}
 
+                .. note::
+                   The default command (``rsync -a``) means that the retrieved
+                   files (and the directories above including ``job/log``) get
+                   the same permissions as on the remote host. This can cause
+                   problems if the remote host uses different permissions to
+                   the scheduler host (e.g. no world read access). To avoid
+                   this problem you can set the command to
+                   ``rsync -a --no-p --no-g --chmod=ugo=rwX`` which means the
+                   retrieved files get the default permissions used on the
+                   scheduler host.
+
                 .. versionchanged:: 8.0.0
 
                    {REPLACES}``global.rc[hosts][<host>]retrieve job logs
                    command``.
             ''')
+            replaces = PLATFORM_REPLACES.format(
+                "[remote]retrieve job logs max size")
             Conf('retrieve job logs max size', VDR.V_STRING, desc=f'''
                 {LOG_RETR_SETTINGS['retrieve job logs max size']}
 
@@ -1411,9 +1475,10 @@ with Conf('global.cylc', desc='''
 
                    {REPLACES}``global.rc[hosts][<host>]retrieve job logs
                    max size``.
-                   {PLATFORM_REPLACES.format(
-                       "[remote]retrieve job logs max size")}
+                   {replaces}
             ''')
+            replaces = PLATFORM_REPLACES.format(
+                "[remote]retrieve job logs retry delays")
             Conf('retrieve job logs retry delays', VDR.V_INTERVAL_LIST,
                  desc=f'''
                 {LOG_RETR_SETTINGS['retrieve job logs retry delays']}
@@ -1422,16 +1487,18 @@ with Conf('global.cylc', desc='''
 
                    {REPLACES}``global.rc[hosts][<host>]retrieve job logs
                    retry delays``.
-                   {PLATFORM_REPLACES.format(
-                       "[remote]retrieve job logs retry delays")}
+                   {replaces}
             ''')
             Conf('tail command template',
-                 VDR.V_STRING, 'tail -n +1 --follow=name -F %(filename)s',
+                 VDR.V_STRING, 'tail -n +1 --follow=name %(filename)s',
                  desc=f'''
                 A command template (with ``%(filename)s`` substitution) to
                 tail-follow job logs this platform, by ``cylc cat-log``.
 
-                You are are unlikely to need to override this.
+                .. warning::
+
+                   You are are unlikely to need to override this. Doing so may
+                   adversely affect the UI log view.
 
                 .. versionchanged:: 8.0.0
 
@@ -1587,6 +1654,14 @@ with Conf('global.cylc', desc='''
                 of job submissions which can be batched together.
 
                 .. versionadded:: 8.0.0
+            ''')
+            Conf('ssh forward environment variables', VDR.V_STRING_LIST, '',
+                 desc='''
+                A list containing the names of the environment variables to
+                forward with SSH connections to the workflow host from
+                the host running 'cylc play'
+
+                .. versionadded:: 8.3.0
             ''')
             with Conf('selection', desc='''
                 How to select a host from the list of platform hosts.
@@ -1794,8 +1869,7 @@ def get_version_hierarchy(version: str) -> List[str]:
         ['', '8', '8.0', '8.0.1', '8.0.1a2', '8.0.1a2.dev']
 
     """
-    smart_ver: Any = parse_version(version)
-    # (No type anno. yet for Version in pkg_resources.extern.packaging.version)
+    smart_ver = Version(version)
     base = [str(i) for i in smart_ver.release]
     hierarchy = ['']
     hierarchy += ['.'.join(base[:i]) for i in range(1, len(base) + 1)]

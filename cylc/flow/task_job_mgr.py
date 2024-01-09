@@ -27,7 +27,6 @@ This module provides logic to:
 from contextlib import suppress
 import json
 import os
-from copy import deepcopy
 from logging import (
     CRITICAL,
     DEBUG,
@@ -58,8 +57,6 @@ from cylc.flow.parsec.util import (
 )
 from cylc.flow.pathutil import get_remote_workflow_run_job_dir
 from cylc.flow.platforms import (
-    HOST_REC_COMMAND,
-    PLATFORM_REC_COMMAND,
     get_host_from_platform,
     get_install_target_from_platform,
     get_localhost_install_target,
@@ -157,7 +154,7 @@ class TaskJobManager:
         self.bad_hosts = bad_hosts
         self.bad_hosts_to_clear = set()
         self.task_remote_mgr = TaskRemoteMgr(
-            workflow, proc_pool, self.bad_hosts)
+            workflow, proc_pool, self.bad_hosts, self.workflow_db_mgr)
 
     def check_task_jobs(self, workflow, task_pool):
         """Check submission and execution timeout and polling timers.
@@ -263,12 +260,13 @@ class TaskJobManager:
 
         Return (list): list of tasks that attempted submission.
         """
-
         if is_simulation:
             return self._simulation_submit_task_jobs(itasks, workflow)
+
         # Prepare tasks for job submission
         prepared_tasks, bad_tasks = self.prep_submit_task_jobs(
             workflow, itasks)
+
         # Reset consumed host selection results
         self.task_remote_mgr.subshell_eval_reset()
 
@@ -310,7 +308,7 @@ class TaskJobManager:
                                 itask.tdef.rtconfig['platform'],
                                 bad_hosts=self.bad_hosts
                             )
-                        except NoPlatformsError:
+                        except PlatformLookupError:
                             pass
                         else:
                             # If were able to select a new platform;
@@ -630,11 +628,12 @@ class TaskJobManager:
             line = "%s %s" % (timestamp, content)
         job_activity_log = get_task_job_activity_log(
             workflow, itask.point, itask.tdef.name)
+        if not line.endswith("\n"):
+            line += "\n"
+        line = host + line
         try:
-            with open(os.path.expandvars(job_activity_log), "ab") as handle:
-                if not line.endswith("\n"):
-                    line += "\n"
-                handle.write((host + line).encode())
+            with open(os.path.expandvars(job_activity_log), "a") as handle:
+                handle.write(line)
         except IOError as exc:
             LOG.warning("%s: write failed\n%s" % (job_activity_log, exc))
             LOG.warning(f"[{itask}] {host}{line}")
@@ -912,7 +911,19 @@ class TaskJobManager:
 
         # Go through each list of itasks and carry out commands as required.
         for platform_name, itasks in sorted(auth_itasks.items()):
-            platform = get_platform(platform_name)
+            try:
+                platform = get_platform(platform_name)
+            except NoPlatformsError:
+                LOG.error(
+                    f'Unable to run command {cmd_key}: Unable to find'
+                    f' platform {platform_name} with accessible hosts.'
+                )
+            except PlatformLookupError:
+                LOG.error(
+                    f'Unable to run command {cmd_key}: Unable to find'
+                    f' platform {platform_name}.'
+                )
+                continue
             if is_remote_platform(platform):
                 remote_mode = True
                 cmd = [cmd_key]
@@ -989,16 +1000,17 @@ class TaskJobManager:
             itask.waiting_on_job_prep = False
             itask.submit_num += 1
             self._set_retry_timers(itask)
+
             itask.platform = {'name': 'SIMULATION'}
             itask.summary['job_runner_name'] = 'SIMULATION'
             itask.summary[self.KEY_EXECUTE_TIME_LIMIT] = (
-                itask.tdef.rtconfig['job']['simulated run length']
+                itask.tdef.rtconfig['simulation']['simulated run length']
             )
             itask.jobs.append(
                 self.get_simulation_job_conf(itask, workflow)
             )
             self.task_events_mgr.process_message(
-                itask, INFO, TASK_OUTPUT_SUBMITTED
+                itask, INFO, TASK_OUTPUT_SUBMITTED,
             )
 
         return itasks
@@ -1120,12 +1132,12 @@ class TaskJobManager:
         host_n, platform_name = None, None
         try:
             if rtconfig['remote']['host'] is not None:
-                host_n = self.task_remote_mgr.subshell_eval(
-                    rtconfig['remote']['host'], HOST_REC_COMMAND
+                host_n = self.task_remote_mgr.eval_host(
+                    rtconfig['remote']['host']
                 )
             else:
-                platform_name = self.task_remote_mgr.subshell_eval(
-                    rtconfig['platform'], PLATFORM_REC_COMMAND
+                platform_name = self.task_remote_mgr.eval_platform(
+                    rtconfig['platform']
                 )
         except PlatformError as exc:
             itask.waiting_on_job_prep = False
@@ -1165,7 +1177,6 @@ class TaskJobManager:
                 platform = get_platform(
                     rtconfig, itask.tdef.name, bad_hosts=self.bad_hosts
                 )
-
             except PlatformLookupError as exc:
                 itask.waiting_on_job_prep = False
                 itask.summary['platforms_used'][itask.submit_num] = ''
@@ -1180,12 +1191,11 @@ class TaskJobManager:
                 self._set_retry_timers(itask, rtconfig)
 
         try:
-            job_conf = {
-                **self._prep_submit_task_job_impl(
-                    workflow, itask, rtconfig
-                ),
-                'logfiles': deepcopy(itask.summary['logfiles']),
-            }
+            job_conf = self._prep_submit_task_job_impl(
+                workflow,
+                itask,
+                rtconfig,
+            )
             itask.jobs.append(job_conf)
 
             local_job_file_path = get_task_job_job_log(
@@ -1314,10 +1324,8 @@ class TaskJobManager:
             'workflow_name': workflow,
             'task_id': itask.identity,
             'try_num': itask.get_try_num(),
-            'uuid_str': self.task_remote_mgr.uuid_str,
+            'uuid_str': self.task_events_mgr.uuid_str,
             'work_d': rtconfig['work sub-directory'],
-            # this field is populated retrospectively for regular job subs
-            'logfiles': [],
         }
 
     def get_simulation_job_conf(self, itask, workflow):
@@ -1347,8 +1355,6 @@ class TaskJobManager:
             'workflow_name': workflow,
             'task_id': itask.identity,
             'try_num': itask.get_try_num(),
-            'uuid_str': self.task_remote_mgr.uuid_str,
+            'uuid_str': self.task_events_mgr.uuid_str,
             'work_d': 'SIMULATION',
-            # this field is populated retrospectively for regular job subs
-            'logfiles': [],
         }

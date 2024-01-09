@@ -28,8 +28,8 @@ use 'cylc view -i,--inline WORKFLOW' for comparison.
 import asyncio
 from ansimarkup import parse as cparse
 from copy import deepcopy
-from optparse import Values
 import sys
+from typing import TYPE_CHECKING
 
 from cylc.flow import LOG, __version__ as CYLC_VERSION
 from cylc.flow.config import WorkflowConfig
@@ -41,7 +41,7 @@ from cylc.flow.exceptions import (
 import cylc.flow.flags
 from cylc.flow.id import Tokens
 from cylc.flow.id_cli import parse_id_async
-from cylc.flow.loggingutil import disable_timestamps
+from cylc.flow.loggingutil import set_timestamps
 from cylc.flow.option_parsers import (
     AGAINST_SOURCE_OPTION,
     WORKFLOW_ID_OR_PATH_ARG_DOC,
@@ -55,6 +55,9 @@ from cylc.flow.task_proxy import TaskProxy
 from cylc.flow.templatevars import get_template_vars
 from cylc.flow.terminal import cli_function
 from cylc.flow.scheduler_cli import RUN_MODE
+
+if TYPE_CHECKING:
+    from cylc.flow.option_parsers import Values
 
 
 VALIDATE_RUN_MODE = deepcopy(RUN_MODE)
@@ -145,7 +148,7 @@ async def wrapped_main(
     profiler.start()
 
     if cylc.flow.flags.verbosity < 2:
-        disable_timestamps(LOG)
+        set_timestamps(LOG, False)
 
     workflow_id, _, flow_file = await parse_id_async(
         workflow_id,

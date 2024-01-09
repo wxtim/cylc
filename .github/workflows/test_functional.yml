@@ -46,9 +46,9 @@ jobs:
         # NOTE: includes must define ALL of the matrix values
         include:
           # latest python
-          - name: 'py-3.10'
+          - name: 'py-3-latest'
             os: 'ubuntu-latest'
-            python-version: '3.10'
+            python-version: '3'
             test-base: 'tests/f'
             chunk: '1/4'
             platform: '_local_background*'
@@ -74,13 +74,13 @@ jobs:
             platform: '_remote_background_indep_tcp _remote_at_indep_tcp'
           # macos
           - name: 'macos 1/5'
-            os: 'macos-latest'
+            os: 'macos-11'
             python-version: '3.7'
             test-base: 'tests/f'
             chunk: '1/5'
             platform: '_local_background*'
           - name: 'macos 2/5'
-            os: 'macos-latest'
+            os: 'macos-11'
             python-version: '3.7'
             test-base: 'tests/f'
             chunk: '2/5'
@@ -96,10 +96,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -108,7 +108,7 @@ jobs:
         run: |
           # install system deps
           brew update
-          brew install bash coreutils gnu-sed
+          brew install bash coreutils gnu-sed grep
 
           # add GNU coreutils and sed to the user PATH
           # (see instructions in brew install output)
@@ -117,6 +117,9 @@ jobs:
             >> "${GITHUB_PATH}"
           echo \
             "/usr/local/opt/gnu-sed/libexec/gnubin" \
+            >> "${GITHUB_PATH}"
+          echo \
+            "/usr/local/opt/grep/libexec/gnubin" \
             >> "${GITHUB_PATH}"
 
           # add coreutils to the bashrc too (for jobs)
@@ -248,16 +251,16 @@ jobs:
               -exec echo '====== {} ======' \; -exec cat '{}' \;
 
       - name: Set artifact upload name
-        if: failure() && steps.test.outcome == 'failure'
+        if: always()
         id: uploadname
         run: |
           # artifact name cannot contain '/' characters
           CID="$(sed 's|/|-|g' <<< "${{ matrix.name || matrix.chunk }}")"
           echo "uploadname=$CID" >> $GITHUB_OUTPUT
 
-      - name: Upload artifact
+      - name: Upload failed tests artifact
         if: failure() && steps.test.outcome == 'failure'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cylc-run (${{ steps.uploadname.outputs.uploadname }})
           path: ~/cylc-run/
@@ -294,11 +297,31 @@ jobs:
           coverage xml
           coverage report
 
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage_${{ steps.uploadname.outputs.uploadname }}
+          path: coverage.xml
+          retention-days: 7
+
+  codecov:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+
       - name: Codecov upload
         uses: codecov/codecov-action@v3
         with:
-          name: '${{ github.workflow }} ${{ matrix.name }} ${{ matrix.chunk }}'
+          name: ${{ github.workflow }}
           flags: functional-tests
           fail_ci_if_error: true
           verbose: true
-          token: ${{ secrets.CODECOV_TOKEN }} # Token not required for public repos, but might reduce chance of random 404 error?
+          # Token not required for public repos, but avoids upload failure due
+          # to rate-limiting (but not for PRs opened from forks)
+          token: ${{ secrets.CODECOV_TOKEN }}

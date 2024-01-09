@@ -33,11 +33,11 @@ import os
 from shlex import quote
 import shlex
 from time import time
-from typing import TYPE_CHECKING, Optional, Union, cast
+from typing import TYPE_CHECKING, List, Optional, Union, cast
 
 from cylc.flow import LOG, LOG_LEVELS
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
-from cylc.flow.exceptions import NoHostsError
+from cylc.flow.exceptions import NoHostsError, PlatformLookupError
 from cylc.flow.hostuserutil import get_host, get_user, is_remote_platform
 from cylc.flow.parsec.config import ItemNotFoundError
 from cylc.flow.pathutil import (
@@ -48,7 +48,10 @@ from cylc.flow.task_action_timer import (
     TaskActionTimer,
     TimerFlags
 )
-from cylc.flow.platforms import get_platform, get_host_from_platform
+from cylc.flow.platforms import (
+    get_platform, get_host_from_platform,
+    log_platform_event
+)
 from cylc.flow.task_job_logs import (
     get_task_job_log,
     get_task_job_activity_log,
@@ -183,7 +186,7 @@ class EventData(Enum):
 
     .. deprecated:: 8.0.0
 
-       Use 'uuid_str'.
+       Use 'uuid'.
     """
 
     CyclePoint = 'point'
@@ -572,13 +575,14 @@ class TaskEventsManager():
             True: if polling is required to confirm a reversal of status.
 
         """
+
         # Log messages
         if event_time is None:
             event_time = get_current_time_string()
         if submit_num is None:
             submit_num = itask.submit_num
         if isinstance(severity, int):
-            severity = cast(str, getLevelName(severity))
+            severity = cast('str', getLevelName(severity))
         lseverity = str(severity).lower()
 
         # Any message represents activity.
@@ -614,7 +618,6 @@ class TaskEventsManager():
             self.setup_event_handlers(
                 itask, self.EVENT_STARTED, f'job {self.EVENT_STARTED}')
             self.spawn_func(itask, TASK_OUTPUT_STARTED)
-
         if message == self.EVENT_STARTED:
             if (
                     flag == self.FLAG_RECEIVED
@@ -774,24 +777,23 @@ class TaskEventsManager():
             return False
 
         if (
-                itask.state(TASK_STATUS_WAITING)
-                and
+            itask.state(TASK_STATUS_WAITING)
+            and itask.tdef.run_mode == 'live'   # Polling in live mode only.
+            and (
                 (
-                    (
-                        # task has a submit-retry lined up
-                        TimerFlags.SUBMISSION_RETRY in itask.try_timers
-                        and itask.try_timers[
-                            TimerFlags.SUBMISSION_RETRY].num > 0
-                    )
-                    or
-                    (
-                        # task has an execution-retry lined up
-                        TimerFlags.EXECUTION_RETRY in itask.try_timers
-                        and itask.try_timers[
-                            TimerFlags.EXECUTION_RETRY].num > 0
-                    )
+                    # task has a submit-retry lined up
+                    TimerFlags.SUBMISSION_RETRY in itask.try_timers
+                    and itask.try_timers[
+                        TimerFlags.SUBMISSION_RETRY].num > 0
                 )
-
+                or
+                (
+                    # task has an execution-retry lined up
+                    TimerFlags.EXECUTION_RETRY in itask.try_timers
+                    and itask.try_timers[
+                        TimerFlags.EXECUTION_RETRY].num > 0
+                )
+            )
         ):
             # Ignore messages if task has a retry lined up
             # (caused by polling overlapping with task failure)
@@ -808,7 +810,7 @@ class TaskEventsManager():
                 )
             return False
 
-        severity = cast(int, LOG_LEVELS.get(severity, INFO))
+        severity = cast('int', LOG_LEVELS.get(severity, INFO))
         # Demote log level to DEBUG if this is a message that duplicates what
         # gets logged by itask state change anyway (and not manual poll)
         if severity > DEBUG and flag != self.FLAG_POLLED and message in {
@@ -941,8 +943,8 @@ class TaskEventsManager():
     def _process_job_logs_retrieval(self, schd, ctx, id_keys):
         """Process retrieval of task job logs from remote user@host."""
         # get a host to run retrieval on
-        platform = get_platform(ctx.platform_name)
         try:
+            platform = get_platform(ctx.platform_name)
             host = get_host_from_platform(platform, bad_hosts=self.bad_hosts)
         except NoHostsError:
             # All of the platforms hosts have been found to be uncontactable.
@@ -961,6 +963,13 @@ class TaskEventsManager():
                 for id_key in id_keys:
                     self.unset_waiting_event_timer(id_key)
                 return
+        except PlatformLookupError:
+            log_platform_event(
+                'Unable to retrieve job logs.',
+                {'name': ctx.platform_name},
+                level='warning',
+            )
+            return
 
         # construct the retrieval command
         ssh_str = str(platform["ssh command"])
@@ -1547,24 +1556,23 @@ class TaskEventsManager():
         if itask.state(TASK_STATUS_RUNNING):
             timeref = itask.summary['started_time']
             timeout_key = 'execution timeout'
+            # Actual timeout after all polling.
             timeout = self._get_events_conf(itask, timeout_key)
-            delays = list(self._get_workflow_platforms_conf(
-                itask, 'execution polling intervals'))
-            if itask.summary[self.KEY_EXECUTE_TIME_LIMIT]:
-                time_limit = itask.summary[self.KEY_EXECUTE_TIME_LIMIT]
-                time_limit_delays = itask.platform.get(
+            execution_polling_intervals = list(
+                self._get_workflow_platforms_conf(
+                    itask, 'execution polling intervals'))
+            if itask.summary[TaskEventsManager.KEY_EXECUTE_TIME_LIMIT]:
+                time_limit = itask.summary[
+                    TaskEventsManager.KEY_EXECUTE_TIME_LIMIT]
+                time_limit_polling_intervals = itask.platform.get(
                     'execution time limit polling intervals')
-                if sum(delays) > time_limit:
-                    # Remove excessive polling before time limit
-                    while sum(delays) > time_limit:
-                        del delays[-1]
-                else:
-                    # Fill up the gap before time limit
-                    if delays:
-                        size = int((time_limit - sum(delays)) / delays[-1])
-                        delays.extend([delays[-1]] * size)
-                time_limit_delays[0] += time_limit - sum(delays)
-                delays += time_limit_delays
+                delays = self.process_execution_polling_intervals(
+                    execution_polling_intervals,
+                    time_limit,
+                    time_limit_polling_intervals
+                )
+            else:
+                delays = execution_polling_intervals
         else:  # if itask.state.status == TASK_STATUS_SUBMITTED:
             timeref = itask.summary['submitted_time']
             timeout_key = 'submission timeout'
@@ -1597,6 +1605,71 @@ class TaskEventsManager():
         LOG.info(f"[{itask}] {message}")
         # Set next poll time
         self.check_poll_time(itask)
+
+    @staticmethod
+    def process_execution_polling_intervals(
+        polling_intervals: List[float],
+        time_limit: float,
+        time_limit_polling_intervals: List[float]
+    ) -> List[float]:
+        """Create a list of polling times.
+
+        Args:
+            (execution) polling_intervals
+            (execution) time_limit
+            (execution) time_limit_polling_intervals
+
+        Examples:
+
+        >>> this = TaskEventsManager.process_execution_polling_intervals
+
+        # Basic example:
+        >>> this([40, 35], 100, [10])
+        [40, 35, 35, 10]
+
+        # Second 40 second delay gets lopped off the list because it's after
+        # the execution time limit:
+        >>> this([40, 40], 60, [10])
+        [40, 30, 10]
+
+        # Expand last item in exection polling intervals to fill the
+        # execution time limit:
+        >>> this([5, 20], 100, [10])
+        [5, 20, 20, 20, 20, 25, 10]
+
+        # There are no execution polling intervals set - polling starts
+        # at execution time limit:
+        >>> this([], 10, [5])
+        [15, 5]
+
+        # We have a list of execution time limit polling intervals,
+        >>> this([10], 25, [5, 6, 7, 8])
+        [10, 10, 10, 6, 7, 8]
+        """
+        delays = polling_intervals
+        if sum(delays) > time_limit:
+            # Remove execution polling which would overshoot the
+            # execution time limit:
+            while sum(delays) > time_limit:
+                del delays[-1]
+        elif delays:
+            # Repeat the last execution polling interval up to the execution
+            # time limit:
+            size = int((time_limit - sum(delays)) / delays[-1])
+            delays.extend([delays[-1]] * size)
+
+        # After the last delay before the execution time limit add the
+        # delay to get to the execution_time_limit
+        if len(time_limit_polling_intervals) == 1:
+            time_limit_polling_intervals.append(
+                time_limit_polling_intervals[0]
+            )
+        time_limit_polling_intervals[0] += time_limit - sum(delays)
+
+        # After the execution time limit poll at execution time limit polling
+        # intervals.
+        delays += time_limit_polling_intervals
+        return delays
 
     def add_event_timer(self, id_key, event_timer):
         """Add a new event timer.

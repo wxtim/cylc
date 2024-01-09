@@ -28,6 +28,8 @@ This script is equivalent to:
 
 """
 
+import sys
+
 from cylc.flow.scripts.validate import (
     VALIDATE_OPTIONS,
     _main as validate_main
@@ -35,7 +37,9 @@ from cylc.flow.scripts.validate import (
 from cylc.flow.scripts.install import (
     INSTALL_OPTIONS, install_cli as cylc_install, get_source_location
 )
+from cylc.flow import LOG
 from cylc.flow.scheduler_cli import PLAY_OPTIONS
+from cylc.flow.loggingutil import set_timestamps
 from cylc.flow.option_parsers import (
     CylcOptionParser as COP,
     combine_options,
@@ -79,6 +83,7 @@ def get_option_parser() -> COP:
         # no sense in a VIP context.
         if option.kwargs.get('dest') != 'against_source':
             parser.add_option(*option.args, **option.kwargs)
+
     return parser
 
 
@@ -87,10 +92,8 @@ def main(parser: COP, options: 'Values', workflow_id: Optional[str] = None):
     """Run Cylc validate - install - play in sequence."""
     if not workflow_id:
         workflow_id = '.'
-
     orig_source = workflow_id
     source = get_source_location(workflow_id)
-
     log_subcommand('validate', source)
     validate_main(parser, options, str(source))
 
@@ -109,5 +112,6 @@ def main(parser: COP, options: 'Values', workflow_id: Optional[str] = None):
         source=orig_source,
     )
 
-    log_subcommand('play', workflow_id)
+    set_timestamps(LOG, options.log_timestamp)
+    log_subcommand(*sys.argv[1:])
     _play(parser, options, workflow_id)

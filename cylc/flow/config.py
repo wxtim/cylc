@@ -60,30 +60,28 @@ from cylc.flow.cycling.iso8601 import ingest_time, ISO8601Interval
 
 from cylc.flow.exceptions import (
     CylcError,
-    WorkflowConfigError,
+    InputError,
     IntervalParsingError,
-    TaskDefError,
     ParamExpandError,
-    InputError
+    TaskDefError,
+    WorkflowConfigError,
 )
 import cylc.flow.flags
 from cylc.flow.graph_parser import GraphParser
 from cylc.flow.listify import listify
-from cylc.flow.option_parsers import verbosity_to_env
+from cylc.flow.log_level import verbosity_to_env
 from cylc.flow.graphnode import GraphNodeParser
 from cylc.flow.param_expand import NameExpander
 from cylc.flow.parsec.exceptions import ItemNotFoundError
 from cylc.flow.parsec.OrderedDict import OrderedDictWithDefaults
 from cylc.flow.parsec.util import replicate
 from cylc.flow.pathutil import (
-    get_workflow_run_dir,
-    get_workflow_run_scheduler_log_dir,
-    get_workflow_run_share_dir,
-    get_workflow_run_work_dir,
-    get_workflow_name_from_id
+    get_workflow_name_from_id,
+    get_cylc_run_dir,
+    is_relative_to,
 )
-from cylc.flow.platforms import FORBIDDEN_WITH_PLATFORM
 from cylc.flow.print_tree import print_tree
+from cylc.flow.simulation import configure_sim_modes
 from cylc.flow.subprocctx import SubFuncContext
 from cylc.flow.subprocpool import get_func
 from cylc.flow.task_events_mgr import (
@@ -100,6 +98,7 @@ from cylc.flow.taskdef import TaskDef
 from cylc.flow.unicode_rules import (
     TaskNameValidator,
     TaskOutputValidator,
+    TaskMessageValidator,
     XtriggerNameValidator,
 )
 from cylc.flow.wallclock import (
@@ -212,6 +211,8 @@ def dequote(string):
         'foo'
         >>> dequote('"f')
         '"f'
+        >>> dequote('f')
+        'f'
 
     """
     if len(string) < 2:
@@ -242,20 +243,27 @@ class WorkflowConfig:
         work_dir: Optional[str] = None,
         share_dir: Optional[str] = None
     ) -> None:
+        """
+        Initialize the workflow config object.
+
+        Args:
+            workflow: workflow ID
+            fpath: workflow config file path
+            options: CLI options
+        """
         check_deprecation(Path(fpath))
         self.mem_log = mem_log_func
         if self.mem_log is None:
             self.mem_log = lambda x: None
         self.mem_log("config.py:config.py: start init config")
-        self.workflow = workflow  # workflow id
+        self.workflow = workflow
         self.workflow_name = get_workflow_name_from_id(self.workflow)
-        self.fpath = str(fpath)  # workflow definition
-        self.fdir = os.path.dirname(fpath)
-        self.run_dir = run_dir or get_workflow_run_dir(self.workflow)
-        self.log_dir = (log_dir or
-                        get_workflow_run_scheduler_log_dir(self.workflow))
-        self.share_dir = share_dir or get_workflow_run_share_dir(self.workflow)
-        self.work_dir = work_dir or get_workflow_run_work_dir(self.workflow)
+        self.fpath: Path = Path(fpath)
+        self.fdir = str(self.fpath.parent)
+        self.run_dir = run_dir
+        self.log_dir = log_dir
+        self.share_dir = share_dir
+        self.work_dir = work_dir
         self.options = options
         self.implicit_tasks: Set[str] = set()
         self.edges: Dict[
@@ -356,13 +364,6 @@ class WorkflowConfig:
 
         except KeyError:
             parameter_templates = {}
-
-        # Check that parameter templates are a section
-        if not hasattr(parameter_templates, 'update'):
-            raise WorkflowConfigError(
-                '[task parameters][templates] is a section. Don\'t use it '
-                'as a parameter.'
-            )
 
         # parameter values and templates are normally needed together.
         self.parameters = (parameter_values, parameter_templates)
@@ -522,7 +523,8 @@ class WorkflowConfig:
         self.process_runahead_limit()
 
         if self.run_mode('simulation', 'dummy'):
-            self.configure_sim_modes()
+            configure_sim_modes(
+                self.taskdefs.values(), self.run_mode())
 
         self.configure_workflow_state_polling_tasks()
 
@@ -899,7 +901,7 @@ class WorkflowConfig:
             )
         # Allow implicit tasks in back-compat mode unless rose-suite.conf
         # present (to maintain compat with Rose 2019)
-        elif not Path(self.run_dir, 'rose-suite.conf').is_file():
+        elif not (self.fpath.parent / "rose-suite.conf").is_file():
             LOG.debug(msg)
             return
 
@@ -1341,68 +1343,6 @@ class WorkflowConfig:
             script = "echo " + comstr + "\n" + comstr
             rtc['script'] = script
 
-    def configure_sim_modes(self):
-        """Adjust task defs for simulation and dummy mode."""
-        for tdef in self.taskdefs.values():
-            # Compute simulated run time by scaling the execution limit.
-            rtc = tdef.rtconfig
-            limit = rtc['execution time limit']
-            speedup = rtc['simulation']['speedup factor']
-            if limit and speedup:
-                sleep_sec = (DurationParser().parse(
-                    str(limit)).get_seconds() / speedup)
-            else:
-                sleep_sec = DurationParser().parse(
-                    str(rtc['simulation']['default run length'])
-                ).get_seconds()
-            rtc['execution time limit'] = (
-                sleep_sec + DurationParser().parse(str(
-                    rtc['simulation']['time limit buffer'])).get_seconds()
-            )
-            rtc['job']['simulated run length'] = sleep_sec
-
-            # Generate dummy scripting.
-            rtc['init-script'] = ""
-            rtc['env-script'] = ""
-            rtc['pre-script'] = ""
-            rtc['post-script'] = ""
-            scr = "sleep %d" % sleep_sec
-            # Dummy message outputs.
-            for msg in rtc['outputs'].values():
-                scr += "\ncylc message '%s'" % msg
-            if rtc['simulation']['fail try 1 only']:
-                arg1 = "true"
-            else:
-                arg1 = "false"
-            arg2 = " ".join(rtc['simulation']['fail cycle points'])
-            scr += "\ncylc__job__dummy_result %s %s || exit 1" % (arg1, arg2)
-            rtc['script'] = scr
-
-            # Dummy mode jobs should run on platform localhost
-            # All Cylc 7 config items which conflict with platform are removed.
-            for section, keys in FORBIDDEN_WITH_PLATFORM.items():
-                if section in rtc:
-                    for key in keys:
-                        if key in rtc[section]:
-                            rtc[section][key] = None
-
-            rtc['platform'] = 'localhost'
-
-            # Disable environment, in case it depends on env-script.
-            rtc['environment'] = {}
-
-            # Simulation mode tasks should fail in which cycle points?
-            f_pts = []
-            f_pts_orig = rtc['simulation']['fail cycle points']
-            if 'all' in f_pts_orig:
-                # None for "fail all points".
-                f_pts = None
-            else:
-                # (And [] for "fail no points".)
-                for point_str in f_pts_orig:
-                    f_pts.append(get_point(point_str).standardise())
-            rtc['simulation']['fail cycle points'] = f_pts
-
     def get_parent_lists(self):
         return self.runtime['parents']
 
@@ -1500,18 +1440,40 @@ class WorkflowConfig:
         print_tree(tree, padding=padding, use_unicode=pretty)
 
     def process_workflow_env(self):
-        """Workflow context is exported to the local environment."""
+        """Export Workflow context to the local environment.
+
+        A source workflow has only a name.
+        Once installed it also has an ID and a run directory.
+        And at scheduler start-up it has work, share, and log sub-dirs too.
+        """
         for key, value in {
             **verbosity_to_env(cylc.flow.flags.verbosity),
-            'CYLC_WORKFLOW_ID': self.workflow,
             'CYLC_WORKFLOW_NAME': self.workflow_name,
             'CYLC_WORKFLOW_NAME_BASE': str(Path(self.workflow_name).name),
-            'CYLC_WORKFLOW_RUN_DIR': self.run_dir,
-            'CYLC_WORKFLOW_LOG_DIR': self.log_dir,
-            'CYLC_WORKFLOW_WORK_DIR': self.work_dir,
-            'CYLC_WORKFLOW_SHARE_DIR': self.share_dir,
         }.items():
             os.environ[key] = value
+
+        if is_relative_to(self.fdir, get_cylc_run_dir()):
+            # This is an installed workflow.
+            #  - self.run_dir is only defined by the scheduler
+            #  - but the run dir exists, created at installation
+            #  - run sub-dirs may exist, if this installation was run already
+            #    but if the scheduler is not running they shouldn't be used.
+            for key, value in {
+                'CYLC_WORKFLOW_ID': self.workflow,
+                'CYLC_WORKFLOW_RUN_DIR': str(self.fdir),
+            }.items():
+                os.environ[key] = value
+
+        if self.run_dir is not None:
+            # Run directory is only defined if the scheduler is running; in
+            # which case the following run sub-directories must exist.
+            for key, value in {
+                'CYLC_WORKFLOW_LOG_DIR': str(self.log_dir),
+                'CYLC_WORKFLOW_WORK_DIR': str(self.work_dir),
+                'CYLC_WORKFLOW_SHARE_DIR': str(self.share_dir),
+            }.items():
+                os.environ[key] = value
 
     def process_config_env(self):
         """Set local config derived environment."""
@@ -2256,10 +2218,17 @@ class WorkflowConfig:
                 for output, message in (
                     self.cfg['runtime'][name]['outputs'].items()
                 ):
-                    valid, msg = TaskOutputValidator.validate(message)
+                    valid, msg = TaskOutputValidator.validate(output)
                     if not valid:
                         raise WorkflowConfigError(
-                            f'Invalid message trigger "'
+                            f'Invalid task output "'
+                            f'[runtime][{name}][outputs]'
+                            f'{output} = {message}" - {msg}'
+                        )
+                    valid, msg = TaskMessageValidator.validate(message)
+                    if not valid:
+                        raise WorkflowConfigError(
+                            f'Invalid task message "'
                             f'[runtime][{name}][outputs]'
                             f'{output} = {message}" - {msg}'
                         )

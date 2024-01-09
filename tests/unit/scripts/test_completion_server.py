@@ -246,6 +246,12 @@ async def test_complete_cylc(dummy_workflow):
         'cylc', '62656566', '--77656C6C696E67746F6E='
     ) == set()
 
+    # $ cylc cat-log f<tab><tab>
+    assert await _complete_cylc('cylc', 'cat-log', 'f') == {'foo/run2//'}
+
+    # $ cylc log f<tab><tab>  # NOTE: "log" is an alias for "cat-log"
+    assert await _complete_cylc('cylc', 'log', 'f') == {'foo/run2//'}
+
     # $ cylc help <tab><tab>
     assert 'all' in await _complete_cylc('cylc', 'help', '')
 
@@ -392,18 +398,17 @@ def test_list_options(monkeypatch):
     assert list_options('zz9+za') == []
 
     # patch the logic to turn off the auto_add behaviour of CylcOptionParser
-    def _resolve():
-        def _parser_function():
-            parser = get_option_parser()
-            del parser.auto_add
-            return parser
-
-        return SimpleNamespace(parser_function=_parser_function)
-
-    monkeypatch.setattr(
-        COMMANDS['trigger'],
-        'resolve',
-        _resolve
+    class EntryPoint:
+        def load(self):
+            def _parser_function():
+                parser = get_option_parser()
+                del parser.auto_add
+                return parser
+            return SimpleNamespace(parser_function=_parser_function)
+    monkeypatch.setitem(
+        COMMANDS,
+        'trigger',
+        EntryPoint(),
     )
 
     # with auto_add turned off the --color option should be absent
@@ -668,7 +673,7 @@ def test_check_completion_script_compatibility(monkeypatch, capsys):
     # set the completion script compatibility range to >=1.0.0, <2.0.0
     monkeypatch.setattr(
         'cylc.flow.scripts.completion_server.REQUIRED_SCRIPT_VERSION',
-        'completion-script >=1.0.0, <2.0.0',
+        '>=1.0.0, <2.0.0',
     )
     monkeypatch.setattr(
         'cylc.flow.scripts.completion_server'

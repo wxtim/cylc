@@ -46,10 +46,8 @@ import select
 import sys
 import typing as t
 
-from pkg_resources import (
-    parse_requirements,
-    parse_version
-)
+from packaging.version import parse as parse_version
+from packaging.specifiers import SpecifierSet
 
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.id import tokenise, IDTokens, Tokens
@@ -60,7 +58,7 @@ from cylc.flow.resources import (
     list_resources as list_resources_,
     RESOURCE_DIR,
 )
-from cylc.flow.scripts.cylc import COMMANDS
+from cylc.flow.scripts.cylc import ALIASES, COMMANDS
 from cylc.flow.scripts.scan import FLOW_STATES, get_pipe, ScanOptions
 from cylc.flow.terminal import cli_function
 from cylc.flow.workflow_files import infer_latest_run_from_id
@@ -74,7 +72,7 @@ INTERNAL = True
 # set the compatibility range for completion scripts with this server
 # I.E. if we change the server interface, change this compatibility range.
 # User's will be presented with an upgrade notice if this happens.
-REQUIRED_SCRIPT_VERSION = 'completion-script >=1.0.0, <2.0.0'
+REQUIRED_SCRIPT_VERSION = '>=1.0.0, <2.0.0'
 
 # register the psudo "help" and "version" commands
 COMMAND_LIST = list(COMMANDS) + ['help', 'version']
@@ -181,7 +179,7 @@ async def complete_cylc(_root: str, *items: str) -> t.List[str]:
         return await complete_command()
     if length == 1:
         return await complete_command(partial)
-    command: str = items[0]
+    command: str = ALIASES.get(items[0], items[0])  # resolve command aliases
 
     # special logic for the pseudo "help" and "version" commands
     if command == 'help':
@@ -314,8 +312,10 @@ def list_options(command: str) -> t.List[str]:
 
     Note: This provides the long formats of options e.g. `--help` not `-h`.
     """
+    if command in COMMAND_OPTION_MAP:
+        return COMMAND_OPTION_MAP[command]
     try:
-        entry_point = COMMANDS[command].resolve()
+        entry_point = COMMANDS[command].load()
     except KeyError:
         return []
     parser = entry_point.parser_function()
@@ -478,12 +478,29 @@ async def list_colours(
 # non-exhaustive list of Cylc commands which take non-workflow arguments
 COMMAND_MAP: t.Dict[str, t.Optional[t.Callable]] = {
     # register commands which have special positional arguments
-    'install': list_src_workflows,
     'get-resources': list_resources,
+    'install': list_src_workflows,
+    'vip': list_src_workflows,
     # commands for which we should not attempt to complete arguments
-    'scan': None,
     'cycle-point': None,
+    'hub': None,
     'message': None,
+    'scan': None,
+}
+
+
+# commands we can't list options for in the standard way
+COMMAND_OPTION_MAP = {
+    'gui': [
+        '--debug',
+        '--help',
+        '--new',
+        '--no-browser',
+    ],
+    'hub': [
+        '--debug',
+        '--help',
+    ],
 }
 
 # non-exhaustive list of Cylc CLI options
@@ -618,15 +635,13 @@ def check_completion_script_compatibility(
 
     # check that the installed completion script is compabile with this
     # completion server version
-    for requirement in parse_requirements(REQUIRED_SCRIPT_VERSION):
-        # NOTE: there's only one requirement but we have to iterate to get it
-        if installed_version not in requirement:
-            is_compatible = False
-            print(
-                f'The Cylc {completion_lang} script needs to be updated to'
-                ' work with this version of Cylc.',
-                file=sys.stderr,
-            )
+    if installed_version not in SpecifierSet(REQUIRED_SCRIPT_VERSION):
+        is_compatible = False
+        print(
+            f'The Cylc {completion_lang} script needs to be updated to'
+            ' work with this version of Cylc.',
+            file=sys.stderr,
+        )
 
     # check for completion script updates
     if installed_version < current_version:

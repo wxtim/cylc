@@ -58,7 +58,6 @@ def job_config(schd):
         'directives': {},
         'environment': {},
         'param_var': {},
-        'logfiles': [],
         'platform': {'name': 'platform'},
     }
 
@@ -100,8 +99,8 @@ async def harness(mod_flow, mod_scheduler, mod_start):
             }
         }
     }
-    reg: str = mod_flow(flow_def)
-    schd: 'Scheduler' = mod_scheduler(reg)
+    id_: str = mod_flow(flow_def)
+    schd: 'Scheduler' = mod_scheduler(id_)
     async with mod_start(schd):
         await schd.update_data_structure()
         data = schd.data_store_mgr.data[schd.data_store_mgr.workflow_id]
@@ -298,7 +297,10 @@ def test_delta_task_prerequisite(harness):
         for t in schd.data_store_mgr.updated[TASK_PROXIES].values()
         for p in t.prerequisites})
     for itask in schd.pool.get_all_tasks():
-        itask.state.set_prerequisites_not_satisfied()
+        # set prereqs as not-satisfied
+        for prereq in itask.state.prerequisites:
+            prereq._all_satisfied = False
+            prereq.satisfied = {key: False for key in prereq.satisfied}
         schd.data_store_mgr.delta_task_prerequisite(itask)
     assert not any({
         p.satisfied

@@ -23,7 +23,8 @@ from typing import (
     Dict,
     List,
     Tuple,
-    Optional
+    Optional,
+    Union
 )
 
 import cylc.flow.flags
@@ -38,6 +39,20 @@ from cylc.flow.task_outputs import (
     TASK_OUTPUT_FINISHED,
     TASK_OUTPUT_SUBMITTED,
     TASK_OUTPUT_SUBMIT_FAILED
+)
+from cylc.flow.task_qualifiers import (
+    QUAL_FAM_SUCCEED_ALL,
+    QUAL_FAM_SUCCEED_ANY,
+    QUAL_FAM_FAIL_ALL,
+    QUAL_FAM_FAIL_ANY,
+    QUAL_FAM_FINISH_ALL,
+    QUAL_FAM_FINISH_ANY,
+    QUAL_FAM_START_ALL,
+    QUAL_FAM_START_ANY,
+    QUAL_FAM_SUBMIT_ALL,
+    QUAL_FAM_SUBMIT_ANY,
+    QUAL_FAM_SUBMIT_FAIL_ALL,
+    QUAL_FAM_SUBMIT_FAIL_ANY,
 )
 
 
@@ -71,10 +86,10 @@ class GraphParser:
     store dependencies for the whole workflow (call parse_graph multiple times
     and key results by graph section).
 
-    The general form of a dependency is "EXPRESSION => NODE", where:
-        * On the right, NODE is a task or family name
+    The general form of a dependency is "LHS => RHS", where:
         * On the left, an EXPRESSION of nodes involving parentheses, and
           logical operators '&' (AND), and '|' (OR).
+        * On the right, an EXPRESSION of nodes NOT involving '|'
         * Node names may be parameterized (any number of parameters):
             NODE<i,j,k>
             NODE<i=0,j,k>  # specific parameter value
@@ -101,19 +116,6 @@ class GraphParser:
     XTRIG = '@'
     CONTINUATION_STRS = (ARROW, OP_AND, OP_OR)
     BAD_STRS = (OP_AND_ERR, OP_OR_ERR)
-
-    QUAL_FAM_SUCCEED_ALL = "succeed-all"
-    QUAL_FAM_SUCCEED_ANY = "succeed-any"
-    QUAL_FAM_FAIL_ALL = "fail-all"
-    QUAL_FAM_FAIL_ANY = "fail-any"
-    QUAL_FAM_FINISH_ALL = "finish-all"
-    QUAL_FAM_FINISH_ANY = "finish-any"
-    QUAL_FAM_START_ALL = "start-all"
-    QUAL_FAM_START_ANY = "start-any"
-    QUAL_FAM_SUBMIT_ALL = "submit-all"
-    QUAL_FAM_SUBMIT_ANY = "submit-any"
-    QUAL_FAM_SUBMIT_FAIL_ALL = "submit-fail-all"
-    QUAL_FAM_SUBMIT_FAIL_ANY = "submit-fail-any"
 
     # Map family trigger type to (member-trigger, any/all), for use in
     # expanding family trigger expressions to member trigger expressions.
@@ -516,15 +518,17 @@ class GraphParser:
                 "Suicide markers must be"
                 f" on the right of a trigger: {left}")
 
+        # Check that parentheses match.
+        mismatch_msg = 'Mismatched parentheses in: "{}"'
+        if left and left.count("(") != left.count(")"):
+            raise GraphParseError(mismatch_msg.format(left))
+        if right.count("(") != right.count(")"):
+            raise GraphParseError(mismatch_msg.format(right))
+
         # Ignore cycle point offsets on the right side.
         # (Note we can't ban this; all nodes get process as left and right.)
         if '[' in right:
             return
-
-        # Check that parentheses match.
-        if left and left.count("(") != left.count(")"):
-            raise GraphParseError(
-                "Mismatched parentheses in: \"" + left + "\"")
 
         # Split right side on AND.
         rights = right.split(self.__class__.OP_AND)
@@ -532,16 +536,15 @@ class GraphParser:
             raise GraphParseError(
                 f"Null task name in graph: {left} => {right}")
 
+        lefts: Union[List[str], List[Optional[str]]]
         if not left or (self.__class__.OP_OR in left or '(' in left):
-            # Treat conditional or bracketed expressions as a single entity.
+            # Treat conditional or parenthesised expressions as a single entity
             # Can get [None] or [""] here
-            lefts: List[Optional[str]] = [left]
+            lefts = [left]
         else:
             # Split non-conditional left-side expressions on AND.
             # Can get [""] here too
-            # TODO figure out how to handle this wih mypy:
-            #   assign List[str] to List[Optional[str]]
-            lefts = left.split(self.__class__.OP_AND)  # type: ignore
+            lefts = left.split(self.__class__.OP_AND)
         if '' in lefts or left and not all(lefts):
             raise GraphParseError(
                 f"Null task name in graph: {left} => {right}")
@@ -846,9 +849,14 @@ class GraphParser:
                 trigs += [f"{name}{offset}:{trigger}"]
 
         for right in rights:
+            right = right.strip('()')  # parentheses don't matter
             m = self.__class__.REC_RHS_NODE.match(right)
-            # This will match, bad nodes are detected earlier (type ignore):
-            suicide_char, name, output, opt_char = m.groups()  # type: ignore
+            if not m:
+                # Bad nodes should have been detected earlier; fail loudly
+                raise ValueError(  # pragma: no cover
+                    f"Unexpected graph expression: '{right}'"
+                )
+            suicide_char, name, output, opt_char = m.groups()
             suicide = (suicide_char == self.__class__.SUICIDE)
             optional = (opt_char == self.__class__.OPTIONAL)
             if output:
@@ -860,7 +868,7 @@ class GraphParser:
                 if not output:
                     # (Plain family name on RHS).
                     # Make implicit success explicit.
-                    output = self.__class__.QUAL_FAM_SUCCEED_ALL
+                    output = QUAL_FAM_SUCCEED_ALL
                 elif output.startswith("finish"):
                     if optional:
                         raise GraphParseError(

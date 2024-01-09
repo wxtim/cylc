@@ -26,7 +26,6 @@ from typing import (
 from metomi.isodatetime.timezone import get_local_time_zone
 
 from cylc.flow import LOG
-from cylc.flow.id import Tokens
 from cylc.flow.platforms import get_platform
 from cylc.flow.task_action_timer import TimerFlags
 from cylc.flow.task_state import TaskState, TASK_STATUS_WAITING
@@ -39,6 +38,7 @@ from cylc.flow.cycling.iso8601 import (
 )
 
 if TYPE_CHECKING:
+    from cylc.flow.id import Tokens
     from cylc.flow.cycling import PointBase
     from cylc.flow.task_action_timer import TaskActionTimer
     from cylc.flow.taskdef import TaskDef
@@ -48,9 +48,9 @@ class TaskProxy:
     """Represent an instance of a cycling task in a running workflow.
 
     Attributes:
-        .clock_trigger_time:
-            Clock trigger time in seconds since epoch.
-            (Used for wall_clock xtrigger).
+        .clock_trigger_times:
+            Memoization of clock trigger times (Used for wall_clock xtrigger):
+            {offset string: seconds from epoch}
         .expire_time:
             Time in seconds since epoch when this task is considered expired.
         .identity:
@@ -100,8 +100,6 @@ class TaskProxy:
                 Jobs' platform by submit number.
             label (str):
                 The .point attribute as string.
-            logfiles (list):
-                List of names of (extra) known job log files.
             name (str):
                 Same as the .tdef.name attribute.
             started_time (float):
@@ -154,7 +152,7 @@ class TaskProxy:
 
     # Memory optimization - constrain possible attributes to this list.
     __slots__ = [
-        'clock_trigger_time',
+        'clock_trigger_times',
         'expire_time',
         'identity',
         'is_late',
@@ -225,7 +223,6 @@ class TaskProxy:
             'started_time_string': None,
             'finished_time': None,
             'finished_time_string': None,
-            'logfiles': [],
             'platforms_used': {},
             'execution_time_limit': None,
             'job_runner_name': None,
@@ -247,7 +244,7 @@ class TaskProxy:
         self.try_timers: Dict[str, 'TaskActionTimer'] = {}
         self.non_unique_events = Counter()  # type: ignore # TODO: figure out
 
-        self.clock_trigger_time: Optional[float] = None
+        self.clock_trigger_times: Dict[str, int] = {}
         self.expire_time: Optional[float] = None
         self.late_time: Optional[float] = None
         self.is_late = is_late
@@ -256,7 +253,10 @@ class TaskProxy:
         self.state = TaskState(tdef, self.point, status, is_held)
 
         # Determine graph children of this task (for spawning).
-        self.graph_children = generate_graph_children(tdef, self.point)
+        if data_mode:
+            self.graph_children = {}
+        else:
+            self.graph_children = generate_graph_children(tdef, self.point)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} '{self.tokens}'>"
@@ -270,7 +270,7 @@ class TaskProxy:
             f" flows:{','.join(str(i) for i in self.flow_nums) or 'none'}"
         )
 
-    def copy_to_reload_successor(self, reload_successor):
+    def copy_to_reload_successor(self, reload_successor, check_output):
         """Copy attributes to successor on reload of this task proxy."""
         self.reload_successor = reload_successor
         reload_successor.submit_num = self.submit_num
@@ -287,7 +287,34 @@ class TaskProxy:
         reload_successor.state.is_held = self.state.is_held
         reload_successor.state.is_runahead = self.state.is_runahead
         reload_successor.state.is_updated = self.state.is_updated
-        reload_successor.state.prerequisites = self.state.prerequisites
+
+        # Prerequisites: the graph might have changed before reload, so
+        # we need to use the new prerequisites but update them with the
+        # pre-reload state of prerequisites that still exist post-reload.
+
+        # Get all prereq states, e.g. {('1', 'c', 'succeeded'): False, ...}
+        pre_reload = {
+            k: v
+            for pre in self.state.prerequisites
+            for (k, v) in pre.satisfied.items()
+        }
+        # Use them to update the new prerequisites.
+        # - unchanged prerequisites will keep their pre-reload state.
+        # - removed prerequisites will not be carried over
+        # - added prerequisites will be recorded as unsatisfied
+        #   NOTE: even if the corresponding output was completed pre-reload!
+        for pre in reload_successor.state.prerequisites:
+            for k in pre.satisfied.keys():
+                try:
+                    pre.satisfied[k] = pre_reload[k]
+                except KeyError:
+                    # Look through task outputs to see if is has been
+                    # satisfied
+                    pre.satisfied[k] = check_output(
+                        *k,
+                        self.flow_nums,
+                    )
+
         reload_successor.state.xtriggers.update({
             # copy across any special "_cylc" xtriggers which were added
             # dynamically at runtime (i.e. execution retry xtriggers)
@@ -328,25 +355,31 @@ class TaskProxy:
                 self.point_as_seconds += utc_offset_in_seconds
         return self.point_as_seconds
 
-    def get_clock_trigger_time(self, offset_str):
-        """Compute, cache, and return trigger time relative to cycle point.
+    def get_clock_trigger_time(
+        self,
+        point: 'PointBase', offset_str: Optional[str] = None
+    ) -> int:
+        """Compute, cache and return trigger time relative to cycle point.
 
         Args:
-            offset_str: ISO8601Interval string, e.g. "PT2M".
-                        Can be None for zero offset.
+            point: Task's cycle point.
+            offset_str: ISO8601 interval string, e.g. "PT2M".
+                Can be None for zero offset.
         Returns:
             Absolute trigger time in seconds since Unix epoch.
 
         """
-        if self.clock_trigger_time is None:
-            if offset_str is None:
-                trigger_time = self.point
+        offset_str = offset_str if offset_str else 'P0Y'
+        if offset_str not in self.clock_trigger_times:
+            if offset_str == 'P0Y':
+                trigger_time = point
             else:
-                trigger_time = self.point + ISO8601Interval(offset_str)
-            self.clock_trigger_time = int(
-                point_parse(str(trigger_time)).seconds_since_unix_epoch
-            )
-        return self.clock_trigger_time
+                trigger_time = point + ISO8601Interval(offset_str)
+
+            offset = int(
+                point_parse(str(trigger_time)).seconds_since_unix_epoch)
+            self.clock_trigger_times[offset_str] = offset
+        return self.clock_trigger_times[offset_str]
 
     def get_try_num(self):
         """Return the number of automatic tries (try number)."""

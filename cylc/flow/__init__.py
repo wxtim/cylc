@@ -35,6 +35,13 @@ LOG_LEVELS = {
 }
 
 
+class LoggerAdaptor(logging.LoggerAdapter):
+    """Adds a prefix to log messages."""
+    def process(self, msg, kwargs):
+        ret = f"[{self.extra['prefix']}] {msg}" if self.extra else msg
+        return ret, kwargs
+
+
 def environ_init():
     """Initialise cylc environment."""
     # Python output buffering delays appearance of stdout and stderr
@@ -46,16 +53,24 @@ def environ_init():
 
 environ_init()
 
-__version__ = '8.2.0.dev'
+__version__ = '8.3.0.dev'
 
 
 def iter_entry_points(entry_point_name):
     """Iterate over Cylc entry points."""
-    import pkg_resources
+    import sys
+    if sys.version_info[:2] > (3, 11):
+        from importlib.metadata import entry_points
+    else:
+        # BACK COMPAT: importlib_metadata
+        #   importlib.metadata was added in Python 3.8. The required interfaces
+        #   were completed by 3.12. For lower versions we must use the
+        #   importlib_metadata backport.
+        # FROM: Python 3.7
+        # TO: Python: 3.12
+        from importlib_metadata import entry_points
     yield from (
         entry_point
-        for entry_point in pkg_resources.iter_entry_points(entry_point_name)
-        # Filter out the cylc namespace as it should be empty.
-        # All cylc packages should take the form cylc-<name>
-        if entry_point.dist.key != 'cylc'
+        # for entry_point in entry_points()[entry_point_name]
+        for entry_point in entry_points().select(group=entry_point_name)
     )

@@ -28,15 +28,17 @@ from time import time
 from subprocess import DEVNULL, run  # nosec
 from typing import Any, Callable, List, Optional
 
-from cylc.flow import LOG
+from cylc.flow import LOG, iter_entry_points
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.cylc_subproc import procopen
+from cylc.flow.exceptions import PlatformLookupError
 from cylc.flow.hostuserutil import is_remote_host
 from cylc.flow.platforms import (
     log_platform_event,
     get_platform,
 )
 from cylc.flow.task_events_mgr import TaskJobLogsRetrieveContext
+from cylc.flow.task_proxy import TaskProxy
 from cylc.flow.wallclock import get_current_time_string
 
 _XTRIG_FUNCS: dict = {}
@@ -69,6 +71,12 @@ def get_func(mod_name, func_name, src_dir):
 
     Can be in <src_dir>/lib/python, cylc.flow.xtriggers, or in Python path.
 
+    These locations are checked in this order:
+    - <src_dir>/lib/python/
+    - `$CYLC_PYTHONPATH`
+    - defined via a `cylc.xtriggers` entry point for an
+      installed Python package.
+
     Workflow source directory passed in as this is executed in an independent
     process in the command pool and therefore doesn't know about the workflow.
 
@@ -81,18 +89,28 @@ def get_func(mod_name, func_name, src_dir):
         # Found and cached already.
         return _XTRIG_FUNCS[func_name]
 
-    # 1. look in <src-dir>/lib/python.
+    # First look in <src-dir>/lib/python.
     sys.path.insert(0, os.path.join(src_dir, 'lib', 'python'))
     try:
         mod_by_name = __import__(mod_name, fromlist=[mod_name])
     except ImportError:
-        # 2. look in built-in xtriggers.
-        mod_name = f"cylc.flow.xtriggers.{mod_name}"
-        mod_by_name = __import__(mod_name, fromlist=[mod_name])
+        # Look for xtriggers via entry_points for external sources.
+        # Do this after the lib/python and PYTHONPATH approaches to allow
+        # users to override entry_point definitions with local/custom
+        # implementations.
+        for entry_point in iter_entry_points('cylc.xtriggers'):
+            if func_name == entry_point.name:
+                _XTRIG_FUNCS[func_name] = entry_point.load()
+                return _XTRIG_FUNCS[func_name]
 
-    # Module found and imported, return the named function.
+        # Still unable to find anything so abort
+        raise
 
-    _XTRIG_FUNCS[func_name] = getattr(mod_by_name, func_name)
+    try:
+        _XTRIG_FUNCS[func_name] = getattr(mod_by_name, func_name)
+    except AttributeError:
+        # Module func_name has no function func_name, nor an entry_point entry.
+        raise
     return _XTRIG_FUNCS[func_name]
 
 
@@ -471,7 +489,7 @@ class SubProcPool:
         Args:
             ctx: SubProcContext object for this task.
             callback: Function to run on command exit.
-            callback_args: Arguments to proivide to callback
+            callback_args: Arguments to provide to callback
             callback_255: Function to run if command exits with a 255
                 error - usually associated with ssh being unable to
                 contact a remote host.
@@ -489,9 +507,17 @@ class SubProcPool:
 
         # If cmd is fileinstall, which uses rsync, get a platform so
         # that you can use that platform's ssh command.
+        platform_name = None
         platform = None
         if isinstance(ctx.cmd_key, TaskJobLogsRetrieveContext):
-            platform = get_platform(ctx.cmd_key.platform_name)
+            try:
+                platform = get_platform(ctx.cmd_key.platform_name)
+            except PlatformLookupError:
+                log_platform_event(
+                    'Unable to retrieve job logs.',
+                    {'name': ctx.cmd_key.platform_name},
+                    level='warning',
+                )
         elif callback_args:
             platform = callback_args[0]
             if not (
@@ -501,6 +527,15 @@ class SubProcPool:
             ):
                 # the first argument is not a platform
                 platform = None
+                # Backup, get a platform name from the config:
+                for arg in callback_args:
+                    if isinstance(arg, TaskProxy):
+                        platform_name = arg.tdef.rtconfig['platform']
+                    elif (
+                        isinstance(arg, list)
+                        and isinstance(arg[0], TaskProxy)
+                    ):
+                        platform_name = arg[0].tdef.rtconfig['platform']
 
         if cls.ssh_255_fail(ctx) or cls.rsync_255_fail(ctx, platform) is True:
             # Job log retrieval passes a special object as a command key
@@ -517,7 +552,7 @@ class SubProcPool:
                     ' unreachable hosts'
                     f'\n* {cmd_key} will retry if another host is available.'
                 ),
-                platform or {'name': None},
+                platform or {'name': platform_name},
                 level='warning',
             )
 

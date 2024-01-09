@@ -21,20 +21,19 @@
 Kill running or submitted jobs.
 
 Examples:
-  # kill a specific task in my_flow
-  $ cylc kill my_flow//1/a
+  # kill a specific task in my_workflow
+  $ cylc kill my_workflow//1/a
 
-  # kill multiple tasks in my_flow
+  # kill multiple tasks in my_workflow
   $ cylc kill myflow// //1/a //1/b //1/c
 
-  # kill all active tasks in the my_flow
-  $ cylc kill 'my_flow//*'
+  # kill all active tasks in the my_workflow
+  $ cylc kill 'my_workflow//*'
 """
 
 from functools import partial
 from typing import TYPE_CHECKING
 
-from cylc.flow.id import Tokens
 from cylc.flow.network.client_factory import get_client
 from cylc.flow.network.multi import call_multi
 from cylc.flow.option_parsers import (
@@ -45,6 +44,7 @@ from cylc.flow.terminal import cli_function
 
 if TYPE_CHECKING:
     from optparse import Values
+    from cylc.flow.id import Tokens
 
 
 MUTATION = '''
@@ -62,7 +62,7 @@ mutation (
 '''
 
 
-def get_option_parser() -> COP:
+def get_option_parser() -> 'COP':
     parser = COP(
         __doc__,
         comms=True,
@@ -74,7 +74,7 @@ def get_option_parser() -> COP:
     return parser
 
 
-async def run(options: 'Values', workflow_id: str, *tokens_list: Tokens):
+async def run(options: 'Values', workflow_id: str, *tokens_list: 'Tokens'):
     pclient = get_client(workflow_id, timeout=options.comms_timeout)
 
     mutation_kwargs = {
@@ -92,7 +92,7 @@ async def run(options: 'Values', workflow_id: str, *tokens_list: Tokens):
 
 
 @cli_function(get_option_parser)
-def main(parser: COP, options: 'Values', *ids: str):
+def main(parser: 'COP', options: 'Values', *ids: str):
     """CLI of "cylc kill"."""
     call_multi(
         partial(run, options),

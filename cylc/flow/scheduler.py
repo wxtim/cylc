@@ -18,9 +18,8 @@
 import asyncio
 from contextlib import suppress
 from collections import deque
-from dataclasses import dataclass
-from optparse import Values
 import os
+import inspect
 from pathlib import Path
 from queue import Empty, Queue
 from shlex import quote
@@ -32,13 +31,14 @@ from time import sleep, time
 import traceback
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
+    Dict,
     Iterable,
+    List,
     NoReturn,
     Optional,
-    List,
     Set,
-    Dict,
     Tuple,
     Union,
 )
@@ -83,16 +83,15 @@ from cylc.flow.loggingutil import (
     patch_log_level
 )
 from cylc.flow.timer import Timer
-from cylc.flow.network import API
-from cylc.flow.network.authentication import key_housekeeping
-from cylc.flow.network.resolvers import TaskMsg
-from cylc.flow.network.schema import WorkflowStopMode
-from cylc.flow.network.server import WorkflowRuntimeServer
-from cylc.flow.option_parsers import (
+from cylc.flow.log_level import (
     log_level_to_verbosity,
     verbosity_to_env,
     verbosity_to_opts,
 )
+from cylc.flow.network import API
+from cylc.flow.network.authentication import key_housekeeping
+from cylc.flow.network.schema import WorkflowStopMode
+from cylc.flow.network.server import WorkflowRuntimeServer
 from cylc.flow.parsec.exceptions import ParsecError
 from cylc.flow.parsec.OrderedDict import DictTree
 from cylc.flow.parsec.validate import DurationFloat
@@ -114,6 +113,7 @@ from cylc.flow.platforms import (
 )
 from cylc.flow.profiler import Profiler
 from cylc.flow.resources import get_resources
+from cylc.flow.simulation import sim_time_check
 from cylc.flow.subprocpool import SubProcPool
 from cylc.flow.templatevars import eval_var
 from cylc.flow.workflow_db_mgr import WorkflowDatabaseManager
@@ -141,7 +141,7 @@ from cylc.flow.task_state import (
     TASK_STATUS_RUNNING,
     TASK_STATUS_WAITING,
     TASK_STATUS_FAILED)
-from cylc.flow.templatevars import load_template_vars
+from cylc.flow.templatevars import get_template_vars
 from cylc.flow.util import cli_format
 from cylc.flow.wallclock import (
     get_current_time_string,
@@ -150,7 +150,12 @@ from cylc.flow.wallclock import (
 from cylc.flow.xtrigger_mgr import XtriggerManager
 
 if TYPE_CHECKING:
-    from cylc.flow.task_proxy import TaskProxy
+    # BACK COMPAT: typing_extensions.Literal
+    # FROM: Python 3.7
+    # TO: Python 3.8
+    from typing_extensions import Literal
+    from optparse import Values
+    from cylc.flow.network.resolvers import TaskMsg
 
 
 class SchedulerStop(CylcError):
@@ -161,7 +166,6 @@ class SchedulerError(CylcError):
     """Scheduler expected error stop."""
 
 
-@dataclass
 class Scheduler:
     """Cylc scheduler server."""
 
@@ -169,9 +173,10 @@ class Scheduler:
     EVENT_SHUTDOWN = WorkflowEventHandler.EVENT_SHUTDOWN
     EVENT_ABORTED = WorkflowEventHandler.EVENT_ABORTED
     EVENT_WORKFLOW_TIMEOUT = WorkflowEventHandler.EVENT_WORKFLOW_TIMEOUT
-    EVENT_STALL_TIMEOUT = WorkflowEventHandler.EVENT_STALL_TIMEOUT
-    EVENT_INACTIVITY_TIMEOUT = WorkflowEventHandler.EVENT_INACTIVITY_TIMEOUT
     EVENT_STALL = WorkflowEventHandler.EVENT_STALL
+    EVENT_STALL_TIMEOUT = WorkflowEventHandler.EVENT_STALL_TIMEOUT
+    EVENT_RESTART_TIMEOUT = WorkflowEventHandler.EVENT_RESTART_TIMEOUT
+    EVENT_INACTIVITY_TIMEOUT = WorkflowEventHandler.EVENT_INACTIVITY_TIMEOUT
 
     # Intervals in seconds
     INTERVAL_MAIN_LOOP = 1.0
@@ -196,6 +201,7 @@ class Scheduler:
     id: str  # noqa: A003 (instance attr not local)
     uuid_str: str
     is_restart: bool
+    bad_hosts: Set[str]
 
     # directories
     workflow_log_dir: str
@@ -223,8 +229,9 @@ class Scheduler:
 
     # configuration
     config: WorkflowConfig  # flow config
-    options: Values
+    options: 'Values'
     cylc_config: DictTree  # [scheduler] config
+    template_vars: Dict[str, Any]
 
     # tcp / zmq
     server: WorkflowRuntimeServer
@@ -233,24 +240,22 @@ class Scheduler:
 
     # flow information
     contact_data: Optional[dict] = None
-    bad_hosts: Optional[Set[str]] = None
 
     # configuration
     flow_file: Optional[str] = None
     flow_file_update_time: Optional[float] = None
 
-    # run options
-    template_vars: Optional[dict] = None
-
     # workflow params
     stop_mode: Optional[StopMode] = None
     stop_task: Optional[str] = None
     stop_clock_time: Optional[int] = None
+    reload_pending: 'Union[Literal[False], str]' = False
 
     # task event loop
     is_paused = False
     is_updated = False
     is_stalled = False
+    is_restart_timeout_wait = False
     is_reloaded = False
 
     # main loop
@@ -267,9 +272,9 @@ class Scheduler:
 
     time_next_kill: Optional[float] = None
 
-    def __init__(self, reg: str, options: Values) -> None:
+    def __init__(self, id_: str, options: 'Values') -> None:
         # flow information
-        self.workflow = reg
+        self.workflow = id_
         self.workflow_name = get_workflow_name_from_id(self.workflow)
         self.owner = get_user()
         self.host = get_host()
@@ -278,19 +283,15 @@ class Scheduler:
             workflow=self.workflow,
         )
         self.id = self.tokens.id
-        self.uuid_str = str(uuid4())
         self.options = options
-        self.template_vars = load_template_vars(
-            self.options.templatevars,
-            self.options.templatevars_file
-        )
+        self.template_vars = get_template_vars(self.options)
 
         # mutable defaults
         self._profile_amounts = {}
         self._profile_update_times = {}
         self.bad_hosts: Set[str] = set()
 
-        self.restored_stop_task_id = None
+        self.restored_stop_task_id: Optional[str] = None
 
         self.timers: Dict[str, Timer] = {}
 
@@ -306,6 +307,7 @@ class Scheduler:
             pub_d=os.path.join(self.workflow_run_dir, 'log')
         )
         self.is_restart = Path(self.workflow_db_mgr.pri_path).is_file()
+
         # Map used to track incomplete remote inits for restart
         # {install_target: platform}
         self.incomplete_ri_map: Dict[str, Dict] = {}
@@ -393,7 +395,6 @@ class Scheduler:
             self.bad_hosts,
             self.reset_inactivity_timer
         )
-        self.task_events_mgr.uuid_str = self.uuid_str
 
         self.task_job_mgr = TaskJobManager(
             self.workflow,
@@ -403,11 +404,10 @@ class Scheduler:
             self.data_store_mgr,
             self.bad_hosts
         )
-        self.task_job_mgr.task_remote_mgr.uuid_str = self.uuid_str
 
         self.profiler = Profiler(self, self.options.profile_mode)
 
-    async def configure(self):
+    async def configure(self, params):
         """Configure the scheduler.
 
         * Load the flow configuration.
@@ -425,15 +425,28 @@ class Scheduler:
         self._check_startup_opts()
 
         if self.is_restart:
-            self.load_workflow_params_and_tmpl_vars()
+            self._set_workflow_params(params)
 
         self.profiler.log_memory("scheduler.py: before load_flow_file")
         try:
-            self.load_flow_file()
+            cfg = self.load_flow_file()
+            self.apply_new_config(cfg, is_reload=False)
         except ParsecError as exc:
             # Mark this exc as expected (see docstring for .schd_expected):
             exc.schd_expected = True
             raise exc
+
+        # Prevent changing mode on restart.
+        if self.is_restart:
+            # check run mode against db
+            og_run_mode = self.workflow_db_mgr.get_pri_dao(
+            ).select_workflow_params_run_mode() or 'live'
+            run_mode = self.config.run_mode()
+            if run_mode != og_run_mode:
+                raise InputError(
+                    f'This workflow was originally run in {og_run_mode} mode:'
+                    f' Will not restart in {run_mode} mode.')
+
         self.profiler.log_memory("scheduler.py: after load_flow_file")
 
         self.workflow_db_mgr.on_workflow_start(self.is_restart)
@@ -499,7 +512,8 @@ class Scheduler:
         for event, start_now, log_reset_func in [
             (self.EVENT_INACTIVITY_TIMEOUT, True, LOG.debug),
             (self.EVENT_WORKFLOW_TIMEOUT, True, None),
-            (self.EVENT_STALL_TIMEOUT, False, None)
+            (self.EVENT_STALL_TIMEOUT, False, None),
+            (self.EVENT_RESTART_TIMEOUT, False, None)
         ]:
             interval = self._get_events_conf(event)
             if interval is not None:
@@ -507,6 +521,17 @@ class Scheduler:
                 if start_now:
                     timer.reset()
                 self.timers[event] = timer
+
+        if self.is_restart and not self.pool.get_all_tasks():
+            # This workflow completed before restart; wait for intervention.
+            with suppress(KeyError):
+                self.timers[self.EVENT_RESTART_TIMEOUT].reset()
+                self.is_restart_timeout_wait = True
+                LOG.warning(
+                    "This workflow already ran to completion."
+                    "\nTo make it continue, trigger new tasks"
+                    " before the restart timeout."
+                )
 
         # Main loop plugins
         self.main_loop_plugins = main_loop.load(
@@ -523,8 +548,7 @@ class Scheduler:
             self.command_set_hold_point(holdcp)
 
         if self.options.paused_start:
-            LOG.info("Paused on start up")
-            self.pause_workflow()
+            self.pause_workflow('Paused on start up')
 
         self.profiler.log_memory("scheduler.py: begin run while loop")
         self.is_updated = True
@@ -535,15 +559,6 @@ class Scheduler:
         self.process_workflow_db_queue()
 
         self.profiler.log_memory("scheduler.py: end configure")
-
-    def load_workflow_params_and_tmpl_vars(self) -> None:
-        """Load workflow params and template variables"""
-        with self.workflow_db_mgr.get_pri_dao() as pri_dao:
-            # This logic handles lack of initial cycle point in flow.cylc and
-            # things that can't change on workflow restart/reload.
-            pri_dao.select_workflow_params(self._load_workflow_params)
-            pri_dao.select_workflow_template_vars(self._load_template_vars)
-            pri_dao.execute_queued_items()
 
     def log_start(self) -> None:
         """Log headers, that also get logged on each rollover.
@@ -617,8 +632,10 @@ class Scheduler:
                 self.task_job_mgr.task_remote_mgr.is_restart = True
                 self.task_job_mgr.task_remote_mgr.rsync_includes = (
                     self.config.get_validated_rsync_includes())
-                self.restart_remote_init()
-                self.command_poll_tasks(['*/*'])
+                if self.pool.get_all_tasks():
+                    # (If we're not restarting a finished workflow)
+                    self.restart_remote_init()
+                    self.command_poll_tasks(['*/*'])
 
             self.run_event_handlers(self.EVENT_STARTUP, 'workflow starting')
             await asyncio.gather(
@@ -658,7 +675,12 @@ class Scheduler:
         except (KeyboardInterrupt, asyncio.CancelledError) as exc:
             await self.handle_exception(exc)
 
-        except Exception as exc:  # Includes SchedulerError
+        except CylcError as exc:  # Includes SchedulerError
+            # catch "expected" errors
+            await self.handle_exception(exc)
+
+        except Exception as exc:
+            # catch "unexpected" errors
             with suppress(Exception):
                 LOG.critical(
                     'An uncaught error caused Cylc to shut down.'
@@ -676,12 +698,26 @@ class Scheduler:
         finally:
             self.profiler.stop()
 
+    def load_workflow_params_and_tmpl_vars(self) -> List[Tuple[str, str]]:
+        """Load workflow params and template variables"""
+        with self.workflow_db_mgr.get_pri_dao() as pri_dao:
+            # This logic handles lack of initial cycle point in flow.cylc and
+            # things that can't change on workflow restart/reload.
+            pri_dao.select_workflow_template_vars(self._load_template_vars)
+            pri_dao.execute_queued_items()
+            return list(pri_dao.select_workflow_params())
+
     async def start(self):
         """Run the startup sequence but don't set the main loop running.
 
         Lightweight wrapper for testing convenience.
 
         """
+        if self.is_restart:
+            params = self.load_workflow_params_and_tmpl_vars()
+        else:
+            params = []
+
         try:
             await self.initialise()
 
@@ -696,8 +732,15 @@ class Scheduler:
             self.server.thread.start()
             barrier.wait()
 
-            await self.configure()
+            # Get UUID now:
+            if self.is_restart:
+                self.uuid_str = dict(params)['uuid_str']
+            else:
+                self.uuid_str = str(uuid4())
+
             self._configure_contact()
+            await self.configure(params)
+            self.task_events_mgr.uuid_str = self.uuid_str
         except (KeyboardInterrupt, asyncio.CancelledError, Exception) as exc:
             await self.handle_exception(exc)
 
@@ -832,7 +875,7 @@ class Scheduler:
 
     def process_queued_task_messages(self) -> None:
         """Handle incoming task messages for each task proxy."""
-        messages: Dict[str, List[Tuple[Optional[int], TaskMsg]]] = {}
+        messages: 'Dict[str, List[Tuple[Optional[int], TaskMsg]]]' = {}
         while self.message_queue.qsize():
             try:
                 task_msg = self.message_queue.get(block=False)
@@ -878,7 +921,7 @@ class Scheduler:
             tuple(kwargs.values()), {}
         ))
 
-    def process_command_queue(self) -> None:
+    async def process_command_queue(self) -> None:
         """Process queued commands."""
         qsize = self.command_queue.qsize()
         if qsize <= 0:
@@ -897,8 +940,12 @@ class Scheduler:
             sep = ', ' if kwargs_string and args_string else ''
             cmdstr = f"{name}({args_string}{sep}{kwargs_string})"
             try:
-                n_warnings: Optional[int] = self.get_command_method(name)(
-                    *args, **kwargs)
+                fcn = self.get_command_method(name)
+                n_warnings: Optional[int]
+                if inspect.iscoroutinefunction(fcn):
+                    n_warnings = await fcn(*args, **kwargs)
+                else:
+                    n_warnings = fcn(*args, **kwargs)
             except Exception as exc:
                 # Don't let a bad command bring the workflow down.
                 if (
@@ -910,10 +957,11 @@ class Scheduler:
             else:
                 if n_warnings:
                     LOG.info(
-                        'Command succeeded with %s warning(s): %s' %
-                        (n_warnings, cmdstr))
+                        f"Command actioned with {n_warnings} warning(s): "
+                        f"{cmdstr}"
+                    )
                 else:
-                    LOG.info(f"Command succeeded: {cmdstr}")
+                    LOG.info(f"Command actioned: {cmdstr}")
                 self.is_updated = True
             self.command_queue.task_done()
 
@@ -1042,37 +1090,113 @@ class Scheduler:
         """Remove tasks."""
         return self.pool.remove_tasks(items)
 
-    def command_reload_workflow(self) -> None:
+    async def command_reload_workflow(self) -> None:
         """Reload workflow configuration."""
+        # pause the workflow if not already
+        was_paused_before_reload = self.is_paused
+        if not was_paused_before_reload:
+            self.pause_workflow('Reloading workflow')
+            self.process_workflow_db_queue()  # see #5593
+
+        # flush out preparing tasks before attempting reload
+        self.reload_pending = 'waiting for pending tasks to submit'
+        while self.release_queued_tasks():
+            # Run the subset of main-loop functionality required to push
+            # preparing through the submission pipeline and keep the workflow
+            # responsive (e.g. to the `cylc stop` command).
+
+            # NOTE: this reload method was called by process_command_queue
+            # which is called synchronously in the main loop so this call is
+            # blocking to other main loop functions
+
+            # subproc pool - for issueing/tracking remote-init commands
+            self.proc_pool.process()
+            # task messages - for tracking task status changes
+            self.process_queued_task_messages()
+            # command queue - keeps the scheduler responsive
+            await self.process_command_queue()
+            # allows the scheduler to shutdown --now
+            await self.workflow_shutdown()
+            # keep the data store up to date with what's going on
+            await self.update_data_structure()
+            self.update_data_store()
+            # give commands time to complete
+            sleep(1)  # give any remove-init's time to complete
+
+        # reload the workflow definition
+        self.reload_pending = 'loading the workflow definition'
+        self.update_data_store()  # update workflow status msg
+        self._update_workflow_state()
         LOG.info("Reloading the workflow definition.")
-        old_tasks = set(self.config.get_task_name_list())
-        # Things that can't change on workflow reload:
-        self.workflow_db_mgr.pri_dao.select_workflow_params(
-            self._load_workflow_params
-        )
-
         try:
-            self.load_flow_file(is_reload=True)
+            config = self.load_flow_file(is_reload=True)
         except (ParsecError, CylcConfigError) as exc:
-            raise CommandFailedError(exc)
-        self.broadcast_mgr.linearized_ancestors = (
-            self.config.get_linearized_ancestors())
-        self.pool.set_do_reload(self.config)
-        self.task_events_mgr.mail_interval = self.cylc_config['mail'][
-            'task event batch interval']
-        self.task_events_mgr.mail_smtp = self._get_events_conf("smtp")
-        self.task_events_mgr.mail_footer = self._get_events_conf("footer")
+            if cylc.flow.flags.verbosity > 1:
+                # log full traceback in debug mode
+                LOG.exception(exc)
+            LOG.critical(
+                f'Reload failed - {exc.__class__.__name__}: {exc}'
+                '\nThis is probably due to an issue with the new'
+                ' configuration.'
+                '\nTo continue with the pre-reload config, un-pause the'
+                ' workflow.'
+                '\nOtherwise, fix the configuration and attempt to reload'
+                ' again.'
+            )
+        else:
+            self.reload_pending = 'applying the new config'
+            old_tasks = set(self.config.get_task_name_list())
+            # Things that can't change on workflow reload:
+            self._set_workflow_params(
+                self.workflow_db_mgr.pri_dao.select_workflow_params()
+            )
+            self.apply_new_config(config, is_reload=True)
+            self.broadcast_mgr.linearized_ancestors = (
+                self.config.get_linearized_ancestors())
 
-        # Log tasks that have been added by the reload, removed tasks are
-        # logged by the TaskPool.
-        add = set(self.config.get_task_name_list()) - old_tasks
-        for task in add:
-            LOG.warning(f"Added task: '{task}'")
-        self.workflow_db_mgr.put_workflow_template_vars(self.template_vars)
-        self.workflow_db_mgr.put_runtime_inheritance(self.config)
-        self.workflow_db_mgr.put_workflow_params(self)
-        self.is_updated = True
-        self.is_reloaded = True
+            self.task_events_mgr.mail_interval = self.cylc_config['mail'][
+                'task event batch interval']
+            self.task_events_mgr.mail_smtp = self._get_events_conf("smtp")
+            self.task_events_mgr.mail_footer = self._get_events_conf("footer")
+
+            # Log tasks that have been added by the reload, removed tasks are
+            # logged by the TaskPool.
+            add = set(self.config.get_task_name_list()) - old_tasks
+            for task in add:
+                LOG.warning(f"Added task: '{task}'")
+            self.workflow_db_mgr.put_workflow_template_vars(self.template_vars)
+            self.workflow_db_mgr.put_runtime_inheritance(self.config)
+            self.workflow_db_mgr.put_workflow_params(self)
+            self.process_workflow_db_queue()  # see #5593
+            self.is_updated = True
+            self.is_reloaded = True
+            self._update_workflow_state()
+
+            # Re-initialise data model on reload
+            self.data_store_mgr.initiate_data_model(self.is_reloaded)
+
+            # Reset the remote init map to trigger fresh file installation
+            self.task_job_mgr.task_remote_mgr.remote_init_map.clear()
+            self.task_job_mgr.task_remote_mgr.is_reload = True
+            self.pool.reload_taskdefs(config)
+            # Load jobs from DB
+            self.workflow_db_mgr.pri_dao.select_jobs_for_restart(
+                self.data_store_mgr.insert_db_job
+            )
+            if self.pool.compute_runahead(force=True):
+                self.pool.release_runahead_tasks()
+            self.is_reloaded = True
+            self.is_updated = True
+
+            LOG.info("Reload completed.")
+
+        # resume the workflow if previously paused
+        self.reload_pending = False
+        self.update_data_store()  # update workflow status msg
+        self._update_workflow_state()
+        if not was_paused_before_reload:
+            self.resume_workflow()
+            self.process_workflow_db_queue()  # see #5593
 
     def get_restart_num(self) -> int:
         """Return the number of the restart, else 0 if not a restart.
@@ -1103,14 +1227,14 @@ class Scheduler:
             fields.OWNER:
                 self.owner,
             fields.PORT:
-                str(self.server.port),  # type: ignore
+                str(self.server.port),
             fields.PID:
                 str(proc.pid),
             fields.COMMAND:
                 cli_format(proc.cmdline()),
             fields.PUBLISH_PORT:
-                str(self.server.pub_port),  # type: ignore
-            fields.WORKFLOW_RUN_DIR_ON_WORKFLOW_HOST:  # type: ignore
+                str(self.server.pub_port),
+            fields.WORKFLOW_RUN_DIR_ON_WORKFLOW_HOST:
                 self.workflow_run_dir,
             fields.UUID:
                 self.uuid_str,
@@ -1129,7 +1253,7 @@ class Scheduler:
         """Create contact file."""
         # Make sure another workflow of the same name hasn't started while this
         # one is starting
-        # NOTE: raises ServiceFileError if workflow is running
+        # NOTE: raises ContactFileExists if workflow is running
         workflow_files.detect_old_contact_file(self.workflow)
 
         # Extract contact data.
@@ -1143,7 +1267,7 @@ class Scheduler:
     def load_flow_file(self, is_reload=False):
         """Load, and log the workflow definition."""
         # Local workflow environment set therein.
-        self.config = WorkflowConfig(
+        return WorkflowConfig(
             self.workflow,
             self.flow_file,
             self.options,
@@ -1159,11 +1283,13 @@ class Scheduler:
             work_dir=self.workflow_work_dir,
             share_dir=self.workflow_share_dir,
         )
+
+    def apply_new_config(self, config, is_reload=False):
+        self.config = config
         self.cylc_config = DictTree(
             self.config.cfg['scheduler'],
             glbl_cfg().get(['scheduler'])
         )
-
         self.flow_file_update_time = time()
         # Dump the loaded flow.cylc file for future reference.
         config_dir = get_workflow_run_config_log_dir(
@@ -1202,8 +1328,10 @@ class Scheduler:
             'CYLC_WORKFLOW_FINAL_CYCLE_POINT': str(self.config.final_point),
         })
 
-    def _load_workflow_params(self, row_idx, row):
-        """Load a row in the "workflow_params" table in a restart/reload.
+    def _set_workflow_params(
+        self, params: Iterable[Tuple[str, Optional[str]]]
+    ) -> None:
+        """Set workflow params on restart/reload.
 
         This currently includes:
         * Initial/Final cycle points.
@@ -1213,62 +1341,66 @@ class Scheduler:
         * A flag to indicate if the workflow should be paused or not.
         * Original workflow run time zone.
         """
-        if row_idx == 0:
-            LOG.info('LOADING workflow parameters')
-        key, value = row
-        if key in self.workflow_db_mgr.KEY_INITIAL_CYCLE_POINT_COMPATS:
-            self.options.icp = value
-            LOG.info(f"+ initial point = {value}")
-        elif key in self.workflow_db_mgr.KEY_START_CYCLE_POINT_COMPATS:
-            self.options.startcp = value
-            LOG.info(f"+ start point = {value}")
-        elif key in self.workflow_db_mgr.KEY_FINAL_CYCLE_POINT_COMPATS:
-            if self.is_restart and self.options.fcp == 'reload':
-                LOG.debug(f"- final point = {value} (ignored)")
-            elif self.options.fcp is None:
-                self.options.fcp = value
-                LOG.info(f"+ final point = {value}")
-        elif key == self.workflow_db_mgr.KEY_STOP_CYCLE_POINT:
-            if self.is_restart and self.options.stopcp == 'reload':
-                LOG.debug(f"- stop point = {value} (ignored)")
-            elif self.options.stopcp is None:
-                self.options.stopcp = value
-                LOG.info(f"+ stop point = {value}")
-        elif key == self.workflow_db_mgr.KEY_RUN_MODE:
-            if self.options.run_mode is None:
+        LOG.info('LOADING workflow parameters')
+        for key, value in params:
+            if value is None:
+                continue
+            if key in self.workflow_db_mgr.KEY_INITIAL_CYCLE_POINT_COMPATS:
+                self.options.icp = value
+                LOG.info(f"+ initial point = {value}")
+            elif key in self.workflow_db_mgr.KEY_START_CYCLE_POINT_COMPATS:
+                self.options.startcp = value
+                LOG.info(f"+ start point = {value}")
+            elif key in self.workflow_db_mgr.KEY_FINAL_CYCLE_POINT_COMPATS:
+                if self.is_restart and self.options.fcp == 'reload':
+                    LOG.debug(f"- final point = {value} (ignored)")
+                elif self.options.fcp is None:
+                    self.options.fcp = value
+                    LOG.info(f"+ final point = {value}")
+            elif key == self.workflow_db_mgr.KEY_STOP_CYCLE_POINT:
+                if self.is_restart and self.options.stopcp == 'reload':
+                    LOG.debug(f"- stop point = {value} (ignored)")
+                elif self.options.stopcp is None:
+                    self.options.stopcp = value
+                    LOG.info(f"+ stop point = {value}")
+            elif (
+                key == self.workflow_db_mgr.KEY_RUN_MODE
+                and self.options.run_mode is None
+            ):
                 self.options.run_mode = value
                 LOG.info(f"+ run mode = {value}")
-        elif key == self.workflow_db_mgr.KEY_UUID_STR:
-            self.uuid_str = value
-            LOG.info('+ workflow UUID = %s', value)
-        elif key == self.workflow_db_mgr.KEY_PAUSED:
-            if self.options.paused_start is None:
-                self.options.paused_start = bool(value)
-                LOG.info(f'+ paused = {bool(value)}')
-        elif key == self.workflow_db_mgr.KEY_HOLD_CYCLE_POINT:
-            if self.options.holdcp is None:
+            elif key == self.workflow_db_mgr.KEY_UUID_STR:
+                self.uuid_str = value
+                LOG.info(f"+ workflow UUID = {value}")
+            elif key == self.workflow_db_mgr.KEY_PAUSED:
+                bool_val = bool(int(value))
+                if bool_val and not self.options.paused_start:
+                    self.options.paused_start = bool_val
+                    LOG.info(f"+ paused = {bool_val}")
+            elif (
+                key == self.workflow_db_mgr.KEY_HOLD_CYCLE_POINT
+                and self.options.holdcp is None
+            ):
                 self.options.holdcp = value
-                LOG.info('+ hold point = %s', value)
-        elif key == self.workflow_db_mgr.KEY_STOP_CLOCK_TIME:
-            value = int(value)
-            if time() <= value:
-                self.stop_clock_time = value
-                LOG.info('+ stop clock time = %d (%s)', value, time2str(value))
-            else:
-                LOG.debug(
-                    '- stop clock time = %d (%s) (ignored)',
-                    value,
-                    time2str(value))
-        elif key == self.workflow_db_mgr.KEY_STOP_TASK:
-            self.restored_stop_task_id = value
-            LOG.info('+ stop task = %s', value)
-        elif key == self.workflow_db_mgr.KEY_UTC_MODE:
-            value = bool(int(value))
-            self.options.utc_mode = value
-            LOG.info(f"+ UTC mode = {value}")
-        elif key == self.workflow_db_mgr.KEY_CYCLE_POINT_TIME_ZONE:
-            self.options.cycle_point_tz = value
-            LOG.info(f"+ cycle point time zone = {value}")
+                LOG.info(f"+ hold point = {value}")
+            elif key == self.workflow_db_mgr.KEY_STOP_CLOCK_TIME:
+                int_val = int(value)
+                msg = f"stop clock time = {int_val} ({time2str(int_val)})"
+                if time() <= int_val:
+                    self.stop_clock_time = int_val
+                    LOG.info(f"+ {msg}")
+                else:
+                    LOG.debug(f"- {msg} (ignored)")
+            elif key == self.workflow_db_mgr.KEY_STOP_TASK:
+                self.restored_stop_task_id = value
+                LOG.info(f"+ stop task = {value}")
+            elif key == self.workflow_db_mgr.KEY_UTC_MODE:
+                bool_val = bool(int(value))
+                self.options.utc_mode = bool_val
+                LOG.info(f"+ UTC mode = {bool_val}")
+            elif key == self.workflow_db_mgr.KEY_CYCLE_POINT_TIME_ZONE:
+                self.options.cycle_point_tz = value
+                LOG.info(f"+ cycle point time zone = {value}")
 
     def _load_template_vars(self, _, row):
         """Load workflow start up template variables."""
@@ -1290,7 +1422,7 @@ class Scheduler:
                 return
         self.workflow_event_handler.handle(self, event, str(reason))
 
-    def release_queued_tasks(self) -> None:
+    def release_queued_tasks(self) -> bool:
         """Release queued tasks, and submit jobs.
 
         The task queue manages references to task proxies in the task pool.
@@ -1308,19 +1440,32 @@ class Scheduler:
             * https://github.com/cylc/cylc-flow/pull/4620
             * https://github.com/cylc/cylc-flow/issues/4974
 
+        Returns:
+            True if tasks were passed through the submit-pipeline
+            (i.e. new waiting tasks have entered the preparing state OR
+            preparing tasks have been passed back through for
+            submission).
+
         """
         if (
             not self.is_paused
             and self.stop_mode is None
             and self.auto_restart_time is None
+            and self.reload_pending is False
         ):
             pre_prep_tasks = self.pool.release_queued_tasks()
 
         elif (
-            self.should_auto_restart_now()
-            and self.auto_restart_mode == AutoRestartMode.RESTART_NORMAL
+            (
+                # Need to get preparing tasks to submit before auto restart
+                self.should_auto_restart_now()
+                and self.auto_restart_mode == AutoRestartMode.RESTART_NORMAL
+            ) or (
+                # Need to get preparing tasks to submit before reload
+                self.reload_pending
+            )
         ):
-            # Need to get preparing tasks to submit before auto restart
+            # don't release queued tasks, finish processing preparing tasks
             pre_prep_tasks = [
                 itask for itask in self.pool.get_tasks()
                 if itask.state(TASK_STATUS_PREPARING)
@@ -1328,9 +1473,9 @@ class Scheduler:
 
         # Return, if no tasks to submit.
         else:
-            return
+            return False
         if not pre_prep_tasks:
-            return
+            return False
 
         # Start the job submission process.
         self.is_updated = True
@@ -1357,6 +1502,9 @@ class Scheduler:
                 f"{itask.identity} -triggered off "
                 f"{itask.state.get_resolved_dependencies()} in flow {flow}"
             )
+
+        # one or more tasks were passed through the submission pipeline
+        return True
 
     def process_workflow_db_queue(self):
         """Update workflow DB."""
@@ -1427,7 +1575,7 @@ class Scheduler:
                         LOG.info(stop_process_pool_empty_msg)
                         stop_process_pool_empty_msg = None
                     self.proc_pool.process()
-                    self.process_command_queue()
+                    await self.process_command_queue()
             if self.options.profile_mode:
                 self.profiler.log_memory(
                     "scheduler.py: end main loop (total loops %d): %s" %
@@ -1554,23 +1702,8 @@ class Scheduler:
             # self.pool.log_task_pool(logging.CRITICAL)
             if self.incomplete_ri_map:
                 self.manage_remote_init()
-            if self.pool.do_reload:
-                # Re-initialise data model on reload
-                self.data_store_mgr.initiate_data_model(reloaded=True)
-                # Reset the remote init map to trigger fresh file installation
-                self.task_job_mgr.task_remote_mgr.remote_init_map.clear()
-                self.task_job_mgr.task_remote_mgr.is_reload = True
-                self.pool.reload_taskdefs()
-                # Load jobs from DB
-                self.workflow_db_mgr.pri_dao.select_jobs_for_restart(
-                    self.data_store_mgr.insert_db_job)
-                LOG.info("Reload completed.")
-                if self.pool.compute_runahead(force=True):
-                    self.pool.release_runahead_tasks()
-                self.is_reloaded = True
-                self.is_updated = True
 
-            self.process_command_queue()
+            await self.process_command_queue()
             self.proc_pool.process()
 
             # Tasks in the main pool that are waiting but not queued must be
@@ -1620,7 +1753,11 @@ class Scheduler:
             self.pool.set_expired_tasks()
             self.release_queued_tasks()
 
-            if self.pool.sim_time_check(self.message_queue):
+            if (
+                self.pool.config.run_mode('simulation')
+                and sim_time_check(
+                    self.message_queue, self.pool.get_tasks())
+            ):
                 # A simulated task state change occurred.
                 self.reset_inactivity_timer()
 
@@ -1628,16 +1765,42 @@ class Scheduler:
             self.late_tasks_check()
 
             self.process_queued_task_messages()
-            self.process_command_queue()
+            await self.process_command_queue()
             self.task_events_mgr.process_events(self)
 
             # Update state summary, database, and uifeed
             self.workflow_db_mgr.put_task_event_timers(self.task_events_mgr)
-            has_updated = await self.update_data_structure()
-            if has_updated and not self.is_stalled:
-                # Stop the stalled timer.
+
+            # List of task whose states have changed.
+            updated_task_list = [
+                t for t in self.pool.get_tasks() if t.state.is_updated]
+            has_updated = updated_task_list or self.is_updated
+
+            if updated_task_list and self.is_restart_timeout_wait:
+                # Stop restart timeout if action has been triggered.
                 with suppress(KeyError):
-                    self.timers[self.EVENT_STALL_TIMEOUT].stop()
+                    self.timers[self.EVENT_RESTART_TIMEOUT].stop()
+                    self.is_restart_timeout_wait = False
+
+            if has_updated or self.data_store_mgr.updates_pending:
+                # Update the datastore.
+                await self.update_data_structure()
+
+            if has_updated:
+                if not self.is_reloaded:
+                    # (A reload cannot un-stall workflow by itself)
+                    self.is_stalled = False
+                self.is_reloaded = False
+
+                # Reset workflow and task updated flags.
+                self.is_updated = False
+                for itask in updated_task_list:
+                    itask.state.is_updated = False
+
+                if not self.is_stalled:
+                    # Stop the stalled timer.
+                    with suppress(KeyError):
+                        self.timers[self.EVENT_STALL_TIMEOUT].stop()
 
             self.process_workflow_db_queue()
 
@@ -1686,36 +1849,37 @@ class Scheduler:
             self.main_loop_intervals.append(time() - tinit)
             # END MAIN LOOP
 
-    async def update_data_structure(self) -> Union[bool, List['TaskProxy']]:
+    def _update_workflow_state(self):
+        """Update workflow state in the data store and push out any deltas.
+
+        A cut-down version of update_data_structure which only considers
+        workflow state changes e.g. status, status message, state totals, etc.
+        """
+        # Publish any existing before potentially creating more
+        self._publish_deltas()
+        # update the workflow state in the data store
+        self.data_store_mgr.update_workflow_states()
+        self._publish_deltas()
+
+    async def update_data_structure(self, reloaded: bool = False):
         """Update DB, UIS, Summary data elements"""
-        updated_tasks = [
-            t for t in self.pool.get_tasks() if t.state.is_updated]
-        has_updated = self.is_updated or updated_tasks
-        reloaded = self.is_reloaded
-        # Add tasks that have moved moved from runahead to live pool.
-        if has_updated or self.data_store_mgr.updates_pending:
-            # Collect/apply data store updates/deltas
-            self.data_store_mgr.update_data_structure(reloaded=reloaded)
-            self.is_reloaded = False
-            # Publish updates:
-            if self.data_store_mgr.publish_pending:
-                self.data_store_mgr.publish_pending = False
-                self.server.publish_queue.put(
-                    self.data_store_mgr.publish_deltas)
-                # Non-async sleep - yield to other threads rather
-                # than event loop
-                sleep(0)
-        if has_updated:
-            # Database update
-            self.workflow_db_mgr.put_task_pool(self.pool)
-            # Reset workflow and task updated flags.
-            self.is_updated = False
-            if not reloaded:  # (A reload cannot unstall workflow by itself)
-                self.is_stalled = False
-            for itask in updated_tasks:
-                itask.state.is_updated = False
-            self.update_data_store()
-        return has_updated
+        # Publish any existing before potentially creating more
+        self._publish_deltas()
+        # Collect/apply data store updates/deltas
+        self.data_store_mgr.update_data_structure()
+        self._publish_deltas()
+        # Database update
+        self.workflow_db_mgr.put_task_pool(self.pool)
+
+    def _publish_deltas(self):
+        """Publish pending deltas."""
+        if self.data_store_mgr.publish_pending:
+            self.data_store_mgr.publish_pending = False
+            self.server.publish_queue.put(
+                self.data_store_mgr.publish_deltas)
+            # Non-async sleep - yield to other threads rather
+            # than event loop
+            sleep(0)
 
     def check_workflow_timers(self):
         """Check timers, and abort or run event handlers as configured."""
@@ -1728,6 +1892,9 @@ class Scheduler:
                 raise SchedulerError(f'"{abort_conf}" is set')
             if self._get_events_conf(f"{event} handlers") is not None:
                 self.run_event_handlers(event)
+            if event == self.EVENT_RESTART_TIMEOUT:
+                # Unset wait flag to allow normal shutdown.
+                self.is_restart_timeout_wait = False
 
     def check_workflow_stalled(self) -> bool:
         """Check if workflow is stalled or not."""
@@ -1803,6 +1970,13 @@ class Scheduler:
         sys.stdout.flush()
         sys.stderr.flush()
 
+        if (
+            self.workflow_db_mgr.pri_path
+            and Path(self.workflow_db_mgr.pri_path).exists()
+        ):
+            # only attempt remote tidy if the workflow has been started
+            self.task_job_mgr.task_remote_mgr.remote_tidy()
+
         try:
             # Remove ZMQ keys from scheduler
             LOG.debug("Removing authentication keys from scheduler")
@@ -1811,7 +1985,7 @@ class Scheduler:
             LOG.exception(ex)
         # disconnect from workflow-db, stop db queue
         try:
-            self.workflow_db_mgr.process_queued_ops()
+            self.process_workflow_db_queue()
             self.workflow_db_mgr.on_workflow_shutdown()
         except Exception as exc:
             LOG.exception(exc)
@@ -1830,8 +2004,6 @@ class Scheduler:
                 # Useful to identify that this Scheduler has shut down
                 # properly (e.g. in tests):
                 self.contact_data = None
-            if self.task_job_mgr:
-                self.task_job_mgr.task_remote_mgr.remote_tidy()
 
         # The getattr() calls and if tests below are used in case the
         # workflow is not fully configured before the shutdown is called.
@@ -1888,7 +2060,7 @@ class Scheduler:
             LOG.info("Wall clock stop time reached: %s", time2str(
                 self.stop_clock_time))
             self.stop_clock_time = None
-            self.workflow_db_mgr.delete_workflow_stop_clock_time()
+            self.workflow_db_mgr.put_workflow_stop_clock_time(None)
             self.update_data_store()
             return True
         LOG.debug("stop time=%d; current time=%d", self.stop_clock_time, now)
@@ -1896,60 +2068,74 @@ class Scheduler:
 
     def check_auto_shutdown(self):
         """Check if we should shut down now."""
-        if self.is_paused:
-            # Don't if paused.
-            return False
-
-        if self.check_workflow_stalled():
-            return False
-
-        if any(
-            itask for itask in self.pool.get_tasks()
-            if itask.state(
-                TASK_STATUS_PREPARING,
-                TASK_STATUS_SUBMITTED,
-                TASK_STATUS_RUNNING
-            )
-            or (
-                itask.state(TASK_STATUS_WAITING)
-                and not itask.state.is_runahead
+        if (
+            self.is_paused or
+            self.is_restart_timeout_wait or
+            self.check_workflow_stalled() or
+            # if more tasks to run (if waiting and not
+            # runahead, then held, queued, or xtriggered).
+            any(
+                itask for itask in self.pool.get_tasks()
+                if itask.state(
+                    TASK_STATUS_PREPARING,
+                    TASK_STATUS_SUBMITTED,
+                    TASK_STATUS_RUNNING
+                )
+                or (
+                    itask.state(TASK_STATUS_WAITING)
+                    and not itask.state.is_runahead
+                )
             )
         ):
-            # Don't if there are more tasks to run (if waiting and not
-            # runahead, then held, queued, or xtriggered).
             return False
 
         # Can shut down.
         if self.pool.stop_point:
             # Forget early stop point in case of a restart.
-            self.workflow_db_mgr.delete_workflow_stop_cycle_point()
+            self.workflow_db_mgr.put_workflow_stop_cycle_point(None)
 
         return True
 
-    def pause_workflow(self) -> None:
-        """Pause the workflow."""
+    def pause_workflow(self, msg: Optional[str] = None) -> None:
+        """Pause the workflow.
+
+        Args:
+            msg:
+                A user-facing string explaining why the workflow was paused if
+                helpful.
+
+        """
         if self.is_paused:
             LOG.info("Workflow is already paused")
             return
-        LOG.info("PAUSING the workflow now")
+        _msg = "PAUSING the workflow now"
+        if msg:
+            _msg += f': {msg}'
+        LOG.info(_msg)
         self.is_paused = True
-        self.workflow_db_mgr.put_workflow_paused()
+        self.workflow_db_mgr.put_workflow_paused(True)
         self.update_data_store()
 
     def resume_workflow(self, quiet: bool = False) -> None:
         """Resume the workflow.
 
         Args:
-            quiet: whether to log anything.
+            quiet:
+                Whether to log anything in the event the workflow is not
+                paused.
+
         """
+        if self.reload_pending:
+            LOG.warning('Cannot resume - workflow is reloading')
+            return
         if not self.is_paused:
             if not quiet:
-                LOG.warning("Cannot resume - workflow is not paused")
+                LOG.warning("No need to resume - workflow is not paused")
             return
         if not quiet:
             LOG.info("RESUMING the workflow now")
         self.is_paused = False
-        self.workflow_db_mgr.delete_workflow_paused()
+        self.workflow_db_mgr.put_workflow_paused(False)
         self.update_data_store()
 
     def command_force_trigger_tasks(self, items, flow, flow_wait, flow_descr):

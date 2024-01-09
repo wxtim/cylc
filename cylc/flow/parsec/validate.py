@@ -26,6 +26,7 @@ import re
 import shlex
 from collections import deque
 from textwrap import dedent
+from typing import List, Dict, Any, Tuple
 
 from metomi.isodatetime.data import Duration, TimePoint
 from metomi.isodatetime.dumpers import TimePointDumper
@@ -204,10 +205,28 @@ class ParsecValidator:
                 else:
                     speckey = key
                 specval = spec[speckey]
-                if isinstance(value, dict) and not specval.is_leaf():
+
+                cfg_is_section = isinstance(value, dict)
+                spec_is_section = not specval.is_leaf()
+                if cfg_is_section and not spec_is_section:
+                    # config is a [section] but it should be a setting=
+                    raise IllegalItemError(
+                        keys,
+                        key,
+                        msg=f'"{key}" should be a setting not a [section]',
+                    )
+                if (not cfg_is_section) and spec_is_section:
+                    # config is a setting= but it should be a [section]
+                    raise IllegalItemError(
+                        keys,
+                        key,
+                        msg=f'"{key}" should be a [section] not a setting',
+                    )
+
+                if cfg_is_section and spec_is_section:
                     # Item is dict, push to queue
                     queue.append([value, specval, keys + [key]])
-                elif value is not None and specval.is_leaf():
+                elif value is not None and not spec_is_section:
                     # Item is value, coerce according to value type
                     cfg[key] = self.coercers[specval.vdr](value, keys + [key])
                     if specval.options:
@@ -976,6 +995,66 @@ class CylcConfigValidator(ParsecValidator):
         except ValueError:
             return items
 
+    @staticmethod
+    def parse_xtrig_arglist(value: str) -> Tuple[List[Any], Dict[str, Any]]:
+        """Parse Pythonic-like arg/kwarg signatures.
+
+        A stateful parser treats all args/kwargs as strings with
+        implicit quoting.
+
+        Examples:
+            >>> parse = CylcConfigValidator.parse_xtrig_arglist
+
+            # Parse pythonic syntax
+            >>> parse('a, b, c, d=1, e=2,')
+            (['a', 'b', 'c'], {'d': '1', 'e': '2'})
+            >>> parse('a, "1,2,3", b=",=",')
+            (['a', '"1,2,3"'], {'b': '",="'})
+            >>> parse('a, "b c", '"'d=e '")
+            (['a', '"b c"', "'d=e '"], {})
+
+            # Parse implicit (i.e. unquoted) strings
+            >>> parse('%(cycle)s, %(task)s, output=succeeded')
+            (['%(cycle)s', '%(task)s'], {'output': 'succeeded'})
+
+        """
+        # results
+        args = []
+        kwargs = {}
+        # state
+        in_str = False  # are we inside a quoted string
+        in_kwarg = False  # are we after the = sign of a kwarg
+        buffer = ''  # the current argument being parsed
+        kwarg_buffer = ''  # the key of a kwarg if in_kwarg == True
+        # parser
+        for char in value:
+            if char in {'"', "'"}:
+                in_str = not in_str
+                buffer += char
+            elif not in_str and char == ',':
+                if in_kwarg:
+                    kwargs[kwarg_buffer.strip()] = buffer.strip()
+                    in_kwarg = False
+                    kwarg_buffer = ''
+                else:
+                    args.append(buffer.strip())
+                buffer = ''
+            elif char == '=' and not in_str and not in_kwarg:
+                in_kwarg = True
+                kwarg_buffer = buffer
+                buffer = ''
+            else:
+                buffer += char
+
+        # reached the end of the string
+        if buffer:
+            if in_kwarg:
+                kwargs[kwarg_buffer.strip()] = buffer.strip()
+            else:
+                args.append(buffer.strip())
+
+        return args, kwargs
+
     @classmethod
     def coerce_xtrigger(cls, value, keys):
         """Coerce a string into an xtrigger function context object.
@@ -984,17 +1063,26 @@ class CylcConfigValidator(ParsecValidator):
         Checks for legal string templates in arg values too.
 
         Examples:
-            >>> CylcConfigValidator.coerce_xtrigger('a(b, c):PT1M', [None])
-            a(b, c):60.0
+            >>> xtrig = CylcConfigValidator.coerce_xtrigger
+
+            >>> ctx = xtrig('a(b, c):PT1M', [None])
+            >>> ctx.get_signature()
+            'a(b, c)'
+            >>> ctx.intvl
+            60.0
+
+            # cast types
+            >>> x = xtrig('a(1, 1.1, True, abc, x=True, y=1.1)', [None])
+            >>> x.func_args
+            [1, 1.1, True, 'abc']
+            >>> x.func_kwargs
+            {'x': True, 'y': 1.1}
 
         """
-
         label = keys[-1]
         value = cls.strip_and_unquote(keys, value)
         if not value:
             raise IllegalValueError("xtrigger", keys, value)
-        args = []
-        kwargs = {}
         match = cls._REC_TRIG_FUNC.match(value)
         if match is None:
             raise IllegalValueError("xtrigger", keys, value)
@@ -1002,15 +1090,18 @@ class CylcConfigValidator(ParsecValidator):
         if intvl:
             intvl = cls.coerce_interval(intvl, keys)
 
-        if fargs:
-            # Extract function args and kwargs.
-            for farg in fargs.split(r','):
-                try:
-                    key, val = farg.strip().split(r'=', 1)
-                except ValueError:
-                    args.append(cls._coerce_type(farg.strip()))
-                else:
-                    kwargs[key.strip()] = cls._coerce_type(val.strip())
+        # parse args
+        args, kwargs = CylcConfigValidator.parse_xtrig_arglist(fargs or '')
+
+        # cast types
+        args = [
+            CylcConfigValidator._coerce_type(arg)
+            for arg in args
+        ]
+        kwargs = {
+            key: CylcConfigValidator._coerce_type(value)
+            for key, value in kwargs.items()
+        }
 
         return SubFuncContext(label, fname, args, kwargs, intvl)
 

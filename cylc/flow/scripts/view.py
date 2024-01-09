@@ -20,9 +20,17 @@
 
 Print a processed workflow configuration.
 
-Note:
-  This is different to `cylc config` which displays the parsed
-  configuration (as Cylc would see it).
+Print workflow configurations as processed before full parsing by Cylc. This
+includes Jinja2 or Empy template processing, and inlining of include-files.
+Some explanatory markup may also be requested.
+
+Warning:
+  This command will fail if `CYLC_` template variables are referenced
+  without default values, because they are only defined for full parsing.
+  E.g. (Jinja2): `{{CYLC_WORKFLOW_ID | default("not defined")}}`.
+
+See also `cylc config`, which displays the fully parsed configuration.
+
 """
 
 import asyncio
@@ -35,7 +43,7 @@ from cylc.flow.option_parsers import (
     CylcOptionParser as COP,
 )
 from cylc.flow.parsec.fileparse import read_and_proc
-from cylc.flow.templatevars import load_template_vars
+from cylc.flow.templatevars import get_template_vars
 from cylc.flow.terminal import cli_function
 
 if TYPE_CHECKING:
@@ -114,22 +122,22 @@ async def _main(options: 'Values', workflow_id: str) -> None:
         src=True,
         constraint='workflows',
     )
-
     # read in the flow.cylc file
-    viewcfg = {
-        'mark': options.mark,
-        'single': options.single,
-        'label': options.label,
-        'empy': options.empy or options.process,
-        'jinja2': options.jinja2 or options.process,
-        'contin': options.cat or options.process,
-        'inline': (options.inline or options.jinja2 or options.empy
-                   or options.process),
-    }
     for line in read_and_proc(
         flow_file,
-        load_template_vars(options.templatevars, options.templatevars_file),
-        viewcfg=viewcfg,
+        get_template_vars(options),
+        viewcfg={
+            'mark': options.mark,
+            'single': options.single,
+            'label': options.label,
+            'empy': options.empy or options.process,
+            'jinja2': options.jinja2 or options.process,
+            'contin': options.cat or options.process,
+            'inline': (
+                options.jinja2 or options.empy or
+                options.inline or options.process
+            ),
+        },
         opts=options,
     ):
         print(line)

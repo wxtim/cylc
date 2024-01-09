@@ -31,7 +31,7 @@ from cylc.flow import __version__
 async def test_create_flow(flow, run_dir):
     """Use the flow fixture to create workflows on the file system."""
     # Ensure a flow.cylc file gets written out
-    reg = flow({
+    id_ = flow({
         'scheduler': {
             'allow implicit tasks': True
         },
@@ -41,7 +41,7 @@ async def test_create_flow(flow, run_dir):
             }
         }
     })
-    workflow_dir = run_dir / reg
+    workflow_dir = run_dir / id_
     flow_file = workflow_dir / 'flow.cylc'
 
     assert workflow_dir.exists()
@@ -51,8 +51,8 @@ async def test_create_flow(flow, run_dir):
 async def test_run(flow, scheduler, run, one_conf):
     """Create a workflow, initialise the scheduler and run it."""
     # Ensure the scheduler can survive for at least one second without crashing
-    reg = flow(one_conf)
-    schd = scheduler(reg)
+    id_ = flow(one_conf)
+    schd = scheduler(id_)
     async with run(schd):
         await asyncio.sleep(1)  # this yields control to the main loop
 
@@ -60,8 +60,8 @@ async def test_run(flow, scheduler, run, one_conf):
 async def test_logging(flow, scheduler, start, one_conf, log_filter):
     """We can capture log records when we run a scheduler."""
     # Ensure that the cylc version is logged on startup.
-    reg = flow(one_conf)
-    schd = scheduler(reg)
+    id_ = flow(one_conf)
+    schd = scheduler(id_)
     async with start(schd) as log:
         # this returns a list of log records containing __version__
         assert log_filter(log, contains=__version__)
@@ -76,12 +76,12 @@ async def test_scheduler_arguments(flow, scheduler, start, one_conf):
 
     """
     # Ensure the paused_start option is obeyed by the scheduler.
-    reg = flow(one_conf)
-    schd = scheduler(reg, paused_start=True)
+    id_ = flow(one_conf)
+    schd = scheduler(id_, paused_start=True)
     async with start(schd):
         assert schd.is_paused
-    reg = flow(one_conf)
-    schd = scheduler(reg, paused_start=False)
+    id_ = flow(one_conf)
+    schd = scheduler(id_, paused_start=False)
     async with start(schd):
         assert not schd.is_paused
 
@@ -95,8 +95,8 @@ async def test_shutdown(flow, scheduler, start, one_conf):
 
     """
     # Ensure the TCP server shuts down with the scheduler.
-    reg = flow(one_conf)
-    schd = scheduler(reg)
+    id_ = flow(one_conf)
+    schd = scheduler(id_)
     async with start(schd):
         pass
     assert schd.server.replier.socket.closed
@@ -110,8 +110,8 @@ async def test_install(flow, scheduler, one_conf, run_dir):
 
     """
     # Ensure the installation of the job script is completed.
-    reg = flow(one_conf)
-    schd = scheduler(reg)
+    id_ = flow(one_conf)
+    schd = scheduler(id_)
     await schd.install()
     assert Path(
         run_dir, schd.workflow, '.service', 'etc', 'job.sh'
@@ -193,19 +193,19 @@ async def myflow(mod_flow, mod_scheduler, mod_one_conf):
     object you are testing in the tests.
 
     """
-    reg = mod_flow(mod_one_conf)
-    schd = mod_scheduler(reg)
+    id_ = mod_flow(mod_one_conf)
+    schd = mod_scheduler(id_)
     return schd
 
 
 def test_module_scoped_fixture(myflow):
-    """Ensure the uuid is set on __init__.
+    """Ensure the host is set on __init__.
 
     The myflow fixture will be shared between all test functions within this
     Python module.
 
     """
-    assert myflow.uuid_str
+    assert myflow.host
 
 
 async def test_db_select(one, start, db_select):
@@ -229,3 +229,64 @@ async def test_db_select(one, start, db_select):
     results = db_select(
         schd, False, 'task_states', name='one', status='waiting')
     assert len(results) == 1
+
+
+async def test_reflog(flow, scheduler, run, reflog, complete):
+    """Test the triggering of tasks.
+
+    This is the integration test version of "reftest" in the funtional tests.
+
+    It works by capturing the triggers which caused each submission so that
+    they can be compared with the expected outcome.
+    """
+    id_ = flow({
+        'scheduling': {
+            'initial cycle point': '1',
+            'final cycle point': '1',
+            'cycling mode': 'integer',
+            'graph': {
+                'P1': '''
+                    a => b => c
+                    x => b => z
+                    b[-P1] => b
+                '''
+            }
+        }
+    })
+    schd = scheduler(id_, paused_start=False)
+
+    async with run(schd):
+        triggers = reflog(schd)  # Note: add flow_nums=True to capture flows
+        await complete(schd)
+
+    assert triggers == {
+        # 1/a was triggered by nothing (i.e. it's parentless)
+        ('1/a', None),
+        # 1/b was triggered by three tasks (note the pre-initial dependency)
+        ('1/b', ('0/b', '1/a', '1/x')),
+        ('1/c', ('1/b',)),
+        ('1/x', None),
+        ('1/z', ('1/b',)),
+    }
+
+
+async def test_reftest(flow, scheduler, reftest):
+    """Test the triggering of tasks.
+
+    This uses the reftest fixture which combines the reflog and
+    complete fixtures. Suitable for use when you just want to do a simple
+    reftest.
+    """
+    id_ = flow({
+        'scheduling': {
+            'graph': {
+                'R1': 'a => b'
+            }
+        }
+    })
+    schd = scheduler(id_, paused_start=False)
+
+    assert await reftest(schd) == {
+        ('1/a', None),
+        ('1/b', ('1/a',)),
+    }

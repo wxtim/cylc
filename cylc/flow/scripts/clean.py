@@ -29,7 +29,7 @@ not backed up elsewhere, it will be lost.
 
 It will also remove any symlink directory targets.
 
-Workflow names can be hierarchical, corresponding to the path under ~/cylc-run.
+Workflow IDs can be hierarchical, corresponding to the path under ~/cylc-run.
 
 Examples:
   # Remove the workflow at ~/cylc-run/foo/bar
@@ -60,15 +60,19 @@ Examples:
 """
 
 import asyncio
+from optparse import SUPPRESS_HELP
 import sys
 from typing import TYPE_CHECKING, Iterable, List, Tuple
+
+from metomi.isodatetime.exceptions import ISO8601SyntaxError
+from metomi.isodatetime.parsers import DurationParser
 
 from cylc.flow import LOG
 from cylc.flow.clean import init_clean, get_contained_workflows
 from cylc.flow.exceptions import CylcError, InputError
 import cylc.flow.flags
 from cylc.flow.id_cli import parse_ids_async
-from cylc.flow.loggingutil import disable_timestamps
+from cylc.flow.loggingutil import set_timestamps
 from cylc.flow.option_parsers import (
     WORKFLOW_ID_MULTI_ARG_DOC,
     CylcOptionParser as COP,
@@ -119,15 +123,42 @@ def get_option_parser():
 
     parser.add_option(
         '--timeout',
-        help=("The number of seconds to wait for cleaning to take place on "
-              "remote hosts before cancelling."),
-        action='store', default='120', dest='remote_timeout'
+        help=(
+            "The length of time to wait for cleaning to take place on "
+            r"remote hosts before cancelling. Default: %default."
+        ),
+        action='store', default='PT5M', dest='remote_timeout'
+    )
+
+    parser.add_option(
+        '--no-scan',
+        help=SUPPRESS_HELP, action='store_true', dest='no_scan'
+        # Used on remote re-invocation - do not scan for workflows, just
+        # clean exactly what you were told to clean
     )
 
     return parser
 
 
 CleanOptions = Options(get_option_parser())
+
+
+def parse_timeout(opts: 'Values') -> None:
+    """Parse timeout as ISO 8601 duration or number of seconds."""
+    if opts.remote_timeout:
+        try:
+            timeout = int(
+                DurationParser().parse(opts.remote_timeout).get_seconds()
+            )
+        except ISO8601SyntaxError:
+            try:
+                timeout = int(opts.remote_timeout)
+            except ValueError:
+                raise InputError(
+                    f"Invalid timeout: {opts.remote_timeout}. Must be "
+                    "an ISO 8601 duration or number of seconds."
+                )
+        opts.remote_timeout = str(timeout)
 
 
 def prompt(workflows: Iterable[str]) -> None:
@@ -173,28 +204,31 @@ async def scan(
 
 
 async def run(*ids: str, opts: 'Values') -> None:
-    # parse ids from the CLI
-    workflows, multi_mode = await parse_ids_async(
-        *ids,
-        constraint='workflows',
-        match_workflows=True,
-        match_active=False,
-        infer_latest_runs=False,  # don't infer latest runs like other cmds
-    )
+    if opts.no_scan:
+        workflows: Iterable[str] = ids
+    else:
+        # parse ids from the CLI
+        workflows, multi_mode = await parse_ids_async(
+            *ids,
+            constraint='workflows',
+            match_workflows=True,
+            match_active=False,
+            infer_latest_runs=False,  # don't infer latest runs like other cmds
+        )
 
-    # expand partial workflow ids (including run names)
-    workflows, multi_mode = await scan(workflows, multi_mode)
+        # expand partial workflow ids (including run names)
+        workflows, multi_mode = await scan(workflows, multi_mode)
 
-    if not workflows:
-        LOG.warning(f"No workflows matching {', '.join(ids)}")
-        return
+        if not workflows:
+            LOG.warning(f"No workflows matching {', '.join(ids)}")
+            return
 
-    workflows.sort()
-    if multi_mode and not opts.skip_interactive:
-        prompt(workflows)  # prompt for approval or exit
+        workflows.sort()
+        if multi_mode and not opts.skip_interactive:
+            prompt(workflows)  # prompt for approval or exit
 
     failed = {}
-    for workflow in sorted(workflows):
+    for workflow in workflows:
         try:
             init_clean(workflow, opts)
         except Exception as exc:
@@ -207,13 +241,23 @@ async def run(*ids: str, opts: 'Values') -> None:
 
 
 @cli_function(get_option_parser)
-def main(_, opts: 'Values', *ids: str):
+def main(_parser, opts: 'Values', *ids: str):
+    _main(opts, *ids)
+
+
+def _main(opts: 'Values', *ids: str):
+    """Run the clean command.
+
+    This is a separate function for ease of testing.
+    """
     if cylc.flow.flags.verbosity < 2:
-        disable_timestamps(LOG)
+        set_timestamps(LOG, False)
 
     if opts.local_only and opts.remote_only:
         raise InputError(
             "--local and --remote options are mutually exclusive"
         )
+
+    parse_timeout(opts)
 
     asyncio.run(run(*ids, opts=opts))

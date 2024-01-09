@@ -16,15 +16,17 @@
 
 from itertools import product
 import logging
+from os import unlink
 from pathlib import Path
 from textwrap import dedent
+from uuid import uuid4
 
 import pytest
 
 from cylc.flow import CYLC_LOG
 from cylc.flow.exceptions import (
+    ContactFileExists,
     CylcError,
-    ServiceFileError,
 )
 from cylc.flow.workflow_files import (
     ContactFileFields as CFF,
@@ -39,8 +41,8 @@ from cylc.flow.workflow_files import (
 
 @pytest.fixture(scope='module')
 async def myflow(mod_flow, mod_scheduler, mod_run, mod_one_conf):
-    reg = mod_flow(mod_one_conf)
-    schd = mod_scheduler(reg)
+    id_ = mod_flow(mod_one_conf)
+    schd = mod_scheduler(id_)
     async with mod_run(schd):
         yield schd
 
@@ -61,26 +63,27 @@ async def test_load_contact_file_async(myflow):
 
 @pytest.fixture
 async def workflow(flow, scheduler, one_conf, run_dir):
-    reg = flow(one_conf)
-    schd = scheduler(reg)
+    id_ = flow(one_conf)
+    schd = scheduler(id_)
     await schd.install()
 
     from collections import namedtuple
     Server = namedtuple('Server', ['port', 'pub_port'])
     schd.server = Server(1234, pub_port=2345)
+    schd.uuid_str = str(uuid4())
 
     contact_data = schd.get_contact_data()
     contact_file = Path(
         run_dir,
-        reg,
+        id_,
         WorkflowFiles.Service.DIRNAME,
         WorkflowFiles.Service.CONTACT
     )
 
     def dump_contact(**kwargs):
-        nonlocal contact_data, reg
+        nonlocal contact_data, id_
         dump_contact_file(
-            reg,
+            id_,
             {
                 **contact_data,
                 **kwargs
@@ -93,20 +96,20 @@ async def workflow(flow, scheduler, one_conf, run_dir):
     Fixture = namedtuple(
         'TextFixture',
         [
-            'reg',
+            'id_',
             'contact_file',
             'contact_data',
             'dump_contact',
         ]
     )
-    return Fixture(reg, contact_file, contact_data, dump_contact)
+    return Fixture(id_, contact_file, contact_data, dump_contact)
 
 
 def test_detect_old_contact_file_running(workflow):
     """It should raise an error if the workflow is running."""
     # the workflow is running so we should get a ServiceFileError
-    with pytest.raises(ServiceFileError):
-        detect_old_contact_file(workflow.reg)
+    with pytest.raises(ContactFileExists):
+        detect_old_contact_file(workflow.id_)
     # the contact file is valid so should be left alone
     assert workflow.contact_file.exists()
 
@@ -123,7 +126,7 @@ def test_detect_old_contact_file_network_issue(workflow):
     # detect_old_contact_file should report that it can't tell if the workflow
     # is running or not
     with pytest.raises(CylcError) as exc_ctx:
-        detect_old_contact_file(workflow.reg)
+        detect_old_contact_file(workflow.id_)
     assert (
         'Cannot determine whether workflow is running'
         in str(exc_ctx.value)
@@ -144,7 +147,7 @@ def test_detect_old_contact_file_old_run(workflow, caplog, log_filter):
 
     # the workflow should not appear to be running (according to the contact
     # data) so detect_old_contact_file should not raise any errors
-    detect_old_contact_file(workflow.reg)
+    detect_old_contact_file(workflow.id_)
 
     # as a side effect the contact file should have been removed
     assert not workflow.contact_file.exists()
@@ -158,7 +161,7 @@ def test_detect_old_contact_file_none(workflow):
     assert not workflow.contact_file.exists()
     # detect_old_contact_file should return
 
-    detect_old_contact_file(workflow.reg)
+    detect_old_contact_file(workflow.id_)
 
     # it should not recreate the contact file
     assert not workflow.contact_file.exists()
@@ -209,7 +212,8 @@ def test_detect_old_contact_file_removal_errors(
         nonlocal process_running
         if not contact_present_after:
             # remove the contact file midway through detect_old_contact_file
-            workflow.contact_file.unlink()
+            unlink(workflow.contact_file)
+
         return process_running
 
     monkeypatch.setattr(
@@ -233,10 +237,10 @@ def test_detect_old_contact_file_removal_errors(
     # try to remove the contact file
     if process_running:
         # this should error if the process is running
-        with pytest.raises(ServiceFileError):
-            detect_old_contact_file(workflow.reg)
+        with pytest.raises(ContactFileExists):
+            detect_old_contact_file(workflow.id_)
     else:
-        detect_old_contact_file(workflow.reg)
+        detect_old_contact_file(workflow.id_)
 
     # decide which log messages we should expect to see
     if process_running:
@@ -262,7 +266,7 @@ def test_detect_old_contact_file_removal_errors(
     assert bool(log_filter(
         caplog,
         contains=(
-            f'Failed to remove contact file for {workflow.reg}:'
+            f'Failed to remove contact file for {workflow.id_}:'
             '\nmocked-os-error'
         ),
     )) is remove_failed

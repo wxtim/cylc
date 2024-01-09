@@ -88,7 +88,9 @@ class ISO8601Point(PointBase):
 
     def add(self, other):
         """Add an Interval to self."""
-        return ISO8601Point(self._iso_point_add(self.value, other.value))
+        return ISO8601Point(self._iso_point_add(
+            self.value, other.value, CALENDAR.mode
+        ))
 
     def standardise(self):
         """Reformat self.value into a standard representation."""
@@ -106,25 +108,27 @@ class ISO8601Point(PointBase):
     def sub(self, other):
         """Subtract a Point or Interval from self."""
         if isinstance(other, ISO8601Point):
-            return ISO8601Interval(
-                self._iso_point_sub_point(self.value, other.value))
-        return ISO8601Point(
-            self._iso_point_sub_interval(self.value, other.value))
+            return ISO8601Interval(self._iso_point_sub_point(
+                self.value, other.value, CALENDAR.mode
+            ))
+        return ISO8601Point(self._iso_point_sub_interval(
+            self.value, other.value, CALENDAR.mode
+        ))
 
     @staticmethod
     @lru_cache(10000)
-    def _iso_point_add(point_string, interval_string):
+    def _iso_point_add(point_string, interval_string, _calendar_mode):
         """Add the parsed point_string to the parsed interval_string."""
         point = point_parse(point_string)
         interval = interval_parse(interval_string)
         return str(point + interval)
 
     def _cmp(self, other: 'ISO8601Point') -> int:
-        return self._iso_point_cmp(self.value, other.value)
+        return self._iso_point_cmp(self.value, other.value, CALENDAR.mode)
 
     @staticmethod
     @lru_cache(10000)
-    def _iso_point_cmp(point_string, other_point_string):
+    def _iso_point_cmp(point_string, other_point_string, _calendar_mode):
         """Compare the parsed point_string to the other one."""
         point = point_parse(point_string)
         other_point = point_parse(other_point_string)
@@ -132,7 +136,7 @@ class ISO8601Point(PointBase):
 
     @staticmethod
     @lru_cache(10000)
-    def _iso_point_sub_interval(point_string, interval_string):
+    def _iso_point_sub_interval(point_string, interval_string, _calendar_mode):
         """Return the parsed point_string minus the parsed interval_string."""
         point = point_parse(point_string)
         interval = interval_parse(interval_string)
@@ -140,7 +144,7 @@ class ISO8601Point(PointBase):
 
     @staticmethod
     @lru_cache(10000)
-    def _iso_point_sub_point(point_string, other_point_string):
+    def _iso_point_sub_point(point_string, other_point_string, _calendar_mode):
         """Return the difference between the two parsed point strings."""
         point = point_parse(point_string)
         other_point = point_parse(other_point_string)
@@ -269,8 +273,14 @@ class ISO8601Exclusions(ExclusionBase):
         for point in excl_points:
             try:
                 # Try making an ISO8601Sequence
-                exclusion = ISO8601Sequence(point, self.exclusion_start_point,
-                                            self.exclusion_end_point)
+                exclusion = ISO8601Sequence(
+                    point,
+                    self.exclusion_start_point,
+                    self.exclusion_end_point,
+                    # disable warnings which are logged when exclusion is a
+                    # time point
+                    zero_duration_warning=False,
+                )
                 self.exclusion_sequences.append(exclusion)
             except (AttributeError, TypeError, ValueError):
                 # Try making an ISO8601Point
@@ -284,7 +294,20 @@ class ISO8601Sequence(SequenceBase):
 
     """A sequence of ISO8601 date time points separated by an interval.
     Note that an ISO8601Sequence object (may) contain
-    ISO8601ExclusionSequences"""
+    ISO8601ExclusionSequences
+
+    Args:
+        dep_section:
+            The full sequence expression.
+        context_start_point:
+            Sequence start point from the global context.
+        context_end_point:
+            Sequence end point from the global context.
+        zero_duration_warning:
+            If `False`, then zero-duration recurrence warnings will be turned
+            off. This is set for exclusion parsing.
+
+    """
 
     TYPE = CYCLER_TYPE_ISO8601
     TYPE_SORT_KEY = CYCLER_TYPE_SORT_KEY_ISO8601
@@ -303,8 +326,13 @@ class ISO8601Sequence(SequenceBase):
             return "R1"
         return "R1/" + str(start_point)
 
-    def __init__(self, dep_section, context_start_point=None,
-                 context_end_point=None):
+    def __init__(
+        self,
+        dep_section,
+        context_start_point=None,
+        context_end_point=None,
+        zero_duration_warning=True,
+    ):
         SequenceBase.__init__(
             self, dep_section, context_start_point, context_end_point)
         self.dep_section = dep_section
@@ -344,7 +372,9 @@ class ISO8601Sequence(SequenceBase):
         # Parse_recurrence returns an isodatetime TimeRecurrence object
         # and a list of exclusion strings.
         self.recurrence, excl_points = self.abbrev_util.parse_recurrence(
-            dep_section)
+            dep_section,
+            zero_duration_warning=zero_duration_warning,
+        )
 
         # Determine the exclusion start point and end point
         try:
@@ -544,7 +574,10 @@ class ISO8601Sequence(SequenceBase):
             return self.get_next_point_on_sequence(result)
         return result
 
-    def get_first_point(self, point):
+    def get_first_point(
+        self,
+        point: ISO8601Point
+    ) -> Optional[ISO8601Point]:
         """Return the first point >= to point, or None if out of bounds."""
         with contextlib.suppress(KeyError):
             return ISO8601Point(self._cached_first_point_values[point.value])
@@ -866,14 +899,23 @@ def get_dump_format():
 def get_point_relative(offset_string, base_point):
     """Create a point from offset_string applied to base_point."""
     try:
-        interval = ISO8601Interval(str(interval_parse(offset_string)))
+        operator = '+'
+        base_point_relative = base_point
+        for part in re.split(r'(\+|-)', offset_string):
+            if part == '+' or part == '-':
+                operator = part
+            elif part != '':
+                interval = interval_parse(part)
+                if operator == '-':
+                    interval *= -1
+                base_point_relative += ISO8601Interval(str(interval))
+        return base_point_relative
     except IsodatetimeError:
+        # It's a truncated time point rather than an interval
         return ISO8601Point(str(
             WorkflowSpecifics.abbrev_util.parse_timepoint(
                 offset_string, context_point=point_parse(base_point.value))
         ))
-    else:
-        return base_point + interval
 
 
 def interval_parse(interval_string):

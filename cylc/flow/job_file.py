@@ -25,7 +25,7 @@ from textwrap import dedent
 from cylc.flow import __version__ as CYLC_VERSION
 from cylc.flow.job_runner_mgr import JobRunnerManager
 import cylc.flow.flags
-from cylc.flow.option_parsers import verbosity_to_env
+from cylc.flow.log_level import verbosity_to_env
 from cylc.flow.config import interpolate_template, ParamExpandError
 
 
@@ -220,9 +220,6 @@ class JobFileWriter:
         handle.write(
             '\n    export CYLC_TASK_NAMESPACE_HIERARCHY="%s"' %
             ' '.join(job_conf['namespace_hierarchy']))
-        handle.write(
-            '\n    export CYLC_TASK_DEPENDENCIES="%s"' %
-            ' '.join(job_conf['dependencies']))
         handle.write(
             '\n    export CYLC_TASK_TRY_NUMBER=%s' % job_conf['try_num'])
         handle.write(

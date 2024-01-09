@@ -22,7 +22,7 @@ from optparse import (
     OptionParser,
     Values,
     Option,
-    IndentedHelpFormatter
+    IndentedHelpFormatter,
 )
 import os
 import re
@@ -33,7 +33,7 @@ from ansimarkup import (
 
 import sys
 from textwrap import dedent
-from typing import Any, Dict, Optional, List, Tuple, Union
+from typing import Any, Dict, Optional, List, Tuple
 
 from cylc.flow import LOG
 from cylc.flow.terminal import supports_color, DIM
@@ -42,8 +42,13 @@ from cylc.flow.loggingutil import (
     CylcLogFormatter,
     setup_segregated_log_streams,
 )
+from cylc.flow.log_level import (
+    env_to_verbosity,
+    verbosity_to_log_level
+)
 
 WORKFLOW_ID_ARG_DOC = ('WORKFLOW', 'Workflow ID')
+OPT_WORKFLOW_ID_ARG_DOC = ('[WORKFLOW]', 'Workflow ID')
 WORKFLOW_ID_MULTI_ARG_DOC = ('WORKFLOW ...', 'Workflow ID(s)')
 WORKFLOW_ID_OR_PATH_ARG_DOC = ('WORKFLOW | PATH', 'Workflow ID or path')
 ID_MULTI_ARG_DOC = ('ID ...', 'Workflow/Cycle/Family/Task ID(s)')
@@ -104,7 +109,7 @@ class OptionSettings():
     def _in_list(self, others):
         """CLI arguments for this option found in any of a list of
         other options."""
-        return any([self & other for other in others])
+        return any(self & other for other in others)
 
     def _update_sources(self, other):
         """Update the sources from this and 1 other OptionSettings object"""
@@ -174,99 +179,6 @@ def format_help_headings(string):
             string,
             flags=re.M,
         )
-    )
-
-
-def verbosity_to_log_level(verb: int) -> int:
-    """Convert Cylc verbosity to log severity level."""
-    if verb < 0:
-        return logging.WARNING
-    if verb > 0:
-        return logging.DEBUG
-    return logging.INFO
-
-
-def log_level_to_verbosity(lvl: int) -> int:
-    """Convert log severity level to Cylc verbosity.
-
-    Examples:
-        >>> log_level_to_verbosity(logging.NOTSET)
-        2
-        >>> log_level_to_verbosity(logging.DEBUG)
-        1
-        >>> log_level_to_verbosity(logging.INFO)
-        0
-        >>> log_level_to_verbosity(logging.WARNING)
-        -1
-        >>> log_level_to_verbosity(logging.ERROR)
-        -1
-    """
-    if lvl < logging.DEBUG:
-        return 2
-    if lvl < logging.INFO:
-        return 1
-    if lvl == logging.INFO:
-        return 0
-    return -1
-
-
-def verbosity_to_opts(verb: int) -> List[str]:
-    """Convert Cylc verbosity to the CLI opts required to replicate it.
-
-    Examples:
-        >>> verbosity_to_opts(0)
-        []
-        >>> verbosity_to_opts(-2)
-        ['-q', '-q']
-        >>> verbosity_to_opts(2)
-        ['-v', '-v']
-
-    """
-    return [
-        '-q'
-        for _ in range(verb, 0)
-    ] + [
-        '-v'
-        for _ in range(0, verb)
-    ]
-
-
-def verbosity_to_env(verb: int) -> Dict[str, str]:
-    """Convert Cylc verbosity to the env vars required to replicate it.
-
-    Examples:
-        >>> verbosity_to_env(0)
-        {'CYLC_VERBOSE': 'false', 'CYLC_DEBUG': 'false'}
-        >>> verbosity_to_env(1)
-        {'CYLC_VERBOSE': 'true', 'CYLC_DEBUG': 'false'}
-        >>> verbosity_to_env(2)
-        {'CYLC_VERBOSE': 'true', 'CYLC_DEBUG': 'true'}
-
-    """
-    return {
-        'CYLC_VERBOSE': str((verb > 0)).lower(),
-        'CYLC_DEBUG': str((verb > 1)).lower(),
-    }
-
-
-def env_to_verbosity(env: Union[Dict, os._Environ]) -> int:
-    """Extract verbosity from environment variables.
-
-    Examples:
-        >>> env_to_verbosity({})
-        0
-        >>> env_to_verbosity({'CYLC_VERBOSE': 'true'})
-        1
-        >>> env_to_verbosity({'CYLC_DEBUG': 'true'})
-        2
-        >>> env_to_verbosity({'CYLC_DEBUG': 'TRUE'})
-        2
-
-    """
-    return (
-        2 if env.get('CYLC_DEBUG', '').lower() == 'true'
-        else 1 if env.get('CYLC_VERBOSE', '').lower() == 'true'
-        else 0
     )
 
 
@@ -363,6 +275,15 @@ class CylcOptionParser(OptionParser):
             See `cylc help id` for more details.
     '''))
 
+    CAN_BE_USED_MULTIPLE = (
+        " This option can be used multiple times on the command line.")
+
+    NOTE_PERSIST_ACROSS_RESTARTS = (
+        " NOTE: these settings persist across workflow restarts,"
+        " but can be set again on the \"cylc play\""
+        " command line if they need to be overridden."
+    )
+
     STD_OPTIONS = [
         OptionSettings(
             ['-q', '--quiet'], help='Decrease verbosity.',
@@ -403,13 +324,27 @@ class CylcOptionParser(OptionParser):
                 " Values should be valid Python literals so strings"
                 " must be quoted"
                 " e.g. 'STR=\"string\"', INT=43, BOOL=True."
-                " This option can be used multiple "
-                " times on the command line."
-                " NOTE: these settings persist across workflow restarts,"
-                " but can be set again on the \"cylc play\""
-                " command line if they need to be overridden."
+                + CAN_BE_USED_MULTIPLE
+                + NOTE_PERSIST_ACROSS_RESTARTS
             ),
-            action='append', default=[], dest='templatevars', useif='jset'),
+            action='append', default=[], dest='templatevars', useif='jset'
+        ),
+        OptionSettings(
+            ['-z', '--set-list', '--template-list'],
+            metavar='NAME=VALUE1,VALUE2,...',
+            help=(
+                'Set the value of a Jinja2 template variable in the'
+                ' workflow definition as a comma separated'
+                ' list of Python strings.'
+                ' Values containing commas must be quoted.'
+                " e.g. '+s STR=a,b,c' => ['a', 'b', 'c']"
+                " or '+ s STR=a,\"b,c\"' => ['a', 'b,c']"
+                + CAN_BE_USED_MULTIPLE
+                + NOTE_PERSIST_ACROSS_RESTARTS
+            ),
+            action='append', default=[], dest='templatevars_lists',
+            useif='jset'
+        ),
         OptionSettings(
             ['--set-file'], metavar='FILE',
             help=(
@@ -418,9 +353,7 @@ class CylcOptionParser(OptionParser):
                 " pairs (one per line)."
                 " As with --set values should be valid Python literals "
                 " so strings must be quoted e.g. STR='string'."
-                " NOTE: these settings persist across workflow restarts,"
-                " but can be set again on the \"cylc play\""
-                " command line if they need to be overridden."
+                + NOTE_PERSIST_ACROSS_RESTARTS
             ),
             action='store', default=None, dest='templatevars_file',
             useif='jset'

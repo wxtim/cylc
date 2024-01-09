@@ -29,7 +29,9 @@ from cylc.flow import (
     __version__,
     __file__ as cylc_flow_file,
 )
-from cylc.flow.job_file import JobFileWriter
+from cylc.flow.job_file import (
+    JobFileWriter,
+)
 from cylc.flow.platforms import platform_from_name
 
 
@@ -395,7 +397,6 @@ def test_write_task_environment():
                 'export CYLC_TASK_COMMS_METHOD=ssh\n    '
                 'export CYLC_TASK_JOB="1/moo/01"\n    export '
                 'CYLC_TASK_NAMESPACE_HIERARCHY="baa moo"\n    export '
-                'CYLC_TASK_DEPENDENCIES="moo neigh quack"\n    export '
                 'CYLC_TASK_TRY_NUMBER=1\n    export '
                 'CYLC_TASK_FLOW_NUMBERS=1\n    export '
                 'CYLC_TASK_PARAM_duck="quack"\n    export '
@@ -533,3 +534,4 @@ def test_homeless_platform(fixture_get_platform):
         job_sh_txt = job_sh.read()
         if 'HOME' in job_sh_txt:
             raise Exception('$HOME found in job.sh\n{job_sh_txt}')
+

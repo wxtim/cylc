@@ -22,12 +22,15 @@ Note the class contained here is just for documentation purposes and is
 not intended to be subclassed.
 """
 
-import re
 from typing import (
     Iterable,
     List,
     Tuple,
+    TYPE_CHECKING,
 )
+
+if TYPE_CHECKING:
+    import re
 
 
 class ExampleHandler():
@@ -110,7 +113,6 @@ class ExampleHandler():
        * ``job_file_path``
        * ``job_runner_command_template``
        * ``job_runner_name``
-       * ``logfiles``
        * ``namespace_hierarchy``
        * ``param_var``
        * ``platform``
@@ -214,6 +216,20 @@ class ExampleHandler():
 
     """
 
+    POLL_CMD: str
+    """Command for checking job submissions.
+
+    A list of job IDs to poll will be provided as arguments.
+
+    The command should write valid submitted/running job IDs to stdout.
+
+    * To filter out invalid/failed jobs use
+      :py:meth:`ExampleHandler.filter_poll_many_output`.
+    * To build a more advanced command than is possible with this configuration
+      use :py:meth:`ExampleHandler.get_poll_many_cmd`.
+
+    """
+
     POLL_CANT_CONNECT_ERR: str
     """String for detecting communication errors in poll command output.
 
@@ -244,7 +260,7 @@ class ExampleHandler():
 
     """
 
-    REC_ID_FROM_SUBMIT_OUT: re.Pattern
+    REC_ID_FROM_SUBMIT_OUT: 're.Pattern'
     """Regular expression to extract job IDs from submission stderr.
 
     A regular expression (compiled) to extract the job "id" from the standard
@@ -252,7 +268,7 @@ class ExampleHandler():
 
     """
 
-    REC_ID_FROM_SUBMIT_ERR: re.Pattern
+    REC_ID_FROM_SUBMIT_ERR: 're.Pattern'
     """Regular expression to extract job IDs from submission stderr.
 
     See :py:attr:`ExampleHandler.REC_ID_FROM_SUBMIT_OUT`.
@@ -283,7 +299,7 @@ class ExampleHandler():
     def filter_poll_many_output(self, out: str) -> List[str]:
         """Filter job ides out of poll output.
 
-        Called after the job runner's poll many command. The method should read
+        Called after the job runner's poll command. The method should read
         the output and return a list of job IDs that are still in the
         job runner.
 
@@ -332,6 +348,9 @@ class ExampleHandler():
 
     def get_poll_many_cmd(self, job_id_list: List[str]) -> List[str]:
         """Return a command to poll the specified jobs.
+
+        If specified, this will be called instead of
+        :py:attr:`ExampleHandler.POLL_CMD`.
 
         Args:
             job_id_list: The list of job IDs to poll.

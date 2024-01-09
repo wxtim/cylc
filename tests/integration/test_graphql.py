@@ -48,7 +48,6 @@ def job_config(schd):
         'directives': {},
         'environment': {},
         'param_var': {},
-        'logfiles': [],
         'platform': {'name': 'platform'},
     }
 
@@ -91,10 +90,10 @@ async def harness(mod_flow, mod_scheduler, mod_run):
             },
         },
     }
-    reg: str = mod_flow(flow_def)
-    schd: 'Scheduler' = mod_scheduler(reg)
+    id_: str = mod_flow(flow_def)
+    schd: 'Scheduler' = mod_scheduler(id_)
     async with mod_run(schd):
-        client = WorkflowRuntimeClient(reg)
+        client = WorkflowRuntimeClient(id_)
         schd.pool.hold_tasks('*')
         schd.resume_workflow()
         # Think this is needed to save the data state at first start (?)

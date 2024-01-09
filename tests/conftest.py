@@ -27,6 +27,15 @@ from cylc.flow.parsec.config import ParsecConfig
 from cylc.flow.parsec.validate import cylc_config_validate
 
 
+@pytest.fixture(scope='module')
+def mod_monkeypatch():
+    """A module-scoped version of the monkeypatch fixture."""
+    from _pytest.monkeypatch import MonkeyPatch
+    mpatch = MonkeyPatch()
+    yield mpatch
+    mpatch.undo()
+
+
 @pytest.fixture
 def mock_glbl_cfg(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """A Pytest fixture for fiddling global config values.
@@ -107,6 +116,38 @@ def log_filter():
             and (exact_match is None or exact_match == log_message)
         ]
     return _log_filter
+
+
+@pytest.fixture
+def log_scan():
+    """Ensure log messages appear in the correct order.
+
+    TRY TO AVOID DOING THIS!
+
+    If you are trying to test a sequence of events you are likely better off
+    doing this a different way (e.g. mock the functions you are interested in
+    and test the call arguments/returns later).
+
+    However, there are some occasions where this might be necessary, e.g.
+    testing a monolithic synchronous function.
+
+    Args:
+        log: The caplog fixture.
+        items: Iterable of string messages to compare. All are tested
+            by "contains" i.e. "item in string".
+
+    """
+    def _log_scan(log, items):
+        records = iter(log.records)
+        record = next(records)
+        for item in items:
+            while item not in record.message:
+                try:
+                    record = next(records)
+                except StopIteration:
+                    raise Exception(f'Reached end of log looking for: {item}')
+
+    return _log_scan
 
 
 @pytest.fixture(scope='session')

@@ -46,8 +46,12 @@ if TYPE_CHECKING:
     from optparse import Values
 
 from cylc.flow import LOG
-from cylc.flow.exceptions import ServiceFileError
-from cylc.flow.id_cli import parse_id
+from cylc.flow.exceptions import (
+    ContactFileExists,
+    CylcError,
+)
+from cylc.flow.id_cli import parse_id_async
+from cylc.flow.loggingutil import set_timestamps
 from cylc.flow.option_parsers import (
     WORKFLOW_ID_ARG_DOC,
     CylcOptionParser as COP,
@@ -58,7 +62,7 @@ from cylc.flow.option_parsers import (
 from cylc.flow.scheduler_cli import PLAY_OPTIONS, scheduler_cli
 from cylc.flow.scripts.validate import (
     VALIDATE_OPTIONS,
-    _main as cylc_validate
+    wrapped_main as cylc_validate
 )
 from cylc.flow.scripts.reinstall import (
     REINSTALL_CYLC_ROSE_OPTIONS,
@@ -66,11 +70,12 @@ from cylc.flow.scripts.reinstall import (
     reinstall_cli as cylc_reinstall,
 )
 from cylc.flow.scripts.reload import (
-    reload_cli as cylc_reload
+    run as cylc_reload
 )
 from cylc.flow.terminal import cli_function
 from cylc.flow.workflow_files import detect_old_contact_file
 
+import asyncio
 
 CYLC_ROSE_OPTIONS = COP.get_cylc_rose_options()
 VR_OPTIONS = combine_options(
@@ -120,16 +125,16 @@ def check_tvars_and_workflow_stopped(
 
 @cli_function(get_option_parser)
 def main(parser: COP, options: 'Values', workflow_id: str):
-    sys.exit(vro_cli(parser, options, workflow_id))
+    sys.exit(asyncio.run(vr_cli(parser, options, workflow_id)))
 
 
-def vro_cli(parser: COP, options: 'Values', workflow_id: str):
+async def vr_cli(parser: COP, options: 'Values', workflow_id: str):
     """Run Cylc (re)validate - reinstall - reload in sequence."""
     # Attempt to work out whether the workflow is running.
     # We are trying to avoid reinstalling then subsequently being
     # unable to play or reload because we cannot identify workflow state.
     unparsed_wid = workflow_id
-    workflow_id, *_ = parse_id(
+    workflow_id, *_ = await parse_id_async(
         workflow_id,
         constraint='workflows',
     )
@@ -138,10 +143,10 @@ def vro_cli(parser: COP, options: 'Values', workflow_id: str):
     # outcome which we want to capture before we install.
     try:
         detect_old_contact_file(workflow_id)
-    except ServiceFileError:
+    except ContactFileExists:
         # Workflow is definitely running:
         workflow_running = True
-    except Exception as exc:
+    except CylcError as exc:
         LOG.error(exc)
         LOG.critical(
             'Cannot tell if the workflow is running'
@@ -162,10 +167,14 @@ def vro_cli(parser: COP, options: 'Values', workflow_id: str):
     # Force on the against_source option:
     options.against_source = True   # Make validate check against source.
     log_subcommand('validate --against-source', workflow_id)
-    cylc_validate(parser, options, workflow_id)
+    await cylc_validate(parser, options, workflow_id)
 
     log_subcommand('reinstall', workflow_id)
-    reinstall_ok = cylc_reinstall(options, workflow_id)
+    reinstall_ok = await cylc_reinstall(
+        options, workflow_id,
+        [],
+        print_reload_tip=False
+    )
     if not reinstall_ok:
         LOG.warning(
             'No changes to source: No reinstall or'
@@ -176,10 +185,11 @@ def vro_cli(parser: COP, options: 'Values', workflow_id: str):
     # Run reload if workflow is running or paused:
     if workflow_running:
         log_subcommand('reload', workflow_id)
-        cylc_reload(options, workflow_id)
+        await cylc_reload(options, workflow_id)
 
     # run play anyway, to play a stopped workflow:
     else:
+        set_timestamps(LOG, options.log_timestamp)
         cleanup_sysargv(
             'play',
             unparsed_wid,
@@ -192,4 +202,4 @@ def vro_cli(parser: COP, options: 'Values', workflow_id: str):
             source='',  # Intentionally blank
         )
         log_subcommand(*sys.argv[1:])
-        scheduler_cli(options, workflow_id)
+        await scheduler_cli(options, workflow_id, parse_workflow_id=False)

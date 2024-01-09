@@ -25,9 +25,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from cylc.flow import LOG
+from cylc.flow.id import Tokens
+from cylc.flow.cycling.iso8601 import ISO8601Point
 from cylc.flow.task_events_mgr import TaskJobLogsRetrieveContext
 from cylc.flow.subprocctx import SubProcContext
 from cylc.flow.subprocpool import SubProcPool, _XTRIG_FUNCS, get_func
+from cylc.flow.task_proxy import TaskProxy
 
 
 class TestSubProcPool(unittest.TestCase):
@@ -276,6 +279,19 @@ def test__run_command_exit_no_255_callback(caplog, mock_ctx):
     assert 'callback called' in caplog.records[0].msg
 
 
+def test__run_command_exit_no_gettable_platform(caplog, mock_ctx):
+    """It logs being unable to select a platform"""
+    ret_ctx = TaskJobLogsRetrieveContext(
+        ctx_type='raa',
+        platform_name='rhenas',
+        max_size=256,
+        key='rhenas'
+    )
+    ctx = mock_ctx(cmd_key=ret_ctx, cmd=['ssh'], ret_code=255)
+    SubProcPool._run_command_exit(ctx, callback=_test_callback)
+    assert 'platform: rhenas' in caplog.records[0].msg
+
+
 def test__run_command_exit_no_255_args(caplog, mock_ctx):
     """It runs the 255 callback with the args of the callback if no
     callback 255 args provided.
@@ -299,6 +315,32 @@ def test__run_command_exit_add_to_badhosts(mock_ctx):
         callback=print,
         callback_args=['Welcome to Magrathea']
     )
+    assert badhosts == {'foo', 'bar', 'mouse'}
+
+
+def test__run_command_exit_add_to_badhosts_log(caplog, mock_ctx):
+    """It gets platform name from the callback args.
+    """
+    badhosts = {'foo', 'bar'}
+    SubProcPool._run_command_exit(
+        mock_ctx(cmd=['ssh']),
+        bad_hosts=badhosts,
+        callback=lambda x, t: print(str(x)),
+        callback_args=[TaskProxy(
+            Tokens('~u/w//c/t/2'),
+            SimpleNamespace(
+                name='t', dependencies={}, sequential='',
+                external_triggers=[], xtrig_labels={},
+                outputs={
+                    'submitted': [None, None], 'submit-failed': [None, None]
+                },
+                graph_children={}, rtconfig={'platform': 'foo'}
+
+            ),
+            ISO8601Point('1990')
+        )]
+    )
+    assert 'platform: foo' in caplog.records[0].message
     assert badhosts == {'foo', 'bar', 'mouse'}
 
 

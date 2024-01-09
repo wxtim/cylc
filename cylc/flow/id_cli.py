@@ -31,11 +31,6 @@ from cylc.flow.id import (
     upgrade_legacy_ids,
 )
 from cylc.flow.pathutil import EXPLICIT_RELATIVE_PATH_REGEX
-from cylc.flow.network.scan import (
-    filter_name,
-    is_active,
-    scan,
-)
 from cylc.flow.workflow_files import (
     check_flow_file,
     detect_both_flow_and_suite,
@@ -109,12 +104,14 @@ def _parse_cli(*ids: str) -> List[Tokens]:
         >>> parse_back('//cycle')
         Traceback (most recent call last):
         InputError: Relative reference must follow an incomplete one.
-        E.G: workflow //cycle/task
 
         >>> parse_back('workflow//cycle', '//cycle')
         Traceback (most recent call last):
         InputError: Relative reference must follow an incomplete one.
-        E.G: workflow //cycle/task
+
+        >>> parse_back('workflow///cycle/')
+        Traceback (most recent call last):
+        InputError: Invalid ID: workflow///cycle/
 
     """
     # upgrade legacy ids if required
@@ -130,7 +127,11 @@ def _parse_cli(*ids: str) -> List[Tokens]:
             if id_.endswith('/') and not id_.endswith('//'):  # noqa: SIM106
                 # tolerate IDs that end in a single slash on the CLI
                 # (e.g. CLI auto completion)
-                tokens = Tokens(id_[:-1])
+                try:
+                    # this ID is invalid with or without the trailing slash
+                    tokens = Tokens(id_[:-1])
+                except ValueError:
+                    raise InputError(f'Invalid ID: {id_}')
             else:
                 raise InputError(f'Invalid ID: {id_}')
         is_partial = tokens.get('workflow') and not tokens.get('cycle')
@@ -487,6 +488,12 @@ async def _expand_workflow_tokens_impl(tokens, match_active=True):
             'currently supported.'
         )
 
+    # import only when needed to avoid slowing CLI unnecessarily
+    from cylc.flow.network.scan import (
+        filter_name,
+        is_active,
+        scan,
+    )
     # construct the pipe
     pipe = scan | filter_name(fnmatch.translate(tokens['workflow']))
     if match_active is not None:
