@@ -349,7 +349,7 @@ STYLE_GUIDE = (
 )
 SECTION2 = r'\[\[\s*{}\s*\]\]'
 SECTION3 = r'\[\[\[\s*{}\s*\]\]\]'
-FILEGLOBS = ['*.rc', '*.cylc']
+FILEGLOBS = ['*.rc', '*.cylc', '*.py']
 JINJA2_SHEBANG = '#!jinja2'
 DEPENDENCY_SECTION_MSG = {
     'text': (
@@ -522,6 +522,24 @@ STYLE_CHECKS = {
     'S013': {
         'short': 'Items should be indented in 4 space blocks.',
         FUNCTION: check_indentation
+    },
+    'S015': {
+        'short': 'Do not reuse the name of built in xtriggers.',
+        'url': (
+            'https://cylc.github.io/cylc-doc/stable/html/user-guide'
+            '/writing-workflows/external-triggers.html#external-triggers'
+        ),
+        'rst': (
+            'Do not redefine the names of the built in xtriggers, '
+            '\n * wall_clock'
+            '\n * workflow_state'
+            '\n * echo'
+            '\n * xrandom'
+        ),
+        FUNCTION: re.compile(
+            r'def ((echo)|(xrandom)|(wall_clock)|(workflow_state))\(.*\):'
+        ).findall,
+        'python': True,
     }
 }
 # Subset of deprecations which are tricky (impossible?) to scrape from the
@@ -1100,6 +1118,7 @@ def lint(
     line = next(lines)
     # check if it is a jinja2 shebang
     jinja_shebang = line.strip().lower() == JINJA2_SHEBANG
+    file_is_python = bool(file_rel.suffix == '.py')
 
     while True:
         # run lint checks against the current line
@@ -1109,6 +1128,10 @@ def lint(
                 line.strip().startswith('#')
                 and not check_meta.get('evaluate commented lines', False)
             ):
+                continue
+
+            # Carry out Python checks on Python files:
+            if not (file_is_python and check_meta.get('python', False)):
                 continue
 
             if check_meta.get('kwargs', False):
