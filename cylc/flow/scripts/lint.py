@@ -523,24 +523,6 @@ STYLE_CHECKS = {
         'short': 'Items should be indented in 4 space blocks.',
         FUNCTION: check_indentation
     },
-    'S015': {
-        'short': 'Do not reuse the name of built in xtriggers.',
-        'url': (
-            'https://cylc.github.io/cylc-doc/stable/html/user-guide'
-            '/writing-workflows/external-triggers.html#external-triggers'
-        ),
-        'rst': (
-            'Do not redefine the names of the built in xtriggers, '
-            '\n * wall_clock'
-            '\n * workflow_state'
-            '\n * echo'
-            '\n * xrandom'
-        ),
-        FUNCTION: re.compile(
-            r'def ((echo)|(xrandom)|(wall_clock)|(workflow_state))\(.*\):'
-        ).findall,
-        'python': True,
-    }
 }
 # Subset of deprecations which are tricky (impossible?) to scrape from the
 # upgrader.
@@ -726,6 +708,10 @@ EXTRA_TOML_VALIDATION = {
         lambda x: isinstance(x, int):
             'max-line-length must be an integer.'
     },
+    'check-python': {
+        lambda x: x in ['true', 'false']:
+            'check-python must be true or false.'
+    },
     # consider checking that item is file?
     'exclude': {}
 }
@@ -772,7 +758,7 @@ def validate_toml_items(tomldata):
                 f'Only {[*EXTRA_TOML_VALIDATION.keys()]} '
                 f'allowed as toml sections but you used {key}'
             )
-        if key != 'max-line-length':
+        if key not in ['max-line-length', 'check-python']:
             # Item should be a list...
             if not isinstance(items, list):
                 raise CylcError(
@@ -795,7 +781,7 @@ def validate_toml_items(tomldata):
 def get_pyproject_toml(dir_):
     """if a pyproject.toml file is present open it and return settings.
     """
-    keys = ['rulesets', 'ignore', 'exclude', 'max-line-length']
+    keys = EXTRA_TOML_VALIDATION.keys()
     tomlfile = Path(dir_ / 'pyproject.toml')
     tomldata = {}
     if tomlfile.is_file():
@@ -840,7 +826,8 @@ def merge_cli_with_tomldata(target: Path, options: 'Values') -> Dict[str, Any]:
         {
             'exclude': [],
             'ignore': options.ignores,
-            'rulesets': options.linter
+            'rulesets': options.linter,
+            'check_python': options.check_python
         },
         tomlopts,
         ruleset_default
@@ -878,13 +865,12 @@ def _merge_cli_with_tomldata(
     if isinstance(clidata['rulesets'][0], list):
         clidata['rulesets'] = clidata['rulesets'][0]
 
-    output = {}
+    output: Dict[str, Any] = {}
 
     # Combine 'ignore' sections:
     output['ignore'] = sorted(set(clidata['ignore'] + tomldata['ignore']))
 
     # Replace 'rulesets from toml with those from CLI if they exist:
-
     if override_cli_default_rules:
         output['rulesets'] = (
             tomldata['rulesets'] if tomldata['rulesets']
@@ -899,6 +885,18 @@ def _merge_cli_with_tomldata(
     # Return 'exclude' and 'max-line-length' for the tomldata:
     output['exclude'] = tomldata['exclude']
     output['max-line-length'] = tomldata.get('max-line-length', None)
+
+    # Decide whether to use Python checking:
+    if tomldata.get('check-python', '') not in [True, False]:
+        output['check_python'] = clidata['check_python']
+    else:
+        output['check_python'] = bool(
+            clidata['check_python'] and not tomldata['check-python'])
+        LOG.warning(
+            'Overriding pyproject toml to'
+            f'{" **NOT**" if not output["check_python"] else ""}'
+            ' check python files.'
+        )
 
     return output
 
@@ -988,7 +986,10 @@ PURPOSE_FILTER_MAP = {
 }
 
 
-def parse_checks(check_args, ignores=None, max_line_len=None, reference=False):
+def parse_checks(
+    check_args, ignores=None, max_line_len=None, reference=False,
+    check_python=True,
+):
     """Prepare dictionary of checks.
 
     Args:
@@ -1018,6 +1019,9 @@ def parse_checks(check_args, ignores=None, max_line_len=None, reference=False):
         if purpose in purpose_filters:
             # Run through the rest of the config items.
             for index, meta in ruleset.items():
+                if not check_python and meta.get('python', ''):
+                    # Ignore python rules if python checking is off.
+                    continue
                 meta.update({'purpose': purpose})
                 if f'{index}' not in ignores:
                     parsedchecks.update({index: meta})
@@ -1131,7 +1135,7 @@ def lint(
                 continue
 
             # Carry out Python checks on Python files:
-            if not (file_is_python and check_meta.get('python', False)):
+            if file_is_python and check_meta.get('python', False):
                 continue
 
             if check_meta.get('kwargs', False):
@@ -1352,6 +1356,17 @@ def get_option_parser() -> COP:
         default=False,
         dest='exit_zero'
     )
+    parser.add_option(
+        '--python', '--check-python', '-p',
+        help=(
+            'Check for upgrade issues with the Python code.'
+            ' If check-python is set in pyproject.toml this will override'
+            ' that setting.'
+        ),
+        action='store_true',
+        dest='check_python',
+        default=False
+    )
 
     return parser
 
@@ -1386,7 +1401,8 @@ def main(parser: COP, options: 'Values', target=None) -> None:
     checks = parse_checks(
         check_names,
         ignores=mergedopts['ignore'],
-        max_line_len=mergedopts['max-line-length']
+        max_line_len=mergedopts['max-line-length'],
+        check_python=mergedopts['check_python']
     )
 
     # Check each file matching a pattern:

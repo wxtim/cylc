@@ -493,7 +493,8 @@ def test_get_upg_info(fixture_get_deprecations, findme):
 def test_get_pyproject_toml(tmp_path, expect):
     """It returns only the lists we want from the toml file."""
     tomlcontent = "[cylc-lint]"
-    permitted_keys = ['rulesets', 'ignore', 'exclude', 'max-line-length']
+    permitted_keys = [
+        'rulesets', 'ignore', 'exclude', 'max-line-length', 'check-python']
 
     for section, value in expect.items():
         tomlcontent += f'\n{section} = {value}'
@@ -512,7 +513,7 @@ def test_get_pyproject_toml_returns_blank(tomlfile, tmp_path):
         tfile = (tmp_path / 'pyproject.toml')
         tfile.write_text(tomlfile)
     expect = {k: [] for k in {
-        'exclude', 'ignore', 'max-line-length', 'rulesets'
+        'exclude', 'ignore', 'max-line-length', 'rulesets', 'check-python'
     }}
     assert get_pyproject_toml(tmp_path) == expect
 
@@ -573,17 +574,20 @@ def test_validate_toml_items(input_, error):
             {
                 'rulesets': ['foo', 'bar'],
                 'ignore': ['R101'],
+                'check_python': False,
             },
             {
                 'rulesets': ['baz'],
                 'ignore': ['R100'],
-                'exclude': ['not_me-*.cylc']
+                'exclude': ['not_me-*.cylc'],
+                'check-python': [],
             },
             {
                 'rulesets': ['foo', 'bar'],
                 'ignore': ['R100', 'R101'],
                 'exclude': ['not_me-*.cylc'],
-                'max-line-length': None
+                'max-line-length': None,
+                'check_python': False
             },
             id='It works with good path'
         ),
