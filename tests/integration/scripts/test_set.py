@@ -149,3 +149,39 @@ async def test_incomplete_detection(
     async with start(schd) as log:
         schd.pool.set(['1/one'], ['failed'], None, ['1'])
     assert log_filter(log, contains='1/one did not complete')
+
+
+async def test_unsatisified_custom_optional_output_doesnt_stall(
+    flow,
+    scheduler,
+    start,
+    complete,
+):
+    """Assert that we can't  stall the workflow by broadcasting a
+    the required output without any optional custom ones.
+
+    TODO: Broken - I believe that the graph should not result in a
+    stalled workflow when set is used to set succeeded.
+    """
+    schd = scheduler(flow({
+        "scheduling": {
+            "graph": {
+                "R1": "foo => bar\nfoo:kustom? => bar"
+            },
+        },
+        "runtime": {
+            "foo": {
+                "script": "sleep 300",
+                "outputs": {
+                    "kustom": "hi"
+                }
+            },
+        }
+    }), paused_start=False)
+    async with start(schd):
+        schd.pool.set(['1/foo'], ['succeeded'], None, ['1'])
+        try:
+            await complete(schd, '1/foo', timeout=5)
+        except Exception:
+            result = schd.pool.is_stalled()
+            assert result is False
