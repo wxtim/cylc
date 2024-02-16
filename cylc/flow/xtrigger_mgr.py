@@ -16,7 +16,7 @@
 
 from contextlib import suppress
 from enum import Enum
-from inspect import signature
+from inspect import Parameter, Signature, signature
 import json
 import re
 from copy import deepcopy
@@ -31,6 +31,7 @@ from cylc.flow.subprocpool import get_xtrig_func
 from cylc.flow.xtriggers.wall_clock import wall_clock
 
 if TYPE_CHECKING:
+    from inspect import BoundArguments
     from cylc.flow.broadcast_mgr import BroadcastMgr
     from cylc.flow.data_store_mgr import DataStoreMgr
     from cylc.flow.subprocctx import SubFuncContext
@@ -246,9 +247,11 @@ class XtriggerManager:
         fctx: 'SubFuncContext',
         fdir: str,
     ) -> None:
-        """Generic xtrigger validation: check existence and string templates.
+        """Generic xtrigger validation: check existence, string templates and
+        function signature.
 
-        Xtrigger modules may also supply a specific "validate" function.
+        Xtrigger modules may also supply a specific `validate` function
+        which will be run here.
 
         Args:
             label: xtrigger label
@@ -262,6 +265,7 @@ class XtriggerManager:
                 * If the function is not callable.
                 * If any string template in the function context
                   arguments are not present in the expected template values.
+                * If the arguments do not match the function signature.
 
         """
         fname: str = fctx.func_name
@@ -270,32 +274,37 @@ class XtriggerManager:
             func = get_xtrig_func(fname, fname, fdir)
         except ImportError:
             raise XtriggerConfigError(
-                label,
-                fname,
-                f"xtrigger module '{fname}' not found",
+                label, f"xtrigger module '{fname}' not found",
             )
         except AttributeError:
             raise XtriggerConfigError(
-                label,
-                fname,
-                f"'{fname}' not found in xtrigger module '{fname}'",
+                label, f"'{fname}' not found in xtrigger module '{fname}'",
             )
 
         if not callable(func):
             raise XtriggerConfigError(
-                label,
-                fname,
-                f"'{fname}' not callable in xtrigger module '{fname}'",
+                label, f"'{fname}' not callable in xtrigger module '{fname}'",
             )
-        if func is not wall_clock:
-            # Validate args and kwargs against the function signature
-            # (but not for wall_clock because it's a special case).
-            try:
-                signature(func).bind(*fctx.func_args, **fctx.func_kwargs)
-            except TypeError as exc:
-                raise XtriggerConfigError(
-                    label, fname, f"{fctx.get_signature()}: {exc}"
+
+        # Validate args and kwargs against the function signature
+        sig = signature(func)
+        sig_str = fctx.get_signature()
+        if func is wall_clock:
+            # wall_clock is a special case where the Python function signature
+            # is different to the xtrigger signature
+            sig = Signature([
+                Parameter(
+                    'offset', Parameter.POSITIONAL_OR_KEYWORD, default='P0Y'
                 )
+            ])
+        try:
+            bound_args = sig.bind(*fctx.func_args, **fctx.func_kwargs)
+        except TypeError as exc:
+            raise XtriggerConfigError(label, f"{sig_str}: {exc}")
+        # Specific xtrigger.validate(), if available.
+        XtriggerManager.try_xtrig_validate_func(
+            label, fname, fdir, bound_args, sig_str
+        )
 
         # Check any string templates in the function arg values (note this
         # won't catch bad task-specific values - which are added dynamically).
@@ -311,9 +320,7 @@ class XtriggerManager:
                     template_vars.add(TemplateVariables(match))
                 except ValueError:
                     raise XtriggerConfigError(
-                        label,
-                        fname,
-                        f"Illegal template in xtrigger: {match}",
+                        label, f"Illegal template in xtrigger: {match}",
                     )
 
         # check for deprecated template variables
@@ -327,6 +334,30 @@ class XtriggerManager:
             LOG.warning(
                 f'Xtrigger "{label}" uses deprecated template variables:'
                 f' {", ".join(t.value for t in deprecated_variables)}'
+            )
+
+    @staticmethod
+    def try_xtrig_validate_func(
+        label: str,
+        fname: str,
+        fdir: str,
+        bound_args: 'BoundArguments',
+        signature_str: str,
+    ):
+        """Call an xtrigger's `validate()` function if it is implemented.
+
+        Raise XtriggerConfigError if validation fails.
+        """
+        try:
+            xtrig_validate_func = get_xtrig_func(fname, 'validate', fdir)
+        except (AttributeError, ImportError):
+            return
+        bound_args.apply_defaults()
+        try:
+            xtrig_validate_func(bound_args.arguments)
+        except Exception as exc:  # Note: catch all errors
+            raise XtriggerConfigError(
+                label, f"{signature_str} validation failed: {exc}"
             )
 
     def add_trig(self, label: str, fctx: 'SubFuncContext', fdir: str) -> None:
@@ -410,20 +441,18 @@ class XtriggerManager:
         args = []
         kwargs = {}
         if ctx.func_name == "wall_clock":
-            if "trigger_time" in ctx.func_kwargs:
+            if "trigger_time" in ctx.func_kwargs:  # noqa: SIM401 (readabilty)
                 # Internal (retry timer): trigger_time already set.
                 kwargs["trigger_time"] = ctx.func_kwargs["trigger_time"]
-            elif "offset" in ctx.func_kwargs:  # noqa: SIM106
+            else:
                 # External (clock xtrigger): convert offset to trigger_time.
                 # Datetime cycling only.
                 kwargs["trigger_time"] = itask.get_clock_trigger_time(
                     itask.point,
-                    ctx.func_kwargs["offset"]
-                )
-            else:
-                # Should not happen!
-                raise ValueError(
-                    "wall_clock function kwargs needs trigger time or offset"
+                    ctx.func_kwargs.get(
+                        "offset",
+                        ctx.func_args[0] if ctx.func_args else None
+                    )
                 )
         else:
             # Other xtrig functions: substitute template values.

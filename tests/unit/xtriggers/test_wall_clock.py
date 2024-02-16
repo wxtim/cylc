@@ -32,20 +32,18 @@ def monkeypatch_interval_parser(monkeypatch):
     )
 
 
-def test_validate_good_path(monkeypatch_interval_parser):
-    assert validate([], {}, 'Alles Gut') is None
+def test_validate_good(monkeypatch_interval_parser):
+    validate({'offset': 'PT1H'})
 
 
 @pytest.mark.parametrize(
-    'args, kwargs, err', (
-        param([1, 2], {}, "^Too", id='too-many-args'),
-        param([], {'egg': 12}, "^Illegal", id='illegal-arg'),
-        param([1], {}, "^Invalid", id='invalid-offset-int'),
-        param([], {'offset': 'Zaphod'}, "^Invalid", id='invalid-offset-str'),
+    'args, err', (
+        param({'offset': 1}, "^Invalid", id='invalid-offset-int'),
+        param({'offset': 'Zaphod'}, "^Invalid", id='invalid-offset-str'),
     )
 )
 def test_validate_exceptions(
-    monkeypatch_interval_parser, args, kwargs, err
+    monkeypatch_interval_parser, args, err
 ):
-    with pytest.raises(WorkflowConfigError, match=err):
-        validate(args, kwargs, 'Alles Gut')
+    with pytest.raises(Exception, match=err):
+        validate(args)
