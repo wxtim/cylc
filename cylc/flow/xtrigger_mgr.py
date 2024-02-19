@@ -16,7 +16,7 @@
 
 from contextlib import suppress
 from enum import Enum
-from inspect import Parameter, Signature, signature
+from inspect import signature
 import json
 import re
 from copy import deepcopy
@@ -28,7 +28,7 @@ from cylc.flow.exceptions import XtriggerConfigError
 import cylc.flow.flags
 from cylc.flow.hostuserutil import get_user
 from cylc.flow.subprocpool import get_xtrig_func
-from cylc.flow.xtriggers.wall_clock import wall_clock
+from cylc.flow.xtriggers.wall_clock import _wall_clock
 
 if TYPE_CHECKING:
     from inspect import BoundArguments
@@ -287,18 +287,11 @@ class XtriggerManager:
             )
 
         # Validate args and kwargs against the function signature
-        sig = signature(func)
         sig_str = fctx.get_signature()
-        if func is wall_clock:
-            # wall_clock is a special case where the Python function signature
-            # is different to the xtrigger signature
-            sig = Signature([
-                Parameter(
-                    'offset', Parameter.POSITIONAL_OR_KEYWORD, default='P0Y'
-                )
-            ])
         try:
-            bound_args = sig.bind(*fctx.func_args, **fctx.func_kwargs)
+            bound_args = signature(func).bind(
+                *fctx.func_args, **fctx.func_kwargs
+            )
         except TypeError as exc:
             raise XtriggerConfigError(label, f"{sig_str}: {exc}")
         # Specific xtrigger.validate(), if available.
@@ -484,7 +477,7 @@ class XtriggerManager:
                 if sig in self.sat_xtrig:
                     # Already satisfied, just update the task
                     itask.state.xtriggers[label] = True
-                elif wall_clock(*ctx.func_args, **ctx.func_kwargs):
+                elif _wall_clock(*ctx.func_args, **ctx.func_kwargs):
                     # Newly satisfied
                     itask.state.xtriggers[label] = True
                     self.sat_xtrig[sig] = {}

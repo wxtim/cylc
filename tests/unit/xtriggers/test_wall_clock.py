@@ -14,11 +14,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cylc.flow.exceptions import WorkflowConfigError
-from cylc.flow.xtriggers.wall_clock import validate
+from cylc.flow.xtriggers.wall_clock import _wall_clock, validate
 from metomi.isodatetime.parsers import DurationParser
 import pytest
 from pytest import param
+
+
+@pytest.mark.parametrize('trigger_time, expected', [
+    (499, True),
+    (500, False),
+])
+def test_wall_clock(
+    monkeypatch: pytest.MonkeyPatch, trigger_time: int, expected: bool
+):
+    monkeypatch.setattr(
+        'cylc.flow.xtriggers.wall_clock.time', lambda: 500
+    )
+    assert _wall_clock(trigger_time) == expected
 
 
 @pytest.fixture

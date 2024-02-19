@@ -22,8 +22,28 @@ from cylc.flow.cycling.iso8601 import interval_parse
 from cylc.flow.exceptions import WorkflowConfigError
 
 
-def wall_clock(trigger_time: int) -> bool:
-    """Return True after the desired wall clock time, False.
+def wall_clock(offset: str = 'PT0S'):
+    """Trigger at a specific real "wall clock" time relative to the cycle point
+    in the graph.
+
+    Clock triggers, unlike other trigger functions, are executed synchronously
+    in the main process.
+
+    Args:
+        offset:
+            ISO 8601 interval to wait after the cycle point is reached in real
+            time before triggering. May be negative, in which case it will
+            trigger before the real time reaches the cycle point.
+    """
+    # NOTE: This is just a placeholder for the actual implementation.
+    # This is only used for validating the signature and for autodocs.
+    ...
+
+
+def _wall_clock(trigger_time: int) -> bool:
+    """Actual implementation of wall_clock.
+
+    Return True after the desired wall clock time, or False before.
 
     Args:
         trigger_time:
