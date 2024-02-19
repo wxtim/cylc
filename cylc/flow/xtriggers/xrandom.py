@@ -75,7 +75,7 @@ def xrandom(
         (True, {'COLOR': 'orange', 'SIZE': 'small'})
 
     Returns:
-        Tuple, containing:
+        tuple: (satisfied, results)
 
         satisfied:
             True if ``satisfied`` else ``False``.
