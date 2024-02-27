@@ -1101,13 +1101,17 @@ class TaskPool:
             task_point = itask.point
             if self.stop_point and task_point > self.stop_point:
                 continue
-            for pre in itask.state.get_unsatisfied_prerequisites():
-                point, name, output = pre
+            for point, task, msg in (
+                itask.state.get_unsatisfied_prerequisites()
+            ):
                 if get_point(point) > self.stop_point:
                     continue
                 if itask.identity not in unsat:
                     unsat[itask.identity] = []
-                unsat[itask.identity].append(f"{point}/{name}:{output}")
+                unsat[itask.identity].append(
+                    f"{point}/{task}:"
+                    f"{self.config.get_taskdef(task).get_output(msg)}"
+                )
         if unsat:
             LOG.warning(
                 "Partially satisfied prerequisites:\n"
@@ -1696,7 +1700,7 @@ class TaskPool:
         return itask
 
     def _standardise_prereqs(self, prereqs: 'List[str]') -> 'List[Tokens]':
-        """Convert prerequisite names to task messages."""
+        """Convert prerequisites to task output messages."""
         _prereqs = []
         for pre in [
             Tokens(prereq, relative=True)
@@ -1717,7 +1721,7 @@ class TaskPool:
     def _standardise_outputs(
         self, point: 'PointBase', tdef: 'TaskDef', outputs: List[str]
     ) -> List[str]:
-        """Convert output names to task messages."""
+        """Convert output names to task output messages."""
         _outputs = []
         for output in outputs:
             try:
@@ -1825,7 +1829,6 @@ class TaskPool:
             self.task_events_mgr.process_message(
                 itask, logging.INFO, output, forced=True)
             changed = True
-            LOG.info(f"output {itask.identity}:{output} completed")
 
         if changed and itask.transient:
             self.workflow_db_mgr.put_update_task_state(itask)

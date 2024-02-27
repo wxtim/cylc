@@ -739,6 +739,7 @@ class TaskEventsManager():
                     flag == self.FLAG_RECEIVED
                     and itask.state.is_gt(TASK_STATUS_FAILED)
             ):
+                # Already failed.
                 return True
             if self._process_message_failed(
                 itask, event_time, self.JOB_FAILED, forced
@@ -750,6 +751,7 @@ class TaskEventsManager():
                     flag == self.FLAG_RECEIVED
                     and itask.state.is_gt(TASK_STATUS_SUBMIT_FAILED)
             ):
+                # Already submit-failed
                 return True
             if self._process_message_submit_failed(
                 itask, event_time, submit_num, forced
@@ -761,6 +763,7 @@ class TaskEventsManager():
                     flag == self.FLAG_RECEIVED
                     and itask.state.is_gt(TASK_STATUS_SUBMITTED)
             ):
+                # Already submitted.
                 return True
             if (
                 itask.state.status == TASK_STATUS_PREPARING
@@ -787,6 +790,7 @@ class TaskEventsManager():
                     flag == self.FLAG_RECEIVED
                     and itask.state.is_gt(TASK_STATUS_FAILED)
             ):
+                # Already failed.
                 return True
             signal = message[len(FAIL_MESSAGE_PREFIX):]
             self._db_events_insert(itask, "signaled", signal)
@@ -803,6 +807,7 @@ class TaskEventsManager():
                     flag == self.FLAG_RECEIVED
                     and itask.state.is_gt(TASK_STATUS_FAILED)
             ):
+                # Already failed.
                 return True
             aborted_with = message[len(ABORT_MESSAGE_PREFIX):]
             self._db_events_insert(itask, "aborted", message)
@@ -835,6 +840,8 @@ class TaskEventsManager():
         elif completed_output:
             # Message of a custom task output.
             # No state change.
+            # Log completion of o      (not needed for standard outputs)
+            LOG.info(f"[{itask}] completed output {completed_output}")
             self.setup_event_handlers(itask, completed_output, message)
             self.spawn_children(itask, msg0)
 

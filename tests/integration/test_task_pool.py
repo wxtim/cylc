@@ -1297,7 +1297,7 @@ async def test_set_failed_complete(
         schd.pool.set_prereqs_and_outputs([one.identity], None, None, ['all'])
 
         assert log_filter(
-            log, contains='output 1/one:succeeded completed')
+            log, contains=f'[{one}] task completed')
 
         db_outputs = db_select(
             schd, True, 'task_outputs', 'outputs',
@@ -1491,8 +1491,8 @@ async def test_set_outputs_future(
             flow=['all']
         )
         assert log_filter(log, contains="output 1/a:cheese not found")
-        assert log_filter(log, contains="output 1/a:xylophone completed")
-        assert log_filter(log, contains="output 1/a:yacht completed")
+        assert log_filter(log, contains="completed output x")
+        assert log_filter(log, contains="completed output y")
 
 
 async def test_prereq_satisfaction(

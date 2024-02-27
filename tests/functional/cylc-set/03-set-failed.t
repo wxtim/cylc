@@ -20,7 +20,7 @@
 # https://cylc.github.io/cylc-admin/proposal-cylc-set.html#4-set-jobs-to-failed-when-a-job-platform-is-known-to-be-down
 
 . "$(dirname "$0")/test_header"
-set_test_number 4
+set_test_number 3
 
 install_and_validate
 
@@ -30,16 +30,15 @@ poll_grep_workflow_log -E "1/foo.* \(internal\)submitted"
 
 cylc set -o failed "${WORKFLOW_NAME}//1/foo"
 
-poll_grep_workflow_log -E "1/foo.* => failed"
-poll_grep_workflow_log -E "1/foo.* did not complete required outputs"
-
-cylc stop --now --now --interval=2 --max-polls=5 "${WORKFLOW_NAME}"
 
 # Check the log for:
 # - set completion message
 # - implied outputs reported as already completed
 
-grep_workflow_log_ok "${TEST_NAME_BASE}-grep-3" 'output 1/foo:failed completed'
+poll_grep_workflow_log -E "1/foo.* => failed"
+poll_grep_workflow_log -E "1/foo.* did not complete required outputs"
+
+cylc stop --now --now --interval=2 --max-polls=5 "${WORKFLOW_NAME}"
 
 # Check the DB records all the outputs.
 sqlite3 ~/cylc-run/"${WORKFLOW_NAME}"/log/db \

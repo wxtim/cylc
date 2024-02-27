@@ -179,6 +179,13 @@ class TaskDef:
         # optional/required is None until defined by the graph
         self.outputs[output] = (message, None)
 
+    def get_output(self, message):
+        """Return output name corresponding to task message."""
+        for name, (msg, _) in self.outputs.items():
+            if msg == message:
+                return name
+        raise KeyError(f"Unknown task output message: {message}")
+
     def _add_std_outputs(self):
         """Add the standard outputs."""
         # optional/required is None until defined by the graph
