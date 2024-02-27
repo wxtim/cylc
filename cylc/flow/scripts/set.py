@@ -112,7 +112,7 @@ mutation (
   $flowWait: Boolean,
   $flowDescr: String,
 ) {
-  setPrereqsAndOutputs (
+  set (
     workflows: $wFlows,
     tasks: $tasks,
     prerequisites: $prerequisites,
