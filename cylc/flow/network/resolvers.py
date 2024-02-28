@@ -721,9 +721,8 @@ class Resolvers(BaseResolvers):
         else:
             log_user = f" from {user}"
 
-        log_msg1 = f'Command "{command}" received{log_user}.'
-
-        log_msg2 = (
+        log1 = f'Command "{command}" received{log_user}.'
+        log2 = (
             f"{command}("
             + ", ".join(
                 f"{key}={value}" for key, value in kwargs.items())
@@ -737,7 +736,7 @@ class Resolvers(BaseResolvers):
                 or user != self.schd.owner
             ):
                 # Logging task messages as commands is overkill.
-                LOG.info(f"{log_msg1}\n{log_msg2}")
+                LOG.info(f"{log1}\n{log2}")
             return method(**kwargs)
 
         try:
@@ -745,15 +744,18 @@ class Resolvers(BaseResolvers):
         except AttributeError:
             raise ValueError(f"Command '{command}' not found")
 
-        return (
-            True,
-            self.schd.queue_command(
+        # Queue the command to the scheduler, with a unique command ID
+        cmd_uuid = str(uuid4())
+        LOG.info(f"{log1} ID={cmd_uuid}\n{log2}")
+        self.schd.command_queue.put(
+            (
+                cmd_uuid,
                 command,
                 [],
                 kwargs,
-                [log_msg1, log_msg2],
             )
         )
+        return (True, cmd_uuid)
 
     def broadcast(
         self,

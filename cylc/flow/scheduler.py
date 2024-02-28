@@ -930,30 +930,6 @@ class Scheduler:
         """Return a command processing method or raise AttributeError."""
         return getattr(self, f'command_{command_name}')
 
-    def queue_command(
-        self,
-        name: str,
-        args: list,
-        kwargs: dict,
-        log_lines: List[str],
-    ) -> str:
-        """Queue a command for action by the scheduler.
-
-        Return a unique command ID for provenance tracking.
-
-        """
-        uuid = str(uuid4())
-        LOG.info(f"{log_lines[0]} ID={uuid}\n{log_lines[1]}")
-        self.command_queue.put(
-            (
-                uuid,
-                name,
-                args,
-                kwargs,
-            )
-        )
-        return uuid
-
     async def process_command_queue(self) -> None:
         """Process queued commands."""
         qsize = self.command_queue.qsize()
