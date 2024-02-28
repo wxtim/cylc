@@ -526,14 +526,15 @@ class TaskProxy:
         The output strings are of the form "cycle/task:message"
         Log a warning for outputs that I don't depend on.
 
-        Return True if any used, else False.
+        Return True if any match, else False.
 
         """
         used = self.state.satisfy_me(outputs)
         for output in set(outputs) - used:
+            # Note this logs the task message not the output.
             LOG.warning(
                 f"{self.identity} does not depend on"
-                f" {output.relative_id_with_selectors}"
+                f' "{output.relative_id_with_selectors}"'
             )
         return bool(used)
 

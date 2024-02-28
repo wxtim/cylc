@@ -20,7 +20,6 @@ import math
 import re
 from typing import Iterable, Set, TYPE_CHECKING
 
-from cylc.flow.task_outputs import TASK_OUTPUT_SUCCEEDED
 from cylc.flow.cycling.loader import get_point
 from cylc.flow.exceptions import TriggerExpressionError
 from cylc.flow.data_messages_pb2 import (  # type: ignore
@@ -208,11 +207,7 @@ class Prerequisite:
         """
         valid = set()
         for output in outputs:
-            prereq = (
-                output['cycle'],
-                output['task'],
-                output['task_sel'] or TASK_OUTPUT_SUCCEEDED
-            )
+            prereq = (output['cycle'], output['task'], output['task_sel'])
             if prereq not in self.satisfied:
                 continue
             valid.add(output)

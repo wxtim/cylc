@@ -1326,7 +1326,14 @@ async def test_set_prereqs(
             },
             'scheduling': {
                 'graph': {
-                    'R1': "foo & bar => baz"
+                    'R1': "foo & bar & baz => qux"
+                }
+            },
+            'runtime': {
+                'foo': {
+                    'outputs': {
+                        'a': 'drugs and money',
+                    }
                 }
             }
         }
@@ -1335,37 +1342,43 @@ async def test_set_prereqs(
 
     async with start(schd) as log:
 
-        # it should start up with 1/foo and 1/bar
+        # it should start up with 1/foo, bar, baz
         assert (
-            pool_get_task_ids(schd.pool) == ["1/bar", "1/foo"]
+            pool_get_task_ids(schd.pool) == ["1/bar", "1/baz", "1/foo"]
         )
 
-        # set one prereq of future task baz
+        # try to set an invalid prereq of 1/qux
         schd.pool.set_prereqs_and_outputs(
-            ["1/baz"], None, ["1/foo:succeeded"], ['all'])
+            ["1/qux"], None, ["1/foo:a"], ['all'])
+        assert log_filter(
+            log, contains='1/qux does not depend on "1/foo:drugs and money"')
 
+        # it should not add 1/qux to the pool
+        assert (
+            pool_get_task_ids(schd.pool) == ["1/bar", "1/baz", "1/foo"]
+        )
+
+        # set one prereq of future task 1/qux
+        schd.pool.set_prereqs_and_outputs(
+            ["1/qux"], None, ["1/foo:succeeded"], ['all'])
+
+        # it should add 1/qux to the pool
         assert (
             pool_get_task_ids(schd.pool) == [
-                "1/bar", "1/baz", "1/foo"
+                "1/bar", "1/baz", "1/foo", "1/qux"
             ]
         )
 
-        # get the 1/baz task proxy
-        baz = schd.pool.get_task(IntegerPoint("1"), "baz")
-        assert not baz.state.prerequisites_all_satisfied()
+        # get the 1/qux task proxy
+        qux = schd.pool.get_task(IntegerPoint("1"), "qux")
+        assert not qux.state.prerequisites_all_satisfied()
 
-        # set its other prereq
+        # set its other prereqs (test implicit "succeeded" and "succeed")
         schd.pool.set_prereqs_and_outputs(
-            ["1/baz"], None, ["1/bar:succeeded"], ['all'])
+            ["1/qux"], None, ["1/bar", "1/baz:succeed"], ['all'])
 
         # it should now be fully satisfied
-        assert baz.state.prerequisites_all_satisfied()
-
-        # try to set an invalid prereq
-        schd.pool.set_prereqs_and_outputs(
-            ["1/baz"], None, ["1/qux:succeeded"], ['all'])
-        assert log_filter(
-            log, contains="1/baz does not depend on 1/qux:succeeded")
+        assert qux.state.prerequisites_all_satisfied()
 
 
 async def test_set_outputs_live(
@@ -1545,10 +1558,10 @@ async def test_prereq_satisfaction(
         )
         assert log_filter(log, contains="1/a:z not found")
         assert log_filter(log, contains="1/a:w not found")
-        assert not log_filter(log, contains="1/b does not depend on 1/a:x")
+        assert not log_filter(log, contains='1/b does not depend on "1/a:x"')
         assert not log_filter(
-            log, contains="1/b does not depend on 1/a:xylophone")
-        assert not log_filter(log, contains="1/b does not depend on 1/a:y")
+            log, contains='1/b does not depend on "1/a:xylophone"')
+        assert not log_filter(log, contains='1/b does not depend on "1/a:y"')
 
         assert b.is_waiting_prereqs_done()
 

@@ -68,6 +68,7 @@ from cylc.flow.util import (
 from cylc.flow.wallclock import get_current_time_string
 from cylc.flow.platforms import get_platform
 from cylc.flow.task_outputs import (
+    TASK_OUTPUT_SUCCEEDED,
     TASK_OUTPUT_EXPIRED,
     TASK_OUTPUT_FAILED,
     TASK_OUTPUT_SUBMIT_FAILED,
@@ -1701,12 +1702,16 @@ class TaskPool:
         _prereqs = []
         for prereq in prereqs:
             pre = Tokens(prereq, relative=True)
-            # Convert trigger labels to output messages
+            # add implicit "succeeded"; convert "succeed" to "succeeded" etc.
+            output = TaskTrigger.standardise_name(
+                pre['task_sel'] or TASK_OUTPUT_SUCCEEDED)
+            # Convert outputs to task messages.
             try:
                 msg = self.config.get_taskdef(
                     pre['task']
-                ).outputs[pre['task_sel']][0]
+                ).outputs[output][0]
             except KeyError:
+                # The task does not have this output.
                 LOG.warning(
                     f"output {pre.relative_id_with_selectors} not found")
                 continue
@@ -1852,7 +1857,6 @@ class TaskPool:
             if not itask.satisfy_me(
                 self._standardise_prereqs(prereqs)
             ):
-                LOG.warning(f"{itask.identity} does not depend on {prereqs}")
                 return False
 
         if (

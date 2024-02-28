@@ -25,13 +25,13 @@ set_test_number 8
 install_and_validate
 reftest_run
 
-grep_workflow_log_ok "${TEST_NAME_BASE}-ab" "1/a does not depend on 1/b_cold:succeeded"
-grep_workflow_log_ok "${TEST_NAME_BASE}-ac" "1/a does not depend on 1/c_cold:succeeded"
+grep_workflow_log_ok "${TEST_NAME_BASE}-ab" '1/a does not depend on "1/b_cold:succeeded"'
+grep_workflow_log_ok "${TEST_NAME_BASE}-ac" '1/a does not depend on "1/c_cold:succeeded"'
 
-grep_workflow_log_ok "${TEST_NAME_BASE}-ba" "1/b does not depend on 1/a_cold:succeeded"
-grep_workflow_log_ok "${TEST_NAME_BASE}-bc" "1/b does not depend on 1/c_cold:succeeded"
+grep_workflow_log_ok "${TEST_NAME_BASE}-ba" '1/b does not depend on "1/a_cold:succeeded"'
+grep_workflow_log_ok "${TEST_NAME_BASE}-bc" '1/b does not depend on "1/c_cold:succeeded"'
 
-grep_workflow_log_ok "${TEST_NAME_BASE}-ca" "1/c does not depend on 1/a_cold:succeeded"
-grep_workflow_log_ok "${TEST_NAME_BASE}-cb" "1/c does not depend on 1/b_cold:succeeded"
+grep_workflow_log_ok "${TEST_NAME_BASE}-ca" '1/c does not depend on "1/a_cold:succeeded"'
+grep_workflow_log_ok "${TEST_NAME_BASE}-cb" '1/c does not depend on "1/b_cold:succeeded"'
 
 purge
