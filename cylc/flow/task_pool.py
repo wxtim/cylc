@@ -35,7 +35,7 @@ import cylc.flow.flags
 from cylc.flow import LOG
 from cylc.flow.cycling.loader import get_point, standardise_point_string
 from cylc.flow.exceptions import (
-    InputError, WorkflowConfigError, PointParsingError, PlatformLookupError)
+    WorkflowConfigError, PointParsingError, PlatformLookupError)
 from cylc.flow.id import Tokens, detokenise
 from cylc.flow.id_cli import contains_fnmatch
 from cylc.flow.id_match import filter_ids
@@ -60,6 +60,7 @@ from cylc.flow.task_state import (
     TASK_STATUS_SUCCEEDED,
     TASK_STATUS_FAILED,
 )
+from cylc.flow.task_trigger import TaskTrigger
 from cylc.flow.util import (
     serialise,
     deserialise
@@ -1717,7 +1718,9 @@ class TaskPool:
     ) -> List[str]:
         """Convert output names to task output messages."""
         _outputs = []
-        for output in outputs:
+        for out in outputs:
+            # convert "succeed" to "succeeded" etc.
+            output = TaskTrigger.standardise_name(out)
             try:
                 msg = tdef.outputs[output][0]
             except KeyError:
@@ -1770,9 +1773,6 @@ class TaskPool:
         if flow_nums is None:
             # Illegal flow command opts
             return
-
-        if outputs and prereqs:
-            raise InputError("Don't use --pre and --out together")
 
         # Get matching pool tasks and future task definitions.
         itasks, future_tasks, unmatched = self.filter_task_proxies(
