@@ -127,6 +127,11 @@ mutation (
 '''
 
 
+SELECTOR_ERROR = (
+    'Use "--output={1}" to specify outputs, not "{0}:{1}"'
+)
+
+
 def get_option_parser() -> COP:
     parser = COP(
         __doc__,
@@ -296,18 +301,19 @@ def get_output_opts(output_options: List[str]):
     """Convert outputs options to a flat list, and validate.
 
     Examples:
+        Good:
         >>> get_output_opts(['a', 'b,c'])
         ['a', 'b', 'c']
-
-        # OK: "required" is explicit default
-        >>> get_output_opts(["required"])
+        >>> get_output_opts(["required"])  # "required" is explicit default
         []
 
-
-        # Error: "required" must be used alone
-        >>> get_output_opts(["required", "a"])
+        Bad:
+        >>> get_output_opts(["required", "a"])  # "required" must be used alone
         Traceback (most recent call last):
-        ...
+        InputError:
+        # Error: "required" must be used alone
+        >>> get_output_opts(["waiting"])  # cannot "reset" to waiting
+        Traceback (most recent call last):
         InputError:
 
     """
@@ -319,6 +325,10 @@ def get_output_opts(output_options: List[str]):
 
     if "required" in outputs:
         raise InputError("--out=required must be used alone")
+    if "waiting" in outputs:
+        raise InputError(
+            "Tasks can not be set to waiting, use a new flow to re-run"
+        )
 
     return outputs
 
@@ -341,11 +351,44 @@ def validate_opts(output_opt: List[str], prereq_opt: List[str]):
         raise InputError("Use --prerequisite or --output, not both.")
 
 
+def validate_tokens(tokens_list):
+    """Check the cycles/tasks provided.
+
+    This checks that cycle/task selectors have not been provided in the IDs.
+
+    Examples:
+        Good:
+        >>> validate_tokens([Tokens('w//c')])
+        >>> validate_tokens([Tokens('w//c/t')])
+
+        Bad:
+        >>> validate_tokens([Tokens('w//c:s')])
+        Traceback (most recent call last):
+        cylc.flow.exceptions.InputError
+        >>> validate_tokens([Tokens('w//c/t:s')])
+        Traceback (most recent call last):
+        cylc.flow.exceptions.InputError
+
+    """
+    for tokens in tokens_list:
+        if tokens['cycle_sel']:
+            raise InputError(SELECTOR_ERROR.format(
+                tokens['cycle'],
+                tokens['cycle_sel'],
+            ))
+        if tokens['task_sel']:
+            raise InputError(SELECTOR_ERROR.format(
+                tokens['task'],
+                tokens['task_sel'],
+            ))
+
+
 async def run(
     options: 'Values',
     workflow_id: str,
     *tokens_list
 ) -> None:
+    validate_tokens(tokens_list)
 
     pclient = get_client(workflow_id, timeout=options.comms_timeout)
 
