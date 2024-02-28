@@ -1325,6 +1325,7 @@ async def test_set_prereqs(
                 'allow implicit tasks': 'True',
             },
             'scheduling': {
+                'initial cycle point': '2040',
                 'graph': {
                     'R1': "foo & bar & baz => qux"
                 }
@@ -1342,40 +1343,41 @@ async def test_set_prereqs(
 
     async with start(schd) as log:
 
-        # it should start up with 1/foo, bar, baz
+        # it should start up with foo, bar, baz
         assert (
-            pool_get_task_ids(schd.pool) == ["1/bar", "1/baz", "1/foo"]
+            pool_get_task_ids(schd.pool) == ["20400101T0000Z/bar", "20400101T0000Z/baz", "20400101T0000Z/foo"]
         )
 
-        # try to set an invalid prereq of 1/qux
+        # try to set an invalid prereq of qux
         schd.pool.set_prereqs_and_outputs(
-            ["1/qux"], None, ["1/foo:a"], ['all'])
+            ["20400101T0000Z/qux"], None, ["20400101T0000Z/foo:a"], ['all'])
         assert log_filter(
-            log, contains='1/qux does not depend on "1/foo:drugs and money"')
+            log, contains='20400101T0000Z/qux does not depend on "20400101T0000Z/foo:drugs and money"')
 
-        # it should not add 1/qux to the pool
+        # it should not add 20400101T0000Z/qux to the pool
         assert (
-            pool_get_task_ids(schd.pool) == ["1/bar", "1/baz", "1/foo"]
+            pool_get_task_ids(schd.pool) == ["20400101T0000Z/bar", "20400101T0000Z/baz", "20400101T0000Z/foo"]
         )
 
-        # set one prereq of future task 1/qux
+        # set one prereq of future task 20400101T0000Z/qux
         schd.pool.set_prereqs_and_outputs(
-            ["1/qux"], None, ["1/foo:succeeded"], ['all'])
+            ["20400101T0000Z/qux"], None, ["20400101T0000Z/foo:succeeded"], ['all'])
 
-        # it should add 1/qux to the pool
+        # it should add 20400101T0000Z/qux to the pool
         assert (
             pool_get_task_ids(schd.pool) == [
-                "1/bar", "1/baz", "1/foo", "1/qux"
+                "20400101T0000Z/bar", "20400101T0000Z/baz", "20400101T0000Z/foo", "20400101T0000Z/qux"
             ]
         )
 
-        # get the 1/qux task proxy
-        qux = schd.pool.get_task(IntegerPoint("1"), "qux")
+        # get the 20400101T0000Z/qux task proxy
+        qux = schd.pool.get_task(ISO8601Point("20400101T0000Z"), "qux")
         assert not qux.state.prerequisites_all_satisfied()
 
         # set its other prereqs (test implicit "succeeded" and "succeed")
+        # and truncated cycle point
         schd.pool.set_prereqs_and_outputs(
-            ["1/qux"], None, ["1/bar", "1/baz:succeed"], ['all'])
+            ["2040/qux"], None, ["2040/bar", "2040/baz:succeed"], ['all'])
 
         # it should now be fully satisfied
         assert qux.state.prerequisites_all_satisfied()
