@@ -59,7 +59,6 @@ from cylc.flow.task_state import (
     TASK_STATUS_RUNNING,
     TASK_STATUS_SUCCEEDED,
     TASK_STATUS_FAILED,
-    TASK_STATUS_SUBMIT_FAILED
 )
 from cylc.flow.util import (
     serialise,
@@ -798,7 +797,7 @@ class TaskPool:
 
     def _get_task_by_id(self, id_: str) -> Optional[TaskProxy]:
         """Return pool task by ID if it exists, or None."""
-        for itask_ids in list(self.active_tasks.values()):
+        for itask_ids in self.active_tasks.values():
             with suppress(KeyError):
                 return itask_ids[id_]
         return None
@@ -1375,10 +1374,7 @@ class TaskPool:
         incomplete = itask.state.outputs.get_incomplete()
         if incomplete:
             # Keep incomplete tasks in the pool.
-            if output in (
-                TASK_STATUS_SUCCEEDED, TASK_STATUS_FAILED, TASK_STATUS_EXPIRED,
-                TASK_STATUS_SUBMIT_FAILED
-            ):
+            if output in TASK_STATUSES_FINAL:
                 # Log based on the output, not the state, to avoid warnings
                 # due to use of "cylc set" to set internal outputs on an
                 # already-finished task.
@@ -1702,10 +1698,8 @@ class TaskPool:
     def _standardise_prereqs(self, prereqs: 'List[str]') -> 'List[Tokens]':
         """Convert prerequisites to task output messages."""
         _prereqs = []
-        for pre in [
-            Tokens(prereq, relative=True)
-            for prereq in (prereqs or [])
-        ]:
+        for prereq in prereqs:
+            pre = Tokens(prereq, relative=True)
             # Convert trigger labels to output messages
             try:
                 msg = self.config.get_taskdef(
@@ -1765,8 +1759,8 @@ class TaskPool:
 
         Args:
             items: task ID match patterns
-            prereqs: prerequisites (as output message or trigger label) to set
-            outputs: outputs (as output message or trigger label) to set
+            prereqs: prerequisites to set
+            outputs: outputs to set
             flow: flow numbers for spawned or merged tasks
             flow_wait: wait for flows to catch up before continuing
             flow_descr: description of new flow
@@ -1790,7 +1784,7 @@ class TaskPool:
         for itask in itasks:
             self.merge_flows(itask, flow_nums)
             if prereqs:
-                self._set_prereqs_itask(itask, prereqs, flow_nums, flow_wait)
+                self._set_prereqs_itask(itask, prereqs, flow_nums)
             else:
                 self._set_outputs_itask(itask, outputs)
 
@@ -1839,7 +1833,6 @@ class TaskPool:
         itask: 'TaskProxy',
         prereqs: 'List[str]',
         flow_nums: 'Set[int]',
-        flow_wait: bool
     ) -> None:
         """Set prerequisites on a task proxy.
 
@@ -1868,7 +1861,7 @@ class TaskPool:
         if itask is None:
             return
         self.add_to_pool(itask)
-        self._set_prereqs_itask(itask, prereqs, flow_nums, flow_wait)
+        self._set_prereqs_itask(itask, prereqs, flow_nums)
 
     def _get_active_flow_nums(self) -> Set[int]:
         """Return active flow numbers.
@@ -1972,8 +1965,6 @@ class TaskPool:
         ("try to spawn": unless the output already spawned in the flow)
 
         """
-        # TODO CHECK FLOW MERGE BASED ON CLI FLOWS
-
         # Get flow numbers for the tasks to be triggered.
         flow_nums = self._get_flow_nums(flow, flow_descr)
         if flow_nums is None:

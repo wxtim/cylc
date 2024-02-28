@@ -56,19 +56,13 @@ Examples:
   $ cylc set --pre=3/foo:succeeded my_workflow//3/bar
 
   # satisfy all prerequisites (if any) of 3/bar and promote it to
-  # the active window to start checking its xtriggers:
+  # the active window (and start checking its xtriggers, if any):
   $ cylc set --pre=all my_workflow//3/bar
 
-  # complete the "file 1 ready" custom output of 3/bar:
-  $ cylc set --out="file 1 ready" my_workflow//3/bar
-  #   or:
-  # do the same via the output's short graph trigger name:
+  # complete the "file" custom output of 3/bar:
   $ cylc set --out=file1 my_workflow//3/bar
 
-  # satisfy the "3/bar:file 1 ready" prerequisite of 3/qux:
-  $ cylc set --pre="3/bar:file 1 ready" my_workflow//3/qux
-  #   or:
-  # do the same via the output's short graph trigger name:
+  # satisfy the "3/bar:file1" prerequisite of 3/qux:
   $ cylc set --pre=3/bar:file1 my_workflow//3/qux
 
   # set multiple outputs at once:
@@ -149,7 +143,6 @@ def get_option_parser() -> COP:
             ' use "--out=required" to complete all required outputs.'
             " OUTPUT format: trigger names as used in the graph."
         ),
-        # action="append", default="required", dest="outputs"
         action="append", default=None, dest="outputs"
     )
 

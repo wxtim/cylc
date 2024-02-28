@@ -1005,11 +1005,11 @@ class Output(ObjectType):
 
 
 class OutputLabel(String):
-    """Task output label, as used in the graph e.g. "succeeded"."""
+    """Task output, e.g. "succeeded"."""
 
 
 class PrerequisiteString(String):
-    """String form of a single task prerequisite."""
+    """A task prerequisite, e.g. "2040/foo:succeeded"."""
 
 
 class XTrigger(ObjectType):
