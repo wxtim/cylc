@@ -21,9 +21,12 @@ from cylc.flow.cycling.integer import IntegerSequence, IntegerPoint
 from cylc.flow.task_trigger import Dependency, TaskTrigger
 from cylc.flow.task_state import (
     TaskState,
+    TASK_STATUS_PREPARING,
+    TASK_STATUS_SUBMIT_FAILED,
+    TASK_STATUS_SUBMITTED,
     TASK_STATUS_SUCCEEDED,
-    TASK_STATUS_FAILED,
     TASK_STATUS_WAITING,
+    TASK_STATUS_RUNNING,
 )
 
 
@@ -100,3 +103,19 @@ def test_task_prereq_duplicates(set_cycling_type):
     prereqs = [p.satisfied for p in tstate.prerequisites]
 
     assert prereqs == [{("1", "a", "succeeded"): False}]
+
+
+def test_task_state_order():
+    """Test is_gt and is_gte methods."""
+
+    tdef = TaskDef('foo', {}, 'live', IntegerPoint("1"), IntegerPoint("1"))
+    tstate = TaskState(tdef, IntegerPoint("1"), TASK_STATUS_SUBMITTED, False)
+
+    assert tstate.is_gt(TASK_STATUS_WAITING)
+    assert tstate.is_gt(TASK_STATUS_PREPARING)
+    assert tstate.is_gt(TASK_STATUS_SUBMIT_FAILED)
+    assert not tstate.is_gt(TASK_STATUS_SUBMITTED)
+    assert tstate.is_gte(TASK_STATUS_SUBMITTED)
+    assert not tstate.is_gt(TASK_STATUS_RUNNING)
+    assert not tstate.is_gte(TASK_STATUS_RUNNING)
+

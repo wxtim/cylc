@@ -86,10 +86,10 @@ def validate_flow_opts(options):
 def stringify_flow_nums(flow_nums: Set[int], full: bool = False) -> str:
     """Return a string representation of a set of flow numbers
 
-    If the set contains only the original flow 1, return an empty string
-    so that users can disregard flows unless they trigger new ones.
-
-    Otherwise return e.g. "(1,2,3)".
+    Return:
+    - "none" for no flow
+    - "" for the original flow (flows only matter if there are several)
+    - otherwise e.g. "(flow=1,2,3)"
 
     Examples:
         >>> stringify_flow_nums({})

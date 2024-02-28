@@ -299,9 +299,10 @@ class TaskProxy:
         Format: "<point>/<name>/<job>{<flows>}:status".
         """
         id_ = self.identity
+        if self.transient:
+            return f"{id_}{stringify_flow_nums(self.flow_nums)}(transient)"
         if not self.state(TASK_STATUS_WAITING, TASK_STATUS_EXPIRED):
             id_ += f"/{self.submit_num:02d}"
-
         return (
             f"{id_}{stringify_flow_nums(self.flow_nums)}:{self.state}"
         )
@@ -508,16 +509,22 @@ class TaskProxy:
         self, status=None, is_held=None, is_queued=None, is_runahead=None,
         silent=False, forced=False
     ) -> bool:
-        """Set new state and log the change. Return whether it changed."""
+        """Set new state and log the change. Return whether it changed.
+
+        """
         before = str(self)
+
         if status == TASK_STATUS_EXPIRED:
             is_queued = False
+            is_runahead = False
+
         if self.state.reset(
             status, is_held, is_queued, is_runahead, forced
         ):
             if not silent and not self.transient:
                 LOG.info(f"[{before}] => {self.state}")
             return True
+
         return False
 
     def satisfy_me(self, outputs: 'Iterable[Tokens]') -> bool:

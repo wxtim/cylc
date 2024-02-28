@@ -116,7 +116,6 @@ class TaskPool:
         self.stop_point = config.stop_point or config.final_point
         self.workflow_db_mgr: 'WorkflowDatabaseManager' = workflow_db_mgr
         self.task_events_mgr: 'TaskEventsManager' = task_events_mgr
-        # TODO this is ugly:
         self.task_events_mgr.spawn_func = self.spawn_on_output
         self.data_store_mgr: 'DataStoreMgr' = data_store_mgr
         self.flow_mgr: 'FlowMgr' = flow_mgr
@@ -1278,7 +1277,9 @@ class TaskPool:
                 cycle=str(c_point),
                 task=c_name,
             ).relative_id
+
             c_task = self._get_task_by_id(c_taskid)
+
             if c_task is not None and c_task != itask:
                 # (Avoid self-suicide: A => !A)
                 self.merge_flows(c_task, itask.flow_nums)
@@ -1575,6 +1576,10 @@ class TaskPool:
             prev_completed and not prev_flow_wait
             and not force
         ):
+            LOG.warning(
+                f"({point}/{name} already completed"
+                f" in {stringify_flow_nums(flow_nums, full=True)})"
+            )
             return None
 
         # If previously completed we just create a transient task proxy to use
@@ -1762,13 +1767,20 @@ class TaskPool:
         - spawn children of the outputs (if not spawned)
         - update the child prerequisites
 
-        Uses a transient task proxy to spawn children. (Even if parent was
-        previously spawned in this flow its children might not have been).
-
         Task matching restrictions (for now):
         - globs (cycle and name) only match in the pool
         - future tasks must be specified individually
         - family names are not expanded to members
+
+
+        Uses a transient task proxy to spawn children. (Even if parent was
+        previously spawned in this flow its children might not have been).
+
+        Note transient tasks are a subset of forced tasks (you can
+        force-trigger a task that is already in the pool).
+
+        A forced output cannot cause a state change to submitted or running,
+        but it can complete a task so that it doesn't need to run.
 
         Args:
             items: task ID match patterns
@@ -1792,6 +1804,7 @@ class TaskPool:
         )
 
         for itask in itasks:
+            # Existing task proxies.
             self.merge_flows(itask, flow_nums)
             if prereqs:
                 self._set_prereqs_itask(itask, prereqs, flow_nums)
@@ -1975,9 +1988,8 @@ class TaskPool:
           If the previous run was not flow-wait
             - run it, and try to spawn on outputs
           Else if the previous run was flow-wait:
-            - just try to spawn, unless flow-wait is set.
-
-        ("try to spawn": unless the output already spawned in the flow)
+            - just spawn (if not already spawned in this flow)
+              unless flow-wait is set.
 
         """
         # Get flow numbers for the tasks to be triggered.

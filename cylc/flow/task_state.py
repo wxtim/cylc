@@ -414,6 +414,8 @@ class TaskState:
             returns: whether state changed or not (bool)
 
         """
+        req = status
+
         current_status = (
             self.status,
             self.is_held,
@@ -432,11 +434,11 @@ class TaskState:
 
         if (
             forced and
-            requested_status in [TASK_STATUS_SUBMITTED, TASK_STATUS_RUNNING]
+            req in [TASK_STATUS_SUBMITTED, TASK_STATUS_RUNNING]
         ):
-            # For manual setting of task outputs: return True but don't action
-            # the state change (there's no real job associated with the task).
-            return True
+            # Forced setting of outputs can cause state change to completed
+            # but not to submitted or running (there's no real job).
+            return False
 
         # perform the actual state change
         self.status, self.is_held, self.is_queued, self.is_runahead = (
@@ -458,6 +460,11 @@ class TaskState:
     def is_gt(self, status):
         """"Return True if self.status > status."""
         return (TASK_STATUSES_ORDERED.index(self.status) >
+                TASK_STATUSES_ORDERED.index(status))
+
+    def is_gte(self, status):
+        """"Return True if self.status >= status."""
+        return (TASK_STATUSES_ORDERED.index(self.status) >=
                 TASK_STATUSES_ORDERED.index(status))
 
     def _add_prerequisites(self, point, tdef):

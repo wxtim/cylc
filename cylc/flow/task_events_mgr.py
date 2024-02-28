@@ -710,7 +710,7 @@ class TaskEventsManager():
                 f"[{itask}] setting implied output: {implied}")
             self.process_message(
                 itask, INFO, implied, event_time,
-                self.FLAG_INTERNAL, submit_num
+                self.FLAG_INTERNAL, submit_num, forced
             )
 
         if message == self.EVENT_STARTED:
@@ -758,19 +758,12 @@ class TaskEventsManager():
         elif message == self.EVENT_SUBMITTED:
             if (
                     flag == self.FLAG_RECEIVED
-                    and itask.state.is_gt(TASK_STATUS_SUBMITTED)
+                    and itask.state.is_gte(TASK_STATUS_SUBMITTED)
             ):
                 # Already submitted.
                 return True
-            if (
-                itask.state.status == TASK_STATUS_PREPARING
-                or itask.tdef.run_mode == 'simulation'
-            ):
-                # If not in the preparing state we already assumed and handled
-                # job submission under the started event above...
-                # (sim mode does not have the job prep state)
-                self._process_message_submitted(itask, event_time, forced)
-                self.spawn_children(itask, TASK_OUTPUT_SUBMITTED)
+            self._process_message_submitted(itask, event_time, forced)
+            self.spawn_children(itask, TASK_OUTPUT_SUBMITTED)
 
             # ... but either way update the job ID in the job proxy (it only
             # comes in via the submission message).
@@ -1290,6 +1283,7 @@ class TaskEventsManager():
                 os.getenv("CYLC_WORKFLOW_RUN_DIR")
             )
             itask.state.add_xtrigger(label)
+
         if itask.state_reset(TASK_STATUS_WAITING):
             self.data_store_mgr.delta_task_state(itask)
 
@@ -1437,7 +1431,8 @@ class TaskEventsManager():
 
         # Register newly submit-failed job with the database and datastore.
         job_tokens = itask.tokens.duplicate(job=str(itask.submit_num))
-        self._insert_task_job(itask, event_time, self.JOB_SUBMIT_FAIL_FLAG)
+        self._insert_task_job(
+            itask, event_time, self.JOB_SUBMIT_FAIL_FLAG, forced=forced)
         self.data_store_mgr.delta_job_state(
             job_tokens,
             TASK_STATUS_SUBMIT_FAILED
@@ -1489,7 +1484,8 @@ class TaskEventsManager():
 
         # Register the newly submitted job with the database and datastore.
         # Do after itask has changed state
-        self._insert_task_job(itask, event_time, self.JOB_SUBMIT_SUCCESS_FLAG)
+        self._insert_task_job(
+            itask, event_time, self.JOB_SUBMIT_SUCCESS_FLAG, forced=forced)
         job_tokens = itask.tokens.duplicate(job=str(itask.submit_num))
         self.data_store_mgr.delta_job_time(
             job_tokens,
@@ -1513,7 +1509,8 @@ class TaskEventsManager():
         self,
         itask: 'TaskProxy',
         event_time: str,
-        submit_status: int
+        submit_status: int,
+        forced: bool = False
     ):
         """Insert a new job proxy into the datastore.
 
@@ -1526,7 +1523,9 @@ class TaskEventsManager():
         # itask.jobs appends for automatic retries (which reuse the same task
         # proxy) but a retriggered task that was not already in the pool will
         # not see previous submissions (so can't use itask.jobs[submit_num-1]).
-        if itask.tdef.run_mode == "simulation":
+        # And transient tasks, used for setting outputs and spawning children,
+        # do not submit jobs.
+        if itask.tdef.run_mode == "simulation" or forced:
             job_conf = {"submit_num": 0}
         else:
             job_conf = itask.jobs[-1]
