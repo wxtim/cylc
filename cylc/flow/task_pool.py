@@ -1710,7 +1710,12 @@ class TaskPool:
                 LOG.warning(
                     f"output {pre.relative_id_with_selectors} not found")
                 continue
-            _prereqs.append(pre.duplicate(task_sel=msg))
+            _prereqs.append(
+                pre.duplicate(
+                    task_sel=msg,
+                    cycle=standardise_point_string(pre['cycle'])
+                )
+            )
         return _prereqs
 
     def _standardise_outputs(
