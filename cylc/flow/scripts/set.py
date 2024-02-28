@@ -59,7 +59,7 @@ Examples:
   # the active window (and start checking its xtriggers, if any):
   $ cylc set --pre=all my_workflow//3/bar
 
-  # complete the "file" custom output of 3/bar:
+  # complete the "file1" custom output of 3/bar:
   $ cylc set --out=file1 my_workflow//3/bar
 
   # satisfy the "3/bar:file1" prerequisite of 3/qux:
@@ -151,7 +151,7 @@ def get_option_parser() -> COP:
         help=(
             "Satisfy task prerequisites. For multiple prerequisites"
             " re-use the option, or give a comma-separated list, or"
-            ' use "--out=all" to satisfy all prerequisites, if any.'
+            ' use "--pre=all" to satisfy all prerequisites, if any.'
             " PREREQUISITE format: 'cycle/task[:OUTPUT]', where"
             " :OUTPUT defaults to :succeeded."
         ),
