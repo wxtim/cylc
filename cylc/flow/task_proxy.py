@@ -520,11 +520,13 @@ class TaskProxy:
             return True
         return False
 
-    def satisfy_me(self, outputs: 'Iterable[Tokens]') -> None:
+    def satisfy_me(self, outputs: 'Iterable[Tokens]') -> bool:
         """Try to satisfy my prerequisites with given outputs.
 
         The output strings are of the form "cycle/task:message"
         Log a warning for outputs that I don't depend on.
+
+        Return True if any used, else False.
 
         """
         used = self.state.satisfy_me(outputs)
@@ -533,6 +535,7 @@ class TaskProxy:
                 f"{self.identity} does not depend on"
                 f" {output.relative_id_with_selectors}"
             )
+        return bool(used)
 
     def clock_expire(self) -> bool:
         """Return True if clock expire time is up, else False."""

@@ -1833,24 +1833,30 @@ class TaskPool:
         itask: 'TaskProxy',
         prereqs: 'List[str]',
         flow_nums: 'Set[int]',
-    ) -> None:
+    ) -> bool:
         """Set prerequisites on a task proxy.
 
         Prerequisite format: "cycle/task:output" or "all".
+
+        Return True if any prereqs are valid, else False.
 
         """
         if prereqs == ["all"]:
             itask.state.set_all_satisfied()
         else:
-            itask.satisfy_me(
+            if not itask.satisfy_me(
                 self._standardise_prereqs(prereqs)
-            )
+            ):
+                LOG.warning(f"{itask.identity} does not depend on {prereqs}")
+                return False
+
         if (
             self.runahead_limit_point is not None
             and itask.point <= self.runahead_limit_point
         ):
             self.rh_release_and_queue(itask)
         self.data_store_mgr.delta_task_prerequisite(itask)
+        return True
 
     def _set_prereqs_tdef(
         self, point, taskdef, prereqs, flow_nums, flow_wait
@@ -1860,8 +1866,8 @@ class TaskPool:
         itask = self.spawn_task(taskdef.name, point, flow_nums, flow_wait)
         if itask is None:
             return
-        self.add_to_pool(itask)
-        self._set_prereqs_itask(itask, prereqs, flow_nums)
+        if self._set_prereqs_itask(itask, prereqs, flow_nums):
+            self.add_to_pool(itask)
 
     def _get_active_flow_nums(self) -> Set[int]:
         """Return active flow numbers.
