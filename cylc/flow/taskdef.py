@@ -194,13 +194,13 @@ class TaskDef:
 
     def set_required_output(self, output, required):
         """Set outputs to required or optional."""
-        # (Note outputs and associated messages already defined.)
+        # (Note outputs and associated messages are already defined.)
         message, _ = self.outputs[output]
         self.outputs[output] = (message, required)
 
-    def get_required_outputs(self):
-        """Return list of required outputs (messages, not trigger labels)."""
-        return [msg for _lab, (msg, req) in self.outputs.items() if req]
+    def get_required_output_messages(self):
+        """Return list of required outputs (as task messages)."""
+        return [msg for (msg, req) in self.outputs.values() if req]
 
     def tweak_outputs(self):
         """Output consistency checking and tweaking."""

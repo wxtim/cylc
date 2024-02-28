@@ -1816,7 +1816,7 @@ class TaskPool:
         """Set requested outputs on a task proxy and spawn children."""
 
         if not outputs:
-            outputs = itask.tdef.get_required_outputs()
+            outputs = itask.tdef.get_required_output_messages()
         else:
             outputs = self._standardise_outputs(
                 itask.point, itask.tdef, outputs)
