@@ -18,18 +18,7 @@
 import pytest
 import urwid
 
-from cylc.flow.cycling.integer import IntegerPoint
-from cylc.flow.task_outputs import (
-    TASK_OUTPUT_SUBMITTED,
-    TASK_OUTPUT_STARTED,
-    TASK_OUTPUT_SUCCEEDED
-)
-from cylc.flow.task_state import (
-#     TASK_STATUS_RUNNING,
-    TASK_STATUS_SUCCEEDED,
-#     TASK_STATUS_FAILED,
-#     TASK_STATUS_WAITING,
-)
+from cylc.flow.task_outputs import TASK_OUTPUT_SUCCEEDED
 from cylc.flow.workflow_status import StopMode
 
 
@@ -334,7 +323,6 @@ async def test_auto_expansion(flow, scheduler, start, rakiura):
                 'on-load',
                 'cycle "1" and top-level family "1/A" should be expanded',
             )
-
             for task in ('a', 'b'):
                 schd.pool.set_prereqs_and_outputs(
                     items=[f"1/{task}"],
