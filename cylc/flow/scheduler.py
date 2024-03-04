@@ -2157,14 +2157,20 @@ class Scheduler:
         self,
         tasks: List[str],
         flow: List[str],
-        outputs: List[str],
-        prerequisites: List[str],
+        outputs: Optional[List[str]] = None,
+        prerequisites: Optional[List[str]] = None,
         flow_wait: bool = False,
         flow_descr: Optional[str] = None
     ):
         """Force spawn task successors.
 
+        Note, the "outputs" and "prerequisites" arguments might not be
+        populated in the mutation arguments so must provide defaults here.
         """
+        if outputs is None:
+            outputs = []
+        if prerequisites is None:
+            prerequisites = []
         return self.pool.set_prereqs_and_outputs(
             tasks, outputs, prerequisites, flow, flow_wait, flow_descr
         )
