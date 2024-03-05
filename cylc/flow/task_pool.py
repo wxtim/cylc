@@ -212,6 +212,7 @@ class TaskPool:
 
     def add_to_pool(self, itask) -> None:
         """Add a task to the pool."""
+
         self.active_tasks.setdefault(itask.point, {})
         self.active_tasks[itask.point][itask.identity] = itask
         self.active_tasks_changed = True
@@ -1480,36 +1481,36 @@ class TaskPool:
 
         return True
 
-    def _get_task_history(self, name, point, flow_nums):
-        """Get history of previous submits for this task.
+    def _get_task_history(
+        self, name: str, point: 'PointBase', flow_nums: Set[int]
+    ) -> Tuple[int, str, bool]:
+        """Get history of previous submits for this task."""
 
-        """
         info = self.workflow_db_mgr.pri_dao.select_prev_instances(
             name, str(point)
         )
         try:
-            submit_num = max(s[0] for s in info)
+            submit_num: int = max(s[0] for s in info)
         except ValueError:
             # never spawned before in any flow
             submit_num = 0
 
-        prev_completed = 0  # did not complete in the flow
-        prev_flow_wait = False  # did not wait in the flow
+        prev_status = TASK_STATUS_WAITING
+        prev_flow_wait = False
 
-        for _snum, f_wait, old_fnums, is_complete in info:
-            # is_complete: 0: False, 1: True, 2: unknown (8.2 back compat)
+        for _snum, f_wait, old_fnums, status in info:
             if set.intersection(flow_nums, old_fnums):
                 # matching flows
-                prev_completed = is_complete
+                prev_status = status
                 prev_flow_wait = f_wait
-                if prev_completed:
+                if prev_status in TASK_STATUSES_FINAL:
+                    # task finished
                     break
-
                 # Else continue: there may be multiple entries with flow
                 # overlap due to merges (they'll have have same snum and
-                # f_wait); keep going to find the complete one, if any.
+                # f_wait); keep going to find the finished one, if any.
 
-        return submit_num, prev_completed, prev_flow_wait
+        return submit_num, prev_status, prev_flow_wait
 
     def _load_historical_outputs(self, itask):
         """Load a task's historical outputs from the DB."""
@@ -1532,75 +1533,57 @@ class TaskPool:
         force: bool = False,
         flow_wait: bool = False,
     ) -> Optional[TaskProxy]:
-        """Spawn a task if not already completed for this flow, or if forced.
+        """Return task proxy if not completed in this flow, or if forced.
 
-        The creates the task proxy but does not add it to the pool.
+        If finished previously with flow wait, just try to spawn children.
 
-        If completed previously with flow wait, just try to spawn children.
+        Note finished tasks may be incomplete, but we don't automatically
+        re-run incomplete tasks in the same flow.
+
+        For every task spawned, we need a DB lookup for submit number,
+        and flow-wait.
 
         """
         if not self.can_be_spawned(name, point):
             return None
 
-        submit_num, prev_completion, prev_flow_wait = (
+        submit_num, prev_status, prev_flow_wait = (
             self._get_task_history(name, point, flow_nums)
         )
 
-        if prev_completion == 2:
-            # BACK COMPAT - completion not recorded before 8.3.0
-            # This code block is for a very niche case: it's only
-            # used if a flow-wait task is encountered after restarting
-            # an 8.2 workflow with 8.3.
-
-            itask = self._get_task_proxy(
-                point,
-                self.config.get_taskdef(name),
-                flow_nums,
-                submit_num=submit_num,
-                flow_wait=flow_wait,
-                transient=True
-            )
-            if not itask:
-                return None
-
-            # update completed outputs from the DB
-            self._load_historical_outputs(itask)
-
-            prev_completed = itask.is_complete()
-        else:
-            prev_completed = prev_completion == 1
-
-        # If previously completed and children spawned there is nothing
-        # to do, unless forced.
-        if (
-            prev_completed and not prev_flow_wait
-            and not force
-        ):
-            LOG.warning(
-                f"({point}/{name} already completed"
-                f" in {stringify_flow_nums(flow_nums, full=True)})"
-            )
-            return None
-
-        # If previously completed we just create a transient task proxy to use
-        # for spawning children, else (or if forced) run it again.
-        if force:
-            transient = False
-        else:
-            transient = prev_completed
-
-        itask = self._get_task_proxy(
+        itask = self._get_task_proxy_db_outputs(
             point,
             self.config.get_taskdef(name),
             flow_nums,
+            status=prev_status,
             submit_num=submit_num,
             flow_wait=flow_wait,
-            transient=transient
         )
-        if not itask:
+        if itask is None:
             return None
 
-        if not transient:
+        if prev_status in TASK_STATUSES_FINAL:
+            # Task finished previously.
+            msg = f"[{point}/{name}:{prev_status}] already finished"
+            if itask.is_complete():
+                msg += " and completed"
+                itask.transient = True
+            else:
+                # revive as incomplete.
+                msg += " incomplete"
+
+            LOG.info(
+                f"{msg} {stringify_flow_nums(flow_nums, full=True)})"
+            )
+            if prev_flow_wait:
+                self._spawn_after_flow_wait(itask)
+
+            if itask.transient and not force:
+                return None
+
+        # (else not previously finishedr, so run it)
+
+        if not itask.transient:
             if (name, point) in self.tasks_to_hold:
                 LOG.info(f"[{itask}] holding (as requested earlier)")
                 self.hold_active_task(itask)
@@ -1635,21 +1618,11 @@ class TaskPool:
                     for cycle, task, output in self.abs_outputs_done
                 ])
 
-        if prev_flow_wait and prev_completed:
-            self._spawn_after_flow_wait(itask)
-            LOG.warning(
-                f"{itask.identity} already completed for flow"
-                f" {stringify_flow_nums(flow_nums, full=True)}"
-            )
-            return None
-
         self.db_add_new_flow_rows(itask)
         return itask
 
     def _spawn_after_flow_wait(self, itask: TaskProxy) -> None:
-        LOG.info(
-            f"spawning children of {itask.identity} after flow wait"
-        )
+        LOG.info(f"[{itask}] spawning outputs after flow-wait")
         self.spawn_on_all_outputs(itask, completed_only=True)
         # update flow wait status in the DB
         itask.flow_wait = False
@@ -1657,17 +1630,18 @@ class TaskPool:
         self.workflow_db_mgr.put_update_task_flow_wait(itask)
         return None
 
-    def _get_task_proxy(
+    def _get_task_proxy_db_outputs(
         self,
         point: 'PointBase',
         taskdef: 'TaskDef',
         flow_nums: 'FlowNums',
+        status: str = TASK_STATUS_WAITING,
         flow_wait: bool = False,
         transient: bool = False,
         is_manual_submit: bool = False,
-        submit_num: int = 0
+        submit_num: int = 0,
     ) -> Optional['TaskProxy']:
-        """Spawn a task proxy and update its outputs from the DB. """
+        """Spawn a task, update outputs from DB."""
 
         if not self.can_be_spawned(taskdef.name, point):
             return None
@@ -1677,29 +1651,25 @@ class TaskPool:
             taskdef,
             point,
             flow_nums,
+            status=status,
             flow_wait=flow_wait,
             submit_num=submit_num,
             transient=transient,
             is_manual_submit=is_manual_submit
         )
+        if itask is None:
+            return None
 
-        if itask is not None:
-            # Update it with outputs that were already completed.
-            info = self.workflow_db_mgr.pri_dao.select_task_outputs(
-                itask.tdef.name, str(itask.point))
-            if not info:
-                self.db_add_new_flow_rows(itask)
-            spawn_kids = False
-            for outputs_str, fnums in info.items():
-                if flow_nums.intersection(fnums):
-                    if itask.flow_wait:
-                        spawn_kids = True
-                    for msg in json.loads(outputs_str):
-                        itask.state.outputs.set_completed_by_msg(msg)
-
-            if spawn_kids:
-                self._spawn_after_flow_wait(itask)
-
+        # Update it with outputs that were already completed.
+        info = self.workflow_db_mgr.pri_dao.select_task_outputs(
+            itask.tdef.name, str(itask.point))
+        if not info:
+            # (Note still need this if task not run before)
+            self.db_add_new_flow_rows(itask)
+        for outputs_str, fnums in info.items():
+            if flow_nums.intersection(fnums):
+                for msg in json.loads(outputs_str):
+                    itask.state.outputs.set_completed_by_msg(msg)
         return itask
 
     def _standardise_prereqs(self, prereqs: 'List[str]') -> 'List[Tokens]':
@@ -1817,8 +1787,10 @@ class TaskPool:
                 self._set_prereqs_tdef(
                     point, tdef, prereqs, flow_nums, flow_wait)
             else:
-                trans = self._get_task_proxy(
-                    point, tdef, flow_nums, flow_wait, transient=True)
+                trans = self._get_task_proxy_db_outputs(
+                    point, tdef, flow_nums,
+                    flow_wait=flow_wait, transient=True
+                )
                 if trans is not None:
                     self._set_outputs_itask(trans, outputs)
 
@@ -2015,7 +1987,7 @@ class TaskPool:
             if not self.can_be_spawned(name, point):
                 continue
 
-            submit_num, _, prev_fwait = self._get_task_history(
+            submit_num, _prev_status, prev_fwait = self._get_task_history(
                 name, point, flow_nums)
 
             itask = TaskProxy(
