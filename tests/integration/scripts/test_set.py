@@ -73,7 +73,7 @@ async def test_rerun_incomplete(
         },
         'runtime': {
             # register a custom output
-            'a': {'outputs': {'x': 'x'}},
+            'a': {'outputs': {'x': 'xyz'}},
         },
     })
     schd = scheduler(id_, paused_start=False)
@@ -103,7 +103,7 @@ async def test_data_store(
         },
         'runtime': {
             # register a custom output
-            'a': {'outputs': {'x': 'x'}},
+            'a': {'outputs': {'x': 'xyz'}},
         },
     })
     schd = scheduler(id_)
