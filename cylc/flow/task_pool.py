@@ -1715,7 +1715,7 @@ class TaskPool:
                 msg = self.config.get_taskdef(
                     pre['task']
                 ).outputs[output][0]
-                cycle=standardise_point_string(pre['cycle'])
+                cycle = standardise_point_string(pre['cycle'])
             except KeyError:
                 # The task does not have this output.
                 LOG.warning(
