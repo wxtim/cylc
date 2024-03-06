@@ -1715,17 +1715,25 @@ class TaskPool:
                 msg = self.config.get_taskdef(
                     pre['task']
                 ).outputs[output][0]
+                cycle=standardise_point_string(pre['cycle'])
             except KeyError:
                 # The task does not have this output.
                 LOG.warning(
                     f"output {pre.relative_id_with_selectors} not found")
                 continue
-            _prereqs.append(
-                pre.duplicate(
-                    task_sel=msg,
-                    cycle=standardise_point_string(pre['cycle'])
+            except WorkflowConfigError as exc:
+                # The workflow does not have the task from --pre:
+                LOG.warning(f'Invalid pre task name set:\n    {exc.args[0]}')
+            except PointParsingError as exc:
+                # The CP from --pre is invalid:
+                LOG.warning(f'Invalid pre cycle point set:\n    {exc.args[0]}')
+            else:
+                _prereqs.append(
+                    pre.duplicate(
+                        task_sel=msg,
+                        cycle=cycle,
+                    )
                 )
-            )
         return _prereqs
 
     def _standardise_outputs(

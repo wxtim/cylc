@@ -1383,6 +1383,40 @@ async def test_set_prereqs(
         assert qux.state.prerequisites_all_satisfied()
 
 
+async def test_set_bad_prereqs(
+    flow,
+    scheduler,
+    start,
+    log_filter,
+):
+    """Check manual setting of prerequisites.
+
+    """
+    id_ = flow({
+        'scheduler': {
+            'allow implicit tasks': 'True',
+            'cycle point format': '%Y'},
+        'scheduling': {
+            'initial cycle point': '2040',
+            'graph': {'R1': "foo => bar"}},
+    })
+    schd = scheduler(id_)
+
+    def set_prereqs(prereqs):
+        """Shorthand so only varible under test given as arg"""
+        schd.pool.set_prereqs_and_outputs(
+            ["2040/bar"], None, prereqs, ['all'])
+
+    async with start(schd) as log:
+        # Invalid - task name wildcard:
+        set_prereqs(["2040/*"])
+        assert 'Illegal task name' in log.messages[-1]
+
+        # Invalid cycle point wildcard.
+        set_prereqs(["*/foo"])
+        assert 'Invalid ISO 8601' in log.messages[-1]
+
+
 async def test_set_outputs_live(
     flow,
     scheduler,
