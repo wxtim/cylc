@@ -26,7 +26,6 @@ from typing import (
     Counter as TypingCounter,
     Dict,
     List,
-    Iterable,
     Optional,
     Set,
     TYPE_CHECKING,
@@ -536,23 +535,19 @@ class TaskProxy:
 
         return False
 
-    def satisfy_me(self, outputs: 'Iterable[Tokens]') -> bool:
-        """Try to satisfy my prerequisites with given outputs.
+    def satisfy_me(
+        self, task_messages: 'List[Tokens]'
+    ) -> 'Set[Tokens]':
+        """Try to satisfy my prerequisites with given output messages.
 
-        The output strings are of the form "cycle/task:message"
-        Log a warning for outputs that I don't depend on.
+        The task output messages are of the form "cycle/task:message"
+        Log a warning for messages that I don't depend on.
 
-        Return True if any match, else False.
+        Return a set of unmatched task messages.
 
         """
-        used = self.state.satisfy_me(outputs)
-        for output in set(outputs) - used:
-            # Note this logs the task message not the output.
-            LOG.warning(
-                f"{self.identity} does not depend on"
-                f' "{output.relative_id_with_selectors}"'
-            )
-        return bool(used)
+        used = self.state.satisfy_me(task_messages)
+        return set(task_messages) - used
 
     def clock_expire(self) -> bool:
         """Return True if clock expire time is up, else False."""

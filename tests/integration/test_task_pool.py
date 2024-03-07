@@ -1352,7 +1352,7 @@ async def test_set_prereqs(
         schd.pool.set_prereqs_and_outputs(
             ["20400101T0000Z/qux"], None, ["20400101T0000Z/foo:a"], ['all'])
         assert log_filter(
-            log, contains='20400101T0000Z/qux does not depend on "20400101T0000Z/foo:drugs and money"')
+            log, contains='20400101T0000Z/qux does not depend on "20400101T0000Z/foo:a"')
 
         # it should not add 20400101T0000Z/qux to the pool
         assert (

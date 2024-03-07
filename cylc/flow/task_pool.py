@@ -1672,9 +1672,15 @@ class TaskPool:
                     itask.state.outputs.set_completed_by_msg(msg)
         return itask
 
-    def _standardise_prereqs(self, prereqs: 'List[str]') -> 'List[Tokens]':
-        """Convert prerequisites to task output messages."""
-        _prereqs = []
+    def _standardise_prereqs(
+        self, prereqs: 'List[str]'
+    ) -> 'Dict[Tokens, str]':
+        """Convert prerequisites to a map of task messages: outputs.
+
+        (So satsify_me logs failures)
+
+        """
+        _prereqs = {}
         for prereq in prereqs:
             pre = Tokens(prereq, relative=True)
             # add implicit "succeeded"; convert "succeed" to "succeeded" etc.
@@ -1690,12 +1696,13 @@ class TaskPool:
                 LOG.warning(
                     f"output {pre.relative_id_with_selectors} not found")
                 continue
-            _prereqs.append(
+            _prereqs[
                 pre.duplicate(
                     task_sel=msg,
                     cycle=standardise_point_string(pre['cycle'])
                 )
-            )
+            ] = prereq
+
         return _prereqs
 
     def _standardise_outputs(
@@ -1839,11 +1846,18 @@ class TaskPool:
         if prereqs == ["all"]:
             itask.state.set_all_satisfied()
         else:
-            if not itask.satisfy_me(
-                self._standardise_prereqs(prereqs)
-            ):
+            # Attempt to set the given presrequisites.
+            # Log any that aren't valid for the task.
+            presus = self._standardise_prereqs(prereqs)
+            unmatched = itask.satisfy_me(list(presus.keys()))
+            for task_msg in unmatched:
+                LOG.warning(
+                    f"{itask.identity} does not depend on"
+                    f' "{presus[task_msg]}"'
+                )
+            if len(unmatched) == len(prereqs):
+                # No prereqs matched.
                 return False
-
         if (
             self.runahead_limit_point is not None
             and itask.point <= self.runahead_limit_point
