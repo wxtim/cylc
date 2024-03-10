@@ -60,6 +60,6 @@ a,started,submitted,succeeded
 __OUT__
 
 # Check the flow-wait worked
-grep_workflow_log_ok check-wait "spawning children of 1/foo.* after flow wait" -E
+grep_workflow_log_ok check-wait "1/foo.* spawning outputs after flow-wait" -E
 
 purge

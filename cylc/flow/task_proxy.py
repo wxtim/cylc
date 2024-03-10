@@ -26,7 +26,6 @@ from typing import (
     Counter as TypingCounter,
     Dict,
     List,
-    Iterable,
     Optional,
     Set,
     TYPE_CHECKING,
@@ -39,10 +38,19 @@ from cylc.flow import LOG
 from cylc.flow.flow_mgr import stringify_flow_nums
 from cylc.flow.platforms import get_platform
 from cylc.flow.task_action_timer import TimerFlags
+from cylc.flow.task_outputs import (
+    TASK_OUTPUT_FAILED,
+    TASK_OUTPUT_EXPIRED,
+    TASK_OUTPUT_SUCCEEDED,
+    TASK_OUTPUT_SUBMIT_FAILED
+)
 from cylc.flow.task_state import (
     TaskState,
     TASK_STATUS_WAITING,
-    TASK_STATUS_EXPIRED
+    TASK_STATUS_EXPIRED,
+    TASK_STATUS_SUCCEEDED,
+    TASK_STATUS_SUBMIT_FAILED,
+    TASK_STATUS_FAILED
 )
 from cylc.flow.taskdef import generate_graph_children
 from cylc.flow.wallclock import get_unix_time_from_time_string as str2time
@@ -154,7 +162,7 @@ class TaskProxy:
             preparation has completed.
         .transient:
             This is a transient proxy - not to be added to the task pool, but
-            used e.g. to spawn children, or to get task-specific infomation.
+            used e.g. to spawn children, or to get task-specific information.
 
     Args:
         tdef: The definition object of this task.
@@ -300,7 +308,7 @@ class TaskProxy:
         """
         id_ = self.identity
         if self.transient:
-            return f"{id_}{stringify_flow_nums(self.flow_nums)}(transient)"
+            return f"{id_}{stringify_flow_nums(self.flow_nums)}"
         if not self.state(TASK_STATUS_WAITING, TASK_STATUS_EXPIRED):
             id_ += f"/{self.submit_num:02d}"
         return (
@@ -527,23 +535,19 @@ class TaskProxy:
 
         return False
 
-    def satisfy_me(self, outputs: 'Iterable[Tokens]') -> bool:
-        """Try to satisfy my prerequisites with given outputs.
+    def satisfy_me(
+        self, task_messages: 'List[Tokens]'
+    ) -> 'Set[Tokens]':
+        """Try to satisfy my prerequisites with given output messages.
 
-        The output strings are of the form "cycle/task:message"
-        Log a warning for outputs that I don't depend on.
+        The task output messages are of the form "cycle/task:message"
+        Log a warning for messages that I don't depend on.
 
-        Return True if any match, else False.
+        Return a set of unmatched task messages.
 
         """
-        used = self.state.satisfy_me(outputs)
-        for output in set(outputs) - used:
-            # Note this logs the task message not the output.
-            LOG.warning(
-                f"{self.identity} does not depend on"
-                f' "{output.relative_id_with_selectors}"'
-            )
-        return bool(used)
+        used = self.state.satisfy_me(task_messages)
+        return set(task_messages) - used
 
     def clock_expire(self) -> bool:
         """Return True if clock expire time is up, else False."""
@@ -555,9 +559,34 @@ class TaskProxy:
             return False
         return True
 
+    def is_finished(self) -> bool:
+        """Return True if a final state achieved."""
+        return (
+            self.state(
+                TASK_STATUS_EXPIRED,
+                TASK_STATUS_SUBMIT_FAILED,
+                TASK_STATUS_FAILED,
+                TASK_STATUS_SUCCEEDED
+            )
+        )
+
     def is_complete(self) -> bool:
-        """Return True if complete or expired, else False."""
+        """Return True if complete or expired."""
         return (
             self.state(TASK_STATUS_EXPIRED)
             or not self.state.outputs.is_incomplete()
         )
+
+    def set_state_by_outputs(self) -> None:
+        """Set state according to which final output is completed."""
+        for output in (
+            TASK_OUTPUT_EXPIRED, TASK_OUTPUT_SUBMIT_FAILED,
+            TASK_OUTPUT_FAILED, TASK_OUTPUT_SUCCEEDED
+        ):
+            if self.state.outputs.is_completed(output, output):
+                # This assumes status and output strings are the same:
+                self.state_reset(
+                    status=output,
+                    silent=True, is_queued=False, is_runahead=False
+                )
+                break
