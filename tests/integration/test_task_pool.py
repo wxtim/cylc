@@ -33,10 +33,8 @@ from cylc.flow import CYLC_LOG
 from cylc.flow.cycling.integer import IntegerPoint
 from cylc.flow.cycling.iso8601 import ISO8601Point
 from cylc.flow.data_store_mgr import TASK_PROXIES
-from cylc.flow.id import Tokens
 from cylc.flow.task_events_mgr import TaskEventsManager
 from cylc.flow.task_outputs import (
-    TASK_OUTPUT_STARTED,
     TASK_OUTPUT_SUCCEEDED
 )
 
@@ -50,7 +48,6 @@ from cylc.flow.task_state import (
     TASK_STATUS_FAILED,
     TASK_STATUS_EXPIRED,
     TASK_STATUS_SUBMIT_FAILED,
-    TASK_STATUSES_ALL,
 )
 
 if TYPE_CHECKING:
@@ -1345,7 +1342,10 @@ async def test_set_prereqs(
 
         # it should start up with foo, bar, baz
         assert (
-            pool_get_task_ids(schd.pool) == ["20400101T0000Z/bar", "20400101T0000Z/baz", "20400101T0000Z/foo"]
+            pool_get_task_ids(schd.pool) == [
+                "20400101T0000Z/bar",
+                "20400101T0000Z/baz",
+                "20400101T0000Z/foo"]
         )
 
         # try to set an invalid prereq of qux
@@ -1356,17 +1356,26 @@ async def test_set_prereqs(
 
         # it should not add 20400101T0000Z/qux to the pool
         assert (
-            pool_get_task_ids(schd.pool) == ["20400101T0000Z/bar", "20400101T0000Z/baz", "20400101T0000Z/foo"]
+            pool_get_task_ids(schd.pool) == [
+                "20400101T0000Z/bar",
+                "20400101T0000Z/baz",
+                "20400101T0000Z/foo"]
         )
 
         # set one prereq of future task 20400101T0000Z/qux
         schd.pool.set_prereqs_and_outputs(
-            ["20400101T0000Z/qux"], None, ["20400101T0000Z/foo:succeeded"], ['all'])
+            ["20400101T0000Z/qux"],
+            None,
+            ["20400101T0000Z/foo:succeeded"],
+            ['all'])
 
         # it should add 20400101T0000Z/qux to the pool
         assert (
             pool_get_task_ids(schd.pool) == [
-                "20400101T0000Z/bar", "20400101T0000Z/baz", "20400101T0000Z/foo", "20400101T0000Z/qux"
+                "20400101T0000Z/bar",
+                "20400101T0000Z/baz",
+                "20400101T0000Z/foo",
+                "20400101T0000Z/qux"
             ]
         )
 
@@ -1381,6 +1390,40 @@ async def test_set_prereqs(
 
         # it should now be fully satisfied
         assert qux.state.prerequisites_all_satisfied()
+
+
+async def test_set_bad_prereqs(
+    flow,
+    scheduler,
+    start,
+    log_filter,
+):
+    """Check manual setting of prerequisites.
+
+    """
+    id_ = flow({
+        'scheduler': {
+            'allow implicit tasks': 'True',
+            'cycle point format': '%Y'},
+        'scheduling': {
+            'initial cycle point': '2040',
+            'graph': {'R1': "foo => bar"}},
+    })
+    schd = scheduler(id_)
+
+    def set_prereqs(prereqs):
+        """Shorthand so only varible under test given as arg"""
+        schd.pool.set_prereqs_and_outputs(
+            ["2040/bar"], None, prereqs, ['all'])
+
+    async with start(schd) as log:
+        # Invalid: task name wildcard:
+        set_prereqs(["2040/*"])
+        assert log_filter(log, contains='Invalid prerequisite task name' )
+
+        # Invalid: cycle point wildcard.
+        set_prereqs(["*/foo"])
+        assert log_filter(log, contains='Invalid prerequisite cycle point')
 
 
 async def test_set_outputs_live(
