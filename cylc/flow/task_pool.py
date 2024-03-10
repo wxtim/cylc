@@ -1704,12 +1704,7 @@ class TaskPool:
                 # The CP from --pre is invalid:
                 LOG.warning(f'Invalid pre cycle point set:\n    {exc.args[0]}')
             else:
-            _prereqs[
-                pre.duplicate(
-                    task_sel=msg,
-                    cycle=standardise_point_string(pre['cycle'])
-                )
-            ] = prereq
+                _prereqs[pre.duplicate(task_sel=msg, cycle=cycle)] = prereq
         return _prereqs
 
     def _standardise_outputs(
