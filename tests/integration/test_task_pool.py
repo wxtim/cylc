@@ -1417,13 +1417,13 @@ async def test_set_bad_prereqs(
             ["2040/bar"], None, prereqs, ['all'])
 
     async with start(schd) as log:
-        # Invalid - task name wildcard:
+        # Invalid: task name wildcard:
         set_prereqs(["2040/*"])
-        assert 'Illegal task name' in log.messages[-1]
+        assert log_filter(log, contains='Invalid prerequisite task name' )
 
-        # Invalid cycle point wildcard.
+        # Invalid: cycle point wildcard.
         set_prereqs(["*/foo"])
-        assert 'Invalid ISO 8601' in log.messages[-1]
+        assert log_filter(log, contains='Invalid prerequisite cycle point')
 
 
 async def test_set_outputs_live(

@@ -1698,11 +1698,11 @@ class TaskPool:
                     f"output {pre.relative_id_with_selectors} not found")
                 continue
             except WorkflowConfigError as exc:
-                # The workflow does not have the task from --pre:
-                LOG.warning(f'Invalid pre task name set:\n    {exc.args[0]}')
+                LOG.warning(
+                    f'Invalid prerequisite task name:\n{exc.args[0]}')
             except PointParsingError as exc:
-                # The CP from --pre is invalid:
-                LOG.warning(f'Invalid pre cycle point set:\n    {exc.args[0]}')
+                LOG.warning(
+                    f'Invalid prerequisite cycle point:\n{exc.args[0]}')
             else:
                 _prereqs[pre.duplicate(task_sel=msg, cycle=cycle)] = prereq
         return _prereqs
