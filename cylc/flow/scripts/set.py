@@ -18,24 +18,39 @@
 
 """cylc set [OPTIONS] ARGS
 
-Set task prerequisites or outputs in a running workflow.
+Command to manually set task prerequisites and outputs in running workflows.
 
-Default: set all required outputs (note "succeeded" may be optional).
+By default, it sets all required outputs (note "succeeded" may be optional).
 
-Prerequisites:
-  Setting a task's prerequisites contributes to its readiness to run and
-  promotes it to the scheduler's active window. Use --pre=all to promote
-  even parentless tasks to the active window, where xtriggers become active.
+Setting task prerequisites:
+  - contributes to the task's readiness to run, and
+  - promotes it to the scheduler's active task pool
 
-Outputs:
-  Setting a task's outputs contributes to its completion and spawns downstream
-  tasks that depend on those outputs. Setting final outputs (succeeded, failed,
-  expired) also sets task state.
+Note --pre=all also promotes parentless tasks (with no task-prerequisites) to
+the active pool where clock and xtriggers become active. This is needed to
+start a new flow that continues to future cycle points, if you need the first
+parentless tasks in the new flow to wait on clock or xtriggers before running.
 
-  Any implied outputs will be set automatically:
-    - started implies submitted
-    - succeeded and failed imply started
-    - custom outputs and expired do not imply other outputs
+Setting task outputs:
+  - contributes to a task's completion, and
+  - spawns downstream tasks that depend on those outputs
+
+Note setting final outputs (succeeded, failed, expired) also sets task state.
+Setting the started and submitted outputs spawns downstream tasks that depend
+on them but does not affect task state, because there is no running job.
+
+Implied outputs are set automatically:
+  - started implies submitted
+  - succeeded and failed imply started
+  - custom outputs and expired do not imply other outputs
+
+For custom outputs, use the output names not the associated task messages:
+[runtime]
+  [[my-task]]
+    # ...
+    [[[outputs]]]
+      # <output-name> = <task-message>
+      x = "file x completed and archived"
 
 CLI Completion:
   Cylc can auto-complete prerequisites and outputs for active tasks if you
