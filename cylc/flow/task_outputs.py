@@ -299,3 +299,20 @@ class TaskOutputs:
         except ValueError:
             ind = 999
         return (ind, item[_MESSAGE] or '')
+
+    @staticmethod
+    def output_sort_key(item):
+        """Compare by output order.
+
+        Examples:
+
+            >>> this = TaskOutputs.output_sort_key
+            >>> sorted(['finished', 'started',  'custom'], key=this)
+            ['started', 'custom', 'finished']
+        """
+        task_outputs = {o: i for i, o in enumerate(TASK_OUTPUTS)}
+        if item in TASK_OUTPUTS:
+            return task_outputs[item]
+        else:
+            # Sorts custom outputs after started.
+            return TASK_OUTPUTS.index(TASK_OUTPUT_STARTED) + .5

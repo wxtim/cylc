@@ -1820,6 +1820,7 @@ class TaskPool:
                 itask.point, itask.tdef, outputs)
 
         changed = False
+        outputs = sorted(outputs, key=itask.state.outputs.output_sort_key)
         for output in outputs:
             if itask.state.outputs.is_completed(output):
                 LOG.info(f"output {itask.identity}:{output} completed already")
