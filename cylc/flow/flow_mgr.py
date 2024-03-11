@@ -59,6 +59,7 @@ def add_flow_opts(parser):
     parser.add_option(
         "--wait", action="store_true", default=False, dest="flow_wait",
         help="Wait for merge with current active flows before flowing on."
+             "Note you can use 'cylc set --pre=all' to unset a flow-wait."
     )
 
 

@@ -706,8 +706,7 @@ class TaskEventsManager():
         ):
             # Set submitted and/or started first, if skipped.
             # (whether by forced set, or missed message).
-            LOG.warning(
-                f"[{itask}] setting implied output: {implied}")
+            LOG.info(f"[{itask}] setting implied output: {implied}")
             self.process_message(
                 itask, INFO, implied, event_time,
                 self.FLAG_INTERNAL, submit_num, forced

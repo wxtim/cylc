@@ -65,7 +65,7 @@ Examples:
   # complete the succeeded output of 3/bar:
   $ cylc set --out=succeeded my_workflow//3/bar
 
-  # satisfy the `3/foo:succeeded` prerequisite of 3/bar:
+  # satisfy the 3/foo:succeeded prerequisite of 3/bar:
   $ cylc set --pre=3/foo my_workflow//3/bar
   #   or:
   $ cylc set --pre=3/foo:succeeded my_workflow//3/bar
