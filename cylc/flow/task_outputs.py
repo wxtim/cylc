@@ -310,9 +310,7 @@ class TaskOutputs:
             >>> sorted(['finished', 'started',  'custom'], key=this)
             ['started', 'custom', 'finished']
         """
-        task_outputs = {o: i for i, o in enumerate(TASK_OUTPUTS)}
         if item in TASK_OUTPUTS:
-            return task_outputs[item]
-        else:
-            # Sorts custom outputs after started.
-            return TASK_OUTPUTS.index(TASK_OUTPUT_STARTED) + .5
+            return TASK_OUTPUTS.index(item)
+        # Sort custom outputs after started.
+        return TASK_OUTPUTS.index(TASK_OUTPUT_STARTED) + .5
