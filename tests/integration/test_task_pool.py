@@ -1499,6 +1499,38 @@ async def test_set_outputs_live(
         )
 
 
+async def test_set_outputs_live2(
+    flow,
+    scheduler,
+    start,
+    log_filter,
+):
+    """Assert that optional outputs are satisfied before completion
+    outputs to prevent incomplete task warnings.
+    """
+    id_ = flow(
+        {
+            'scheduler': {'allow implicit tasks': 'True'},
+            'scheduling': {'graph': {
+                'R1': """
+                    foo:a => apple
+                    foo:b => boat
+                """}},
+            'runtime': {'foo': {'outputs': {
+                'a': 'xylophone',
+                'b': 'yacht'}}}
+        }
+    )
+    schd = scheduler(id_)
+
+    async with start(schd) as log:
+        schd.pool.set_prereqs_and_outputs(["1/foo"], None, None, ['all'])
+        assert not log_filter(
+            log,
+            contains="did not complete required outputs: ['a', 'b']"
+        )
+
+
 async def test_set_outputs_future(
     flow,
     scheduler,
