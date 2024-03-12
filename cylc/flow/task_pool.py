@@ -1819,7 +1819,6 @@ class TaskPool:
             outputs = self._standardise_outputs(
                 itask.point, itask.tdef, outputs)
 
-        changed = False
         outputs = sorted(outputs, key=itask.state.outputs.output_sort_key)
         for output in outputs:
             if itask.state.outputs.is_completed(output):
@@ -1827,11 +1826,17 @@ class TaskPool:
                 continue
             self.task_events_mgr.process_message(
                 itask, logging.INFO, output, forced=True)
-            changed = True
 
-        if changed and itask.transient:
-            self.workflow_db_mgr.put_update_task_state(itask)
-            self.workflow_db_mgr.put_update_task_outputs(itask)
+        if not itask.state(TASK_STATUS_WAITING):
+            # Can't be runahead limited or queued.
+            itask.state_reset(is_runahead=False, is_queued=False)
+            self.task_queue_mgr.remove_task(itask)
+            self.data_store_mgr.delta_task_queued(itask)
+
+        self.data_store_mgr.delta_task_state(itask)
+        self.data_store_mgr.delta_task_outputs(itask)
+        self.workflow_db_mgr.put_update_task_state(itask)
+        self.workflow_db_mgr.put_update_task_outputs(itask)
 
     def _set_prereqs_itask(
         self,

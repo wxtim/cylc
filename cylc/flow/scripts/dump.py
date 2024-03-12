@@ -27,7 +27,7 @@ its prerequisites and outputs, see 'cylc show'.
 
 For command line monitoring:
 * `cylc tui`
-* `watch cylc dump WORKFLOW_ID` works for small simple workflows
+* `watch cylc dump -t WORKFLOW_ID` works for small simple workflows
 
 Examples:
   # Display the state of all active tasks, sorted by cycle point:

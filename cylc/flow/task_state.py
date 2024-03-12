@@ -416,6 +416,10 @@ class TaskState:
         """
         req = status
 
+        if forced and req in [TASK_STATUS_SUBMITTED, TASK_STATUS_RUNNING]:
+            # Forcing can only change completion status (there's no job).
+            return False
+
         current_status = (
             self.status,
             self.is_held,
@@ -432,15 +436,7 @@ class TaskState:
             # no change - do nothing
             return False
 
-        if (
-            forced and
-            req in [TASK_STATUS_SUBMITTED, TASK_STATUS_RUNNING]
-        ):
-            # Forced setting of outputs can cause state change to completed
-            # but not to submitted or running (there's no real job).
-            return False
-
-        # perform the actual state change
+        # perform the state change
         self.status, self.is_held, self.is_queued, self.is_runahead = (
             requested_status
         )
@@ -448,8 +444,6 @@ class TaskState:
         self.time_updated = get_current_time_string()
         self.is_updated = True
         self.kill_failed = False
-
-        # Set standard outputs in accordance with task state.
 
         if status is None:
             # NOTE: status is None if the task is being released
