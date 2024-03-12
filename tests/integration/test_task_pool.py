@@ -1476,7 +1476,11 @@ async def test_set_outputs_live(
         assert (
             pool_get_task_ids(schd.pool) == ["1/bar", "1/foo"]
         )
-
+        # Foo should have been removed from the queue:
+        assert '1/foo' not in [
+            i.identity for i
+            in schd.pool.task_queue_mgr.queues['default'].deque
+        ]
         # set foo:succeed: it should spawn baz but foo remains incomplete.
         schd.pool.set_prereqs_and_outputs(
             ["1/foo"], ["succeeded"], None, ['all'])
