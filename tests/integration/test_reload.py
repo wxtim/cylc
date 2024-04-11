@@ -16,6 +16,8 @@
 
 """Tests for reload behaviour in the scheduler."""
 
+import cylc
+
 from contextlib import suppress
 
 from cylc.flow.task_state import (
@@ -146,3 +148,38 @@ async def test_reload_failure(
 
         # the config should be unchanged
         assert schd.config.cfg['scheduling']['graph']['R1'] == 'one'
+
+
+async def test_reinstall_overrides(
+    flow,
+    one_conf,
+    scheduler,
+    start,
+    log_filter,
+    monkeypatch,
+    reinstall,
+):
+    """Plugin opts are respected when changed by reinstall & reload
+
+    https://github.com/cylc/cylc-flow/issues/5968
+    """
+    from types import SimpleNamespace
+
+    def mock_pre_configure(srcdir, opts):
+        return {'template variables': {'var': 'In file. Honest.'}}
+
+    def mock_iepoints(_):
+        entry_point = SimpleNamespace()
+        entry_point.resolve = lambda: mock_pre_configure
+        entry_point.name = 'false_entry_point'
+        return [entry_point]
+
+    monkeypatch.setattr(
+        'cylc.flow.parsec.fileparse.iter_entry_points', mock_iepoints)
+    id_ = flow(one_conf)
+    schd = scheduler(id_, rose_template_vars=['var="CLIplay"'])
+    async with start(schd):
+        assert schd.options.rose_template_vars == ['var="CLIplay"']
+        schd.load_flow_file(is_reload=True)
+        breakpoint()
+        pass

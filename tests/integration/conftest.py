@@ -32,6 +32,10 @@ from cylc.flow.scripts.install import (
     install as cylc_install,
     get_option_parser as install_gop
 )
+from cylc.flow.scripts.reinstall import (
+    reinstall as cylc_reinstall,
+    get_option_parser as reinstall_gop
+)
 from cylc.flow.wallclock import get_current_time_string
 from cylc.flow.workflow_files import infer_latest_run_from_id
 from cylc.flow.workflow_status import StopMode
@@ -52,6 +56,7 @@ if TYPE_CHECKING:
 
 
 InstallOpts = Options(install_gop())
+ReinstallOpts = Options(reinstall_gop())
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -474,6 +479,28 @@ def install(test_dir, run_dir):
         workflow_id, _ = cylc_install(opts, str(source))
         workflow_id = infer_latest_run_from_id(workflow_id)
         return workflow_id
+    yield _inner
+
+
+@pytest.fixture
+def reinstall(test_dir, run_dir):
+    """Install a workflow from source
+
+    Args:
+        (Actually args for _inner, but what the fixture appears to take to
+        the user)
+        source: Directory containing the source.
+        **kwargs: Options for cylc install.
+
+    Returns:
+        Workflow id, including run directory.
+    """
+    def _inner(id_, **kwargs):
+        opts = ReinstallOpts(**kwargs)
+        # Note we append the source.name to the string rather than creating
+        # a subfolder because the extra layer of directories would exceed
+        # Cylc install's default limit.
+        cylc_reinstall(opts, id_, test_dir, run_dir)
     yield _inner
 
 
