@@ -1267,6 +1267,11 @@ class Scheduler:
     def load_flow_file(self, is_reload=False):
         """Load, and log the workflow definition."""
         if is_reload:
+            # If the workflow is reloaded clear any existing rose options
+            # The reload command doesn't have the ability to set these but
+            # if the user has used VR to re-install before reload they will
+            # expect the changed values not the ones stored on the scheduler.
+            # Does NOT apply to reload on restart, because the play command
             self.options.rose_template_vars = []
             self.options.defines = []
             self.options.opt_conf_keys = []
