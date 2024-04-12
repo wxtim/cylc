@@ -1266,11 +1266,10 @@ class Scheduler:
 
     def load_flow_file(self, is_reload=False):
         """Load, and log the workflow definition."""
-        # Local workflow environment set therein.
-        # if is_reload or self.is_restart:
-        #     self.options.rose_template_vars = []
-        #     self.options.defines = []
-        #     self.options.opt_conf_keys = []
+        if is_reload:
+            self.options.rose_template_vars = []
+            self.options.defines = []
+            self.options.opt_conf_keys = []
         return WorkflowConfig(
             self.workflow,
             self.flow_file,
