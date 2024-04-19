@@ -91,7 +91,7 @@ def workflow_state(
 
     point = str(
         TimePointParser().parse(
-            point, dump_format=checker.get_point_format()
+            point, dump_format=checker.point_fmt
         )
     )
 
