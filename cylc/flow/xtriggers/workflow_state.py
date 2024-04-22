@@ -14,8 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sqlite3
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
 
 from metomi.isodatetime.parsers import TimePointParser
 
@@ -23,6 +22,8 @@ from cylc.flow.cycling.util import add_offset
 from cylc.flow.dbstatecheck import CylcWorkflowDBChecker
 from cylc.flow.pathutil import get_cylc_run_dir
 from cylc.flow.workflow_files import infer_latest_run_from_id
+from cylc.flow.exceptions import WorkflowConfigError
+from cylc.flow.task_state import TASK_STATUSES_ALL
 
 
 def workflow_state(
@@ -31,9 +32,10 @@ def workflow_state(
     point: str,
     offset: Optional[str] = None,
     status: Optional[str] = None,
-    message: Optional[str] = None,
+    output: Optional[str] = None,
+    flow_num: Optional[int] = None,
     cylc_run_dir: Optional[str] = None
-) -> Tuple[bool, Optional[Dict[str, Optional[str]]]]:
+) -> Tuple[bool, Dict[str, Optional[str]]]:
     """Connect to a workflow DB and query the requested task state.
 
     * Reports satisfied only if the remote workflow state has been achieved.
@@ -82,32 +84,69 @@ def workflow_state(
     if offset is not None:
         point = str(add_offset(point, offset))
 
-    try:
-        checker = CylcWorkflowDBChecker(cylc_run_dir, workflow)
-    except (OSError, sqlite3.Error):
-        # Failed to connect to DB; target workflow may not be started.
-        return (False, None)
+    # Failure to connect to DB will raise exceptions here.
+    # It could mean the target workflow as not started yet,
+    # but it could also mean a typo in the workflow ID, so
+    # so don't hide the error.
+    checker = CylcWorkflowDBChecker(cylc_run_dir, workflow)
 
-    point = str(
-        TimePointParser().parse(
-            point, dump_format=checker.point_fmt
+    # Point validity can only be checked at run time.
+    # Bad function arg templating can cause a syntax error.
+    if checker.point_fmt is None:
+        # Integer cycling: raises ValueError if bad.
+        int(point)
+    else:
+        # Datetime cycling: raises ISO8601SyntaxError if bad
+        point = str(
+            TimePointParser().parse(
+                point, dump_format=checker.point_fmt
+            )
         )
-    )
 
-    if not message and not status:
+    if not output and not status:
         status = "succeeded"
 
-    satisfied = checker.task_state_met(
-        task, str(point), output=message, status=status
+    satisfied: bool = checker.task_state_met(
+        task, point, output=output, status=status
     )
 
     results = {
         'workflow': workflow,
         'task': task,
-        'point': point,
+        'point': str(point),
         'offset': offset,
         'status': status,
-        'message': message,
+        'output': output,
+        'flow_num': str(flow_num),
         'cylc_run_dir': cylc_run_dir
     }
     return satisfied, results
+
+
+def validate(args: Dict[str, Any]):
+    """Validate workflow_state function args from the workflow config.
+
+    The rules for are:
+    * output/status: one at most (defaults to succeeded status)
+    * flow_num: Must be an integer
+    * status: Must be a valid status
+
+    """
+    output = args['output']
+    status = args['status']
+    flow_num = args['flow_num']
+
+    if output is not None and status is not None:
+        raise WorkflowConfigError(
+            "Give `status` or `output`, not both"
+        )
+
+    if status is not None and status not in TASK_STATUSES_ALL:
+        raise WorkflowConfigError(
+            f"Invalid tasks status '{status}'"
+        )
+
+    if flow_num is not None and not isinstance(flow_num, int):
+        raise WorkflowConfigError(
+            "flow_num must be an integer"
+        )

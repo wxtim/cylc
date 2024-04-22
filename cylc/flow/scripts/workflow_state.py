@@ -199,7 +199,7 @@ def get_option_parser() -> COP:
     parser.add_option(
         "-O", "--output", "--message", metavar="OUTPUT",
         help="Check for a given task output"
-        " (--message is deprecated and aliased to task output)",
+        " (--message is now aliased to task output)",
         action="store", dest="output", default=None)
 
     parser.add_option(
