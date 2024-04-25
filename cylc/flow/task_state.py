@@ -23,6 +23,7 @@ from cylc.flow.task_outputs import TaskOutputs
 from cylc.flow.wallclock import get_current_time_string
 
 if TYPE_CHECKING:
+    from cylc.flow.option_parsers import Values
     from cylc.flow.id import Tokens
 
 
@@ -152,6 +153,77 @@ TASK_STATUSES_TRIGGERABLE = {
     TASK_STATUS_SUCCEEDED,
     TASK_STATUS_FAILED,
 }
+
+
+class RunMode:
+    """The possible run modes of a task/workflow."""
+
+    LIVE = 'live'
+    """Task will run normally."""
+
+    SIMULATION = 'simulation'
+    """Task will run in simulation mode."""
+
+    DUMMY = 'dummy'
+    """Task will run in dummy mode."""
+
+    SKIP = 'skip'
+    """Task will run in skip mode."""
+
+    WORKFLOW = 'workflow'
+    """Default to workflow run mode"""
+
+    MODES = {LIVE, SIMULATION, DUMMY, SKIP, WORKFLOW}
+
+    WORKFLOW_MODES = sorted(MODES - {WORKFLOW})
+    """Workflow mode not sensible mode for workflow.
+
+    n.b. converted to a list to ensure ordering doesn't change in
+    CLI
+    """
+
+    LIVELY_MODES = {LIVE, DUMMY}
+    """Modes which need to have real jobs submitted."""
+
+    GHOSTLY_MODES = {SKIP, SIMULATION}
+    """Modes which completely ignore the standard submission path."""
+
+    @staticmethod
+    def get(options: 'Values') -> str:
+        """Return the run mode from the options."""
+        return getattr(options, 'run_mode', None) or RunMode.LIVE
+
+    @staticmethod
+    def is_lively(mode: str) -> bool:
+        """Task should be treated as live, mode setting mess with scripts only.
+        """
+        return bool(mode in RunMode.LIVELY_MODES)
+
+    @staticmethod
+    def is_ghostly(mode: str) -> bool:
+        """Task has no reality outside the scheduler and needs no further
+        processing after run_mode.submit_task_job method finishes.
+        """
+        return bool(mode in RunMode.GHOSTLY_MODES)
+
+    @staticmethod
+    def disable_task_event_handlers(itask):
+        """Should we disable event handlers for this task?
+
+        No event handlers in simulation mode, or in skip mode
+        if we don't deliberately enable them:
+        """
+        mode = itask.tdef.run_mode
+        if (
+            mode == RunMode.SIMULATION
+            or (
+                mode == RunMode.SKIP
+                and itask.tdef.rtconfig['skip'][
+                    'disable task event handlers'] is True
+            )
+        ):
+            return True
+        return False
 
 
 def status_leq(status_a, status_b):

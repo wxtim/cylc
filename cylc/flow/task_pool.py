@@ -70,6 +70,8 @@ from cylc.flow.util import (
 )
 from cylc.flow.wallclock import get_current_time_string
 from cylc.flow.platforms import get_platform
+from cylc.flow.run_modes.skip import (
+    process_outputs as get_skip_mode_outputs)
 from cylc.flow.task_outputs import (
     TASK_OUTPUT_SUCCEEDED,
     TASK_OUTPUT_EXPIRED,
@@ -1922,6 +1924,8 @@ class TaskPool:
         """Set requested outputs on a task proxy and spawn children."""
         if not outputs:
             outputs = list(itask.state.outputs.iter_required_messages())
+        elif outputs == ['skip']:
+            outputs = get_skip_mode_outputs(itask)
         else:
             outputs = self._standardise_outputs(
                 itask.point, itask.tdef, outputs

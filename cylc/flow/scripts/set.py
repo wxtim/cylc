@@ -326,9 +326,12 @@ def get_output_opts(output_options: List[str]):
     # If "required" is explicit just ditch it (same as the default)
     if not outputs or outputs == ["required"]:
         return []
+    elif outputs == ['skip']:
+        return ['skip']
 
-    if "required" in outputs:
-        raise InputError("--out=required must be used alone")
+    for val in ["required", 'skip']:
+        if val in outputs:
+            raise InputError(f"--out={val} must be used alone")
     if "waiting" in outputs:
         raise InputError(
             "Tasks cannot be set to waiting, use a new flow to re-run"

@@ -15,10 +15,14 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -92,10 +96,14 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -169,10 +177,14 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -246,12 +258,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -324,12 +340,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -402,12 +422,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -480,12 +504,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -558,12 +586,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -636,12 +668,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -714,12 +750,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -792,12 +832,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -870,12 +914,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
@@ -948,12 +996,16 @@
     execution time limit = 
     submission polling intervals = 
     submission retry delays = 
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
         title = 
         description = 
         URL = 
+    [[[skip]]]
+        outputs = 
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
         speedup factor = 
