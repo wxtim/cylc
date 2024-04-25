@@ -31,6 +31,7 @@ from cylc.flow.exceptions import (
     PlatformLookupError, CylcError, NoHostsError, NoPlatformsError)
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.hostuserutil import is_remote_host
+from cylc.flow.task_state import RunMode
 
 if TYPE_CHECKING:
     from cylc.flow.parsec.OrderedDict import OrderedDictWithDefaults
@@ -264,6 +265,12 @@ def platform_from_name(
             # Fill in the "private" name field.
             platform_data['name'] = platform_name
             return platform_data
+
+    # If platform name in run mode and not otherwise defined:
+    if platform_name in RunMode.WORKFLOW_MODES:
+        platform_data = deepcopy(platforms['localhost'])
+        platform_data['name'] = platform_name
+        return platform_data
 
     raise PlatformLookupError(
         f"No matching platform \"{platform_name}\" found")

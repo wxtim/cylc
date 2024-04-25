@@ -89,8 +89,14 @@ from cylc.flow.option_parsers import (
 from cylc.flow.cfgspec.workflow import upg, SPEC
 from cylc.flow.id_cli import parse_id
 from cylc.flow.parsec.config import ParsecConfig
+from cylc.flow.run_modes.skip import get_unecessary_outputs
 from cylc.flow.scripts.cylc import DEAD_ENDS
+from cylc.flow.task_outputs import (
+    TASK_OUTPUT_SUCCEEDED,
+    TASK_OUTPUT_FAILED,
+)
 from cylc.flow.terminal import cli_function
+
 
 if TYPE_CHECKING:
     # BACK COMPAT: typing_extensions.Literal
@@ -350,6 +356,39 @@ def check_for_deprecated_task_event_template_vars(
     return None
 
 
+BAD_SKIP_OUTS = re.compile(r'outputs\s*=\s*(.*)')
+
+
+def check_skip_mode_outputs(line: str) -> Dict:
+    """Ensure skip mode output setting doesn't include:
+
+    * succeeded _and_ failed: Mutually exclusive.
+    * submitted and started: These are emitted by skip mode anyway.
+
+    n.b.
+
+    This should be separable from ``[[outputs]]`` because it's a key
+    value pair not a section heading.
+    """
+
+    outputs = BAD_SKIP_OUTS.findall(line)
+    if outputs:
+        outputs = [i.strip() for i in outputs[0].split(',')]
+        if TASK_OUTPUT_FAILED in outputs and TASK_OUTPUT_SUCCEEDED in outputs:
+            return {
+                'description':
+                    'are mutually exclusive and cannot be used together',
+                'outputs': f'{TASK_OUTPUT_FAILED} and {TASK_OUTPUT_SUCCEEDED}'
+            }
+        pointless_outputs = get_unecessary_outputs(outputs)
+        if pointless_outputs:
+            return {
+                'description': 'are not required, they will be emitted anyway',
+                'outputs': f'{pointless_outputs}'
+            }
+    return {}
+
+
 INDENTATION = re.compile(r'^(\s*)(.*)')
 
 
@@ -588,7 +627,15 @@ STYLE_CHECKS = {
             ' directive can make your workflow more portable.'
         ),
         FUNCTION: check_wallclock_directives,
-    }
+    },
+    'S015': {
+        'short': 'Task outputs {outputs}: {description}.',
+        FUNCTION: check_skip_mode_outputs
+    },
+    'S016': {
+        'short': 'Run mode is not live: This task will only appear to run.',
+        FUNCTION: re.compile(r'run mode\s*=\s*[^l][^i][^v][^e]$').findall
+    },
 }
 # Subset of deprecations which are tricky (impossible?) to scrape from the
 # upgrader.

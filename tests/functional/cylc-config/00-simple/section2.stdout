@@ -1,377 +1,397 @@
 [[root]]
-    completion = 
-    platform = 
-    inherit = 
-    script = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    completion =
+    platform =
+    inherit =
+    script =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[directives]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
 [[OPS]]
     script = echo "RUN: run-ops.sh"
-    completion = 
-    platform = 
-    inherit = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    completion =
+    platform =
+    inherit =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[directives]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
 [[VAR]]
     script = echo "RUN: run-var.sh"
-    completion = 
-    platform = 
-    inherit = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    completion =
+    platform =
+    inherit =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[directives]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
 [[SERIAL]]
-    completion = 
-    platform = 
-    inherit = 
-    script = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    completion =
+    platform =
+    inherit =
+    script =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
 [[PARALLEL]]
-    completion = 
-    platform = 
-    inherit = 
-    script = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    completion =
+    platform =
+    inherit =
+    script =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
@@ -379,75 +399,79 @@
     script = echo "RUN: run-ops.sh"
     inherit = OPS, SERIAL
     completion = succeeded or failed
-    platform = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    platform =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
@@ -455,75 +479,79 @@
     script = echo "RUN: run-ops.sh"
     inherit = OPS, SERIAL
     completion = succeeded or failed
-    platform = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    platform =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
@@ -531,75 +559,79 @@
     script = echo "RUN: run-ops.sh"
     inherit = OPS, PARALLEL
     completion = succeeded or failed
-    platform = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    platform =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
@@ -607,75 +639,79 @@
     script = echo "RUN: run-ops.sh"
     inherit = OPS, PARALLEL
     completion = succeeded or failed
-    platform = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    platform =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
@@ -683,75 +719,79 @@
     script = echo "RUN: run-var.sh"
     inherit = VAR, SERIAL
     completion = succeeded
-    platform = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    platform =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
@@ -759,75 +799,79 @@
     script = echo "RUN: run-var.sh"
     inherit = VAR, SERIAL
     completion = succeeded
-    platform = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    platform =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = serial
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
@@ -835,75 +879,79 @@
     script = echo "RUN: run-var.sh"
     inherit = VAR, PARALLEL
     completion = succeeded
-    platform = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    platform =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
         default run length = PT10S
-        speedup factor = 
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]
@@ -911,75 +959,79 @@
     script = echo "RUN: run-var.sh"
     inherit = VAR, PARALLEL
     completion = succeeded
-    platform = 
-    init-script = 
-    env-script = 
-    err-script = 
-    exit-script = 
-    pre-script = 
-    post-script = 
-    work sub-directory = 
-    execution polling intervals = 
-    execution retry delays = 
-    execution time limit = 
-    submission polling intervals = 
-    submission retry delays = 
+    platform =
+    init-script =
+    env-script =
+    err-script =
+    exit-script =
+    pre-script =
+    post-script =
+    work sub-directory =
+    execution polling intervals =
+    execution retry delays =
+    execution time limit =
+    submission polling intervals =
+    submission retry delays =
+    run mode = workflow
     [[[directives]]]
         job_type = parallel
     [[[meta]]]
-        title = 
-        description = 
-        URL = 
+        title =
+        description =
+        URL =
+    [[[skip]]]
+        outputs =
+        disable task event handlers = True
     [[[simulation]]]
-        default run length = PT10S
-        speedup factor = 
+        default run time = PT10S
+        speedup factor =
         time limit buffer = PT30S
-        fail cycle points = 
+        fail cycle points =
         fail try 1 only = True
         disable task event handlers = True
     [[[environment filter]]]
-        include = 
-        exclude = 
+        include =
+        exclude =
     [[[job]]]
-        batch system = 
-        batch submit command template = 
+        batch system =
+        batch submit command template =
     [[[remote]]]
-        host = 
-        owner = 
-        retrieve job logs = 
-        retrieve job logs max size = 
-        retrieve job logs retry delays = 
+        host =
+        owner =
+        retrieve job logs =
+        retrieve job logs max size =
+        retrieve job logs retry delays =
     [[[events]]]
-        execution timeout = 
-        handlers = 
-        handler events = 
-        handler retry delays = 
-        mail events = 
-        submission timeout = 
-        expired handlers = 
-        late offset = 
-        late handlers = 
-        submitted handlers = 
-        started handlers = 
-        succeeded handlers = 
-        failed handlers = 
-        submission failed handlers = 
-        warning handlers = 
-        critical handlers = 
-        retry handlers = 
-        submission retry handlers = 
-        execution timeout handlers = 
-        submission timeout handlers = 
-        custom handlers = 
+        execution timeout =
+        handlers =
+        handler events =
+        handler retry delays =
+        mail events =
+        submission timeout =
+        expired handlers =
+        late offset =
+        late handlers =
+        submitted handlers =
+        started handlers =
+        succeeded handlers =
+        failed handlers =
+        submission failed handlers =
+        warning handlers =
+        critical handlers =
+        retry handlers =
+        submission retry handlers =
+        execution timeout handlers =
+        submission timeout handlers =
+        custom handlers =
     [[[mail]]]
-        from = 
-        to = 
+        from =
+        to =
     [[[workflow state polling]]]
-        interval = 
-        max-polls = 
-        message = 
-        alt-cylc-run-dir = 
-        verbose mode = 
+        interval =
+        max-polls =
+        message =
+        alt-cylc-run-dir =
+        verbose mode =
     [[[environment]]]
     [[[outputs]]]
     [[[parameter environment templates]]]

@@ -1334,6 +1334,22 @@ with Conf(
                     "[platforms][<platform name>]submission retry delays"
                 )
             )
+            Conf(
+                'run mode', VDR.V_STRING,
+                options=['workflow', 'simulation', 'dummy', 'live', 'skip'],
+                default='workflow',
+                desc='''
+                    Override the workflow's run mode.
+
+                    By default workflows run in "live mode" - tasks run
+                    in the way defined by the runtime config.
+                    This setting allows individual tasks to be run using
+                    a different run mode.
+
+                    .. TODO: Reference updated documention.
+
+                    .. versionadded:: 8.4.0
+            ''')
             with Conf('meta', desc=r'''
                 Metadata for the task or task family.
 
@@ -1406,9 +1422,44 @@ with Conf(
                     determine how an event handler responds to task failure
                     events.
                 ''')
+            with Conf('skip', desc='''
+                Task configuration for task :ref:`SkipMode`.
 
+                For a full description of skip run mode see
+                :ref:`SkipMode`.
+
+                .. versionadded:: 8.4.0
+            '''):
+                Conf(
+                    'outputs',
+                    VDR.V_STRING_LIST,
+                    desc='''
+                        Outputs to be emitted by a task in skip mode.
+
+                        By default started, submitted, succeeded and all
+                        required outputs will be emitted.
+
+                        If outputs are specified, but neither succeeded or
+                        failed are specified, succeeded will automatically be
+                        emitted.
+
+                        .. versionadded:: 8.4.0
+                    '''
+                )
+                Conf(
+                    'disable task event handlers',
+                    VDR.V_BOOLEAN,
+                    default=True,
+                    desc='''
+                        Task event handlers are turned off by default for
+                        skip mode tasks. Changing this setting to ``False``
+                        will re-enable task event handlers.
+
+                        .. versionadded:: 8.4.0
+                    '''
+                )
             with Conf('simulation', desc='''
-                Task configuration for workflow *simulation* and *dummy* run
+                Task configuration for *simulation* and *dummy* run
                 modes.
 
                 For a full description of simulation and dummy run modes see
@@ -1416,20 +1467,18 @@ with Conf(
             '''):
                 Conf('default run length', VDR.V_INTERVAL, DurationFloat(10),
                      desc='''
-                    The default simulated job run length.
-
                     Used if :cylc:conf:`flow.cylc[runtime][<namespace>]
                     execution time limit` **and**
                     :cylc:conf:`flow.cylc[runtime][<namespace>][simulation]
                     speedup factor` are not set.
                 ''')
                 Conf('speedup factor', VDR.V_FLOAT, desc='''
-                    Simulated run length = speedup factor * execution time
+                    Simulated run time = speedup factor * execution time
                     limit.
 
                     If :cylc:conf:`flow.cylc[runtime][<namespace>]
                     execution time limit` is set, the task
-                    simulated run length is computed by dividing it by this
+                    simulated run time is computed by dividing it by this
                     factor.
                 ''')
                 Conf('time limit buffer', VDR.V_INTERVAL, DurationFloat(30),
@@ -2118,6 +2167,10 @@ def upg(cfg, descr):
             ['runtime', '__MANY__', 'events', f"{old}s"],
             silent=cylc.flow.flags.cylc7_back_compat,
         )
+    u.deprecate(
+        '8.4.0',
+        ['runtime', '__MANY__', 'simulation', 'default run length'],
+        ['runtime', '__MANY__', 'simulation', 'default run length'])
 
     u.obsolete('8.0.0', ['cylc', 'events', 'abort on stalled'])
     u.obsolete('8.0.0', ['cylc', 'events', 'abort if startup handler fails'])

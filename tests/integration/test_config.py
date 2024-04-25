@@ -16,7 +16,9 @@
 
 import logging
 from pathlib import Path
+import re
 import sqlite3
+from textwrap import dedent
 from typing import Any
 import pytest
 
@@ -596,25 +598,44 @@ async def test_glbl_cfg(monkeypatch, tmp_path, caplog):
     assert get_platforms(glbl_cfg()) == {'localhost', 'foo', 'bar'}
 
 
-def test_validate_run_mode(flow: Fixture, validate: Fixture):
-    """Test that Cylc validate will only check simulation mode settings
-    if validate --mode simulation or dummy.
-
-    Discovered in:
-    https://github.com/cylc/cylc-flow/pull/6213#issuecomment-2225365825
+def test_nonlive_mode_validation(flow, validate, caplog):
+    """Nonlive tasks return a warning at validation.
     """
+    msg1 = dedent(
+        '''        The following tasks are set to run in non-live mode:
+        simulation mode:
+            * simulation
+        dummy mode:
+            * dummy''')
+
     wid = flow({
-        'scheduling': {'graph': {'R1': 'mytask'}},
-        'runtime': {'mytask': {'simulation': {'fail cycle points': 'alll'}}}
+        'scheduling': {
+            'graph': {
+                'R1': 'live => skip => simulation => dummy => default'
+            }
+        },
+        'runtime': {
+            'default': {},
+            'live': {'run mode': 'live'},
+            'simulation': {'run mode': 'simulation'},
+            'dummy': {'run mode': 'dummy'},
+            'skip': {
+                'run mode': 'skip',
+                'skip': {'outputs': 'started, submitted'}
+            },
+        },
     })
 
-    # It's fine with run mode live
     validate(wid)
+    assert msg1 in caplog.messages
 
-    # It fails with run mode simulation:
-    with pytest.raises(PointParsingError, match='Incompatible value'):
-        validate(wid, run_mode='simulation')
 
-    # It fails with run mode dummy:
-    with pytest.raises(PointParsingError, match='Incompatible value'):
-        validate(wid, run_mode='dummy')
+@pytest.mark.parametrize('mode', (('simulation'), ('skip'), ('dummy')))
+def test_nonlive_mode_forbidden_as_outputs(flow, validate, mode):
+    """Run mode names are forbidden as task output names."""
+    wid = flow({
+        'scheduling': {'graph': {'R1': 'task'}},
+        'runtime': {'task': {'outputs': {mode: f'message for {mode}'}}}
+    })
+    with pytest.raises(WorkflowConfigError, match=f'message for {mode}'):
+        validate(wid)

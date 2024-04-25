@@ -8,5 +8,5 @@
 [runtime]
     [[root]]
         [[[simulation]]]
-            default run length = PT30S
+            default run time = PT30S
     [[foo]]
