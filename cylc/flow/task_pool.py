@@ -53,6 +53,7 @@ from cylc.flow.task_events_mgr import (
 from cylc.flow.task_id import TaskID
 from cylc.flow.task_proxy import TaskProxy
 from cylc.flow.task_state import (
+    RunMode,
     TASK_STATUSES_ACTIVE,
     TASK_STATUSES_FINAL,
     TASK_STATUS_WAITING,
@@ -70,6 +71,8 @@ from cylc.flow.util import (
 )
 from cylc.flow.wallclock import get_current_time_string
 from cylc.flow.platforms import get_platform
+from cylc.flow.run_modes.skip import (
+    process_outputs as get_skip_mode_outputs)
 from cylc.flow.task_outputs import (
     TASK_OUTPUT_SUCCEEDED,
     TASK_OUTPUT_EXPIRED,
@@ -1414,7 +1417,10 @@ class TaskPool:
                     tasks = [c_task]
 
                 for t in tasks:
-                    t.satisfy_me([itask.tokens.duplicate(task_sel=output)])
+                    t.satisfy_me(
+                        [itask.tokens.duplicate(task_sel=output)],
+                        getattr(itask.tdef, 'run_mode', RunMode.LIVE)
+                    )
                     self.data_store_mgr.delta_task_prerequisite(t)
                     if not in_pool:
                         self.add_to_pool(t)
@@ -1538,7 +1544,8 @@ class TaskPool:
                     continue
                 if completed_only:
                     c_task.satisfy_me(
-                        [itask.tokens.duplicate(task_sel=message)]
+                        [itask.tokens.duplicate(task_sel=message)],
+                        itask.tdef.run_mode
                     )
                     self.data_store_mgr.delta_task_prerequisite(c_task)
                 self.add_to_pool(c_task)
@@ -1952,6 +1959,8 @@ class TaskPool:
         """Set requested outputs on a task proxy and spawn children."""
         if not outputs:
             outputs = list(itask.state.outputs.iter_required_messages())
+        elif outputs == [RunMode.SKIP]:
+            outputs = get_skip_mode_outputs(itask)
         else:
             outputs = self._standardise_outputs(
                 itask.point, itask.tdef, outputs
