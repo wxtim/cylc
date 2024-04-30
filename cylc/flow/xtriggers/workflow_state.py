@@ -85,7 +85,7 @@ def workflow_state(
         point = str(add_offset(point, offset))
 
     # Failure to connect to DB will raise exceptions here.
-    # It could mean the target workflow as not started yet,
+    # It could mean the target workflow has not started yet,
     # but it could also mean a typo in the workflow ID, so
     # so don't hide the error.
     checker = CylcWorkflowDBChecker(cylc_run_dir, workflow)
@@ -128,7 +128,7 @@ def validate(args: Dict[str, Any]):
 
     The rules for are:
     * output/status: one at most (defaults to succeeded status)
-    * flow_num: Must be an integer
+    * flow_num: Must be a positive integer
     * status: Must be a valid status
 
     """
@@ -146,7 +146,13 @@ def validate(args: Dict[str, Any]):
             f"Invalid tasks status '{status}'"
         )
 
-    if flow_num is not None and not isinstance(flow_num, int):
+    if (
+        flow_num is not None
+        and (
+            not isinstance(flow_num, int)
+            or flow_num < 0
+        )
+    ):
         raise WorkflowConfigError(
-            "flow_num must be an integer"
+            "flow_num must be a positive integer"
         )

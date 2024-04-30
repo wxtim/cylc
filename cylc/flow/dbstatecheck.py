@@ -18,7 +18,7 @@ import errno
 import os
 import sqlite3
 import sys
-from typing import Optional
+from typing import Optional, Union
 from textwrap import dedent
 
 from cylc.flow.pathutil import expand_path
@@ -89,8 +89,11 @@ class CylcWorkflowDBChecker:
             for row in res:
                 sys.stdout.write((", ").join([str(s) for s in row]) + "\n")
 
-    def _get_pt_fmt(self):
-        """Query a workflow database for a 'cycle point format' entry"""
+    def _get_pt_fmt(self) -> Union[None, str]:
+        """Query a workflow database for a 'cycle point format' entry
+
+        Returns: None if Cycle point is integer, else a format string.
+        """
         for row in self.conn.execute(dedent(
             rf'''
                 SELECT
@@ -103,9 +106,13 @@ class CylcWorkflowDBChecker:
             ['cycle_point_format']
         ):
             return row[0]
+        return None
 
-    def _get_pt_fmt_compat(self):
-        """Query a Cylc 7 suite database for 'cycle point format'."""
+    def _get_pt_fmt_compat(self) -> Union[None, str]:
+        """Query a Cylc 7 suite database for 'cycle point format'.
+
+        Returns: None if Cycle point is integer, else a format string.
+        """
         # BACK COMPAT: Cylc 7 DB
         # Workflows parameters table name change.
         # from:
@@ -126,6 +133,7 @@ class CylcWorkflowDBChecker:
             ['cycle_point_format']
         ):
             return row[0]
+        return None
 
     def state_lookup(self, state):
         """Allows for multiple states to be searched via a status alias."""

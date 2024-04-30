@@ -21,10 +21,9 @@ from typing import Callable
 from unittest.mock import Mock
 from shutil import copytree, rmtree
 
-from cylc.flow.exceptions import InputError
-from cylc.flow.pathutil import get_cylc_run_dir
+from cylc.flow.exceptions import InputError, WorkflowConfigError
 from cylc.flow.workflow_files import WorkflowFiles
-from cylc.flow.xtriggers.workflow_state import workflow_state
+from cylc.flow.xtriggers.workflow_state import workflow_state, validate
 from ..conftest import MonkeyMock
 
 
@@ -116,3 +115,30 @@ def test_back_compat(tmp_run_dir, caplog):
     assert satisfied
     satisfied, _ = suite_state(suite=id_, task='arkenstone', point='2012')
     assert not satisfied
+
+
+@pytest.mark.parametrize(
+    'args',
+    (
+        ('foo', None, 1),
+        (None, 'failed', 42),
+    )
+)
+def test_validate_ok(args):
+    args = dict(zip(['output', 'status', 'flow_num'], args))
+    validate(args)
+
+
+@pytest.mark.parametrize(
+    'args, error_re',
+    (
+        (('foo', 'failed', 2), r'not both$'),
+        ((None, 'fried', 3), r"tasks status 'fried'$"),
+        ((None, 'failed', 2.030481542), r'positive integer'),
+        ((None, 'failed', -1), r'positive integer'),
+    )
+)
+def test_validate_fail(args, error_re):
+    args = dict(zip(['output', 'status', 'flow_num'], args))
+    with pytest.raises(WorkflowConfigError, match=error_re):
+        validate(args)
