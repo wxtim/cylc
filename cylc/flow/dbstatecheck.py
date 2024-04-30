@@ -236,9 +236,9 @@ class CylcWorkflowDBChecker:
             if self.back_compat_mode:
                 # Cylc 7 DB: list of {output: message}
                 results = [
-                    [item[0], item[1], output]
-                    for item in res
-                    if output in deserialise(item[2]).values()
+                    [name, cycle, output]
+                    for name, cycle, outputs_str in res
+                    if output in deserialise(outputs_str).values()
                 ]
             else:
                 # Cylc 8 DB list of [output]

@@ -20,7 +20,7 @@ r"""cylc workflow-state [OPTIONS] ARGS
 
 Print or poll for task states or outputs in a workflow database.
 
-For specific cycle/task instances poll until the given status or output is
+For specific cycle/task instances, poll until the given status or output is
 achieved (command success) or the max number of polls is reached (failure).
 
 For less specific queries, immediate results are printed (no polling is done).
@@ -35,7 +35,8 @@ This command can be used to make polling tasks that trigger off of tasks in
 other workflows - but see also the built-in workflow_state xtrigger for that.
 
 NOTE: the DB only records the latest task statuses, so for transient states
-like "submitted" it may be safer to poll for the associated standard output.
+like "submitted" it may be safer to poll for the associated output instead,
+i.e., use --output=submitted rather than --status=submitted.
 
 Examples:
 
@@ -49,12 +50,12 @@ Examples:
   $ cylc workflow-state --point=2033 WORKFLOW_ID
 
   # Print all tasks with the current or latest status "succeeded":
-  $ cylc workflow-state --status=succeeded CYLC_WORKFLOW_ID
+  $ cylc workflow-state --status=succeeded WORKFLOW_ID
 
   # Print all tasks that generated the output "file1":
   $ cylc workflow-state --output="file1" WORKFLOW_ID
 
-  # Print all tasks "foo" that generated the output "file1 ready":
+  # Print all tasks "foo" that generated the output "file1":
   $ cylc workflow-state --task=foo --output="file1" WORKFLOW_ID
 
   # POLL UNTIL task 2033/foo succeeds:
