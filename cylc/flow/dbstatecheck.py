@@ -231,7 +231,6 @@ class CylcWorkflowDBChecker:
 
         # TODO option to list outputs instead of status
         # TODO if flows not specified, use the most recent for the task
-
         res = []
         for row in self.conn.execute(stmt, stmt_args):
             if row[2] is None:

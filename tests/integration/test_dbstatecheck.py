@@ -17,6 +17,7 @@
 """Tests for the backend method of workflow_state"""
 
 
+from asyncio import sleep
 import pytest
 from textwrap import dedent
 from typing import TYPE_CHECKING
@@ -29,7 +30,9 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(scope='module')
-async def checker(mod_flow, mod_scheduler, mod_run, mod_complete) -> 'CylcWorkflowDBChecker':
+async def checker(
+    mod_flow, mod_scheduler, mod_run, mod_complete
+) -> 'CylcWorkflowDBChecker':
     """Make a real world database.
 
     We could just write the database manually but this is a better
@@ -40,36 +43,90 @@ async def checker(mod_flow, mod_scheduler, mod_run, mod_complete) -> 'CylcWorkfl
             'graph': {'P1Y': dedent('''
                 good:succeeded
                 bad:failed?
-                output
+                output:custom_output
             ''')},
             'initial cycle point': '1000',
             'final cycle point': '1001'
         },
         'runtime': {
             'bad': {'simulation': {'fail cycle points': '1000'}},
-            'output': {'outputs': {'custom_output': 'I do not believe it'}}
+            'output': {'outputs': {'trigger': 'message'}}
         }
     })
     schd = mod_scheduler(wid, paused_start=False)
     async with mod_run(schd):
         await mod_complete(schd)
-        yield schd
+        schd.pool.force_trigger_tasks(['1000/good'], [2])
+        # Allow a cycle of the main loop to pass so that flow 2 can be
+        # added to db
+        await sleep(1)
+        with Checker(
+            'somestring', 'utterbunkum',
+            schd.workflow_db_mgr.pub_path
+        ) as checker:
+            yield checker
 
 
 def test_basic(checker):
     """Pass no args, get unfiltered output"""
-    with Checker(
-        'somestring', 'utterbunkum',
-        checker.workflow_db_mgr.pub_path
-    ) as checker:
-        result = checker.workflow_state_query()
-
+    result = checker.workflow_state_query()
     expect = [
         ['bad', '10000101T0000Z', 'failed', '[1]'],
         ['bad', '10010101T0000Z', 'succeeded', '[1]'],
         ['good', '10000101T0000Z', 'succeeded', '[1]'],
         ['good', '10010101T0000Z', 'succeeded', '[1]'],
         ['output', '10000101T0000Z', 'succeeded', '[1]'],
-        ['output', '10010101T0000Z', 'succeeded', '[1]']
+        ['output', '10010101T0000Z', 'succeeded', '[1]'],
+        ['good', '10000101T0000Z', 'waiting', '[2]'],
+        ['good', '10010101T0000Z', 'waiting', '[2]'],
+    ]
+    assert result == expect
+
+
+def test_task(checker):
+    """Filter by task name"""
+    result = checker.workflow_state_query(task='bad')
+    assert result == [
+        ['bad', '10000101T0000Z', 'failed', '[1]'],
+        ['bad', '10010101T0000Z', 'succeeded', '[1]']
+    ]
+
+
+def test_point(checker):
+    """Filter by point"""
+    result = checker.workflow_state_query(cycle='10000101T0000Z')
+    assert result == [
+        ['bad', '10000101T0000Z', 'failed', '[1]'],
+        ['good', '10000101T0000Z', 'succeeded', '[1]'],
+        ['output', '10000101T0000Z', 'succeeded', '[1]'],
+        ['good', '10000101T0000Z', 'waiting', '[2]'],
+    ]
+
+
+def test_status(checker):
+    """Filter by status"""
+    result = checker.workflow_state_query(status='failed')
+    expect = [
+        ['bad', '10000101T0000Z', 'failed', '[1]'],
+    ]
+    assert result == expect
+
+
+def test_output(checker):
+    """Filter by flow number"""
+    result = checker.workflow_state_query(output='message')
+    expect = [
+        ['output', '10000101T0000Z', 'trigger', {1}],
+        ['output', '10010101T0000Z', 'trigger', {1}],
+    ]
+    assert result == expect
+
+
+def test_flownum(checker):
+    """Pass no args, get unfiltered output"""
+    result = checker.workflow_state_query(flow_num=2)
+    expect = [
+        ['good', '10000101T0000Z', 'waiting', '[2]'],
+        ['good', '10010101T0000Z', 'waiting', '[2]'],
     ]
     assert result == expect
