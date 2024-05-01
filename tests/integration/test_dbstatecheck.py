@@ -21,7 +21,7 @@ import pytest
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from cylc.flow.dbstatecheck import CylcWorkflowDBChecker as Checker
+from cylc.flow.dbstatecheck import CylcWorkflowDBCheckerContext as Checker
 
 
 if TYPE_CHECKING:

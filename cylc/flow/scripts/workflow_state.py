@@ -153,6 +153,9 @@ class WorkflowPoller(Poller):
             flow_num=self.args['flow_num']
         )
 
+    def disconnect(self):
+        self.checker.conn.close()
+
 
 def get_option_parser() -> COP:
     parser = COP(
@@ -285,3 +288,5 @@ def main(parser: COP, options: 'Values', workflow_id: str) -> None:
                 output=options.output,
                 flow_num=options.flow_num
             ))
+
+    spoller.disconnect()

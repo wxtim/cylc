@@ -282,3 +282,11 @@ class CylcWorkflowDBChecker:
         return bool(
             self.workflow_state_query(task, cycle, status, output, flow_num)
         )
+
+
+class CylcWorkflowDBCheckerContext(CylcWorkflowDBChecker):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.conn.close()

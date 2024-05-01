@@ -19,7 +19,7 @@ from typing import Dict, Optional, Tuple, Any
 from metomi.isodatetime.parsers import TimePointParser
 
 from cylc.flow.cycling.util import add_offset
-from cylc.flow.dbstatecheck import CylcWorkflowDBChecker
+from cylc.flow.dbstatecheck import CylcWorkflowDBCheckerContext
 from cylc.flow.pathutil import get_cylc_run_dir
 from cylc.flow.workflow_files import infer_latest_run_from_id
 from cylc.flow.exceptions import WorkflowConfigError
@@ -88,27 +88,26 @@ def workflow_state(
     # It could mean the target workflow has not started yet,
     # but it could also mean a typo in the workflow ID, so
     # so don't hide the error.
-    checker = CylcWorkflowDBChecker(cylc_run_dir, workflow)
-
-    # Point validity can only be checked at run time.
-    # Bad function arg templating can cause a syntax error.
-    if checker.point_fmt is None:
-        # Integer cycling: raises ValueError if bad.
-        int(point)
-    else:
-        # Datetime cycling: raises ISO8601SyntaxError if bad
-        point = str(
-            TimePointParser().parse(
-                point, dump_format=checker.point_fmt
+    with CylcWorkflowDBCheckerContext(cylc_run_dir, workflow) as checker:
+        # Point validity can only be checked at run time.
+        # Bad function arg templating can cause a syntax error.
+        if checker.point_fmt is None:
+            # Integer cycling: raises ValueError if bad.
+            int(point)
+        else:
+            # Datetime cycling: raises ISO8601SyntaxError if bad
+            point = str(
+                TimePointParser().parse(
+                    point, dump_format=checker.point_fmt
+                )
             )
+
+        if not output and not status:
+            status = "succeeded"
+
+        satisfied: bool = checker.task_state_met(
+            task, point, output=output, status=status
         )
-
-    if not output and not status:
-        status = "succeeded"
-
-    satisfied: bool = checker.task_state_met(
-        task, point, output=output, status=status
-    )
 
     results = {
         'workflow': workflow,
