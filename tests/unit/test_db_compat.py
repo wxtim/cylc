@@ -131,12 +131,16 @@ def test_cylc_7_db_wflow_params_table(_setup_db):
     db_file_name = _setup_db([create, insert])
     checker = CylcWorkflowDBChecker('foo', 'bar', db_path=db_file_name)
 
-    with pytest.raises(
-        sqlite3.OperationalError, match="no such table: workflow_params"
-    ):
-        checker._get_pt_fmt()
-
+    assert checker._get_point() == ('CCYY', True)
     assert checker.point_fmt == ptformat
+
+
+def test_garbage_db_wflow_params_table(tmp_path):
+    """If our logic fails we fallback to sqlite error."""
+    db_path = tmp_path / 'foo.db'
+    db_path.touch()
+    with pytest.raises(sqlite3.OperationalError):
+        CylcWorkflowDBChecker('foo', 'bar', db_path=db_path)
 
 
 def test_pre_830_task_action_timers(_setup_db):

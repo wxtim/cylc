@@ -18,7 +18,7 @@ import errno
 import os
 import sqlite3
 import sys
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 from textwrap import dedent
 
 from cylc.flow.pathutil import expand_path
@@ -68,18 +68,7 @@ class CylcWorkflowDBChecker:
         if not os.path.exists(db_path):
             raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), db_path)
         self.conn = sqlite3.connect(db_path, timeout=10.0)
-
-        # Get workflow point format.
-        try:
-            self.point_fmt = self._get_pt_fmt()
-            self.back_compat_mode = False
-        except sqlite3.OperationalError as exc:
-            # BACK COMPAT: Cylc 7 DB (see method below).
-            try:
-                self.point_fmt = self._get_pt_fmt_compat()
-                self.back_compat_mode = True
-            except sqlite3.OperationalError:
-                raise exc  # original error
+        self.point_fmt, self.back_compat_mode = self._get_point()
 
     @staticmethod
     def display_maps(res):
@@ -88,6 +77,22 @@ class CylcWorkflowDBChecker:
         else:
             for row in res:
                 sys.stdout.write((", ").join([str(s) for s in row]) + "\n")
+
+    def _get_point(self) -> Tuple[Union[None, str], bool]:
+        """Get point format irrespective of compat mode
+
+        Returns:
+            (Cycle point format(None if int cycling), is_back_compat)
+        """
+        # Get workflow point format.
+        try:
+            return (self._get_pt_fmt(), False)
+        except sqlite3.OperationalError as exc:
+            # BACK COMPAT: Cylc 7 DB (see method below).
+            try:
+                return (self._get_pt_fmt_compat(), True)
+            except sqlite3.OperationalError:
+                raise exc  # original error
 
     def _get_pt_fmt(self) -> Union[None, str]:
         """Query a workflow database for a 'cycle point format' entry
