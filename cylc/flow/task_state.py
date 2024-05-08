@@ -175,17 +175,17 @@ class RunMode:
 
     MODES = {LIVE, SIMULATION, DUMMY, SKIP, WORKFLOW}
 
-    WORKFLOW_MODES = sorted(MODES - {WORKFLOW})
+    WORKFLOW_MODES = [LIVE, DUMMY, SIMULATION, SKIP]
     """Workflow mode not sensible mode for workflow.
 
     n.b. converted to a list to ensure ordering doesn't change in
     CLI
     """
 
-    LIVELY_MODES = {LIVE, DUMMY}
+    JOB_MODES = {LIVE, DUMMY}
     """Modes which need to have real jobs submitted."""
 
-    GHOSTLY_MODES = {SKIP, SIMULATION}
+    JOBLESS_MODES = {SKIP, SIMULATION}
     """Modes which completely ignore the standard submission path."""
 
     @staticmethod
@@ -197,14 +197,14 @@ class RunMode:
     def is_lively(mode: str) -> bool:
         """Task should be treated as live, mode setting mess with scripts only.
         """
-        return bool(mode in RunMode.LIVELY_MODES)
+        return bool(mode in RunMode.JOB_MODES)
 
     @staticmethod
     def is_ghostly(mode: str) -> bool:
         """Task has no reality outside the scheduler and needs no further
         processing after run_mode.submit_task_job method finishes.
         """
-        return bool(mode in RunMode.GHOSTLY_MODES)
+        return bool(mode in RunMode.JOBLESS_MODES)
 
     @staticmethod
     def disable_task_event_handlers(itask):
@@ -214,16 +214,14 @@ class RunMode:
         if we don't deliberately enable them:
         """
         mode = itask.tdef.run_mode
-        if (
+        return (
             mode == RunMode.SIMULATION
             or (
                 mode == RunMode.SKIP
                 and itask.tdef.rtconfig['skip'][
                     'disable task event handlers'] is True
             )
-        ):
-            return True
-        return False
+        )
 
 
 def status_leq(status_a, status_b):
@@ -384,7 +382,8 @@ class TaskState:
 
     def satisfy_me(
         self,
-        outputs: Iterable['Tokens']
+        outputs: Iterable['Tokens'],
+        mode,
     ) -> Set['Tokens']:
         """Try to satisfy my prerequisites with given outputs.
 
@@ -392,7 +391,7 @@ class TaskState:
         """
         valid: Set[Tokens] = set()
         for prereq in (*self.prerequisites, *self.suicide_prerequisites):
-            yep = prereq.satisfy_me(outputs)
+            yep = prereq.satisfy_me(outputs, mode)
             if yep:
                 valid = valid.union(yep)
                 continue

@@ -641,7 +641,8 @@ def list_tasks(schd):
                 ('1', 'z', 'waiting'),
             ],
             [
-                {('1', 'a', 'succeeded'): 'satisfied naturally'},
+                {('1', 'a', 'succeeded'):
+                    'Artificially satisfied by simulation mode'},
                 {('1', 'b', 'succeeded'): False},
                 {('1', 'c', 'succeeded'): False},
             ],
@@ -669,7 +670,8 @@ def list_tasks(schd):
                 ('1', 'z', 'waiting'),
             ],
             [
-                {('1', 'a', 'succeeded'): 'satisfied naturally'},
+                {('1', 'a', 'succeeded'):
+                    'Artificially satisfied by simulation mode'},
                 {('1', 'b', 'succeeded'): False},
             ],
             id='removed'
@@ -764,7 +766,8 @@ async def test_restart_prereqs(
                 ('1', 'z', 'waiting'),
             ],
             [
-                {('1', 'a', 'succeeded'): 'satisfied naturally'},
+                {('1', 'a', 'succeeded'):
+                    'Artificially satisfied by simulation mode'},
                 {('1', 'b', 'succeeded'): False},
                 {('1', 'c', 'succeeded'): False},
             ],
@@ -792,7 +795,8 @@ async def test_restart_prereqs(
                 ('1', 'z', 'waiting'),
             ],
             [
-                {('1', 'a', 'succeeded'): 'satisfied naturally'},
+                {('1', 'a', 'succeeded'):
+                    'Artificially satisfied by simulation mode'},
                 {('1', 'b', 'succeeded'): False},
             ],
             id='removed'
@@ -890,7 +894,7 @@ async def _test_restart_prereqs_sat():
         for prereq in task_c.state.prerequisites
         for key, satisfied in prereq.satisfied.items()
     ) == [
-        ('1', 'a', 'succeeded', 'satisfied naturally'),
+        ('1', 'a', 'succeeded', 'Artificially satisfied by simulation mode'),
         ('1', 'b', 'succeeded', 'satisfied from database')
     ]
 
@@ -907,7 +911,7 @@ async def _test_restart_prereqs_sat():
         for prereq in task_c_prereqs
         for condition in prereq.conditions
     ) == [
-        ('1/a', True, 'satisfied naturally'),
+        ('1/a', True, 'Artificially satisfied by simulation mode'),
         ('1/b', True, 'satisfied from database'),
     ]
 
@@ -1219,7 +1223,7 @@ async def test_detect_incomplete_tasks(
             # the task should not have been removed
             assert itask in schd.pool.get_tasks()
 
-            
+
 async def test_future_trigger_final_point(
     flow,
     scheduler,

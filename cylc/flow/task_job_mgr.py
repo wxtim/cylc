@@ -268,7 +268,7 @@ class TaskJobManager:
 
         Return (list): list of tasks that attempted submission.
         """
-        itasks, ghost_tasks = self._nonlive_submit_task_jobs(
+        itasks, jobless_tasks = self._nonlive_submit_task_jobs(
             itasks, workflow, run_mode)
 
         # Prepare tasks for job submission
@@ -278,10 +278,10 @@ class TaskJobManager:
         # Reset consumed host selection results
         self.task_remote_mgr.subshell_eval_reset()
 
-        if not prepared_tasks and not ghost_tasks:
+        if not prepared_tasks and not jobless_tasks:
             return bad_tasks
         elif not prepared_tasks:
-            return ghost_tasks
+            return jobless_tasks
         auth_itasks = {}  # {platform: [itask, ...], ...}
 
         for itask in prepared_tasks:
@@ -289,7 +289,7 @@ class TaskJobManager:
             auth_itasks.setdefault(platform_name, [])
             auth_itasks[platform_name].append(itask)
         # Submit task jobs for each platform
-        done_tasks = bad_tasks + ghost_tasks
+        done_tasks = bad_tasks + jobless_tasks
 
         for _, itasks in sorted(auth_itasks.items()):
             # Find the first platform where >1 host has not been tried and
@@ -1022,7 +1022,7 @@ class TaskJobManager:
                 the scheduler. (This includes skip and simulation mode tasks).
         """
         lively_tasks: 'List[TaskProxy]' = []
-        ghost_tasks: 'List[TaskProxy]' = []
+        jobless_tasks: 'List[TaskProxy]' = []
         now = time()
         now = (now, get_time_string_from_unix_time(now))
 
@@ -1057,10 +1057,10 @@ class TaskJobManager:
                     self, itask, rtconfig, workflow, now)
             # Assign task to list:
             if is_done:
-                ghost_tasks.append(itask)
+                jobless_tasks.append(itask)
             else:
                 lively_tasks.append(itask)
-        return lively_tasks, ghost_tasks
+        return lively_tasks, jobless_tasks
 
     def _submit_task_jobs_callback(self, ctx, workflow, itasks):
         """Callback when submit task jobs command exits."""

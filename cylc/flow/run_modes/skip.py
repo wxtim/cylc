@@ -102,11 +102,12 @@ def process_outputs(itask: 'TaskProxy') -> List[str]:
     # Send the rest of our outputs, unless they are succeed or failed,
     # which we hold back, to prevent warnings about pre-requisites being
     # unmet being shown because a "finished" output happens to come first.
-    for output, message in itask.state.outputs._required.items():
+    for message in itask.state.outputs.iter_required_messages():
+        trigger = itask.state.outputs._message_to_trigger[message]
         # Send message unless it be succeeded/failed.
-        if output in [TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_FAILED]:
+        if trigger in [TASK_OUTPUT_SUCCEEDED, TASK_OUTPUT_FAILED]:
             continue
-        if not conf_outputs or output in conf_outputs:
+        if not conf_outputs or trigger in conf_outputs:
             result.append(message)
 
     # Send succeeded/failed last.

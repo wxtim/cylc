@@ -82,7 +82,6 @@ from cylc.flow.pathutil import (
 )
 from cylc.flow.print_tree import print_tree
 from cylc.flow.task_qualifiers import ALT_QUALIFIERS
-from cylc.flow.simulation import configure_sim_modes
 from cylc.flow.run_modes.nonlive import mode_validate_checks
 from cylc.flow.subprocctx import SubFuncContext
 from cylc.flow.task_events_mgr import (

@@ -113,7 +113,8 @@ def test_process_outputs(outputs, required, expect):
             rtconfig={'skip': {'outputs': outputs}}),
         state=SimpleNamespace(
             outputs=SimpleNamespace(
-                _required={v: v for v in required}
+                iter_required_messages=lambda: iter(required),
+                _message_to_trigger={v: v for v in required}
             )))
 
     assert process_outputs(itask) == ['submitted'] + expect

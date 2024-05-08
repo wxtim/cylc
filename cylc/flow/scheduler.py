@@ -1500,7 +1500,7 @@ class Scheduler:
             pre_prep_tasks,
             self.server.curve_auth,
             self.server.client_pub_key_dir,
-            run_mode=self.config.run_mode()
+            run_mode=self.get_run_mode()
         ):
             if itask.flow_nums:
                 flow = ','.join(str(i) for i in itask.flow_nums)
@@ -1745,7 +1745,8 @@ class Scheduler:
 
         if self.xtrigger_mgr.do_housekeeping:
             self.xtrigger_mgr.housekeep(self.pool.get_tasks())
-
+        self.pool.clock_expire_tasks()
+        self.release_queued_tasks()
         if sim_time_check(
             self.task_events_mgr,
             self.pool.get_tasks(),
@@ -1753,8 +1754,6 @@ class Scheduler:
         ):
             # A simulated task state change occurred.
             self.reset_inactivity_timer()
-        self.pool.clock_expire_tasks()
-        self.release_queued_tasks()
 
         self.broadcast_mgr.expire_broadcast(self.pool.get_min_point())
         self.late_tasks_check()

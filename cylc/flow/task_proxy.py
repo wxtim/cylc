@@ -544,7 +544,7 @@ class TaskProxy:
         return False
 
     def satisfy_me(
-        self, task_messages: 'List[Tokens]'
+        self, task_messages: 'List[Tokens]', mode='live'
     ) -> 'Set[Tokens]':
         """Try to satisfy my prerequisites with given output messages.
 
@@ -554,7 +554,7 @@ class TaskProxy:
         Return a set of unmatched task messages.
 
         """
-        used = self.state.satisfy_me(task_messages)
+        used = self.state.satisfy_me(task_messages, mode)
         return set(task_messages) - used
 
     def clock_expire(self) -> bool:

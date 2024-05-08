@@ -132,9 +132,9 @@ RUN_MODE = OptionSettings(
     help=(
         f"Run mode: {RunMode.WORKFLOW_MODES} (default live)."
         " Live mode executes the tasks as defined in the runtime section."
-        " Simulation, Skip and Dummy partially or wholly ignore"
-        " the task defined in runtime configuration. Simulation and"
-        " dummy are designed for testing and Skip for flow control."
+        " Simulation, skip and dummy modes ignore part of tasks'"
+        " runtime configurations. Simulation and dummy modes are"
+        " designed for testing, and skip mode is for flow control."
     ),
     metavar="STRING", action='store', dest="run_mode",
     choices=list(RunMode.WORKFLOW_MODES),

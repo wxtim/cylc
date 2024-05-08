@@ -1398,7 +1398,10 @@ class TaskPool:
                 else:
                     tasks = [c_task]
                 for t in tasks:
-                    t.satisfy_me([itask.tokens.duplicate(task_sel=output)])
+                    t.satisfy_me(
+                        [itask.tokens.duplicate(task_sel=output)],
+                        getattr(itask.tdef, 'run_mode', 'live')
+                    )
                     self.data_store_mgr.delta_task_prerequisite(t)
                     self.add_to_pool(t)
 
@@ -1521,7 +1524,8 @@ class TaskPool:
                     continue
                 if completed_only:
                     c_task.satisfy_me(
-                        [itask.tokens.duplicate(task_sel=message)]
+                        [itask.tokens.duplicate(task_sel=message)],
+                        itask.tdef.run_mode
                     )
                     self.data_store_mgr.delta_task_prerequisite(c_task)
                 self.add_to_pool(c_task)
