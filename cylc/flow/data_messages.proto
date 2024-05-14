@@ -230,6 +230,7 @@ message PbTaskProxy {
     optional bool flow_wait = 27;
     optional PbRuntime runtime = 28;
     optional int32 graph_depth = 29;
+    optional string run_mode = 30;
 }
 
 message PbFamily {
