@@ -158,6 +158,9 @@ TASK_STATUSES_TRIGGERABLE = {
 class RunMode:
     """The possible run modes of a task/workflow."""
 
+    ARCHIVE = 'archive'
+    """Run a housekeeping task"""
+
     LIVE = 'live'
     """Task will run normally."""
 
@@ -185,7 +188,7 @@ class RunMode:
     JOB_MODES = {LIVE, DUMMY}
     """Modes which need to have real jobs submitted."""
 
-    JOBLESS_MODES = {SKIP, SIMULATION}
+    JOBLESS_MODES = {SKIP, SIMULATION, ARCHIVE}
     """Modes which completely ignore the standard submission path."""
 
     @staticmethod

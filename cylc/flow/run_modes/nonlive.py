@@ -34,6 +34,7 @@ def mode_validate_checks(taskdefs: 'Dict[str, TaskDefs]'):
         RunMode.SKIP: [],
         RunMode.SIMULATION: [],
         RunMode.DUMMY: [],
+        RunMode.ARCHIVE: [],
     }
 
     # Run through taskdefs looking for those with nonlive modes

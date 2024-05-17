@@ -1334,7 +1334,10 @@ with Conf(
             )
             Conf(
                 'run mode', VDR.V_STRING,
-                options=['workflow', 'simulation', 'dummy', 'live', 'skip'],
+                options=[
+                    'workflow', 'simulation', 'dummy', 'live', 'skip',
+                    'archive'
+                ],
                 default='workflow',
                 desc='''
                     Override the workflow's run mode.

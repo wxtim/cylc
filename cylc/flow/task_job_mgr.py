@@ -63,6 +63,8 @@ from cylc.flow.platforms import (
     get_platform,
 )
 from cylc.flow.remote import construct_ssh_cmd
+from cylc.flow.run_modes.archive import (
+    submit_task_job as archive_submit_task_job)
 from cylc.flow.run_modes.simulation import (
     submit_task_job as simulation_submit_task_job)
 from cylc.flow.run_modes.skip import (
@@ -1054,6 +1056,9 @@ class TaskJobManager:
                     self, itask, rtconfig, workflow, now)
             elif run_mode == RunMode.SKIP:
                 is_done = skip_submit_task_job(
+                    self, itask, rtconfig, workflow, now)
+            elif run_mode == 'archive':
+                is_done = archive_submit_task_job(
                     self, itask, rtconfig, workflow, now)
             # Assign task to list:
             if is_done:
