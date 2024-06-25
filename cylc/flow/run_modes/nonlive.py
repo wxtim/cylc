@@ -40,7 +40,7 @@ def mode_validate_checks(taskdefs: 'Dict[str, TaskDef]'):
     }
 
     # Run through taskdefs looking for those with nonlive modes
-    for _, taskdef in taskdefs.items():
+    for taskdef in taskdefs.values():
         # Add to list of tasks to be run in non-live modes:
         if (
             taskdef.rtconfig.get('run mode', None)
