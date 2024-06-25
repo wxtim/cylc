@@ -26,7 +26,7 @@
 
             # get a list of the times cylc says tasks will retry after
             mapfile -t RETRY_TIMES \
-                < <(sed -n 's/.*retrying.*after \(.*\)).*/\1/p' log)
+                < <(sed -n 's@.*retrying.*after \(.*\))).*@\1@p' log)
 
             # get a list of the times when the xtriggers were actually
             # satisfied
