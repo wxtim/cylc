@@ -406,10 +406,6 @@ def list_wrapper(line: str, check: Callable) -> Optional[Dict[str, str]]:
 
 FUNCTION = 'function'
 
-STYLE_GUIDE = (
-    'https://cylc.github.io/cylc-doc/stable/html/workflow-design-guide/'
-    'style-guide.html#'
-)
 SECTION2 = r'\[\[\s*{}\s*\]\]'
 SECTION3 = r'\[\[\[\s*{}\s*\]\]\]'
 FILEGLOBS = ['*.rc', '*.cylc']
@@ -452,89 +448,90 @@ LINE_LEN_NO = 'S012'
 # - kwargs: We want to pass a set of common kwargs to the check function.
 # - evaluate commented lines: Run this check on commented lines.
 # - rst: An rst description, for use in the Cylc docs.
-STYLE_CHECKS = {
-    "S001": {
-        'short': 'Use multiple spaces, not tabs',
-        'url': STYLE_GUIDE + 'tab-characters',
-        FUNCTION: re.compile(r'^\t').findall
-    },
-    "S002": {
-        'short': 'Item not indented.',
-        # Non-indented items should be sections:
-        'url': STYLE_GUIDE + 'indentation',
-        FUNCTION: re.compile(r'^[^%\{\[|\s]').findall
-    },
-    "S003": {
-        'short': 'Top level sections should not be indented.',
-        'url': STYLE_GUIDE + 'indentation',
-        FUNCTION: re.compile(r'^\s+\[[^\[.]*\]').findall
-    },
-    "S004": {
-        'short': (
-            'Second level sections should be indented exactly '
-            '4 spaces.'
-        ),
-        'url': STYLE_GUIDE + 'indentation',
-        FUNCTION: re.compile(r'^(|\s|\s{2,3}|\s{5,})\[\[[^\[.]*\]\]').findall
-    },
-    "S005": {
-        'short': (
-            'Third level sections should be indented exactly '
-            '8 spaces.'
-        ),
-        'url': STYLE_GUIDE + 'indentation',
-        FUNCTION: re.compile(r'^(|\s{1,7}|\s{9,})\[\[\[[^\[.]*\]\]\]').findall
-    },
-    "S006": {
-        'short': 'trailing whitespace.',
-        'url': STYLE_GUIDE + 'trailing-whitespace',
-        FUNCTION: re.compile(r'[ \t]$').findall
-    },
-    "S007": {
-        'short': 'Family name contains lowercase characters.',
-        'url': STYLE_GUIDE + 'task-naming-conventions',
-        FUNCTION: check_lowercase_family_names,
-    },
-    "S008": {
-        'short': JINJA2_FOUND_WITHOUT_SHEBANG,
-        'url': '',
-        'kwargs': True,
-        FUNCTION: functools.partial(
-            check_jinja2_no_shebang,
-            function=re.compile(r'{[{%]').findall
-        )
-    },
-    "S009": {
-        'short': 'Host Selection Script may be redundant with platform',
-        'url': (
-            'https://cylc.github.io/cylc-doc/stable/html/7-to-8/'
-            'major-changes/platforms.html'
-        ),
-        FUNCTION: re.compile(r'platform\s*=\s*\$\(.*?\)').findall,
-    },
-    "S010": {
-        'short': 'Using backticks to invoke subshell is deprecated',
-        'url': 'https://github.com/cylc/cylc-flow/issues/3825',
-        FUNCTION: re.compile(r'platform\s*=\s*(`.*?`)').findall,
-    },
-    "S011": {
-        'short': 'Cylc will process commented Jinja2!',
-        'url': '',
-        'kwargs': True,
-        'evaluate commented lines': True,
-        FUNCTION: functools.partial(
-            check_if_jinja2,
-            function=re.compile(r'(?<!{)#[^$].*?{[{%]').findall
-        )
-    },
-    'S012': {
-        'short': 'This number is reserved for line length checks',
-    },
-    'S013': {
-        'short': 'Items should be indented in 4 space blocks.',
-        FUNCTION: check_indentation
-    }
-}
+from cylc.flow.lint.style import CHECKS as STYLE_CHECKS
+# STYLE_CHECKS = {
+#     "S001": {
+#         'short': 'Use multiple spaces, not tabs',
+#         'url': STYLE_GUIDE + 'tab-characters',
+#         FUNCTION: re.compile(r'^\t').findall
+#     },
+#     "S002": {
+#         'short': 'Item not indented.',
+#         # Non-indented items should be sections:
+#         'url': STYLE_GUIDE + 'indentation',
+#         FUNCTION: re.compile(r'^[^%\{\[|\s]').findall
+#     },
+#     "S003": {
+#         'short': 'Top level sections should not be indented.',
+#         'url': STYLE_GUIDE + 'indentation',
+#         FUNCTION: re.compile(r'^\s+\[[^\[.]*\]').findall
+#     },
+#     "S004": {
+#         'short': (
+#             'Second level sections should be indented exactly '
+#             '4 spaces.'
+#         ),
+#         'url': STYLE_GUIDE + 'indentation',
+#         FUNCTION: re.compile(r'^(|\s|\s{2,3}|\s{5,})\[\[[^\[.]*\]\]').findall
+#     },
+#     "S005": {
+#         'short': (
+#             'Third level sections should be indented exactly '
+#             '8 spaces.'
+#         ),
+#         'url': STYLE_GUIDE + 'indentation',
+#         FUNCTION: re.compile(r'^(|\s{1,7}|\s{9,})\[\[\[[^\[.]*\]\]\]').findall
+#     },
+#     "S006": {
+#         'short': 'trailing whitespace.',
+#         'url': STYLE_GUIDE + 'trailing-whitespace',
+#         FUNCTION: re.compile(r'[ \t]$').findall
+#     },
+#     "S007": {
+#         'short': 'Family name contains lowercase characters.',
+#         'url': STYLE_GUIDE + 'task-naming-conventions',
+#         FUNCTION: check_lowercase_family_names,
+#     },
+#     "S008": {
+#         'short': JINJA2_FOUND_WITHOUT_SHEBANG,
+#         'url': '',
+#         'kwargs': True,
+#         FUNCTION: functools.partial(
+#             check_jinja2_no_shebang,
+#             function=re.compile(r'{[{%]').findall
+#         )
+#     },
+#     "S009": {
+#         'short': 'Host Selection Script may be redundant with platform',
+#         'url': (
+#             'https://cylc.github.io/cylc-doc/stable/html/7-to-8/'
+#             'major-changes/platforms.html'
+#         ),
+#         FUNCTION: re.compile(r'platform\s*=\s*\$\(.*?\)').findall,
+#     },
+#     "S010": {
+#         'short': 'Using backticks to invoke subshell is deprecated',
+#         'url': 'https://github.com/cylc/cylc-flow/issues/3825',
+#         FUNCTION: re.compile(r'platform\s*=\s*(`.*?`)').findall,
+#     },
+#     "S011": {
+#         'short': 'Cylc will process commented Jinja2!',
+#         'url': '',
+#         'kwargs': True,
+#         'evaluate commented lines': True,
+#         FUNCTION: functools.partial(
+#             check_if_jinja2,
+#             function=re.compile(r'(?<!{)#[^$].*?{[{%]').findall
+#         )
+#     },
+#     'S012': {
+#         'short': 'This number is reserved for line length checks',
+#     },
+#     'S013': {
+#         'short': 'Items should be indented in 4 space blocks.',
+#         FUNCTION: check_indentation
+#     }
+# }
 # Subset of deprecations which are tricky (impossible?) to scrape from the
 # upgrader.
 MANUAL_DEPRECATIONS = {
@@ -1013,46 +1010,35 @@ def parse_checks(check_args, ignores=None, max_line_len=None, reference=False):
 
     checks = {
         'S': STYLE_CHECKS,
-        'U': MANUAL_DEPRECATIONS,
-        'A': get_upgrader_info(),
+        # 'U': MANUAL_DEPRECATIONS,
+        # 'A': get_upgrader_info(),
     }
     for purpose, ruleset in checks.items():
         if purpose in purpose_filters:
             # Run through the rest of the config items.
-            for index, meta in ruleset.items():
-                meta.update({'purpose': purpose})
+            for index, check in ruleset.items():
+                check.purpose=purpose
                 if f'{index}' not in ignores:
-                    parsedchecks.update({index: meta})
-            if 'S' in purpose and LINE_LEN_NO not in ignores:
-                # Special handling for max line length:
-                if not max_line_len:
-                    max_line_len = 130
-                regex = r"^.{" + str(max_line_len) + r"}"
-                if reference:
-                    msg = (
-                        'line > ``<max_line_len>`` characters. Max line '
-                        ' length set in pyproject.toml (default 130)'
-                    )
-                else:
-                    msg = f'line > {max_line_len} characters.'
-                parsedchecks[LINE_LEN_NO] = {
-                    'short': msg,
-                    'url': STYLE_GUIDE + 'line-length-and-continuation',
-                    FUNCTION: re.compile(regex).findall,
-                    'purpose': 'S'
-                }
+                    parsedchecks.update({index: check})
+            # if 'S' in purpose and LINE_LEN_NO not in ignores:
+            #     # Special handling for max line length:
+            #     if not max_line_len:
+            #         max_line_len = 130
+            #     regex = r"^.{" + str(max_line_len) + r"}"
+            #     if reference:
+            #         msg = (
+            #             'line > ``<max_line_len>`` characters. Max line '
+            #             ' length set in pyproject.toml (default 130)'
+            #         )
+            #     else:
+            #         msg = f'line > {max_line_len} characters.'
+            #     parsedchecks[LINE_LEN_NO] = {
+            #         'short': msg,
+            #         'url': STYLE_GUIDE + 'line-length-and-continuation',
+            #         FUNCTION: re.compile(regex).findall,
+            #         'purpose': 'S'
+            #     }
     return parsedchecks
-
-
-def get_index_str(meta: dict, index: str) -> str:
-    """Printable purpose string - mask useless numbers for auto-generated
-    upgrades."""
-    if meta.get('is_dep', None):
-        return 'U998'
-    elif meta.get('is_obs', None):
-        return 'U999'
-    else:
-        return f'{index}'
 
 
 def check_cylc_file(
@@ -1244,12 +1230,12 @@ def get_reference(ruleset: str, output_type: 'Literal["text", "rst"]') -> str:
     )
     output = ''
     current_checkset = ''
-    for index, meta in checks.items():
+    for index, check in checks.items():
         # Check if the purpose has changed - if so create a new
         # section heading:
-        if meta['purpose'] != current_checkset:
-            current_checkset = meta['purpose']
-            title = CHECKS_DESC[meta["purpose"]]
+        if check.purpose != current_checkset:
+            current_checkset = check.purpose
+            title = CHECKS_DESC[check.purpose]
             output += '\n{title}\n{underline}\n'.format(
                 title=title, underline="-" * len(title)
             )
@@ -1261,27 +1247,22 @@ def get_reference(ruleset: str, output_type: 'Literal["text", "rst"]') -> str:
                 )
 
         # Fill a template with info about the issue.
-        if output_type == 'rst':
-            summary = meta.get("rst", meta['short'])
-        elif output_type == 'text':
-            summary = meta.get("short").replace('``', '')
 
+        summary = check.get_summary(output_type=='rst')
+        index = check.get_index_str(index)
         if current_checkset == 'A':
             # Condensed check summary for auto-generated lint items.
             if output_type == 'rst':
                 output += '\n'
             output += '\n* ' + summary
         else:
-            check = get_index_str(meta, index)
-            template = issue_heading_template
-            url = get_url(meta)
             if output_type == 'rst':
-                url = f'`{check} <{url}>`' if url else f'{check}'
-            msg = template.format(
+                url = f'`{check} <{check.url}>`' if check.url else f'{check}'
+            msg = issue_heading_template.format(
                 title=index,
                 check=check,
                 summary=summary,
-                url=url,
+                url=meta.url,
                 underline=(len(url) + 1) * '^'
             )
             output += msg
