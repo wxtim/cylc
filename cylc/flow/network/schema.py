@@ -1542,9 +1542,9 @@ class RuntimeConfiguration(String):
 
 
 class BroadcastMode(graphene.Enum):
-    Set = 'put_broadcast'
-    Clear = 'clear_broadcast'
-    Expire = 'expire_broadcast'
+    Set = cast('Enum', 'put_broadcast')
+    Clear = cast('Enum', 'clear_broadcast')
+    Expire = cast('Enum', 'expire_broadcast')
 
     @property
     def description(self):
@@ -1669,10 +1669,10 @@ class WorkflowStopMode(graphene.Enum):
     # * Graphene requires special enums.
     # * We only want to offer a subset of stop modes (REQUEST_* only).
 
-    Clean = StopMode.REQUEST_CLEAN.value  # type: graphene.Enum
-    Kill = StopMode.REQUEST_KILL.value  # type: graphene.Enum
-    Now = StopMode.REQUEST_NOW.value  # type: graphene.Enum
-    NowNow = StopMode.REQUEST_NOW_NOW.value  # type: graphene.Enum
+    Clean = cast('Enum', StopMode.REQUEST_CLEAN.value)
+    Kill = cast('Enum', StopMode.REQUEST_KILL.value)
+    Now = cast('Enum', StopMode.REQUEST_NOW.value)
+    NowNow = cast('Enum', StopMode.REQUEST_NOW_NOW.value)
 
     @property
     def description(self):
@@ -1729,7 +1729,7 @@ class Broadcast(Mutation):
         mode = BroadcastMode(
             # use the enum name as the default value
             # https://github.com/graphql-python/graphql-core-legacy/issues/166
-            default_value=BroadcastMode.Set.name,  # type: ignore
+            default_value=BroadcastMode.Set.name,
             description='What type of broadcast is this?',
             required=True
         )
