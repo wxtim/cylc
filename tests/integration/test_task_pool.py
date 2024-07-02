@@ -2025,3 +2025,31 @@ async def test_remove_no_respawn(flow, scheduler, start, log_filter):
         assert (
             z1 is None
         ), '1/z should have stayed removed (but has been added back into the pool'
+
+
+async def test_set_future_tasks_in_new_flow(
+    flow, scheduler, run, complete, log_filter
+):
+    id_ = flow({
+        "scheduler": {"allow implicit tasks": True},
+        "scheduling": {
+            "graph": {"R1": "first => good & ugly?\nugly:failed? => recover"}},
+        "runtime": {
+            "ugly": {
+                "script": (
+                    "if (( CYLC_TASK_SUBMIT_NUMBER == 1 )); then"
+                    "\n    false\nfi"
+                )
+            },
+            "recover": {
+                "script": (
+                    'cylc set ${CYLC_WORKFLOW_ID} //1/good --flow=2\n'
+                    'cylc trigger ${CYLC_WORKFLOW_ID}//1/first --flow=2'
+                ),
+            },
+        }
+    })
+    schd = scheduler(id_, paused_start=False, run_mode='live')
+    async with run(schd) as log:
+        await complete(schd)
+        assert len(log_filter(log, regex='1/good/.*:submitted')) == 1
