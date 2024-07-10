@@ -277,16 +277,21 @@ def check_for_deprecated_environment_variables(
     return False
 
 
-def check_for_obsolete_environment_variables(line: str) -> List[str]:
+def check_for_obsolete_environment_variables(line: str) -> Dict[str, List]:
     """Warn that environment variables are obsolete.
 
     Examples:
 
         >>> this = check_for_obsolete_environment_variables
-        >>> this('CYLC_SUITE_DEF_PATH')
-        ['CYLC_SUITE_DEF_PATH']
+        >>> this('script = echo $CYLC_SUITE_DEF_PATH')
+        {'vars': ['CYLC_SUITE_DEF_PATH']}
+        >>> this('script = echo "irrelevent"')
+        {}
     """
-    return [i for i in OBSOLETE_ENV_VARS if i in line]
+    vars_found = [i for i in OBSOLETE_ENV_VARS if i in line]
+    if vars_found:
+        return {'vars': vars_found}
+    return {}
 
 
 def check_for_deprecated_task_event_template_vars(
