@@ -264,7 +264,12 @@ def check_for_suicide_triggers(
 def check_for_deprecated_environment_variables(
     line: str
 ) -> Union[bool, dict]:
-    """Warn that environment variables with SUITE in are deprecated"""
+    """Warn that environment variables with SUITE in are deprecated
+
+    Examples:
+        >>> check_for_deprecated_environment_variables('CYLC_SUITE_HOST')
+        {'vars': ['CYLC_SUITE_HOST: CYLC_WORKFLOW_HOST']}
+    """
     vars_found = [
         f'{k}: {v}' for k, v in DEPRECATED_ENV_VARS.items()
         if k in line
@@ -375,7 +380,12 @@ LOWERCASE_REGEX = re.compile(r'[a-z]')
 
 
 def check_lowercase_family_names(line: str) -> bool:
-    """Check for lowercase in family names."""
+    """Check for lowercase in family names.
+
+    Examples:
+        >>> check_lowercase_family_names(' inherit = FOO')
+        False
+    """
     match = INHERIT_REGEX.match(line)
     if not match:
         return False
