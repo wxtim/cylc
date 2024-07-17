@@ -385,6 +385,8 @@ def check_lowercase_family_names(line: str) -> bool:
     Examples:
         >>> check_lowercase_family_names(' inherit = FOO')
         False
+        >>> check_lowercase_family_names(' inherit = foo')
+        True
     """
     match = INHERIT_REGEX.match(line)
     if not match:
