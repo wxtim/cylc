@@ -36,24 +36,21 @@ finder = doctest.DocTestFinder()
 
 
 @pytest.mark.parametrize(
-    'ref, check',
+    'check',
     # Those checks that have custom checker functions
     # and a short message with variables to insert:
     [
-        (c[1].get('function'), c[1]) for c in ALL_CHECKS
-        if c[1].get('function') in CHECKERS
+        pytest.param(c, id=c.get('function').__name__) for _, c in ALL_CHECKS
+        if c.get('function') in CHECKERS
     ]
 )
-def test_custom_checker_doctests(ref, check):
+def test_custom_checker_doctests(check):
     """All check functions have at least one failure doctest
 
     By forcing each check function to have valid doctests
     for the case that linting has failed we are able to
     check that the function outputs the correct information
     for formatting the short formats.
-
-    ref is useful to allow us to identify the check, even
-    though not used in the test.
     """
     doctests = finder.find(check['function'])[0]
 
