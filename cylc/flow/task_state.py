@@ -173,24 +173,23 @@ class RunMode:
     WORKFLOW = 'workflow'
     """Default to workflow run mode"""
 
-    MODES = {LIVE, SIMULATION, DUMMY, SKIP, WORKFLOW}
+    MODES = frozenset({LIVE, SIMULATION, DUMMY, SKIP, WORKFLOW})
 
-    WORKFLOW_MODES = [LIVE, DUMMY, SIMULATION, SKIP]
+    WORKFLOW_MODES = (LIVE, DUMMY, SIMULATION, SKIP)
     """Workflow mode not sensible mode for workflow.
 
-    n.b. converted to a list to ensure ordering doesn't change in
-    CLI
+    n.b. not using a set to ensure ordering in CLI
     """
 
-    JOB_MODES = {LIVE, DUMMY}
+    JOB_MODES = frozenset({LIVE, DUMMY})
     """Modes which need to have real jobs submitted."""
 
-    JOBLESS_MODES = {SKIP, SIMULATION}
+    JOBLESS_MODES = frozenset({SKIP, SIMULATION})
     """Modes which completely ignore the standard submission path."""
 
     @staticmethod
     def get(options: 'Values') -> str:
-        """Return the run mode from the options."""
+        """Return the workflow run mode from the options."""
         return getattr(options, 'run_mode', None) or RunMode.LIVE
 
     @staticmethod

@@ -67,6 +67,7 @@ from cylc.flow.util import sstrip
 from cylc.flow.workflow_status import StopMode
 
 if TYPE_CHECKING:
+    from enum import Enum
     from graphql import ResolveInfo
     from graphql.type.definition import (
         GraphQLNamedType,
@@ -596,6 +597,46 @@ class TimeZone(ObjectType):
     string_extended = String()
 
 
+def describe_run_mode(run_mode: Optional['Enum']) -> str:
+    """Returns description for a workflow/task run mode."""
+    if not run_mode:
+        return ""
+    mode = run_mode.value
+    if mode == RunMode.WORKFLOW:
+        return "Default to the workflow's run mode."
+    if mode == RunMode.LIVE:
+        return "Tasks will run normally."
+    if mode == RunMode.SIMULATION:
+        return (
+            "Simulates job submission with configurable execution time "
+            "(does not submit real jobs)."
+        )
+    if mode == RunMode.DUMMY:
+        return "Submits real jobs with empty scripts."
+    if mode == RunMode.SKIP:
+        return (
+            "Skips job submission; sets required outputs (by default) or "
+            "configured outputs."
+        )
+    return ""
+
+
+WorkflowRunMode = graphene.Enum(
+    'WorkflowRunMode',
+    [(m.capitalize(), m) for m in RunMode.WORKFLOW_MODES],
+    description=describe_run_mode,
+)
+"""The run mode for the workflow."""
+
+
+TaskRunMode = graphene.Enum(
+    'TaskRunMode',
+    [(m.capitalize(), m) for m in (RunMode.WORKFLOW, *RunMode.WORKFLOW_MODES)],
+    description=describe_run_mode,
+)
+"""The run mode for tasks."""
+
+
 class Workflow(ObjectType):
     class Meta:
         description = """Global workflow info."""
@@ -822,7 +863,7 @@ class Runtime(ObjectType):
     directives = graphene.List(RuntimeSetting, resolver=resolve_json_dump)
     environment = graphene.List(RuntimeSetting, resolver=resolve_json_dump)
     outputs = graphene.List(RuntimeSetting, resolver=resolve_json_dump)
-    run_mode = graphene.String(default_value=RunMode.WORKFLOW)
+    run_mode = TaskRunMode(default_value=TaskRunMode.Workflow.name)
 
 
 RUNTIME_FIELD_TO_CFG_MAP = {
@@ -1501,9 +1542,9 @@ class RuntimeConfiguration(String):
 
 
 class BroadcastMode(graphene.Enum):
-    Set = 'put_broadcast'
-    Clear = 'clear_broadcast'
-    Expire = 'expire_broadcast'
+    Set = cast('Enum', 'put_broadcast')
+    Clear = cast('Enum', 'clear_broadcast')
+    Expire = cast('Enum', 'expire_broadcast')
 
     @property
     def description(self):
@@ -1628,10 +1669,10 @@ class WorkflowStopMode(graphene.Enum):
     # * Graphene requires special enums.
     # * We only want to offer a subset of stop modes (REQUEST_* only).
 
-    Clean = StopMode.REQUEST_CLEAN.value  # type: graphene.Enum
-    Kill = StopMode.REQUEST_KILL.value  # type: graphene.Enum
-    Now = StopMode.REQUEST_NOW.value  # type: graphene.Enum
-    NowNow = StopMode.REQUEST_NOW_NOW.value  # type: graphene.Enum
+    Clean = cast('Enum', StopMode.REQUEST_CLEAN.value)
+    Kill = cast('Enum', StopMode.REQUEST_KILL.value)
+    Now = cast('Enum', StopMode.REQUEST_NOW.value)
+    NowNow = cast('Enum', StopMode.REQUEST_NOW_NOW.value)
 
     @property
     def description(self):
@@ -1688,7 +1729,7 @@ class Broadcast(Mutation):
         mode = BroadcastMode(
             # use the enum name as the default value
             # https://github.com/graphql-python/graphql-core-legacy/issues/166
-            default_value=BroadcastMode.Set.name,  # type: ignore
+            default_value=BroadcastMode.Set.name,
             description='What type of broadcast is this?',
             required=True
         )
