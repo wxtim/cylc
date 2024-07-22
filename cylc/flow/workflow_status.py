@@ -156,7 +156,6 @@ def get_workflow_status(schd: 'Scheduler') -> WorkflowStatus:
         return WorkflowStatus.PAUSED
     return WorkflowStatus.RUNNING
 
-<<<<<<< HEAD
 
 def get_workflow_status_msg(schd: 'Scheduler') -> str:
     """Return a short, concise status message for the provided workflow."""
@@ -221,6 +220,3 @@ class RunMode:
     def get(options: 'Values') -> str:
         """Return the run mode from the options."""
         return getattr(options, 'run_mode', None) or RunMode.LIVE
-=======
-    return (status.value, status_msg)
->>>>>>> 8932dbfeb (Implement Skip Mode)
