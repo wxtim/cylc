@@ -81,7 +81,7 @@ async def flows(mod_flow, mod_scheduler, mod_run, mod_one_conf):
             },
             'runtime': {
                 'foo': {
-                    'simulation': {'default run length': 'PT10S'}
+                    'simulation': {'default run time': 'PT10S'}
                 }
             }
         },

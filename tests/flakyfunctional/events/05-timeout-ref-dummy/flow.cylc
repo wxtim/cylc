@@ -11,4 +11,4 @@
         script = "false"
         [[[simulation]]]
             fail cycle points = 1
-            default run length = PT0S
+            default run time = PT0S

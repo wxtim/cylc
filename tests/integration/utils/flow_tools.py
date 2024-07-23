@@ -80,7 +80,7 @@ def _make_flow(
             conf.setdefault('runtime', {})
             .setdefault('root', {})
             .setdefault('simulation', {})
-            .setdefault('default run length', 'PT0S')
+            .setdefault('default run time', 'PT0S')
         )
         # allow implicit tasks by default:
         conf.setdefault('scheduler', {}).setdefault(

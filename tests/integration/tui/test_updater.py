@@ -154,7 +154,7 @@ async def test_filters(one_conf, flow, scheduler, run, updater):
             # https://github.com/cylc/cylc-flow/pull/5721
             'root': {
                 'simulation': {
-                    'default run length': 'PT1M',
+                    'default run time': 'PT1M',
                 },
             },
         },

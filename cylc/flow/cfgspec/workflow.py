@@ -1465,9 +1465,14 @@ with Conf(
                 For a full description of simulation and dummy run modes see
                 :ref:`SimulationMode`.
             '''):
-                Conf('default run length', VDR.V_INTERVAL, DurationFloat(10),
+                Conf('default run time', VDR.V_INTERVAL, DurationFloat(10),
                      desc='''
-                    The default simulated job run length.
+
+                    .. versionchanged:: 8.4.0
+
+                       {REPLACES}``default run length``
+
+                    The default simulated job run time.
 
                     Used if :cylc:conf:`flow.cylc[runtime][<namespace>]
                     execution time limit` **and**
@@ -1475,12 +1480,12 @@ with Conf(
                     speedup factor` are not set.
                 ''')
                 Conf('speedup factor', VDR.V_FLOAT, desc='''
-                    Simulated run length = speedup factor * execution time
+                    Simulated run time = speedup factor * execution time
                     limit.
 
                     If :cylc:conf:`flow.cylc[runtime][<namespace>]
                     execution time limit` is set, the task
-                    simulated run length is computed by dividing it by this
+                    simulated run time is computed by dividing it by this
                     factor.
                 ''')
                 Conf('time limit buffer', VDR.V_INTERVAL, DurationFloat(30),
@@ -2169,6 +2174,10 @@ def upg(cfg, descr):
             ['runtime', '__MANY__', 'events', f"{old}s"],
             silent=cylc.flow.flags.cylc7_back_compat,
         )
+    u.deprecate(
+        '8.4.0',
+        ['runtime', '__MANY__', 'simulation', 'default run length'],
+        ['runtime', '__MANY__', 'simulation', 'default run time'])
 
     u.obsolete('8.0.0', ['cylc', 'events', 'abort on stalled'])
     u.obsolete('8.0.0', ['cylc', 'events', 'abort if startup handler fails'])

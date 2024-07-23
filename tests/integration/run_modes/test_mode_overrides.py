@@ -44,7 +44,7 @@ async def test_run_mode_override(
         "runtime": {
             "sim_": {
                 "run mode": "simulation",
-                'simulation': {'default run length': 'PT0S'}
+                'simulation': {'default run time': 'PT0S'}
             },
             "skip_": {"run mode": "skip"},
         }

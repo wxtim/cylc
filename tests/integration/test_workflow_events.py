@@ -60,7 +60,7 @@ async def test_scheduler(flow, scheduler, capcall):
             'runtime': {
                 'a': {
                     'simulation': {
-                        'default run length': 'PT0S',
+                        'default run time': 'PT0S',
                     }
                 }
             },

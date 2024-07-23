@@ -48,7 +48,7 @@ def test_get_simulated_run_len(
         'execution time limit': execution_time_limit,
         'simulation': {
             'speedup factor': speedup_factor,
-            'default run length': default_run_length,
+            'default run time': default_run_length,
             'time limit buffer': 'PT0S',
         }
     }

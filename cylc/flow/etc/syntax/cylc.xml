@@ -117,7 +117,7 @@
         <RegExpr attribute='Keyword' String=' disable task event handlers '/>
         <RegExpr attribute='Keyword' String=' directives '/>
         <RegExpr attribute='Keyword' String=' description '/>
-        <RegExpr attribute='Keyword' String=' default run length '/>
+        <RegExpr attribute='Keyword' String=' default run time '/>
         <RegExpr attribute='Keyword' String=' default '/>
         <RegExpr attribute='Keyword' String=' cycling mode '/>
         <RegExpr attribute='Keyword' String=' cycle point time zone '/>

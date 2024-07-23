@@ -19,7 +19,7 @@
     [[root]]
         script = true
         [[[simulation]]]
-            default run length = PT0S
+            default run time = PT0S
     [[foo]]
         script = true
         [[[outputs]]]

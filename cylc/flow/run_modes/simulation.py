@@ -224,7 +224,7 @@ def get_simulated_run_len(rtc: Dict[str, Any]) -> int:
             str(limit)).get_seconds() / speedup)
     else:
         sleep_sec = DurationParser().parse(
-            str(rtc['simulation']['default run length'])
+            str(rtc['simulation']['default run time'])
         ).get_seconds()
 
     return sleep_sec

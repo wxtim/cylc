@@ -17,7 +17,7 @@
     [[root]]
         script = echo "=== this task ran in live mode ==="
         [[[simulation]]]
-            default run length = PT0S
+            default run time = PT0S
     [[default_]]
     [[live_]]
         run mode = live

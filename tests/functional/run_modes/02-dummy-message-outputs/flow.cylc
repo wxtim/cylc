@@ -12,7 +12,7 @@
 [runtime]
     [[root]]
         [[[simulation]]]
-            default run length = PT0S
+            default run time = PT0S
             time limit buffer = PT1M
     [[bar]]
     [[foo]]
