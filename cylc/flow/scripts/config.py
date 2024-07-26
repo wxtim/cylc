@@ -50,6 +50,7 @@ Examples:
 """
 
 import asyncio
+import json
 
 import os.path
 from typing import List, Optional, TYPE_CHECKING
@@ -109,6 +110,16 @@ def get_option_parser() -> COP:
             "looked for. An existing configuration file lower down the list "
             "overrides any settings it shares with those higher up."),
         action="store_true", default=False, dest="print_hierarchy")
+
+    parser.add_option(
+        '--json',
+        help=(
+            'Print metadata from a Cylc configuration.'
+        ),
+        default=False,
+        action='store_true',
+        dest='json'
+    )
 
     parser.add_option(icp_option)
 
@@ -184,6 +195,11 @@ async def _main(
             print("\n".join(get_config_file_hierarchy()))
             return
 
+        if options.json:
+            cfg = glbl_cfg()
+            print(cfg.get_json())
+            return
+
         glbl_cfg().idump(
             options.item,
             not options.defaults,
@@ -208,6 +224,10 @@ async def _main(
         options,
         get_template_vars(options)
     )
+
+    if options.json:
+        print(config.pcfg.get_json())
+        return
 
     config.pcfg.idump(
         options.item,

@@ -15,9 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from copy import deepcopy
+import json
 import re
 from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Iterable, List, Optional
+from typing_extensions import Literal
 
 from cylc.flow.context_node import ContextNode
 from cylc.flow.parsec.exceptions import (
@@ -37,6 +39,7 @@ if TYPE_CHECKING:
 
 class ParsecConfig:
     """Object wrapper for parsec functions."""
+    META: Literal[str] = 'meta'
 
     def __init__(
         self,
@@ -208,6 +211,11 @@ class ParsecConfig:
             cfg, prefix=prefix, level=len(keys),
             none_str=none_str, handle=handle
         )
+
+    def get_json(self, keys: Optional[List[str]] = None):
+        """Get config as a json."""
+        return json.dumps(self.sparse)
+
 
     def _get_namespace_parents(self) -> List[List[str]]:
         """Get a list of the parents of config items which can be user defined.
