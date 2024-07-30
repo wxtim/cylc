@@ -1213,6 +1213,15 @@ class TaskPool:
             ):
                 if get_point(point) > self.stop_point:
                     continue
+
+                # Double check task output against database:
+                # Required if satisfied task was in a now stopped
+                # earlier run.
+                if self.check_task_output(point, task, msg, itask.flow_nums):
+                    breakpoint(header=f"=== {point, task, msg} ===")
+
+                    continue
+
                 if itask.identity not in unsat:
                     unsat[itask.identity] = []
                 unsat[itask.identity].append(

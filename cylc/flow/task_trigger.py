@@ -222,6 +222,7 @@ class Dependency:
                         (point >= tdef.start_point)
                     )
                 )
+
             else:
                 # Trigger is within the same cycle point.
                 # Register task message with Prerequisite object.
