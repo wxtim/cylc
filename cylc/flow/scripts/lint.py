@@ -150,7 +150,7 @@ DEPRECATED_STRING_TEMPLATES = {
 }
 
 
-LIST_ITEM = '    * '
+LIST_ITEM = '\n    * '
 
 
 deprecated_string_templates = {
@@ -308,13 +308,10 @@ def check_for_deprecated_task_event_template_vars(
         >>> this = check_for_deprecated_task_event_template_vars
 
         >>> this('hello = "My name is %(suite)s"')
-        {'list': '    * %(suite)s ⇒ %(workflow)s'}
+        {'suggest': '\\n    * %(suite)s ⇒ %(workflow)s'}
 
-        >>> expect = {'list': (
-        ...     '    * %(suite)s ⇒ %(workflow)s    * %(task_url)s'
-        ... ' - get ``URL`` (if set in :cylc:conf:`[meta]URL`)')}
-        >>> this('hello = "My name is %(suite)s, %(task_url)s"') == expect
-        True
+        >>> this('hello = "My name is %(suite)s, %(task_url)s"')
+        {'suggest': '\\n    * %(suite)s ⇒ %(workf...cylc:conf:`[meta]URL`)'}
     """
     result = []
     for key, (regex, replacement) in deprecated_string_templates.items():
@@ -325,7 +322,7 @@ def check_for_deprecated_task_event_template_vars(
             result.append(f'%({key})s ⇒ %({replacement})s')
 
     if result:
-        return {'list': LIST_ITEM + LIST_ITEM.join(result)}
+        return {'suggest': LIST_ITEM + LIST_ITEM.join(result)}
     return None
 
 
@@ -690,7 +687,7 @@ MANUAL_DEPRECATIONS = {
     },
     'U015': {
         'short': (
-            'Deprecated template variables.'),
+            'Deprecated template variables: {suggest}'),
         'rst': (
             'The following template variables, mostly used in event handlers,'
             'are deprecated, and should be replaced:'
