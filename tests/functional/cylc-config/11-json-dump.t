@@ -20,7 +20,7 @@
 # is from Standard library json.
 . "$(dirname "$0")/test_header"
 #-------------------------------------------------------------------------------
-set_test_number 4
+set_test_number 6
 #-------------------------------------------------------------------------------
 
 # Test the global.cylc
@@ -36,7 +36,7 @@ cat > "global.cylc" <<__HEREDOC__
 __HEREDOC__
 
 export CYLC_CONF_PATH="${PWD}"
-run_ok "${TEST_NAME}" cylc config --json
+run_ok "${TEST_NAME}" cylc config --json --one-line
 cmp_ok "${TEST_NAME}.stdout" <<__HERE__
 {"platforms": {"golders_green": {"meta": {"can": "Test lots of things", "because": "metadata, is, not, fussy", "number": "99"}}}}
 __HERE__
@@ -55,5 +55,42 @@ __HERE__
 
 run_ok "${TEST_NAME}" cylc config . --json --icp 1000
 cmp_ok "${TEST_NAME}.stdout" <<__HERE__
-{"scheduling": {"graph": {"P1D": "foo"}, "initial cycle point": "1000"}, "runtime": {"root": {}, "foo": {"completion": "succeeded"}}}
+{
+    "scheduling": {
+        "graph": {
+            "P1D": "foo"
+        },
+        "initial cycle point": "1000"
+    },
+    "runtime": {
+        "root": {},
+        "foo": {
+            "completion": "succeeded"
+        }
+    }
+}
+__HERE__
+
+# Test an empty global.cylc to check:
+# * item selection
+# * null value setting
+# * showing defaults
+TEST_NAME="${TEST_NAME_BASE}-defaults-item-null-value"
+echo "" > global.cylc
+export CYLC_CONF_PATH="${PWD}"
+
+run_ok "${TEST_NAME}" cylc config \
+    -i '[scheduler][mail]' \
+    --json \
+    --defaults \
+    --null-value='zilch'
+
+cmp_ok "${TEST_NAME}.stdout" <<__HERE__
+{
+    "from": "zilch",
+    "smtp": "zilch",
+    "to": "zilch",
+    "footer": "zilch",
+    "task event batch interval": 300.0
+}
 __HERE__

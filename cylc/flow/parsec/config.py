@@ -17,6 +17,7 @@
 from copy import deepcopy
 import json
 import re
+import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Iterable, List, Optional
 from typing_extensions import Literal
@@ -165,7 +166,7 @@ class ParsecConfig:
         return cfg
 
     def idump(self, items=None, sparse=False, prefix='',
-              oneline=False, none_str='', handle=None):
+              oneline=False, none_str='', handle=None, json=False):
         """
         items is a list of --item style inputs:
            '[runtime][foo]script'.
@@ -181,7 +182,38 @@ class ParsecConfig:
                 mkeys.append(j)
         if null:
             mkeys = [[]]
-        self.mdump(mkeys, sparse, prefix, oneline, none_str, handle=handle)
+        if json:
+            self.jdump(mkeys, sparse, prefix, oneline, none_str, handle=handle)
+        else:
+            self.mdump(mkeys, sparse, prefix, oneline, none_str, handle=handle)
+
+    def jdump(
+        self,
+        mkeys=None,
+        sparse=False,
+        prefix='',
+        oneline=False,
+        none_str='',
+        handle=None
+    ):
+        """Dump a config to JSON format.
+        """
+        # When we call json.dumps we use indent to
+        # control whether output is multi-line:
+        indent = None
+        if not oneline:
+            indent = 4
+
+        for keys in mkeys:
+            if not keys:
+                keys = []
+            cfg = self.get(keys, sparse)
+            data = json.dumps(cfg, indent=indent)
+
+            # We can replace null values with our none_str:
+            data = data.replace('null', f'"{none_str}"')
+
+        print(data, file=handle or sys.stdout)
 
     def mdump(self, mkeys=None, sparse=False, prefix='',
               oneline=False, none_str='', handle=None):

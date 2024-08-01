@@ -195,16 +195,12 @@ async def _main(
             print("\n".join(get_config_file_hierarchy()))
             return
 
-        if options.json:
-            cfg = glbl_cfg()
-            print(cfg.get_json())
-            return
-
         glbl_cfg().idump(
             options.item,
             not options.defaults,
             oneline=options.oneline,
-            none_str=options.none_str
+            none_str=options.none_str,
+            json=options.json,
         )
         return
 
@@ -225,13 +221,10 @@ async def _main(
         get_template_vars(options)
     )
 
-    if options.json:
-        print(config.pcfg.get_json())
-        return
-
     config.pcfg.idump(
         options.item,
         not options.defaults,
         oneline=options.oneline,
-        none_str=options.none_str
+        none_str=options.none_str,
+        json=options.json
     )
