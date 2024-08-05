@@ -244,10 +244,6 @@ class ParsecConfig:
             none_str=none_str, handle=handle
         )
 
-    def get_json(self, keys: Optional[List[str]] = None):
-        """Get config as a json."""
-        return json.dumps(self.sparse)
-
     def _get_namespace_parents(self) -> List[List[str]]:
         """Get a list of the parents of config items which can be user defined.
 
