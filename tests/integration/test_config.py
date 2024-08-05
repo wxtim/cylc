@@ -276,7 +276,7 @@ def test_parse_special_tasks_families(flow, scheduler, validate, section):
         }
 
 
-def test_queue_treated_as_implicit(flow, validate, caplog):
+def test_queue_treated_as_implicit(flow, validate, caplog, log_filter):
     """Tasks in queues but not in runtime generate a warning.
 
     https://github.com/cylc/cylc-flow/issues/5260
@@ -291,10 +291,9 @@ def test_queue_treated_as_implicit(flow, validate, caplog):
         }
     )
     validate(id_)
-    assert (
-        'Queues contain tasks not defined in runtime'
-        in caplog.records[0].message
-    )
+    log_filter(
+        caplog,
+        contains='Queues contain tasks not defined in runtime')
 
 
 def test_queue_treated_as_comma_separated(flow, validate):

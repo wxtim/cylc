@@ -983,7 +983,7 @@
         outputs =
         disable task event handlers = True
     [[[simulation]]]
-        default run time = PT10S
+        default run length = PT10S
         speedup factor =
         time limit buffer = PT30S
         fail cycle points =
