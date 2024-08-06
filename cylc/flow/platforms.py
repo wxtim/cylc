@@ -654,7 +654,7 @@ def get_install_target_to_platforms_map(
     Return {install_target_1: [platform_1_dict, platform_2_dict, ...], ...}
     """
     ret: Dict[str, List[Dict[str, Any]]] = {}
-    for p_name in set(platform_names):
+    for p_name in set(platform_names) - RunMode.JOBLESS_MODES:
         try:
             platform = platform_from_name(p_name)
         except PlatformLookupError as exc:

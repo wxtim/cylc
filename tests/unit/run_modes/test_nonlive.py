@@ -39,7 +39,7 @@ def test_mode_validate_checks(monkeypatch, caplog):
 
     message = caplog.messages[0]
 
-    assert 'skip mode:\n    * skip_task' not in message
+    assert 'skip mode:\n    * skip_task' in message
     assert 'simulation mode:\n    * simulation_task' in message
     assert 'dummy mode:\n    * dummy_task' in message
     assert ' live mode' not in message   # Avoid matching "non-live mode"

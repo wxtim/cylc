@@ -36,6 +36,7 @@ def mode_validate_checks(taskdefs: 'Dict[str, TaskDef]'):
     """
     warn_nonlive: Dict[str, List[str]] = {
         RunMode.SIMULATION: [],
+        RunMode.SKIP: [],
         RunMode.DUMMY: [],
     }
 
@@ -44,7 +45,7 @@ def mode_validate_checks(taskdefs: 'Dict[str, TaskDef]'):
         # Add to list of tasks to be run in non-live modes:
         if (
             taskdef.rtconfig.get('run mode', None)
-            in {RunMode.SIMULATION, RunMode.DUMMY}
+            in {RunMode.SIMULATION, RunMode.SKIP, RunMode.DUMMY}
         ):
             warn_nonlive[taskdef.rtconfig['run mode']].append(taskdef.name)
 
