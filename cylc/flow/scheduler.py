@@ -1534,8 +1534,6 @@ class Scheduler:
         self.broadcast_mgr.expire_broadcast(self.pool.get_min_point())
         self.late_tasks_check()
 
-        self.process_workflow_db_queue()
-
         self.process_queued_task_messages()
         await self.process_command_queue()
         self.task_events_mgr.process_events(self)
