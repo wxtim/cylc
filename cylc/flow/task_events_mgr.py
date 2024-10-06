@@ -491,7 +491,7 @@ class TaskEventsManager():
         itask.poll_timer.next(no_exhaust=True)
         return True
 
-    def check_job_time(self, itask, now):
+    def check_job_time(self, itask, now, is_repeat):
         """Check/handle job timeout and poll timer"""
         can_poll = self.check_poll_time(itask, now)
         if itask.timeout is None or now <= itask.timeout:
@@ -509,7 +509,7 @@ class TaskEventsManager():
         itask.timeout = None  # emit event only once
         if msg and event:
             LOG.warning(f"[{itask}] {msg}")
-            self.setup_event_handlers(itask, event, msg)
+            self.setup_event_handlers(itask, event, msg, is_repeat)
             return True
         else:
             return can_poll
@@ -676,8 +676,25 @@ class TaskEventsManager():
         # Any message represents activity.
         self.reset_inactivity_timer_func()
 
+        # In live mode check whether the message has been recieved and
+        # put in the database before:
+        is_repeat: bool = False
+        if (
+            itask.tdef.run_mode == 'live'
+            and self.workflow_db_mgr.pri_dao.message_in_db(
+                itask, event_time, submit_num, message)
+        ):
+            is_repeat = True
+
         if not self._process_message_check(
-            itask, severity, message, event_time, flag, submit_num, forced
+            itask,
+            severity,
+            message,
+            event_time,
+            flag,
+            submit_num,
+            forced,
+            quiet=is_repeat
         ):
             return None
 
@@ -686,10 +703,13 @@ class TaskEventsManager():
             new_msg = f'{message} {self.FLAG_POLLED}'
         else:
             new_msg = message
-        self.data_store_mgr.delta_job_msg(
-            itask.tokens.duplicate(job=str(submit_num)),
+
+        if not is_repeat:
             new_msg
-        )
+            self.data_store_mgr.delta_job_msg(
+                itask.tokens.duplicate(job=str(submit_num)),
+                new_msg
+            )
 
         # Satisfy my output, if possible, and spawn children.
         # (first remove signal: failed/EXIT -> failed)
@@ -714,8 +734,14 @@ class TaskEventsManager():
             # (whether by forced set, or missed message).
             LOG.info(f"[{itask}] setting implied output: {implied}")
             self.process_message(
-                itask, INFO, implied, event_time,
-                self.FLAG_INTERNAL, submit_num, forced
+                itask,
+                INFO,
+                implied,
+                event_time,
+                self.FLAG_INTERNAL,
+                submit_num,
+                forced,
+                is_repeat,
             )
 
         if message == self.EVENT_STARTED:
@@ -725,15 +751,17 @@ class TaskEventsManager():
             ):
                 # Already running.
                 return True
-            self._process_message_started(itask, event_time, forced)
+            self._process_message_started(itask, event_time, forced, is_repeat)
             self.spawn_children(itask, TASK_OUTPUT_STARTED)
 
         elif message == self.EVENT_SUCCEEDED:
-            self._process_message_succeeded(itask, event_time, forced)
+            self._process_message_succeeded(
+                itask, event_time, forced, is_repeat
+            )
             self.spawn_children(itask, TASK_OUTPUT_SUCCEEDED)
 
         elif message == self.EVENT_EXPIRED:
-            self._process_message_expired(itask, event_time, forced)
+            self._process_message_expired(itask, event_time, forced, is_repeat)
             self.spawn_children(itask, TASK_OUTPUT_EXPIRED)
 
         elif message == self.EVENT_FAILED:
@@ -744,7 +772,7 @@ class TaskEventsManager():
                 # Already failed.
                 return True
             if self._process_message_failed(
-                itask, event_time, self.JOB_FAILED, forced
+                itask, event_time, self.JOB_FAILED, forced, is_repeat
             ):
                 self.spawn_children(itask, TASK_OUTPUT_FAILED)
 
@@ -756,7 +784,7 @@ class TaskEventsManager():
                 # Already submit-failed
                 return True
             if self._process_message_submit_failed(
-                itask, event_time, submit_num, forced
+                itask, event_time, submit_num, forced, is_repeat
             ):
                 self.spawn_children(itask, TASK_OUTPUT_SUBMIT_FAILED)
 
@@ -767,7 +795,9 @@ class TaskEventsManager():
             ):
                 # Already submitted.
                 return True
-            self._process_message_submitted(itask, event_time, forced)
+            self._process_message_submitted(
+                itask, event_time, forced, is_repeat
+            )
             self.spawn_children(itask, TASK_OUTPUT_SUBMITTED)
 
             # ... but either way update the job ID in the job proxy (it only
@@ -791,11 +821,12 @@ class TaskEventsManager():
                 # Already failed.
                 return True
             signal = message[len(FAIL_MESSAGE_PREFIX):]
-            self._db_events_insert(itask, "signaled", signal)
+            if not is_repeat:
+                self._db_events_insert(itask, "signaled", signal)
             self.workflow_db_mgr.put_update_task_jobs(
                 itask, {"run_signal": signal})
             if self._process_message_failed(
-                itask, event_time, self.JOB_FAILED, forced
+                itask, event_time, self.JOB_FAILED, forced, is_repeat
             ):
                 self.spawn_children(itask, TASK_OUTPUT_FAILED)
 
@@ -808,17 +839,19 @@ class TaskEventsManager():
                 # Already failed.
                 return True
             aborted_with = message[len(ABORT_MESSAGE_PREFIX):]
-            self._db_events_insert(itask, "aborted", message)
+            if not is_repeat:
+                self._db_events_insert(itask, "aborted", message)
             self.workflow_db_mgr.put_update_task_jobs(
                 itask, {"run_signal": aborted_with})
             if self._process_message_failed(
-                itask, event_time, aborted_with, forced
+                itask, event_time, aborted_with, forced, is_repeat
             ):
                 self.spawn_children(itask, TASK_OUTPUT_FAILED)
 
         elif message.startswith(VACATION_MESSAGE_PREFIX):
             # Task job pre-empted into a vacation state
-            self._db_events_insert(itask, "vacated", message)
+            if not is_repeat:
+                self._db_events_insert(itask, "vacated", message)
             itask.set_summary_time('started')  # unset
             if TimerFlags.SUBMISSION_RETRY in itask.try_timers:
                 itask.try_timers[TimerFlags.SUBMISSION_RETRY].num = 0
@@ -841,7 +874,7 @@ class TaskEventsManager():
             # Log completion of o      (not needed for standard outputs)
             trigger = itask.state.outputs.get_trigger(message)
             LOG.info(f"[{itask}] completed output {trigger}")
-            self.setup_event_handlers(itask, trigger, message)
+            self.setup_event_handlers(itask, trigger, event_time, message, is_repeat=is_repeat)
             self.spawn_children(itask, msg0)
 
         else:
@@ -851,8 +884,9 @@ class TaskEventsManager():
             # Note that all messages are logged already at the top.
             # No state change.
             LOG.debug(f"[{itask}] unhandled: {message}")
-            self._db_events_insert(
-                itask, (f"message {lseverity}"), message)
+            if not is_repeat:
+                self._db_events_insert(
+                    itask, (f"message {lseverity}"), message)
 
         if lseverity in self.NON_UNIQUE_EVENTS:
             itask.non_unique_events.update({lseverity: 1})
@@ -868,7 +902,8 @@ class TaskEventsManager():
         event_time: str,
         flag: str,
         submit_num: int,
-        forced: bool = False
+        forced: bool = False,
+        quiet: bool = False,
     ) -> bool:
         """Helper for `.process_message`.
 
@@ -927,24 +962,42 @@ class TaskEventsManager():
                 )
             return False
 
-        severity_lvl: int = LOG_LEVELS.get(severity, INFO)
-        # Demote log level to DEBUG if this is a message that duplicates what
-        # gets logged by itask state change anyway (and not manual poll)
-        if severity_lvl > DEBUG and flag != self.FLAG_POLLED and message in {
-            self.EVENT_SUBMITTED, self.EVENT_STARTED, self.EVENT_SUCCEEDED,
-            self.EVENT_SUBMIT_FAILED, f'{FAIL_MESSAGE_PREFIX}ERR'
-        }:
-            severity_lvl = DEBUG
-        LOG.log(severity_lvl, f"[{itask}] {flag}{message}{timestamp}")
+        if not quiet:
+            severity_int = cast(int, LOG_LEVELS.get(severity, INFO))
+            # Demote log level to DEBUG if this is a message that duplicates
+            # what gets logged by itask state change anyway
+            # (and not manual poll)
+            if (
+                severity_int > DEBUG
+                and flag != self.FLAG_POLLED
+                and message in {
+                    self.EVENT_SUBMITTED,
+                    self.EVENT_STARTED,
+                    self.EVENT_SUCCEEDED,
+                    self.EVENT_SUBMIT_FAILED,
+                    f'{FAIL_MESSAGE_PREFIX}ERR'
+                }
+            ):
+                severity_int = DEBUG
+            LOG.log(severity_int, f"[{itask}] {flag}{message}{timestamp}")
         return True
 
-    def setup_event_handlers(self, itask, event, message):
+    def setup_event_handlers(
+        self,
+        itask: 'TaskProxy',
+        event: str,
+        event_time: str,
+        message: str,
+        is_repeat: bool = False,
+    ) -> None:
         """Set up handlers for a task event."""
         if itask.tdef.run_mode != RunMode.LIVE:
             return
         msg = ""
         if message != f"job {event}":
             msg = message
+        if not is_repeat:
+            self._db_events_insert(itask, event_time, event, msg)
         self._db_events_insert(itask, event, msg)
         self._setup_job_logs_retrieval(itask, event)
         self._setup_event_mail(itask, event, message)
@@ -970,10 +1023,10 @@ class TaskEventsManager():
         else:
             self.unset_waiting_event_timer(id_key)
 
-    def _db_events_insert(self, itask, event="", message=""):
+    def _db_events_insert(self, itask, event="", event_time="", message=""):
         """Record an event to the DB."""
         self.workflow_db_mgr.put_insert_task_events(itask, {
-            "time": get_current_time_string(),
+            "time": event_time,
             "event": event,
             "message": message})
 
@@ -1297,7 +1350,9 @@ class TaskEventsManager():
         if itask.state_reset(TASK_STATUS_WAITING):
             self.data_store_mgr.delta_task_state(itask)
 
-    def _process_message_failed(self, itask, event_time, message, forced):
+    def _process_message_failed(
+        self, itask, event_time, message, is_repeat, forced
+    ):
         """Helper for process_message, handle a failed message.
 
         Return True if no retries (hence go to the failed state).
@@ -1321,7 +1376,9 @@ class TaskEventsManager():
             # No retry lined up: definitive failure.
             no_retries = True
             if itask.state_reset(TASK_STATUS_FAILED, forced=forced):
-                self.setup_event_handlers(itask, self.EVENT_FAILED, message)
+                self.setup_event_handlers(
+                    itask, self.EVENT_FAILED, event_time, message, is_repeat
+                )
                 self.data_store_mgr.delta_task_state(itask)
                 itask.state.outputs.set_message_complete(TASK_OUTPUT_FAILED)
                 self.data_store_mgr.delta_task_output(
@@ -1334,11 +1391,13 @@ class TaskEventsManager():
             delay_msg = f"retrying in {timer.delay_timeout_as_str()}"
             LOG.warning(f"[{itask}] {delay_msg}")
             msg = f"{self.JOB_FAILED}, {delay_msg}"
-            self.setup_event_handlers(itask, self.EVENT_RETRY, msg)
+            self.setup_event_handlers(
+                itask, self.EVENT_SUBMIT_RETRY, event_time, msg, is_repeat
+            )
         self._reset_job_timers(itask)
         return no_retries
 
-    def _process_message_started(self, itask, event_time, forced):
+    def _process_message_started(self, itask, event_time, forced, is_repeat):
         """Helper for process_message, handle a started message."""
         if itask.job_vacated:
             itask.job_vacated = False
@@ -1351,7 +1410,12 @@ class TaskEventsManager():
             "time_run": itask.summary['started_time_string']})
         if itask.state_reset(TASK_STATUS_RUNNING, forced=forced):
             self.setup_event_handlers(
-                itask, self.EVENT_STARTED, f'job {self.EVENT_STARTED}')
+                itask,
+                self.EVENT_STARTED,
+                event_time,
+                f'job {self.EVENT_STARTED}',
+                is_repeat=is_repeat,
+            )
             self.data_store_mgr.delta_task_state(itask)
         self._reset_job_timers(itask)
 
@@ -1368,10 +1432,11 @@ class TaskEventsManager():
         self.setup_event_handlers(
             itask,
             self.EVENT_EXPIRED,
+            event_time,
             "Task expired: will not submit job."
         )
 
-    def _process_message_succeeded(self, itask, event_time, forced):
+    def _process_message_succeeded(self, itask, event_time, forced, is_repeat):
         """Helper for process_message, handle a succeeded message.
 
         Ignore forced.
@@ -1392,7 +1457,12 @@ class TaskEventsManager():
                 itask.summary['started_time'])
         if itask.state_reset(TASK_STATUS_SUCCEEDED, forced=forced):
             self.setup_event_handlers(
-                itask, self.EVENT_SUCCEEDED, f"job {self.EVENT_SUCCEEDED}")
+                itask,
+                self.EVENT_SUCCEEDED,
+                event_time,
+                f"job {self.EVENT_SUCCEEDED}",
+                is_repeat,
+            )
             self.data_store_mgr.delta_task_state(itask)
         self._reset_job_timers(itask)
 
@@ -1422,8 +1492,11 @@ class TaskEventsManager():
             no_retries = True
             if itask.state_reset(TASK_STATUS_SUBMIT_FAILED, forced=forced):
                 self.setup_event_handlers(
-                    itask, self.EVENT_SUBMIT_FAILED,
-                    f'job {self.EVENT_SUBMIT_FAILED}')
+                    itask,
+                    self.EVENT_SUBMIT_FAILED,
+                    event_time,
+                    f'job {self.EVENT_SUBMIT_FAILED}',
+                )
                 itask.state.outputs.set_message_complete(
                     TASK_OUTPUT_SUBMIT_FAILED
                 )
@@ -1437,7 +1510,9 @@ class TaskEventsManager():
             delay_msg = f"retrying in {timer.delay_timeout_as_str()}"
             LOG.warning(f"[{itask}] {delay_msg}")
             msg = f"job {self.EVENT_SUBMIT_FAILED}, {delay_msg}"
-            self.setup_event_handlers(itask, self.EVENT_SUBMIT_RETRY, msg)
+            self.setup_event_handlers(
+                itask, self.EVENT_SUBMIT_RETRY, event_time, msg
+            )
 
         # Register newly submit-failed job with the database and datastore.
         job_tokens = itask.tokens.duplicate(job=str(itask.submit_num))
@@ -1452,7 +1527,11 @@ class TaskEventsManager():
         return no_retries
 
     def _process_message_submitted(
-        self, itask: 'TaskProxy', event_time: str, forced: bool
+        self,
+        itask: 'TaskProxy',
+        event_time: str,
+        forced: bool,
+        is_repeat: bool,
     ) -> None:
         """Helper for process_message, handle a submit-succeeded message."""
         with suppress(KeyError):
@@ -1486,7 +1565,9 @@ class TaskEventsManager():
                     self.setup_event_handlers(
                         itask,
                         self.EVENT_SUBMITTED,
+                        event_time,
                         f'job {self.EVENT_SUBMITTED}',
+                        is_repeat
                     )
                     self.data_store_mgr.delta_task_state(itask)
                     self.data_store_mgr.delta_task_queued(itask)
