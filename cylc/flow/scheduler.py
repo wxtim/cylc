@@ -21,16 +21,30 @@ from contextlib import suppress
 import itertools
 import os
 from pathlib import Path
-from queue import Empty, Queue
+from queue import (
+    Empty,
+    Queue,
+)
 from shlex import quote
 import signal
 from socket import gaierror
-from subprocess import DEVNULL, PIPE, Popen
+from subprocess import (
+    DEVNULL,
+    PIPE,
+    Popen,
+)
 import sys
-from threading import Barrier, Thread
-from time import sleep, time
+from threading import (
+    Barrier,
+    Thread,
+)
+from time import (
+    sleep,
+    time,
+)
 import traceback
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     Dict,
@@ -39,7 +53,6 @@ from typing import (
     NoReturn,
     Optional,
     Set,
-    TYPE_CHECKING,
     Tuple,
     Union,
 )
@@ -50,13 +63,13 @@ import psutil
 from cylc.flow import (
     LOG,
     __version__ as CYLC_VERSION,
+    commands,
     main_loop,
+    workflow_files,
 )
-from cylc.flow import workflow_files
 from cylc.flow.broadcast_mgr import BroadcastMgr
 from cylc.flow.cfgspec.glbl_cfg import glbl_cfg
 from cylc.flow.config import WorkflowConfig
-from cylc.flow import commands
 from cylc.flow.cycling.loader import get_point
 from cylc.flow.data_store_mgr import DataStoreMgr
 from cylc.flow.exceptions import (
@@ -65,7 +78,12 @@ from cylc.flow.exceptions import (
     InputError,
 )
 import cylc.flow.flags
-from cylc.flow.flow_mgr import FLOW_NEW, FLOW_NONE, FlowMgr, repr_flow_nums
+from cylc.flow.flow_mgr import (
+    FLOW_NEW,
+    FLOW_NONE,
+    FlowMgr,
+    repr_flow_nums,
+)
 from cylc.flow.host_select import (
     HostSelectException,
     select_workflow_host,
@@ -75,8 +93,13 @@ from cylc.flow.hostuserutil import (
     get_user,
     is_remote_platform,
 )
-from cylc.flow.id import Tokens, quick_relative_id
-from cylc.flow.log_level import verbosity_to_env, verbosity_to_opts
+from cylc.flow.id import (
+    Tokens,
+)
+from cylc.flow.log_level import (
+    verbosity_to_env,
+    verbosity_to_opts,
+)
 from cylc.flow.loggingutil import (
     ReferenceLogFileHandler,
     RotatingLogFileHandler,
@@ -109,7 +132,8 @@ from cylc.flow.platforms import (
 )
 from cylc.flow.profiler import Profiler
 from cylc.flow.resources import get_resources
-from cylc.flow.simulation import sim_time_check
+from cylc.flow.run_modes import RunMode
+from cylc.flow.run_modes.simulation import sim_time_check
 from cylc.flow.subprocpool import SubProcPool
 from cylc.flow.task_events_mgr import TaskEventsManager
 from cylc.flow.task_job_mgr import TaskJobManager
@@ -131,9 +155,14 @@ from cylc.flow.task_state import (
     TASK_STATUSES_ACTIVE,
     TASK_STATUSES_NEVER_ACTIVE,
 )
-from cylc.flow.taskdef import TaskDef, generate_graph_children
-from cylc.flow.templatevars import eval_var
-from cylc.flow.templatevars import get_template_vars
+from cylc.flow.taskdef import (
+    TaskDef,
+    generate_graph_children,
+)
+from cylc.flow.templatevars import (
+    eval_var,
+    get_template_vars,
+)
 from cylc.flow.timer import Timer
 from cylc.flow.util import cli_format
 from cylc.flow.wallclock import (
@@ -143,8 +172,12 @@ from cylc.flow.wallclock import (
 )
 from cylc.flow.workflow_db_mgr import WorkflowDatabaseManager
 from cylc.flow.workflow_events import WorkflowEventHandler
-from cylc.flow.workflow_status import AutoRestartMode, RunMode, StopMode
+from cylc.flow.workflow_status import (
+    AutoRestartMode,
+    StopMode,
+)
 from cylc.flow.xtrigger_mgr import XtriggerManager
+
 
 if TYPE_CHECKING:
     from optparse import Values
@@ -439,8 +472,10 @@ class Scheduler:
             og_run_mode = self.get_run_mode()
             if run_mode != og_run_mode:
                 raise InputError(
-                    f'This workflow was originally run in {og_run_mode} mode:'
-                    f' Will not restart in {run_mode} mode.')
+                    "This workflow was originally run in "
+                    f"{og_run_mode.value} mode:"
+                    f" You can't restart it in {run_mode.value} mode."
+                )
 
         self.profiler.log_memory("scheduler.py: before load_flow_file")
         try:
@@ -608,7 +643,7 @@ class Scheduler:
             # Note that the following lines must be present at the top of
             # the workflow log file for use in reference test runs.
             LOG.info(
-                f'Run mode: {self.get_run_mode()}',
+                f'Run mode: {self.get_run_mode().value}',
                 extra=RotatingLogFileHandler.header_extra
             )
             LOG.info(
@@ -1067,17 +1102,17 @@ class Scheduler:
 
         if flow_nums is None:
             flow_nums = set()
-        # Mapping of task IDs to removed flow numbers:
-        removed: Dict[str, FlowNums] = {}
-        not_removed: Set[str] = set()
+        # Mapping of *relative* task IDs to removed flow numbers:
+        removed: Dict[Tokens, FlowNums] = {}
+        not_removed: Set[Tokens] = set()
         to_kill: List[TaskProxy] = []
 
         for itask in active:
             fnums_to_remove = itask.match_flows(flow_nums)
             if not fnums_to_remove:
-                not_removed.add(itask.identity)
+                not_removed.add(itask.tokens.task)
                 continue
-            removed[itask.identity] = fnums_to_remove
+            removed[itask.tokens.task] = fnums_to_remove
             if fnums_to_remove == itask.flow_nums:
                 # Need to remove the task from the pool.
                 # Spawn next occurrence of xtrigger sequential task (otherwise
@@ -1089,19 +1124,20 @@ class Scheduler:
             itask.flow_nums.difference_update(fnums_to_remove)
 
         # All the matched tasks (including inactive & applicable active tasks):
-        matched_task_ids = {
+        matched_tasks = {
             *removed.keys(),
-            *(quick_relative_id(cycle, task) for task, cycle in inactive),
+            *(Tokens(cycle=str(cycle), task=task) for task, cycle in inactive),
         }
 
-        for id_ in matched_task_ids:
-            point_str, name = id_.split('/', 1)
-            tdef = self.config.taskdefs[name]
+        for tokens in matched_tasks:
+            tdef = self.config.taskdefs[tokens['task']]
 
             # Go through any tasks downstream of this matched task to see if
             # any need to stand down as a result of this task being removed:
             for child in set(itertools.chain.from_iterable(
-                generate_graph_children(tdef, get_point(point_str)).values()
+                generate_graph_children(
+                    tdef, get_point(tokens['cycle'])
+                ).values()
             )):
                 child_itask = self.pool.get_task(child.point, child.name)
                 if not child_itask:
@@ -1116,9 +1152,11 @@ class Scheduler:
                 ):
                     # Unset any prereqs naturally satisfied by these tasks
                     # (do not unset those satisfied by `cylc set --pre`):
-                    if prereq.unset_naturally_satisfied(id_):
+                    if prereq.unset_naturally_satisfied(tokens.relative_id):
                         prereqs_changed = True
-                        removed.setdefault(id_, set()).update(fnums_to_remove)
+                        removed.setdefault(tokens, set()).update(
+                            fnums_to_remove
+                        )
                 if not prereqs_changed:
                     continue
                 self.data_store_mgr.delta_task_prerequisite(child_itask)
@@ -1135,7 +1173,7 @@ class Scheduler:
                 # Check if downstream task should remain spawned:
                 if (
                     # Ignoring tasks we are already dealing with:
-                    child_itask.identity in matched_task_ids
+                    child_itask.tokens.task in matched_tasks
                     or child_itask.state.any_satisfied_prerequisite_outputs()
                 ):
                     continue
@@ -1149,10 +1187,10 @@ class Scheduler:
 
             # Remove the matched tasks from the flows in the DB tables:
             db_removed_fnums = self.workflow_db_mgr.remove_task_from_flows(
-                point_str, name, flow_nums
+                tokens['cycle'], tokens['task'], flow_nums,
             )
             if db_removed_fnums:
-                removed.setdefault(id_, set()).update(db_removed_fnums)
+                removed.setdefault(tokens, set()).update(db_removed_fnums)
 
         if to_kill:
             self.kill_tasks(to_kill, warn=False)
@@ -1160,21 +1198,23 @@ class Scheduler:
         if removed:
             tasks_str_list = []
             for task, fnums in removed.items():
-                self.data_store_mgr.delta_remove_task_flow_nums(task, fnums)
+                self.data_store_mgr.delta_remove_task_flow_nums(
+                    task.relative_id, fnums
+                )
                 tasks_str_list.append(
-                    f"{task} {repr_flow_nums(fnums, full=True)}"
+                    f"{task.relative_id} {repr_flow_nums(fnums, full=True)}"
                 )
             LOG.info(f"Removed task(s): {', '.join(sorted(tasks_str_list))}")
 
-        not_removed.update(matched_task_ids.difference(removed))
+        not_removed.update(matched_tasks.difference(removed))
         if not_removed:
             fnums_str = (
                 repr_flow_nums(flow_nums, full=True) if flow_nums else ''
             )
-            LOG.warning(
-                "Task(s) not removable: "
-                f"{', '.join(sorted(not_removed))} {fnums_str}"
+            tasks_str = ', '.join(
+                sorted(tokens.relative_id for tokens in not_removed)
             )
+            LOG.warning(f"Task(s) not removable: {tasks_str} {fnums_str}")
 
         if removed and self.pool.compute_runahead():
             self.pool.release_runahead_tasks()
@@ -1323,7 +1363,7 @@ class Scheduler:
         LOG.info('LOADING workflow parameters')
         for key, value in params:
             if key == self.workflow_db_mgr.KEY_RUN_MODE:
-                self.options.run_mode = value or RunMode.LIVE
+                self.options.run_mode = value or RunMode.LIVE.value
                 LOG.info(f"+ run mode = {value}")
             if value is None:
                 continue
@@ -1388,7 +1428,7 @@ class Scheduler:
     def run_event_handlers(self, event, reason=""):
         """Run a workflow event handler.
 
-        Run workflow events in simulation and dummy mode ONLY if enabled.
+        Run workflow events only in live mode or skip mode.
         """
         if self.get_run_mode() in {RunMode.SIMULATION, RunMode.DUMMY}:
             return
@@ -1464,7 +1504,7 @@ class Scheduler:
             pre_prep_tasks,
             self.server.curve_auth,
             self.server.client_pub_key_dir,
-            is_simulation=(self.get_run_mode() == RunMode.SIMULATION)
+            run_mode=self.get_run_mode()
         ):
             if itask.flow_nums:
                 flow = ','.join(str(i) for i in itask.flow_nums)
@@ -1711,7 +1751,6 @@ class Scheduler:
 
         if self.xtrigger_mgr.do_housekeeping:
             self.xtrigger_mgr.housekeep(self.pool.get_tasks())
-
         self.pool.clock_expire_tasks()
         self.release_queued_tasks()
 
@@ -2187,7 +2226,7 @@ class Scheduler:
                         f"option --{opt}=reload is only valid for restart"
                     )
 
-    def get_run_mode(self) -> str:
+    def get_run_mode(self) -> RunMode:
         return RunMode.get(self.options)
 
     async def handle_exception(self, exc: BaseException) -> NoReturn:
