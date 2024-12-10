@@ -30,12 +30,15 @@ run_ok "setup (vip)" \
     cylc vip --debug \
     --workflow-name "${WORKFLOW_NAME}" \
     --no-run-name
+
 export WORKFLOW_RUN_DIR="${RUN_DIR}/${WORKFLOW_NAME}"
+
 poll_workflow_running
 
+# Change something so that reinstall does something material:
+echo "# Hello World" >> "flow.cylc"
 
 # It validates and reloads:
-
 run_ok "${TEST_NAME_BASE}-runs" cylc vr "${WORKFLOW_NAME}"
 
 # Grep for VR reporting revalidation, reinstallation and reloading

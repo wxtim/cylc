@@ -30,9 +30,7 @@ run_ok "setup (vip)" \
     --workflow-name "${WORKFLOW_NAME}" \
     --no-run-name
 
-
 # Change source workflow and run vr:
-
 # Cut the runtime section out of the source flow.
 head -n 5 > tmp < flow.cylc
 cat tmp > flow.cylc

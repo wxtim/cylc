@@ -19,7 +19,6 @@
 # Test `cylc vr` (Validate Reinstall restart)
 # In this case the target workflow is stopped so cylc play is run.
 
-
 . "$(dirname "$0")/test_header"
 set_test_number 6
 
@@ -32,8 +31,10 @@ run_ok "setup (install)" \
 
 export WORKFLOW_RUN_DIR="${RUN_DIR}/${WORKFLOW_NAME}"
 
-# It validates and restarts:
+# Change something so that reinstall does something material:
+echo "# Hello World" >> "flow.cylc"
 
+# It validates and restarts:
 # Run VR
 run_ok "${TEST_NAME_BASE}-runs" cylc vr "${WORKFLOW_NAME}"
 
