@@ -64,7 +64,8 @@ class BroadcastMgr:
 
     REC_SECTION = re.compile(r"\[([^\]]+)\]")
 
-    def __init__(self, workflow_db_mgr, data_store_mgr, run_mode):
+    def __init__(self, workflow_db_mgr, data_store_mgr, run_mode, schd):
+        self.schd = schd
         self.workflow_run_mode = run_mode
         self.workflow_db_mgr = workflow_db_mgr
         self.data_store_mgr = data_store_mgr
@@ -328,6 +329,8 @@ class BroadcastMgr:
                         if namespace not in self.linearized_ancestors:
                             bad_namespaces.add(namespace)
                         elif not bad_point:
+                            taskdef = self.schd.config.get_taskdef(namespace)
+
                             if namespace not in self.broadcasts[point_string]:
                                 self.broadcasts[point_string][namespace] = {}
 
