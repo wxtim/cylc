@@ -2017,6 +2017,16 @@ class DataStoreMgr:
         if self.updated_state_families:
             self.state_update_follow_on = True
 
+    @staticmethod
+    def _helper(tp_delta, tp_node, label):
+        this = tp_delta
+        if this is None or not this.HasField(label):
+            this = tp_node
+        value = getattr(this, label)
+        if value:
+            return value
+        return None
+
     def _family_ascent_point_update(self, fp_id):
         """Updates the given family and children recursively.
 
@@ -2078,62 +2088,28 @@ class DataStoreMgr:
                 tp_delta = tp_updated.get(tp_id)
                 tp_node = tp_added.get(tp_id, tp_data.get(tp_id))
 
-                tp_state = tp_delta
-                if tp_state is None or not tp_state.HasField('state'):
-                    tp_state = tp_node
-                if tp_state.state:
-                    task_states.append(tp_state.state)
+                # lovely future case for walrus operator:
+                tp_state = self._helper(tp_delta, tp_node, 'state')
+                if tp_state:
+                    task_states.append(tp_state)
 
-                tp_held = tp_delta
-                if tp_held is None or not tp_held.HasField('is_held'):
-                    tp_held = tp_node
-                if tp_held.is_held:
+                if self._helper(tp_delta, tp_node, 'is_held'):
                     is_held_total += 1
-
-                tp_queued = tp_delta
-                if tp_queued is None or not tp_queued.HasField('is_queued'):
-                    tp_queued = tp_node
-                if tp_queued.is_queued:
+                if self._helper(tp_delta, tp_node, 'is_queued'):
                     is_queued_total += 1
-
-                tp_runahead = tp_delta
-                if (
-                    tp_runahead is None
-                    or not tp_runahead.HasField('is_runahead')
-                ):
-                    tp_runahead = tp_node
-                if tp_runahead.is_runahead:
+                if self._helper(tp_delta, tp_node, 'is_runahead'):
                     is_runahead_total += 1
 
-                tp_retry = tp_delta
-                if tp_retry is None or not tp_retry.HasField('is_retry'):
-                    tp_retry = tp_node
-                if tp_retry.is_retry:
+                if self._helper(tp_delta, tp_node, 'is_retry'):
                     is_retry = True
-
-                tp_wallclock = tp_delta
-                if (
-                    tp_wallclock is None
-                    or not tp_wallclock.HasField('is_wallclock')
-                ):
-                    tp_wallclock = tp_node
-                if tp_wallclock.is_wallclock:
+                if self._helper(tp_delta, tp_node, 'is_wallclock'):
                     is_wallclock = True
-
-                tp_xtriggered = tp_delta
-                if (
-                    tp_xtriggered is None
-                    or not tp_xtriggered.HasField('is_xtriggered')
-                ):
-                    tp_xtriggered = tp_node
-                if tp_xtriggered.is_xtriggered:
+                if self._helper(tp_delta, tp_node, 'is_xtriggered'):
                     is_xtriggered = True
 
-                tp_depth = tp_delta
-                if tp_depth is None or not tp_depth.HasField('graph_depth'):
-                    tp_depth = tp_node
-                if tp_depth.graph_depth < graph_depth:
-                    graph_depth = tp_depth.graph_depth
+                tp_depth = self._helper(tp_delta, tp_node, 'graph_depth')
+                if tp_depth and tp_depth < graph_depth:
+                    graph_depth = tp_depth
 
             state_counter += Counter(task_states)
             # created delta data element
