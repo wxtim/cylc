@@ -2018,7 +2018,9 @@ class DataStoreMgr:
             self.state_update_follow_on = True
 
     @staticmethod
-    def _helper(tp_delta, tp_node, label):
+    def from_delta_or_node(tp_delta, tp_node, label):
+        """Get an item from task proxy delta if available, falling back to
+        node otherwise."""
         this = tp_delta
         if this is None or not this.HasField(label):
             this = tp_node
@@ -2086,25 +2088,27 @@ class DataStoreMgr:
                 tp_node = tp_added.get(tp_id, tp_data.get(tp_id))
 
                 # lovely future case for walrus operator:
-                tp_state = self._helper(tp_delta, tp_node, 'state')
+                tp_state = self.from_delta_or_node(tp_delta, tp_node, 'state')
                 if tp_state:
                     task_states.append(tp_state)
 
-                if self._helper(tp_delta, tp_node, 'is_held'):
+                if self.from_delta_or_node(tp_delta, tp_node, 'is_held'):
                     is_held_total += 1
-                if self._helper(tp_delta, tp_node, 'is_queued'):
+                if self.from_delta_or_node(tp_delta, tp_node, 'is_queued'):
                     is_queued_total += 1
-                if self._helper(tp_delta, tp_node, 'is_runahead'):
+                if self.from_delta_or_node(tp_delta, tp_node, 'is_runahead'):
                     is_runahead_total += 1
 
-                if self._helper(tp_delta, tp_node, 'is_retry'):
+                if self.from_delta_or_node(tp_delta, tp_node, 'is_retry'):
                     is_retry = True
-                if self._helper(tp_delta, tp_node, 'is_wallclock'):
+                if self.from_delta_or_node(tp_delta, tp_node, 'is_wallclock'):
                     is_wallclock = True
-                if self._helper(tp_delta, tp_node, 'is_xtriggered'):
+                if self.from_delta_or_node(tp_delta, tp_node, 'is_xtriggered'):
                     is_xtriggered = True
 
-                tp_depth = self._helper(tp_delta, tp_node, 'graph_depth')
+                tp_depth = self.from_delta_or_node(
+                    tp_delta, tp_node, 'graph_depth'
+                )
                 if tp_depth and tp_depth < graph_depth:
                     graph_depth = tp_depth
 
