@@ -2022,10 +2022,7 @@ class DataStoreMgr:
         this = tp_delta
         if this is None or not this.HasField(label):
             this = tp_node
-        value = getattr(this, label)
-        if value:
-            return value
-        return None
+        return getattr(this, label) or None
 
     def _family_ascent_point_update(self, fp_id):
         """Updates the given family and children recursively.
