@@ -2015,6 +2015,42 @@ async def test_fast_respawn(
     assert "Not respawning 1/foo - task was removed" in caplog.text
 
 
+async def test_check_prereqs_on_task_spawn(
+    flow: Callable,
+    scheduler: Callable,
+    run: Callable,
+    caplog: pytest.LogCaptureFixture,
+    complete: Callable,
+) -> None:
+    flow = flow({'scheduling': {'graph': {'R1': 'one => two => three'}}})
+    schd = scheduler(flow, paused_start=False)
+    async with run(schd):
+        pool = schd.pool
+        await complete(schd, '1/one')
+
+        # Grab a reference to the old task-proxy:
+        oldtwo = pool._get_task_by_id('1/two')
+        await complete(schd, '1/two')
+
+        # Sanity check the progress of the workflow:
+        assert pool.get_task_ids() == {'1/three'}
+
+        # Force trigger task tow:
+        pool.force_trigger_tasks(['1/two'], flow=['1'])
+
+        newtwo = pool._get_task_by_id('1/two')
+
+        assert oldtwo.prereqs_are_satisfied() is True
+        msg = "Prereqs have not been reloaded from DB"
+        # assert newtwo.prereqs_are_satisfied() is True, msg
+
+        # Check that the prerequisites are the same:
+        id, result = list(newtwo.state.prerequisites[0].items())[0]
+        oldid, oldresult = list(oldtwo.state.prerequisites[0].items())[0]
+        assert oldid == id
+        assert oldresult == result
+
+
 async def test_remove_active_task(
     example_flow: 'Scheduler',
     log_filter: Callable,
