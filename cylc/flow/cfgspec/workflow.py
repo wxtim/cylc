@@ -112,9 +112,6 @@ Examples:
 
 
 
-
-
-
 .. seealso::
 
    :ref:`Recurrence tutorial <tutorial-inferred-recurrence>`.
