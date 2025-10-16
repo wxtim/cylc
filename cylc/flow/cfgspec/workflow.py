@@ -110,6 +110,11 @@ Examples:
 - ``T-30`` - only at half-past an hour.
 - ``01T00`` - only at midnight on the first day of a month.
 
+
+
+
+
+
 .. seealso::
 
    :ref:`Recurrence tutorial <tutorial-inferred-recurrence>`.
