@@ -11,6 +11,8 @@ jobs:
     trigger:
         runs-on: 'ubuntu-latest'
         timeout-minutes: 10
+        permissions:
+          actions: write
         steps:
             - run: |
                   curl -L \
