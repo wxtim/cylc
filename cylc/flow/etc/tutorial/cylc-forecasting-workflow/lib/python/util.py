@@ -28,7 +28,6 @@ import time
 import jinja2
 
 R_0 = 6371.  # Radius of the Earth (km).
-INFO = '[INFO] '
 
 
 def frange(start, stop, step):

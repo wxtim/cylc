@@ -132,12 +132,9 @@ def synop_grab(site_id, time):
         raise NoDataException(
             f'Request for data failed, raw request was {req.text}')
 
-    # Convert direction from (meteorlogical convention) to
-    # direction to:
-    data['direction'] = (int(data['direction']) + 18) % 36
-
-    # Parse the direction from 10's of degrees to degrees:
-    data['direction'] = str(data['direction'] * 10)
+    # * Parse the direction from 10's of degrees to degrees
+    # * Convert direction from to direction it's blowing to
+    data['direction'] = str(((int(data['direction']) + 18) % 36) * 10)
 
     # Convert data in KT to MPH:
     data['speed'] = str(int(data['speed']) * 1.15078)

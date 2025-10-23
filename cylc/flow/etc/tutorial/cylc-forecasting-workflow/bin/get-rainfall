@@ -156,7 +156,7 @@ def process_rainfall_data(filename, resolution, domain):
         list - A 2D matrix of rainfall data.
 
     """
-    print(f'{util.INFO}Analysing data from {filename}')
+    print(f'[INFO] Analysing data from {filename}')
     data = h5py.File(filename)['dataset1']['data1']['data']
     rainfall = Rainfall(domain, resolution)
 
@@ -207,12 +207,12 @@ def main():
     canned_data = os.environ.get('CANNED_DATA', 'fetch')
 
     if canned_data == 'fetch':
-        print(f'{util.INFO}Attempting to get rainfall data from S3 bucket')
+        print(f'[INFO] Attempting to get rainfall data from S3 bucket')
         get_amazon_radar_data('radardata.h5', time)
         canned_data = 'radardata.h5'
     else:
         print(
-            f'{util.INFO}Canned data provided: {canned_data}')
+            f'[INFO] Canned data provided: {canned_data}')
         # get_archived_radar_data(canned_data, time)
 
     data = process_rainfall_data(canned_data, resolution, domain)
