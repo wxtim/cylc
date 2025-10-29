@@ -24,3 +24,4 @@ dependencies:
   #- matplotlib-base
   #- sqlparse
   #- h5py
+  #- requests
