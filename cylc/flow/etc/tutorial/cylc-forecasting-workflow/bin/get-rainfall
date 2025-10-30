@@ -160,8 +160,7 @@ def process_rainfall_data(filename, resolution, domain):
     data = h5py.File(filename)['dataset1']['data1']['data']
     rainfall = Rainfall(domain, resolution)
 
-    # image = Image.open(filename)
-    height, width = data.shape
+    _height, width = data.shape
 
     scale = get_scale(domain, width)
     # TODO Fix Mercator - the new data is in a totally 
@@ -177,15 +176,15 @@ def process_rainfall_data(filename, resolution, domain):
         plt.imshow(data)
         plt.savefig(f'{CYLC_TASK_LOG_DIR}/raw.data.png')
 
-    for itt_x in range(width):
-        for itt_y in range(height):
+    for itt_y, row in enumerate(data):
+        for itt_x, col in enumerate(row):
             lng, lat = pos_to_coord(
                 itt_x,
                 itt_y * (2. / 3.),  # Counter aspect ratio.
                 offset,
                 scale
             )
-            val = float(data[itt_y][itt_x])
+            val = float(col)
             # Original data uses -1 to indicate radar mask
             val = 0 if val == -1 else val
             rainfall.add(lng, lat, val)
