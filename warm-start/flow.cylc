@@ -1,0 +1,35 @@
+[meta]
+    description = """
+        manual test to be worked up into functional or integration
+        test.
+
+        to run:
+
+        cylc vip -N --host localhost ./warm-start/ --startcp 10
+    """
+
+[scheduler]
+    allow implicit tasks = True
+[scheduling]
+    initial cycle point = 1
+    final cycle point = 16
+    cycling mode = integer
+    [[graph]]
+        R1 = cold1 => cold2
+        P1 = """
+            cold2[^] => start
+            start => run => end
+            run[-P1] => run
+        """
+        R1/10 = control => start
+
+[runtime]
+    [[control]]
+        script = """
+            set +x
+            cylc trigger ${CYLC_WORKFLOW_ID} //^/cold1 //^/cold2
+            sleep 30
+            # At this point the test has either succeeded or
+            # failed:
+            cylc stop ${CYLC_WORKFLOW_ID}
+        """

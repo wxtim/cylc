@@ -1824,15 +1824,32 @@ class TaskPool:
             self._get_task_history(name, point, flow_nums)
         )
 
-        # Create the task proxy with any completed outputs loaded.
-        itask = self._get_task_proxy_db_outputs(
-            point,
-            self.config.get_taskdef(name),
-            flow_nums,
-            status=prev_status or TASK_STATUS_WAITING,
-            submit_num=submit_num,
-            flow_wait=flow_wait,
-        )
+        if (
+            point < self.config.start_point
+            # Task not in this flow
+            and not prev_status
+            # Task not in flow=none
+            and not self._get_task_history(name, point, {})[1]
+        ):
+            # Create a dummy task proxy, status succeeded:
+            itask = TaskProxy(
+                self.tokens,
+                self.config.get_taskdef(name),
+                point,
+                flow_nums=None,
+                status=TASK_STATUS_SUCCEEDED
+            )
+        else:
+            # Create the task proxy with any completed outputs loaded.
+            itask = self._get_task_proxy_db_outputs(
+                point,
+                self.config.get_taskdef(name),
+                flow_nums,
+                status=prev_status or TASK_STATUS_WAITING,
+                submit_num=submit_num,
+                flow_wait=flow_wait,
+            )
+
         if itask is None:
             return None
 
