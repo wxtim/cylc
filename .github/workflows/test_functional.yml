@@ -222,6 +222,9 @@ jobs:
         timeout-minutes: 35
         continue-on-error: true
         run: |
+          echo ˅˅˅˅˅˅˅˅˅˅˅ DEBUG ˅˅˅˅˅˅˅˅˅˅˅
+          cylc config --platforms
+          echo ^^^^^^^^^^ DEBUG ^^^^^^^^^^^
           echo "finished=false" >> $GITHUB_OUTPUT
           if [[ '${{ matrix.test-base }}' == 'tests/k' ]]; then
               NPROC=4
