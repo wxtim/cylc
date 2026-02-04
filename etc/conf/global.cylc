@@ -2,9 +2,9 @@
 # override configurations in your global.cylc/global-tests.cylc as required
 
 [platforms]
-    [[_local_background_indep_tcp]]
-        hosts = localhost
-        install target = localhost
+    # [[_local_background_indep_tcp]]
+    #     hosts = localhost
+    #     install target = localhost
     [[_remote_background_indep_tcp]]
         hosts = _remote_background_indep_tcp
     #[[_remote_background_indep_ssh]]
